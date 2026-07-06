@@ -1,0 +1,47 @@
+# Mise MCP server
+
+A small stdio [MCP](https://modelcontextprotocol.io) server that exposes the Mise
+cookbook REST API as first-class tools for Claude Code and Codex:
+
+- recipes — `get_cookbook`, `search_recipes`, `get_recipe`, `add_recipe`,
+  `update_recipe`, `add_recipe_image`
+- pantry — `get_pantry`, `add_to_pantry` (deltas, e.g. after a receipt),
+  `set_pantry_quantities` (absolute amounts), `create_pantry_item`,
+  `add_pantry_aliases`
+- shopping — `get_shopping_list`, `add_shopping_items`, `check_shopping_items`,
+  `remove_shopping_items`
+- plan & log — `get_plan`, `set_plan_entry`, `log_cook` (with optional pantry
+  deductions)
+
+The exported `./context` folder stays the primary **read** path (open it in your
+agent); MCP is the **write / quick-query** path that works from any directory.
+
+## Build
+
+```bash
+cd mcp
+npm install
+npm run build
+```
+
+Requires Node 18+. The Mise app must be running (`docker compose up`) — the server
+proxies `http://localhost:5080` (override with the `MISE_API_URL` env var).
+
+## Register
+
+**Claude Code:**
+
+```bash
+claude mcp add mise -- node <absolute-repo-path>/mcp/dist/index.js
+```
+
+**Codex** — add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.mise]
+command = "node"
+args = ["<absolute-repo-path>/mcp/dist/index.js"]
+```
+
+The Profile screen in the app (card "Połącz agenta") renders these snippets with
+your real paths filled in.

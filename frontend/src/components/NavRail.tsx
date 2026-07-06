@@ -1,0 +1,143 @@
+import type { CSSProperties } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useShopping } from '../api/hooks'
+import { RecipesIcon, DiceIcon, HistoryIcon, PlanIcon, PantryIcon, ShopIcon, ProfileIcon, ChatIcon } from './icons'
+
+function navStyle(active: boolean): CSSProperties {
+  return {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 5,
+    padding: '11px 6px',
+    borderRadius: 14,
+    cursor: 'pointer',
+    border: 'none',
+    background: active ? 'var(--accent-soft)' : 'transparent',
+    color: active ? 'var(--accent-deep)' : 'var(--text-2)',
+    width: 58,
+    transition: 'all .15s',
+    font: "500 10.5px 'Hanken Grotesk', sans-serif",
+    letterSpacing: '.02em',
+  }
+}
+
+export function NavRail({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggleChat: () => void }) {
+  const nav = useNavigate()
+  const { pathname } = useLocation()
+  const { data: shopping } = useShopping()
+
+  const isLibrary = pathname === '/' || pathname.startsWith('/recipe') || pathname.startsWith('/add')
+  const isRandom = pathname.startsWith('/random')
+  const isHistory = pathname.startsWith('/history')
+  const isPlan = pathname.startsWith('/plan')
+  const isPantry = pathname.startsWith('/pantry')
+  const isShopping = pathname.startsWith('/shopping')
+  const isProfile = pathname.startsWith('/profile')
+
+  const toBuy = shopping ? shopping.total - shopping.checkedCount : 0
+
+  return (
+    <nav
+      style={{
+        width: 78,
+        flex: '0 0 78px',
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '18px 0 16px',
+        gap: 4,
+      }}
+    >
+      <div
+        onClick={() => nav('/')}
+        style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 14 }}
+      >
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 11,
+            background: 'var(--accent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 6px rgba(160,66,32,.3)',
+          }}
+        >
+          <span style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 21, color: '#fff', lineHeight: 1, marginTop: -1 }}>
+            m
+          </span>
+        </div>
+      </div>
+
+      <button onClick={() => nav('/')} style={navStyle(isLibrary)}>
+        <RecipesIcon />
+        <span>Przepisy</span>
+      </button>
+      <button onClick={() => nav('/random')} style={navStyle(isRandom)}>
+        <DiceIcon />
+        <span>Losuj</span>
+      </button>
+      <button onClick={() => nav('/history')} style={navStyle(isHistory)}>
+        <HistoryIcon />
+        <span>Historia</span>
+      </button>
+      <button onClick={() => nav('/plan')} style={navStyle(isPlan)}>
+        <PlanIcon />
+        <span>Plan</span>
+      </button>
+      <button onClick={() => nav('/pantry')} style={navStyle(isPantry)}>
+        <PantryIcon />
+        <span>Spiżarnia</span>
+      </button>
+      <button onClick={() => nav('/shopping')} style={navStyle(isShopping)}>
+        <ShopIcon />
+        <span>Zakupy</span>
+        {toBuy > 0 && (
+          <span
+            style={{
+              position: 'absolute',
+              top: 7,
+              right: 11,
+              minWidth: 16,
+              height: 16,
+              padding: '0 4px',
+              borderRadius: 8,
+              background: 'var(--accent)',
+              color: '#fff',
+              fontSize: 9.5,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {toBuy}
+          </span>
+        )}
+      </button>
+      <button onClick={() => nav('/profile')} style={navStyle(isProfile)}>
+        <ProfileIcon />
+        <span>Profil</span>
+      </button>
+
+      <div style={{ flex: 1 }} />
+
+      <button
+        onClick={onToggleChat}
+        style={{
+          ...navStyle(false),
+          color: chatOpen ? 'var(--accent-deep)' : 'var(--text-2)',
+          background: chatOpen ? 'var(--accent-soft)' : 'transparent',
+        }}
+      >
+        <ChatIcon />
+        <span>Czat</span>
+      </button>
+    </nav>
+  )
+}

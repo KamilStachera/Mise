@@ -1,0 +1,35 @@
+# --- Secrets / env ---
+.env
+*.env.local
+
+# --- Exported AI context (generated at runtime) ---
+context/*
+!context/.gitkeep
+
+# --- .NET ---
+bin/
+obj/
+*.user
+*.suo
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+
+# --- Node / Vite ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# --- Editors / OS ---
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+npm-debug.log*

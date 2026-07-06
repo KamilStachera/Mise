@@ -1,0 +1,233 @@
+namespace Mise.Api.Domain;
+
+public enum RecipeSource { Ai, Web, Manual }
+
+/// <summary>What the dish is (a main, a soup…), not when it is eaten — that is <see cref="MealSlot"/>.</summary>
+public enum DishType { Breakfast, Main, Soup, Salad, Side, Dessert, Snack, Baking }
+
+public enum Cuisine
+{
+    Polish, Italian, French, Spanish, Greek, Mediterranean, MiddleEastern,
+    Indian, Thai, Vietnamese, Chinese, Japanese, Korean, Mexican, American, Other,
+}
+
+public enum PantryCategory { Produce, Fridge, Pantry, Spices }
+
+/// <summary>
+/// Derived, not stored: computed from <see cref="PantryItem.Quantity"/> and
+/// <see cref="PantryItem.LowThreshold"/> (0 → Out, below threshold → Low, else In).
+/// </summary>
+public enum PantryStatus { In, Low, Out }
+
+/// <summary>Canonical metric units — one per pantry item, all quantities use it.</summary>
+public enum PantryUnit { G, Ml, Szt }
+
+public enum ShoppingOrigin { Recipe, Manual }
+
+public enum MealSlot { Breakfast, Lunch, Dinner }
+
+public class Recipe
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Title { get; set; } = "";
+    public RecipeSource Source { get; set; } = RecipeSource.Manual;
+    public int TimeMinutes { get; set; }
+    public int Servings { get; set; } = 2;
+    public string Difficulty { get; set; } = "Łatwe";
+    /// <summary>Hex colour used for the card/hero gradient (from the design).</summary>
+    public string Tint { get; set; } = "#c0552d";
+    /// <summary>
+    /// Filename of the default photo (one of <see cref="Images"/>); null = gradient
+    /// fallback. Every upload becomes the new default; older photos stay in the gallery.
+    /// </summary>
+    public string? ImagePath { get; set; }
+    /// <summary>
+    /// True/false = explicit (set on insert/update; wins always). Null = not yet
+    /// classified (older recipes) — resolved by text heuristic, see <c>AirFryer.Uses</c>.
+    /// </summary>
+    public bool? UsesAirFryer { get; set; }
+    public string Blurb { get; set; } = "";
+    public string? Tip { get; set; }
+    /// <summary>Null = not yet categorised (older recipes; agents backfill via PUT).</summary>
+    public DishType? DishType { get; set; }
+    public Cuisine? Cuisine { get; set; }
+
+    public List<RecipeIngredient> Ingredients { get; set; } = new();
+    public List<RecipeStep> Steps { get; set; } = new();
+    public List<RecipeImage> Images { get; set; } = new();
+
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class RecipeIngredient
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid RecipeId { get; set; }
+    public Recipe? Recipe { get; set; }
+
+    public string Name { get; set; } = "";
+    public string Quantity { get; set; } = "";
+    public int Order { get; set; }
+
+    /// <summary>
+    /// Structured amount in the canonical unit, when the display <see cref="Quantity"/>
+    /// is measurable ("100 g" → 100/G). Null = unparseable ("garść", "2 łyżki") —
+    /// such ingredients fall back to presence-based availability and are skipped
+    /// when deducting after cooking.
+    /// </summary>
+    public decimal? AmountValue { get; set; }
+    public PantryUnit? AmountUnit { get; set; }
+
+    /// <summary>Explicit link to a pantry item; drives the have/missing computation.</summary>
+    public Guid? PantryItemId { get; set; }
+    public PantryItem? PantryItem { get; set; }
+}
+
+/// <summary>One photo in a recipe's gallery; <see cref="Recipe.ImagePath"/> marks the default.</summary>
+public class RecipeImage
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid RecipeId { get; set; }
+    public Recipe? Recipe { get; set; }
+
+    /// <summary>Stored filename inside the images dir.</summary>
+    public string Path { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class RecipeStep
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid RecipeId { get; set; }
+    public Recipe? Recipe { get; set; }
+
+    public int Order { get; set; }
+    public string Text { get; set; } = "";
+}
+
+/// <summary>
+/// One ingredient we track. The pantry doubles as the ingredient catalog: an item
+/// with <see cref="Quantity"/> 0 is "known, not at home" and stays listed, so agents
+/// match against it instead of inventing near-duplicates.
+/// </summary>
+public class PantryItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public PantryCategory Category { get; set; } = PantryCategory.Pantry;
+    public PantryUnit Unit { get; set; } = PantryUnit.Szt;
+    /// <summary>How much is at home, in <see cref="Unit"/>. Never negative.</summary>
+    public decimal Quantity { get; set; }
+    /// <summary>Below this the item shows as "Mało"; null = no low state.</summary>
+    public decimal? LowThreshold { get; set; }
+    /// <summary>Semicolon-separated alternate names fed to IngredientMatcher.</summary>
+    public string Aliases { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>Singleton row (Id = 1): the "Cooking Profile" fed to the AI.</summary>
+public class Preferences
+{
+    public int Id { get; set; } = 1;
+
+    public string HouseholdSummary { get; set; } = "";
+    public string HouseholdDetail { get; set; } = "";
+    public string SkillSummary { get; set; } = "";
+    public string SkillDetail { get; set; } = "";
+    public string TasteCuisines { get; set; } = "";
+    public string AvoidDietary { get; set; } = "";
+    public string EquipmentNote { get; set; } = "";
+
+    public List<EquipmentItem> Equipment { get; set; } = new();
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class EquipmentItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int PreferencesId { get; set; } = 1;
+    public Preferences? Preferences { get; set; }
+
+    public string Name { get; set; } = "";
+    public bool Favorite { get; set; }
+    public int Order { get; set; }
+}
+
+public class ShoppingItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    /// <summary>Display label, e.g. Produce / Fridge / Pantry / Spices / Recipe.</summary>
+    public string Category { get; set; } = "";
+    public string Reason { get; set; } = "";
+    public bool Checked { get; set; }
+    public ShoppingOrigin Origin { get; set; } = ShoppingOrigin.Manual;
+
+    /// <summary>How much to buy, in <see cref="Unit"/>; null = unspecified amount.</summary>
+    public decimal? Quantity { get; set; }
+    public PantryUnit? Unit { get; set; }
+
+    /// <summary>Provenance link to the pantry item this row restocks (helps receipt check-off).</summary>
+    public Guid? PantryItemId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>A "we cooked this" journal entry — the feedback loop the AI learns from.</summary>
+public class CookLogEntry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>Optional link to a saved recipe; entries survive recipe deletion.</summary>
+    public Guid? RecipeId { get; set; }
+    public Recipe? Recipe { get; set; }
+
+    /// <summary>Snapshot of the recipe title, or a freeform dish name.</summary>
+    public string DishName { get; set; } = "";
+    /// <summary>1–5, optional.</summary>
+    public int? Rating { get; set; }
+    public string Note { get; set; } = "";
+    public DateOnly CookedAt { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>One meal on the weekly plan; unique per (Date, Slot) so writes are upserts.</summary>
+public class PlanEntry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public DateOnly Date { get; set; }
+    public MealSlot Slot { get; set; } = MealSlot.Lunch;
+
+    /// <summary>Optional link to a saved recipe; Title is the freeform fallback.</summary>
+    public Guid? RecipeId { get; set; }
+    public Recipe? Recipe { get; set; }
+
+    public string Title { get; set; } = "";
+    public string Note { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// One questionnaire answer, keyed by a question from
+/// <see cref="ProfileQuestionnaire"/> (e.g. "taste.heat"). Only answered
+/// questions have rows; the catalog itself lives in code.
+/// </summary>
+public class ProfileAnswer
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Key { get; set; } = "";
+    public string Value { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public class ChatMessage
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string SessionId { get; set; } = "default";
+    /// <summary>"ai" or "user".</summary>
+    public string Role { get; set; } = "ai";
+    public string Content { get; set; } = "";
+    /// <summary>Optional JSON for suggestion / meal-plan cards.</summary>
+    public string? MetadataJson { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
