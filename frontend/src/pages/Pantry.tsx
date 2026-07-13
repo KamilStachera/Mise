@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { useAuth, usePantry, useAddPantry, useUpdatePantry, useDeletePantry } from '../api/hooks'
+import { useIsMobile } from '../lib/useIsMobile'
 import type { PantryItem, Status, Unit } from '../api/client'
 import { statusColor, statusLabel, categoryLabel, formatQty, unitLabel, UNITS } from '../lib/labels'
 import { PlusIcon } from '../components/icons'
@@ -13,6 +14,7 @@ function pill(s: Status): CSSProperties {
     borderRadius: 7,
     background: s === 'in' ? 'rgba(110,122,82,.14)' : s === 'low' ? 'rgba(189,139,44,.16)' : 'var(--accent-soft)',
     color: statusColor(s),
+    whiteSpace: 'nowrap',
   }
 }
 
@@ -36,6 +38,7 @@ function parseAmount(s: string): number | null {
 
 export function Pantry() {
   const { canEdit } = useAuth()
+  const isMobile = useIsMobile()
   const { data: groups = [], isLoading } = usePantry()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -140,7 +143,7 @@ export function Pantry() {
               <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 17, margin: '0 0 11px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 9 }}>
                 {categoryLabel(g.category)} <span style={{ font: "500 11px 'Hanken Grotesk'", color: 'var(--text-3)' }}>{g.items.length} produktów</span>
               </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 9, alignItems: 'start' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 9, alignItems: 'start' }}>
                 {g.items.map((it) => (
                   <ItemCard
                     key={it.id}
@@ -175,7 +178,7 @@ function ItemCard({ item, editing, onToggle, onClose, canEdit }: {
       >
         <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(item.status) }} />
         <span style={{ flex: 1, font: "500 14px 'Hanken Grotesk'", color: 'var(--text)' }}>{item.name}</span>
-        <span style={{ font: "500 12.5px 'Spline Sans Mono'", color: item.quantity > 0 ? 'var(--text-2)' : 'var(--text-3)' }}>
+        <span style={{ font: "500 12.5px 'Spline Sans Mono'", color: item.quantity > 0 ? 'var(--text-2)' : 'var(--text-3)', whiteSpace: 'nowrap' }}>
           {formatQty(item.quantity, item.unit)}
         </span>
         <span style={pill(item.status)}>{statusLabel[item.status] ?? item.status}</span>

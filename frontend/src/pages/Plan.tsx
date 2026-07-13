@@ -106,7 +106,7 @@ export function Plan() {
 
   return (
     <div style={{ maxWidth: 1150, margin: '0 auto', padding: '38px 42px 60px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 14px', marginBottom: 6 }}>
         <div>
           <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
             Co jemy w tym tygodniu

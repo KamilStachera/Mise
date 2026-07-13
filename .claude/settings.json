@@ -39,7 +39,8 @@
       "Bash(node verify.mjs)",
       "PowerShell(dotnet build backend/Mise.Api.csproj -v q --nologo)",
       "PowerShell(docker info --format '{{.ServerVersion}}')",
-      "PowerShell(try { Invoke-WebRequest 'https://api.github.com/repos/KamilStachera/Mise' -UseBasicParsing | Select-Object -ExpandProperty StatusCode } catch { \"not public: $\\([int]$_.Exception.Response.StatusCode\\)\" })"
+      "PowerShell(try { Invoke-WebRequest 'https://api.github.com/repos/KamilStachera/Mise' -UseBasicParsing | Select-Object -ExpandProperty StatusCode } catch { \"not public: $\\([int]$_.Exception.Response.StatusCode\\)\" })",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\kamil\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Ntropy-Repos-CukBuk\\\\48729043-d5b1-4a2e-8bb1-7b4162f91caa\\\\scratchpad\"; if \\(-not \\(Test-Path node_modules\\\\playwright\\)\\) { npm init -y | Out-Null; npm install playwright --no-audit --no-fund | Out-Null }; node -e \"require\\('playwright'\\); console.log\\('playwright ok'\\)\")"
     ]
   }
 }

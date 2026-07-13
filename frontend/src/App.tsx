@@ -21,7 +21,7 @@ import { History } from './pages/History'
 export default function App() {
   const isMobile = useIsMobile()
   const { canEdit } = useAuth()
-  const [chatOpen, setChatOpen] = useState(() => !window.matchMedia('(max-width: 700px)').matches)
+  const [chatOpen, setChatOpen] = useState(false)
 
   useEffect(() => registerChatOpener(() => setChatOpen(true)), [])
 

@@ -27,6 +27,14 @@
   box-sizing: border-box;
 }
 
+/* Desktop renders slightly larger; viewport units and media queries are
+   unaffected by zoom, so the ≤700px mobile layout stays as designed. */
+@media (min-width: 701px) {
+  html {
+    zoom: 1.25;
+  }
+}
+
 html,
 body,
 #root {

@@ -212,7 +212,7 @@ export function Random() {
       <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <span style={ruleLabel}>Posiłek</span>
-          <div style={{ display: 'flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: 3 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '100%', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: 3 }}>
             {TYPE_OPTIONS.map((o) => (
               <button key={o.key} onClick={() => { setRndType(o.key); clearResult() }} style={segBtn(rndType === o.key)}>
                 {o.label}
@@ -222,7 +222,7 @@ export function Random() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <span style={ruleLabel}>Czas</span>
-          <div style={{ display: 'flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: 3 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '100%', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: 3 }}>
             {TIME_OPTIONS.map((o) => (
               <button key={o.key} onClick={() => { setRndTime(o.key); clearResult() }} style={segBtn(rndTime === o.key)}>
                 {o.label}
