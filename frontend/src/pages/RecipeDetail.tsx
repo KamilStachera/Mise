@@ -9,6 +9,7 @@ import { gradient } from '../lib/colors'
 import { cuisineLabel, dishTypeLabel, formatQty, macroSummary, sourceBadge, statusColor, unitLabel } from '../lib/labels'
 import { BackIcon, ClockIcon, ServingsIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
 import { IMAGE_ACCEPT } from '../lib/images'
+import { CookMode } from '../components/CookMode'
 
 export function RecipeDetail() {
   const { id } = useParams()
@@ -22,6 +23,7 @@ export function RecipeDetail() {
   // Capture it before clearing — CookLogSection mounts only after the recipe
   // loads, so reading location.state at that point would already see null.
   const [cookRequested] = useState(() => (location.state as { cook?: boolean } | null)?.cook === true)
+  const [cookMode, setCookMode] = useState(false)
   useEffect(() => {
     if (cookRequested) nav(location.pathname, { replace: true, state: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,7 +132,18 @@ export function RecipeDetail() {
         </div>
 
         <div>
-          <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: '0 0 15px' }}>Przygotowanie</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 15px' }}>
+            <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: 0 }}>Przygotowanie</h2>
+            <div style={{ flex: 1 }} />
+            {r.steps.length > 0 && (
+              <button
+                onClick={() => setCookMode(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--accent-deep)', borderRadius: 10, padding: '8px 14px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
+              >
+                <ClockIcon size={14} color="var(--accent)" /> Tryb gotowania
+              </button>
+            )}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {r.steps.map((step, i) => (
               <div key={i} style={{ display: 'flex', gap: 14 }}>
@@ -151,6 +164,10 @@ export function RecipeDetail() {
       </div>
 
       <CookLogSection recipeId={r.id} initialOpen={cookRequested} />
+
+      {cookMode && (
+        <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} onClose={() => setCookMode(false)} />
+      )}
     </div>
   )
 }
