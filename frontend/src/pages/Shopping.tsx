@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useShopping, useCheckShopping, useClearChecked, useAddShopping, useDeleteShopping } from '../api/hooks'
+import { useAuth, useShopping, useCheckShopping, useClearChecked, useAddShopping, useDeleteShopping } from '../api/hooks'
 import type { ShoppingItem } from '../api/client'
 import { categoryLabel, formatQty } from '../lib/labels'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -19,6 +19,7 @@ function listAsText(items: ShoppingItem[]): string {
 
 export function Shopping() {
   const isMobile = useIsMobile()
+  const { canEdit } = useAuth()
   const { data, isLoading } = useShopping()
   const check = useCheckShopping()
   const clear = useClearChecked()
@@ -49,29 +50,33 @@ export function Shopping() {
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && name.trim()) {
-              add.mutate({ name: name.trim() })
-              setName('')
-            }
-          }}
-          placeholder="Dodaj coś do kupienia…"
-          style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px 'Hanken Grotesk'", color: 'var(--text)' }}
-        />
-        <button
-          onClick={() => {
-            if (name.trim()) {
-              add.mutate({ name: name.trim() })
-              setName('')
-            }
-          }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px 'Hanken Grotesk'" }}
-        >
-          <PlusIcon />
-        </button>
+        {canEdit && (
+          <>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && name.trim()) {
+                  add.mutate({ name: name.trim() })
+                  setName('')
+                }
+              }}
+              placeholder="Dodaj coś do kupienia…"
+              style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px 'Hanken Grotesk'", color: 'var(--text)' }}
+            />
+            <button
+              onClick={() => {
+                if (name.trim()) {
+                  add.mutate({ name: name.trim() })
+                  setName('')
+                }
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px 'Hanken Grotesk'" }}
+            >
+              <PlusIcon />
+            </button>
+          </>
+        )}
         {items.some((s) => !s.checked) && (
           <button
             onClick={copyList}
@@ -80,7 +85,7 @@ export function Shopping() {
             {copied ? '✓ Skopiowano' : 'Kopiuj listę'}
           </button>
         )}
-        {done > 0 && (
+        {canEdit && done > 0 && (
           <button
             onClick={() => clear.mutate()}
             style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
@@ -101,8 +106,8 @@ export function Shopping() {
           {items.map((s) => (
             <div
               key={s.id}
-              onClick={() => check.mutate(s.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 13, padding: isMobile ? '15px 14px' : '14px 17px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+              onClick={() => canEdit && check.mutate(s.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 13, padding: isMobile ? '15px 14px' : '14px 17px', borderBottom: '1px solid var(--border)', cursor: canEdit ? 'pointer' : 'default' }}
             >
               <span
                 style={{
@@ -136,18 +141,20 @@ export function Shopping() {
                   {categoryLabel(s.category)}
                 </span>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  remove.mutate(s.id)
-                }}
-                title="Usuń z listy"
-                style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px 'Hanken Grotesk'", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
-              >
-                ✕
-              </button>
+              {canEdit && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    remove.mutate(s.id)
+                  }}
+                  title="Usuń z listy"
+                  style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px 'Hanken Grotesk'", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
         </div>

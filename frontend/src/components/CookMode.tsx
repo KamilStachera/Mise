@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Ingredient } from '../api/client'
 import { parseStepDurations, formatCountdown } from '../lib/durations'
-import { ClockIcon, CloseIcon } from './icons'
+import { statusColor } from '../lib/labels'
+import { BackIcon, ChevronRight, ClockIcon, CloseIcon } from './icons'
 
 /**
- * Full-screen "Tryb gotowania" overlay: one step at a time in large serif type,
- * prev/next (buttons + arrow keys), a collapsible ingredient list, tappable
- * countdown timers parsed from the step text, and a screen wake lock while open.
- * Espresso palette — the same family as the chat panel, easy on the eyes at the stove.
+ * Full-screen "Gotuj krok po kroku" overlay: one step at a time in large serif
+ * type, segment progress bar, prev/next (buttons + arrow keys), a collapsible
+ * ingredient list with pantry-status dots, tappable countdown timers parsed
+ * from the step text, and a screen wake lock while open.
  */
 export function CookMode({ title, steps, ingredients, onClose }: {
   title: string
@@ -17,8 +18,8 @@ export function CookMode({ title, steps, ingredients, onClose }: {
 }) {
   const [step, setStep] = useState(0)
   const [showIngredients, setShowIngredients] = useState(false)
-  const canPrev = step > 0
-  const canNext = step < steps.length - 1
+  const isFirst = step === 0
+  const isLast = step === steps.length - 1
 
   const prev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
   const next = useCallback(() => setStep((s) => Math.min(steps.length - 1, s + 1)), [steps.length])
@@ -47,59 +48,60 @@ export function CookMode({ title, steps, ingredients, onClose }: {
   const durations = parseStepDurations(steps[step] ?? '')
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        background: 'var(--panel-bg)',
-        color: 'var(--panel-text)',
-        display: 'flex',
-        flexDirection: 'column',
-        animation: 'fadeUp .22s ease-out',
-      }}
-    >
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'var(--bg)', display: 'flex', flexDirection: 'column', animation: 'fadeUp .22s ease-out' }}>
       {/* top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', borderBottom: '1px solid var(--panel-border)' }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ font: "700 10px 'Hanken Grotesk'", letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 3 }}>
-            Tryb gotowania
-          </div>
-          <div style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 17, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <button
+          onClick={onClose}
+          title="Zamknij (Esc)"
+          style={{ width: 44, height: 44, flex: '0 0 44px', border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }}
+        >
+          <CloseIcon size={21} />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 15.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {title}
+          </div>
+          <div style={{ font: "500 12px 'Hanken Grotesk'", color: 'var(--text-3)' }}>
+            Krok {step + 1} z {steps.length}
           </div>
         </div>
         <button
           onClick={() => setShowIngredients((v) => !v)}
           style={{
-            border: '1px solid ' + (showIngredients ? 'var(--accent)' : 'var(--panel-border)'),
-            background: showIngredients ? 'rgba(192,85,45,.18)' : 'var(--panel-card)',
-            color: showIngredients ? '#e8a583' : 'var(--panel-text-2)',
-            borderRadius: 10,
-            padding: '9px 14px',
-            font: "600 12.5px 'Hanken Grotesk'",
+            border: '1px solid ' + (showIngredients ? 'var(--accent)' : 'var(--border-2)'),
+            background: showIngredients ? 'var(--accent-soft)' : 'transparent',
+            color: showIngredients ? 'var(--accent-deep)' : 'var(--text-2)',
+            borderRadius: 11,
+            padding: '10px 14px',
+            font: "600 13px 'Hanken Grotesk'",
             cursor: 'pointer',
-            whiteSpace: 'nowrap',
+            minHeight: 44,
           }}
         >
-          Składniki {showIngredients ? '▴' : '▾'}
-        </button>
-        <button
-          onClick={onClose}
-          title="Zamknij (Esc)"
-          style={{ border: 'none', background: 'var(--panel-card)', color: 'var(--panel-text-2)', borderRadius: 10, width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-        >
-          <CloseIcon />
+          Składniki
         </button>
       </div>
 
+      {/* progress segments */}
+      <div style={{ display: 'flex', gap: 6, padding: '12px 18px 0' }}>
+        {steps.map((_, i) => (
+          <div
+            key={i}
+            onClick={() => setStep(i)}
+            style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? 'var(--accent)' : 'var(--border-2)', cursor: 'pointer', transition: 'background .2s' }}
+          />
+        ))}
+      </div>
+
       {showIngredients && (
-        <div style={{ borderBottom: '1px solid var(--panel-border)', background: 'var(--panel-card)', padding: '13px 20px', maxHeight: '38vh', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: 560, margin: '0 auto' }}>
+        <div style={{ padding: '16px 18px 0', maxWidth: 640, margin: '0 auto', width: '100%' }}>
+          <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '10px 14px', display: 'flex', flexDirection: 'column', maxHeight: '38vh', overflowY: 'auto' }}>
             {ingredients.map((ing, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 12, padding: '7px 2px', borderBottom: i < ingredients.length - 1 ? '1px solid var(--panel-border)' : 'none' }}>
-                <span style={{ flex: 1, fontSize: 15, color: 'var(--panel-text)' }}>{ing.name}</span>
-                <span style={{ font: "500 13px 'Spline Sans Mono'", color: 'var(--panel-text-2)' }}>{ing.quantity}</span>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px', borderBottom: i < ingredients.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
+                <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text)' }}>{ing.name}</span>
+                <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-2)' }}>{ing.quantity}</span>
               </div>
             ))}
           </div>
@@ -107,25 +109,16 @@ export function CookMode({ title, steps, ingredients, onClose }: {
       )}
 
       {/* the step */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 24px', textAlign: 'center' }}>
-        <div key={step} style={{ maxWidth: 760, animation: 'fadeUp .24s ease-out' }}>
-          <div style={{ font: "600 12px 'Spline Sans Mono'", letterSpacing: '.12em', color: 'var(--panel-text-2)', marginBottom: 22 }}>
-            KROK {step + 1} Z {steps.length}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, padding: '28px clamp(18px, 5vw, 48px)', textAlign: 'center' }}>
+        <div key={step} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, animation: 'fadeUp .24s ease-out' }}>
+          <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'var(--surface)', border: '2px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 22px 'Spectral', serif" }}>
+            {step + 1}
           </div>
-          <p
-            style={{
-              fontFamily: "'Spectral', serif",
-              fontWeight: 500,
-              fontSize: 'clamp(24px, 3.6vw, 40px)',
-              lineHeight: 1.42,
-              margin: 0,
-              color: 'var(--panel-text)',
-            }}
-          >
+          <p style={{ margin: 0, maxWidth: '26ch', fontFamily: "'Spectral', serif", fontWeight: 500, fontSize: 'clamp(22px, 4.5vw, 32px)', lineHeight: 1.45, color: 'var(--text)', textWrap: 'pretty' }}>
             {steps[step]}
           </p>
           {durations.length > 0 && (
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 30 }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
               {durations.map((d, i) => (
                 <TimerChip key={`${step}-${i}`} label={d.label} seconds={d.seconds} />
               ))}
@@ -135,52 +128,37 @@ export function CookMode({ title, steps, ingredients, onClose }: {
       </div>
 
       {/* bottom bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px 18px', borderTop: '1px solid var(--panel-border)' }}>
-        <button onClick={prev} disabled={!canPrev} style={navBtn(canPrev)}>
-          ‹ Poprzedni
+      <div style={{ display: 'flex', gap: 10, padding: '14px 16px calc(14px + env(safe-area-inset-bottom))', borderTop: '1px solid var(--border)', background: 'var(--surface)', maxWidth: 640, margin: '0 auto', width: '100%' }}>
+        <button
+          onClick={prev}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 7,
+            border: '1px solid var(--border-2)',
+            background: 'var(--card)',
+            color: isFirst ? 'var(--text-3)' : 'var(--text)',
+            borderRadius: 14,
+            padding: 16,
+            font: "600 15px 'Hanken Grotesk'",
+            cursor: isFirst ? 'default' : 'pointer',
+            opacity: isFirst ? 0.55 : 1,
+            minHeight: 54,
+          }}
+        >
+          <BackIcon /> Wstecz
         </button>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
-          {steps.map((_, i) => (
-            <span
-              key={i}
-              onClick={() => setStep(i)}
-              style={{
-                width: i === step ? 22 : 7,
-                height: 7,
-                borderRadius: 4,
-                background: i === step ? 'var(--accent)' : i < step ? 'rgba(192,85,45,.45)' : 'var(--panel-border)',
-                cursor: 'pointer',
-                transition: 'all .18s',
-              }}
-            />
-          ))}
-        </div>
-        {canNext ? (
-          <button onClick={next} style={{ ...navBtn(true), background: 'var(--accent)', border: '1px solid var(--accent)', color: '#fff' }}>
-            Następny ›
-          </button>
-        ) : (
-          <button onClick={onClose} style={{ ...navBtn(true), background: 'var(--sage)', border: '1px solid var(--sage)', color: '#fff' }}>
-            ✓ Gotowe
-          </button>
-        )}
+        <button
+          onClick={isLast ? onClose : next}
+          style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 14, padding: 16, font: "700 15.5px 'Hanken Grotesk'", cursor: 'pointer', minHeight: 54, boxShadow: '0 6px 18px rgba(160,66,32,.26)' }}
+        >
+          {isLast ? 'Gotowe' : 'Dalej'} <ChevronRight size={17} />
+        </button>
       </div>
     </div>
   )
-}
-
-function navBtn(enabled: boolean): CSSProperties {
-  return {
-    border: '1px solid var(--panel-border)',
-    background: 'var(--panel-card)',
-    color: enabled ? 'var(--panel-text)' : 'var(--panel-text-2)',
-    opacity: enabled ? 1 : 0.4,
-    borderRadius: 12,
-    padding: '13px 22px',
-    font: "600 15px 'Hanken Grotesk'",
-    cursor: enabled ? 'pointer' : 'default',
-    minWidth: 132,
-  }
 }
 
 /**
@@ -250,9 +228,9 @@ function TimerChip({ label, seconds }: { label: string; seconds: number }) {
   }
 
   const palette: Record<TimerState, { border: string; bg: string; col: string }> = {
-    idle: { border: 'var(--panel-border)', bg: 'var(--panel-card)', col: 'var(--panel-text)' },
-    running: { border: 'var(--accent)', bg: 'rgba(192,85,45,.18)', col: '#e8a583' },
-    done: { border: 'var(--gold)', bg: 'rgba(189,139,44,.22)', col: '#e5bd6e' },
+    idle: { border: 'var(--border-2)', bg: 'var(--card)', col: 'var(--text)' },
+    running: { border: 'var(--accent)', bg: 'var(--accent-soft)', col: 'var(--accent-deep)' },
+    done: { border: 'var(--gold)', bg: 'rgba(189,139,44,.16)', col: 'var(--gold)' },
   }
   const c = palette[state]
 

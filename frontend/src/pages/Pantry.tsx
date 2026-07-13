@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { usePantry, useAddPantry, useUpdatePantry, useDeletePantry } from '../api/hooks'
+import { useAuth, usePantry, useAddPantry, useUpdatePantry, useDeletePantry } from '../api/hooks'
 import type { PantryItem, Status, Unit } from '../api/client'
 import { statusColor, statusLabel, categoryLabel, formatQty, unitLabel, UNITS } from '../lib/labels'
 import { PlusIcon } from '../components/icons'
@@ -35,6 +35,7 @@ function parseAmount(s: string): number | null {
 }
 
 export function Pantry() {
+  const { canEdit } = useAuth()
   const { data: groups = [], isLoading } = usePantry()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -72,7 +73,9 @@ export function Pantry() {
       </div>
       <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, margin: '0 0 5px' }}>Moja spiżarnia</h1>
       <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 8px' }}>
-        Kliknij produkt, aby zmienić ilość. Zakupy najlepiej wprowadza asystent ze zdjęcia paragonu.
+        {canEdit
+          ? 'Kliknij produkt, aby zmienić ilość. Zakupy najlepiej wprowadza asystent ze zdjęcia paragonu.'
+          : 'Podgląd tylko do odczytu — zaloguj się, aby zmieniać stany.'}
       </p>
 
       <div style={{ display: 'flex', gap: 18, margin: '18px 0 28px', font: "500 13px 'Hanken Grotesk'", color: 'var(--text-2)', alignItems: 'center' }}>
@@ -80,12 +83,14 @@ export function Pantry() {
         <Legend c="var(--gold)" t="Mało" />
         <Legend c="var(--accent)" t="Brak" />
         <div style={{ flex: 1 }} />
-        <button
-          onClick={() => setAdding((v) => !v)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 9, padding: '7px 12px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'" }}
-        >
-          <PlusIcon size={14} /> Dodaj produkt
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setAdding((v) => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 9, padding: '7px 12px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'" }}
+          >
+            <PlusIcon size={14} /> Dodaj produkt
+          </button>
+        )}
       </div>
 
       {adding && (
@@ -140,9 +145,10 @@ export function Pantry() {
                   <ItemCard
                     key={it.id}
                     item={it}
-                    editing={editingId === it.id}
-                    onToggle={() => setEditingId(editingId === it.id ? null : it.id)}
+                    editing={canEdit && editingId === it.id}
+                    onToggle={() => canEdit && setEditingId(editingId === it.id ? null : it.id)}
                     onClose={() => setEditingId(null)}
+                    canEdit={canEdit}
                   />
                 ))}
               </div>
@@ -154,17 +160,18 @@ export function Pantry() {
   )
 }
 
-function ItemCard({ item, editing, onToggle, onClose }: {
+function ItemCard({ item, editing, onToggle, onClose, canEdit }: {
   item: PantryItem
   editing: boolean
   onToggle: () => void
   onClose: () => void
+  canEdit: boolean
 }) {
   return (
     <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 11, overflow: 'hidden' }}>
       <button
         onClick={onToggle}
-        style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'transparent', border: 'none', padding: '11px 13px', cursor: 'pointer', textAlign: 'left' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'transparent', border: 'none', padding: '11px 13px', cursor: canEdit ? 'pointer' : 'default', textAlign: 'left' }}
       >
         <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(item.status) }} />
         <span style={{ flex: 1, font: "500 14px 'Hanken Grotesk'", color: 'var(--text)' }}>{item.name}</span>

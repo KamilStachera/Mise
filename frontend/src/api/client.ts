@@ -255,15 +255,31 @@ export interface ConnectInfo {
   }
 }
 
+export interface AuthMe {
+  authenticated: boolean
+  email: string | null
+  name: string | null
+  picture: string | null
+}
+
 // ---- fetch helpers ----
 const BASE = '/api'
+
+/** Carries the HTTP status so callers can react to 401 (session expired / read-only). */
+export class ApiError extends Error {
+  status: number
+  constructor(status: number, statusText: string) {
+    super(`${status} ${statusText}`)
+    this.status = status
+  }
+}
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(BASE + path, {
     headers: { 'Content-Type': 'application/json' },
     ...init,
   })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+  if (!res.ok) throw new ApiError(res.status, res.statusText)
   if (res.status === 204) return undefined as T
   const text = await res.text()
   return (text ? JSON.parse(text) : undefined) as T
@@ -288,7 +304,7 @@ export const api = {
     const form = new FormData()
     form.append('file', file)
     const res = await fetch(`${BASE}/recipes/${id}/image`, { method: 'POST', body: form })
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    if (!res.ok) throw new ApiError(res.status, res.statusText)
     return (await res.json()) as { imageId: string; imageUrl: string; images: RecipeImage[] }
   },
   deleteRecipeImage: (id: string, imageId: string) =>
@@ -354,6 +370,14 @@ export const api = {
 
   chatHealth: () => http<ChatHealth>(`/chat/health`),
   chatHistory: () => http<ChatMessage[]>(`/chat/history`),
+
+  authMe: () => http<AuthMe>(`/auth/me`),
+  logout: () => http<void>(`/auth/logout`, { method: 'POST' }),
+}
+
+/** Full-page navigation into the Google OAuth flow; comes back to `returnUrl`. */
+export function loginUrl(returnUrl: string): string {
+  return `${BASE}/auth/login?returnUrl=${encodeURIComponent(returnUrl)}`
 }
 
 // ---- chat SSE streaming ----
@@ -368,7 +392,7 @@ export async function streamChat(
     body: JSON.stringify({ message }),
     signal,
   })
-  if (!res.ok || !res.body) throw new Error(`chat ${res.status}`)
+  if (!res.ok || !res.body) throw new ApiError(res.status, res.statusText || 'chat')
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()

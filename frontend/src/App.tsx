@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { registerChatOpener } from './lib/chatBus'
+import { showToast } from './lib/toastBus'
 import { useIsMobile } from './lib/useIsMobile'
+import { useAuth } from './api/hooks'
 import { NavRail } from './components/NavRail'
 import { ChatSidebar } from './components/ChatSidebar'
+import { ToastHost } from './components/ToastHost'
 import { Library } from './pages/Library'
 import { RecipeDetail } from './pages/RecipeDetail'
 import { Pantry } from './pages/Pantry'
@@ -17,9 +20,21 @@ import { History } from './pages/History'
 
 export default function App() {
   const isMobile = useIsMobile()
+  const { canEdit } = useAuth()
   const [chatOpen, setChatOpen] = useState(() => !window.matchMedia('(max-width: 700px)').matches)
 
   useEffect(() => registerChatOpener(() => setChatOpen(true)), [])
+
+  // Whitelist rejection lands back on "/?auth=denied" (see AuthEndpoints/Google setup).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('auth') === 'denied') {
+      showToast('To konto Google nie ma dostępu do edycji. Poproś właściciela o dodanie adresu do listy.')
+      params.delete('auth')
+      const qs = params.toString()
+      window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
+    }
+  }, [])
 
   // Phone: content on top, bottom tab bar under it, no chat panel (desktop-only).
   return (
@@ -51,8 +66,9 @@ export default function App() {
         </Routes>
       </main>
 
-      {!isMobile && chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
+      {!isMobile && canEdit && chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
       {isMobile && <NavRail mobile chatOpen={false} onToggleChat={() => {}} />}
+      <ToastHost />
     </div>
   )
 }

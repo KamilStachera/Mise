@@ -27,12 +27,16 @@ npm run build
 Requires Node 18+. The Mise app must be running (`docker compose up`) — the server
 proxies `http://localhost:5080` (override with the `MISE_API_URL` env var).
 
+Writes require the `MISE_API_KEY` env var — the same secret as in the app's
+`.env` (reads work without it; everything works without it when the app runs
+with `AUTH_DEV_BYPASS=true`).
+
 ## Register
 
 **Claude Code:**
 
 ```bash
-claude mcp add mise -- node <absolute-repo-path>/mcp/dist/index.js
+claude mcp add mise -e MISE_API_KEY=<your-key> -- node <absolute-repo-path>/mcp/dist/index.js
 ```
 
 **Codex** — add to `~/.codex/config.toml`:
@@ -41,6 +45,7 @@ claude mcp add mise -- node <absolute-repo-path>/mcp/dist/index.js
 [mcp_servers.mise]
 command = "node"
 args = ["<absolute-repo-path>/mcp/dist/index.js"]
+env = { MISE_API_KEY = "<your-key>" }
 ```
 
 The Profile screen in the app (card "Połącz agenta") renders these snippets with

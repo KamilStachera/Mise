@@ -55,6 +55,9 @@ public record PlanRangeDto(DateOnly Start, int Days, List<PlanEntryDto> Entries)
 public record PantryBulkResultDto(int Updated, List<PantryItemDto> Results,
     List<UnmatchedItemDto> NotInCatalog);
 
+/// <summary>Session state for the frontend; `Authenticated: false` = anonymous read-only mode.</summary>
+public record AuthMeDto(bool Authenticated, string? Email, string? Name, string? Picture);
+
 public record QuestionDto(string Key, string Label, string Type, string[]? Options, string? Placeholder);
 public record QuestionnaireSectionDto(string Key, string Title, List<QuestionDto> Questions);
 public record QuestionnaireDto(List<QuestionnaireSectionDto> Sections, Dictionary<string, string> Answers);

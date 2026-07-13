@@ -18,6 +18,12 @@ docker compose up -d --build    # web :8080, API :5080/api (Swagger /api/swagger
 Migrations auto-apply on API boot. For end-to-end verification (Playwright over
 the real UI, API probes, context-file checks) follow `.claude/skills/verify/SKILL.md`.
 
+**Access control:** anonymous = read-only; writes need a whitelisted Google
+session, the `X-Api-Key` header (`MISE_API_KEY`), or `AUTH_DEV_BYPASS=true` in
+`.env` (the local-dev default from `.env.example`). With bypass off the UI hides
+all mutation controls for anonymous visitors — remember this when driving the
+app with Playwright.
+
 **The Docker volumes hold the user's real data (~60 recipes, live pantry).
 Never `docker compose down -v` or reseed without explicit permission.** Seeding:
 recipes/profile only on a brand-new DB; the pantry catalog reseeds whenever
@@ -46,6 +52,13 @@ Frontend dev loop: `docker compose up db api` then `cd frontend && npm run dev`
 
 ## Invariants that bite
 
+- **All /api access flows through `Services/ApiAccessMiddleware.cs`** — a
+  middleware, not a group filter, so it also covers the `/api/images` static
+  files and `/api/swagger`. Anonymous GETs are public except `/api/chat/*`,
+  `/api/context/status|connect` and swagger. `MISE_API_KEY` unset ⇒ key auth
+  disabled (fail closed). The frontend derives read-only mode from
+  `GET /api/auth/me` (`useAuth()` in `api/hooks.ts`) — wrap any new write UI in
+  `canEdit`.
 - **Pantry = ingredient catalog.** `Quantity: 0` means "known, not at home" and
   the item stays listed. Status In/Low/Out is **derived**
   (`Features/Dtos.cs` → `Mapping.StatusOf`), never stored or settable.

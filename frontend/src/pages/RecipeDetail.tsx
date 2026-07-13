@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
-  useRecipe, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
+  useAuth, useRecipe, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
   useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage,
 } from '../api/hooks'
 import type { CookProposalItem, RecipeImage } from '../api/client'
 import { gradient } from '../lib/colors'
-import { cuisineLabel, dishTypeLabel, formatQty, macroSummary, sourceBadge, statusColor, unitLabel } from '../lib/labels'
-import { BackIcon, ClockIcon, ServingsIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
+import { cuisineLabel, dishTypeLabel, formatGrams, formatQty, sourceBadge, statusColor, unitLabel } from '../lib/labels'
+import { BackIcon, ClockIcon, ServingsIcon, PlayIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
 import { IMAGE_ACCEPT } from '../lib/images'
 import { CookMode } from '../components/CookMode'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -17,6 +17,7 @@ export function RecipeDetail() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
   const location = useLocation()
+  const { canEdit } = useAuth()
   const { data: r, isLoading } = useRecipe(id)
   const addMissing = useAddMissingToShopping()
   const del = useDeleteRecipe()
@@ -49,20 +50,22 @@ export function RecipeDetail() {
         >
           <BackIcon /> Wszystkie przepisy
         </button>
-        <button
-          onClick={async () => {
-            if (confirm(`Usunąć „${r.title}”?`)) {
-              await del.mutateAsync(r.id)
-              nav('/')
-            }
-          }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", marginBottom: 14 }}
-        >
-          <TrashIcon /> Usuń
-        </button>
+        {canEdit && (
+          <button
+            onClick={async () => {
+              if (confirm(`Usunąć „${r.title}”?`)) {
+                await del.mutateAsync(r.id)
+                nav('/')
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", marginBottom: 14 }}
+          >
+            <TrashIcon /> Usuń
+          </button>
+        )}
       </div>
 
-      <div style={{ position: 'relative', height: 200, borderRadius: 18, background: gradient(r.tint), display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', height: 'clamp(150px, 32vw, 200px)', borderRadius: 18, background: gradient(r.tint), display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         {r.imageUrl ? (
           <img src={r.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
@@ -73,15 +76,15 @@ export function RecipeDetail() {
         <span style={{ position: 'absolute', top: 16, left: 16, font: "700 10px 'Hanken Grotesk'", letterSpacing: '.08em', padding: '5px 9px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[r.source].col }}>
           {sourceBadge[r.source].label}
         </span>
-        <PhotoControls recipeId={r.id} />
+        {canEdit && <PhotoControls recipeId={r.id} />}
       </div>
 
-      <PhotoGallery recipeId={r.id} images={r.images} />
+      <PhotoGallery recipeId={r.id} images={r.images} canEdit={canEdit} />
 
       <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 34, lineHeight: 1.08, margin: '22px 0 10px' }}>{r.title}</h1>
       <p style={{ fontSize: 15.5, lineHeight: 1.55, color: 'var(--text-2)', margin: '0 0 18px', maxWidth: '62ch' }}>{r.blurb}</p>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 26 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
         <Pill>
           <ClockIcon size={15} color="var(--accent)" /> {r.time} min
         </Pill>
@@ -98,11 +101,15 @@ export function RecipeDetail() {
         )}
       </div>
 
-      {macroSummary(r) && (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, margin: '-14px 0 26px', paddingLeft: 2 }}>
-          <span style={{ font: "600 12.5px 'Spline Sans Mono'", color: 'var(--text-2)' }}>{macroSummary(r)}</span>
-          <span style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)' }}>na porcję (szacunkowo)</span>
-        </div>
+      <MacroPanel kcal={r.kcal} protein={r.protein} fat={r.fat} carbs={r.carbs} />
+
+      {r.steps.length > 0 && (
+        <button
+          onClick={() => setCookMode(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 12, padding: '13px 22px', font: "700 14.5px 'Hanken Grotesk'", cursor: 'pointer', boxShadow: '0 6px 18px rgba(160,66,32,.26)', margin: '0 0 28px', minHeight: 48 }}
+        >
+          <PlayIcon /> Gotuj krok po kroku
+        </button>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.35fr', gap: 34, alignItems: 'start' }}>
@@ -120,7 +127,7 @@ export function RecipeDetail() {
               </div>
             ))}
           </div>
-          {r.missing.length > 0 && (
+          {canEdit && r.missing.length > 0 && (
             <button
               onClick={async () => {
                 await addMissing.mutateAsync(r.id)
@@ -134,18 +141,7 @@ export function RecipeDetail() {
         </div>
 
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 15px' }}>
-            <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: 0 }}>Przygotowanie</h2>
-            <div style={{ flex: 1 }} />
-            {r.steps.length > 0 && (
-              <button
-                onClick={() => setCookMode(true)}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--accent-deep)', borderRadius: 10, padding: '8px 14px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
-              >
-                <ClockIcon size={14} color="var(--accent)" /> Tryb gotowania
-              </button>
-            )}
-          </div>
+          <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: '0 0 15px' }}>Przygotowanie</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {r.steps.map((step, i) => (
               <div key={i} style={{ display: 'flex', gap: 14 }}>
@@ -165,11 +161,65 @@ export function RecipeDetail() {
         </div>
       </div>
 
-      <CookLogSection recipeId={r.id} initialOpen={cookRequested} />
+      <CookLogSection recipeId={r.id} initialOpen={cookRequested && canEdit} canEdit={canEdit} />
 
       {cookMode && (
         <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} onClose={() => setCookMode(false)} />
       )}
+    </div>
+  )
+}
+
+/**
+ * Per-serving nutrition card: kcal, macro grams with colored dots, and a
+ * calorie-share bar (protein/carbs 4 kcal per gram, fat 9). The bar renders
+ * only when all three macros are estimated; partial data shows just the numbers.
+ */
+function MacroPanel({ kcal, protein, fat, carbs }: {
+  kcal: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+}) {
+  if (kcal == null && protein == null && fat == null && carbs == null) return null
+
+  const defs = [
+    { label: 'Białko', grams: protein, color: 'var(--sage)', kcalPerGram: 4 },
+    { label: 'Tłuszcze', grams: fat, color: 'var(--gold)', kcalPerGram: 9 },
+    { label: 'Węglowodany', grams: carbs, color: 'var(--accent)', kcalPerGram: 4 },
+  ].filter((d): d is typeof d & { grams: number } => d.grams != null)
+  const kcalTotal = defs.reduce((sum, d) => sum + d.grams * d.kcalPerGram, 0)
+
+  const value: CSSProperties = { fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 'clamp(21px, 4.5vw, 26px)', lineHeight: 1 }
+  const label: CSSProperties = { font: "600 10px 'Hanken Grotesk'", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)' }
+
+  return (
+    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px 13px', margin: '0 0 20px', maxWidth: 600 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: '14px 22px', marginBottom: 13 }}>
+        {kcal != null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingRight: 22, borderRight: '1px solid var(--border)' }}>
+            <span style={{ ...value, color: 'var(--accent-deep)' }}>~{kcal}</span>
+            <span style={label}>kcal</span>
+          </div>
+        )}
+        {defs.map((d) => (
+          <div key={d.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ ...value, color: 'var(--text)' }}>{formatGrams(d.grams)}</span>
+            <span style={{ ...label, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ flex: '0 0 7px', width: 7, height: 7, borderRadius: '50%', background: d.color }} />
+              {d.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      {defs.length === 3 && kcalTotal > 0 && (
+        <div style={{ display: 'flex', height: 5, borderRadius: 3, overflow: 'hidden', background: 'var(--border)' }}>
+          {defs.map((d) => (
+            <span key={d.label} style={{ width: `${((d.grams * d.kcalPerGram) / kcalTotal) * 100}%`, background: d.color, height: '100%' }} />
+          ))}
+        </div>
+      )}
+      <div style={{ font: "500 11px 'Hanken Grotesk'", color: 'var(--text-3)', marginTop: 9 }}>na porcję · wartości szacunkowe</div>
     </div>
   )
 }
@@ -219,8 +269,8 @@ function PhotoControls({ recipeId }: { recipeId: string }) {
   )
 }
 
-/** Thumbnails of every uploaded photo; click promotes one to the hero, ✕ removes it. */
-function PhotoGallery({ recipeId, images }: { recipeId: string; images: RecipeImage[] }) {
+/** Thumbnails of every uploaded photo; click promotes one to the hero, ✕ removes it (read-only: view only). */
+function PhotoGallery({ recipeId, images, canEdit }: { recipeId: string; images: RecipeImage[]; canEdit: boolean }) {
   const setDefault = useSetDefaultRecipeImage()
   const del = useDeleteRecipeImage()
   if (images.length === 0) return null
@@ -232,20 +282,20 @@ function PhotoGallery({ recipeId, images }: { recipeId: string; images: RecipeIm
           <img
             src={img.url}
             alt=""
-            title={img.isDefault ? 'Zdjęcie główne' : 'Ustaw jako główne'}
-            onClick={() => !img.isDefault && setDefault.mutate({ id: recipeId, imageId: img.id })}
+            title={canEdit ? (img.isDefault ? 'Zdjęcie główne' : 'Ustaw jako główne') : undefined}
+            onClick={() => canEdit && !img.isDefault && setDefault.mutate({ id: recipeId, imageId: img.id })}
             style={{
               display: 'block',
               width: 86,
               height: 62,
               objectFit: 'cover',
               borderRadius: 9,
-              cursor: img.isDefault ? 'default' : 'pointer',
+              cursor: canEdit && !img.isDefault ? 'pointer' : 'default',
               border: img.isDefault ? '2px solid var(--accent)' : '2px solid var(--border)',
               opacity: img.isDefault ? 1 : 0.82,
             }}
           />
-          <button
+          {canEdit && <button
             onClick={() => del.mutate({ id: recipeId, imageId: img.id })}
             title="Usuń zdjęcie"
             style={{
@@ -264,7 +314,7 @@ function PhotoGallery({ recipeId, images }: { recipeId: string; images: RecipeIm
             }}
           >
             ✕
-          </button>
+          </button>}
         </div>
       ))}
     </div>
@@ -286,7 +336,7 @@ function parseAmount(s: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-function CookLogSection({ recipeId, initialOpen = false }: { recipeId: string; initialOpen?: boolean }) {
+function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: string; initialOpen?: boolean; canEdit: boolean }) {
   const { data: entries } = useCookLog(recipeId)
   const add = useAddCookLog()
   const del = useDeleteCookLog()
@@ -343,7 +393,7 @@ function CookLogSection({ recipeId, initialOpen = false }: { recipeId: string; i
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 13 }}>
         <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: 0 }}>Historia gotowania</h2>
         <div style={{ flex: 1 }} />
-        {!open && (
+        {canEdit && !open && (
           <button
             onClick={() => setOpen(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 15px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
@@ -423,13 +473,15 @@ function CookLogSection({ recipeId, initialOpen = false }: { recipeId: string; i
                 </span>
               )}
               <span style={{ flex: 1, fontSize: 13.5, color: e.note ? 'var(--text)' : 'var(--text-3)' }}>{e.note || 'bez notatki'}</span>
-              <button
-                onClick={() => del.mutate(e.id)}
-                title="Usuń wpis"
-                style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 13 }}
-              >
-                ✕
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => del.mutate(e.id)}
+                  title="Usuń wpis"
+                  style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 13 }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
         </div>

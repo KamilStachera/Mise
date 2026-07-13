@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useShopping } from '../api/hooks'
-import { RecipesIcon, DiceIcon, HistoryIcon, PlanIcon, PantryIcon, ShopIcon, ProfileIcon, ChatIcon } from './icons'
+import { useAuth, useLogout, useShopping } from '../api/hooks'
+import { loginUrl } from '../api/client'
+import { RecipesIcon, DiceIcon, HistoryIcon, PlanIcon, PantryIcon, ShopIcon, ProfileIcon, ChatIcon, LoginIcon, LogoutIcon } from './icons'
 
 function navStyle(active: boolean, mobile = false): CSSProperties {
   return {
@@ -33,6 +34,8 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
   const nav = useNavigate()
   const { pathname } = useLocation()
   const { data: shopping } = useShopping()
+  const { data: auth, canEdit } = useAuth()
+  const logout = useLogout()
 
   const isLibrary = pathname === '/' || pathname.startsWith('/recipe') || pathname.startsWith('/add')
   const isRandom = pathname.startsWith('/random')
@@ -178,17 +181,44 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
 
       <div style={{ flex: 1 }} />
 
-      <button
-        onClick={onToggleChat}
-        style={{
-          ...navStyle(false),
-          color: chatOpen ? 'var(--accent-deep)' : 'var(--text-2)',
-          background: chatOpen ? 'var(--accent-soft)' : 'transparent',
-        }}
-      >
-        <ChatIcon />
-        <span>Czat</span>
-      </button>
+      {canEdit && (
+        <button
+          onClick={onToggleChat}
+          style={{
+            ...navStyle(false),
+            color: chatOpen ? 'var(--accent-deep)' : 'var(--text-2)',
+            background: chatOpen ? 'var(--accent-soft)' : 'transparent',
+          }}
+        >
+          <ChatIcon />
+          <span>Czat</span>
+        </button>
+      )}
+
+      {canEdit ? (
+        <button onClick={() => logout.mutate()} title={auth?.email ?? undefined} style={navStyle(false)}>
+          {auth?.picture ? (
+            <img
+              src={auth.picture}
+              alt=""
+              referrerPolicy="no-referrer"
+              style={{ width: 21, height: 21, borderRadius: '50%' }}
+            />
+          ) : (
+            <LogoutIcon />
+          )}
+          <span>Wyloguj</span>
+        </button>
+      ) : (
+        <button
+          onClick={() => { window.location.href = loginUrl(pathname) }}
+          title="Zaloguj się przez Google"
+          style={navStyle(false)}
+        >
+          <LoginIcon />
+          <span>Zaloguj</span>
+        </button>
+      )}
     </nav>
   )
 }

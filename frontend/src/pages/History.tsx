@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCookLog, useRecipes } from '../api/hooks'
+import { useAuth, useCookLog, useRecipes } from '../api/hooks'
 import type { CookLogEntry, RecipeListItem } from '../api/client'
 import { gradient } from '../lib/colors'
 import { cuisineLabel, plural } from '../lib/labels'
@@ -61,6 +61,7 @@ function segBtn(on: boolean): CSSProperties {
 
 export function History() {
   const nav = useNavigate()
+  const { canEdit } = useAuth()
   const { data: entries = [], isLoading } = useCookLog(undefined, 500)
   const { data: recipes = [] } = useRecipes('all', '')
   const [filter, setFilter] = useState<Filter>('all')
@@ -218,7 +219,7 @@ export function History() {
                   <div style={{ ...capStyle, letterSpacing: '.1em', marginBottom: 10 }}>{grp.label}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                     {grp.items.map((x) => (
-                      <HistoryRow key={x.entry.id} item={x} />
+                      <HistoryRow key={x.entry.id} item={x} canEdit={canEdit} />
                     ))}
                   </div>
                 </div>
@@ -260,7 +261,7 @@ function StatTile({ cap, value, sub, small }: { cap: string; value: string; sub:
   )
 }
 
-function HistoryRow({ item }: { item: Enriched }) {
+function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
   const nav = useNavigate()
   const { entry, recipe, occurrence, date } = item
   const clickable = !!recipe
@@ -326,7 +327,7 @@ function HistoryRow({ item }: { item: Enriched }) {
         </span>
       )}
 
-      {clickable && (
+      {clickable && canEdit && (
         <button
           onClick={(e) => {
             e.stopPropagation()

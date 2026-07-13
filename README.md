@@ -117,13 +117,14 @@ each with a copy button:
 Set `HOST_CONTEXT_DIR` in `.env` (the absolute host path of `./context`) so the
 prompts come out ready to paste; otherwise the card asks for the path once.
 
-> **Security note:** the API has no authentication. The raw API port is bound to
-> loopback only (`127.0.0.1:5080`), so agents and the MCP server on this machine
-> can reach it, but other devices cannot. The web app on port `8080` (nginx, which
-> proxies `/api`) **is** reachable from your LAN — that's what lets you open the
-> shopping list on your phone (`http://<host-ip>:8080`, installable as a PWA) —
-> so anyone on your network can read and change your cookbook data through it.
-> Fine on a trusted home network; don't expose 8080 beyond it (WAN/port forward).
+> **Security note:** the app enforces access control in the backend itself:
+> anonymous visitors get **read-only** access (all GETs except the AI chat and
+> the context-integration endpoints), while every write requires either a
+> logged-in **Google account from the whitelist** (`AUTH_ALLOWED_EMAILS`) or the
+> **`X-Api-Key` header** (`MISE_API_KEY`) used by agents and the MCP server.
+> For a friction-free local dev loop set `AUTH_DEV_BYPASS=true` in `.env`
+> (the `.env.example` default) — never do that on an internet-exposed machine.
+> See **Going public** below for exposing the app beyond your LAN.
 
 ## MCP server
 
@@ -133,7 +134,7 @@ prompts come out ready to paste; otherwise the card asks for the path once.
 
 ```bash
 cd mcp && npm install && npm run build
-claude mcp add mise -- node <absolute-repo-path>/mcp/dist/index.js
+claude mcp add mise -e MISE_API_KEY=<your-key> -- node <absolute-repo-path>/mcp/dist/index.js
 ```
 
 Codex equivalent (`~/.codex/config.toml`):
@@ -142,10 +143,13 @@ Codex equivalent (`~/.codex/config.toml`):
 [mcp_servers.mise]
 command = "node"
 args = ["<absolute-repo-path>/mcp/dist/index.js"]
+env = { MISE_API_KEY = "<your-key>" }
 ```
 
 The app must be running; the server talks to `http://localhost:5080`
-(override with `MISE_API_URL`). See `mcp/README.md`.
+(override with `MISE_API_URL`). Writes require `MISE_API_KEY` — the same value
+as in the app's `.env` (not needed if the app runs with `AUTH_DEV_BYPASS=true`).
+See `mcp/README.md`.
 
 ## Optional: in-app chat
 
@@ -165,6 +169,34 @@ OPENAI_MODEL=gpt-4o-mini
 
 Restart (`docker compose up -d`) and the panel turns on. It streams replies with
 your `cookbook.md` + live pantry injected as the system prompt.
+
+---
+
+## Going public (internet access)
+
+The stack ships with an opt-in **Cloudflare Tunnel** service so the app can be
+reached from anywhere over HTTPS with no port forwarding and no open inbound
+ports. Anyone with the URL can browse read-only; editing requires Google login
+(whitelisted emails) and agents use the API key.
+
+One-time setup:
+
+1. **Domain on Cloudflare** (free plan). In *Zero Trust → Networks → Tunnels*
+   create a tunnel, add a public hostname `https://<your-domain>` →
+   `http://web:80`, and copy the tunnel token.
+2. **Google OAuth client**: [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+   → *OAuth client ID* (Web application) with redirect URI
+   `https://<your-domain>/api/auth/google-callback` (add
+   `http://localhost:8080/api/auth/google-callback` for local testing).
+3. In `.env`: set `TUNNEL_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+   `AUTH_ALLOWED_EMAILS` (comma-separated), a long random `MISE_API_KEY`,
+   `PUBLIC_API_BASE=https://<your-domain>/api` — and **`AUTH_DEV_BYPASS=false`**.
+4. Start with the profile: `docker compose --profile public up -d --build`.
+   On a shared/VPS host also set `WEB_BIND=127.0.0.1:8080` in `.env` so nginx
+   isn't reachable directly — only through the tunnel.
+
+Moving hosts later (e.g. VPS → home server) is just: copy the volumes
+(`pg_dump` + images), same `.env`, same tunnel token — DNS and TLS don't change.
 
 ---
 

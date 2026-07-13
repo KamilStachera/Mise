@@ -1,15 +1,20 @@
 // Thin fetch wrapper over the Mise REST API. The MCP server is a proxy: the
 // backend stays the source of truth and re-exports ./context after every write.
 const BASE = (process.env.MISE_API_URL ?? 'http://localhost:5080').replace(/\/+$/, '')
+const API_KEY = process.env.MISE_API_KEY
 
 export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   // FormData goes through as-is (fetch sets the multipart boundary header itself).
   const isForm = body instanceof FormData
+  const headers: Record<string, string> = {
+    ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+    ...(API_KEY ? { 'X-Api-Key': API_KEY } : {}),
+  }
   let res: Response
   try {
     res = await fetch(`${BASE}/api${path}`, {
       method,
-      headers: isForm ? undefined : { 'Content-Type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     })
   } catch (e) {
@@ -18,6 +23,11 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
     )
   }
   const text = await res.text()
+  if (res.status === 401) {
+    throw new Error(
+      `Mise API 401: zapisy wymagają klucza API — ustaw zmienną środowiskową MISE_API_KEY (tę samą co w .env aplikacji). ${text}`,
+    )
+  }
   if (!res.ok) throw new Error(`Mise API ${res.status} ${res.statusText}: ${text}`)
   return (text ? JSON.parse(text) : undefined) as T
 }

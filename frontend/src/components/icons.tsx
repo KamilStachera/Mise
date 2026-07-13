@@ -178,8 +178,28 @@ export const CameraIcon = ({ size = 15, style, color = 'currentColor' }: P) => (
   </svg>
 )
 
+export const PlayIcon = ({ size = 15, style, color = '#fff' }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none" style={style}>
+    <path d="M7 5.3v13.4c0 .8.9 1.3 1.6.9l10.5-6.7c.6-.4.6-1.4 0-1.8L8.6 4.4C7.9 4 7 4.5 7 5.3z" />
+  </svg>
+)
+
 export const TrashIcon = ({ size = 15, style, color = 'currentColor' }: P) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={style}>
     <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+  </svg>
+)
+
+export const LoginIcon = ({ size = 21, style }: P) => (
+  <svg {...base(size)} style={style}>
+    <path d="M13 4h4.5A1.5 1.5 0 0 1 19 5.5v13a1.5 1.5 0 0 1-1.5 1.5H13" />
+    <path d="M4 12h10M11 8.5 14.5 12 11 15.5" />
+  </svg>
+)
+
+export const LogoutIcon = ({ size = 21, style }: P) => (
+  <svg {...base(size)} style={style}>
+    <path d="M11 4H6.5A1.5 1.5 0 0 0 5 5.5v13A1.5 1.5 0 0 0 6.5 20H11" />
+    <path d="M9 12h11M17 8.5 20.5 12 17 15.5" />
   </svg>
 )

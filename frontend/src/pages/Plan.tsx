@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usePlan, usePlanAddMissing, useRecipes, useSetPlanEntry, useDeletePlanEntry } from '../api/hooks'
+import { useAuth, usePlan, usePlanAddMissing, useRecipes, useSetPlanEntry, useDeletePlanEntry } from '../api/hooks'
 import type { PlanEntry, Slot } from '../api/client'
 import { formatGrams, slotLabel, SLOTS, DAY_NAMES_PL } from '../lib/labels'
 import { PlusIcon } from '../components/icons'
@@ -69,6 +69,7 @@ function shortDate(iso: string): string {
 type CellRef = { date: string; slot: Slot }
 
 export function Plan() {
+  const { canEdit } = useAuth()
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()))
   const startISO = toISO(weekStart)
   const todayISO = toISO(new Date())
@@ -147,8 +148,9 @@ export function Plan() {
             days={days}
             todayISO={todayISO}
             entryAt={entryAt}
-            onCell={(ref) => setEditing((cur) => (cur && cur.date === ref.date && cur.slot === ref.slot ? null : ref))}
+            onCell={(ref) => canEdit && setEditing((cur) => (cur && cur.date === ref.date && cur.slot === ref.slot ? null : ref))}
             editing={editing}
+            canEdit={canEdit}
           />
         ))}
       </div>
@@ -163,23 +165,26 @@ export function Plan() {
         />
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 22 }}>
-        <button onClick={onAddMissing} style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 7 }}>
-          <PlusIcon /> {addMissing.isPending ? 'Sprawdzam…' : 'Dodaj brakujące składniki z tego tygodnia do zakupów'}
-        </button>
-        {shopMsg && <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{shopMsg}</span>}
-      </div>
+      {canEdit && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 22 }}>
+          <button onClick={onAddMissing} style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <PlusIcon /> {addMissing.isPending ? 'Sprawdzam…' : 'Dodaj brakujące składniki z tego tygodnia do zakupów'}
+          </button>
+          {shopMsg && <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{shopMsg}</span>}
+        </div>
+      )}
     </div>
   )
 }
 
-function SlotRow({ slot, days, todayISO, entryAt, onCell, editing }: {
+function SlotRow({ slot, days, todayISO, entryAt, onCell, editing, canEdit }: {
   slot: Slot
   days: string[]
   todayISO: string
   entryAt: (date: string, slot: Slot) => PlanEntry | undefined
   onCell: (ref: CellRef) => void
   editing: CellRef | null
+  canEdit: boolean
 }) {
   return (
     <>
@@ -196,7 +201,7 @@ function SlotRow({ slot, days, todayISO, entryAt, onCell, editing }: {
               padding: '10px 11px',
               minHeight: 74,
               textAlign: 'left',
-              cursor: 'pointer',
+              cursor: canEdit ? 'pointer' : 'default',
               display: 'flex',
               flexDirection: 'column',
               gap: 4,

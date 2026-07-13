@@ -8,6 +8,21 @@ import {
   type RecipeInput,
 } from './client'
 
+// Session state; the react-query cache is the shared auth state (no context needed).
+// staleTime: Infinity — refreshed only by explicit invalidation (logout, 401 backstop).
+export function useAuth() {
+  const query = useQuery({ queryKey: ['auth'], queryFn: api.authMe, staleTime: Infinity })
+  return { ...query, canEdit: query.data?.authenticated === true }
+}
+
+export function useLogout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.logout(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['auth'] }),
+  })
+}
+
 export function useRecipes(source: string, q: string) {
   return useQuery({ queryKey: ['recipes', source, q], queryFn: () => api.recipes(source, q) })
 }
@@ -51,12 +66,15 @@ export function useConnectInfo() {
   return useQuery({ queryKey: ['connect'], queryFn: api.connectInfo })
 }
 
+// Chat endpoints are privileged — don't fire them anonymously (they would 401).
 export function useChatHealth() {
-  return useQuery({ queryKey: ['chatHealth'], queryFn: api.chatHealth })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['chatHealth'], queryFn: api.chatHealth, enabled: canEdit })
 }
 
 export function useChatHistory() {
-  return useQuery({ queryKey: ['chatHistory'], queryFn: api.chatHistory })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['chatHistory'], queryFn: api.chatHistory, enabled: canEdit })
 }
 
 export function useCookProposal(recipeId: string | undefined, enabled: boolean) {

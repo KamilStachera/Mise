@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCookLog, useRecipes } from '../api/hooks'
+import { useAuth, useCookLog, useRecipes } from '../api/hooks'
 import type { RecipeListItem } from '../api/client'
 import { gradient } from '../lib/colors'
 import { daysAgo } from '../lib/dates'
@@ -84,6 +84,7 @@ const RECENT_COOK_DAYS = 7
 
 export function Random() {
   const nav = useNavigate()
+  const { canEdit } = useAuth()
   const { data: recipes = [] } = useRecipes('all', '')
   const { data: cookLog = [] } = useCookLog()
 
@@ -372,17 +373,19 @@ export function Random() {
         </DashedPanel>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
-        <button
-          onClick={() => requestChat('Zaskocz mnie — wymyśl coś nowego z tego, co mam w spiżarni')}
-          style={{ border: 'none', background: 'transparent', color: 'var(--text-2)', font: "500 13px 'Hanken Grotesk'", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 9 }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-2)')}
-        >
-          <span style={{ color: 'var(--gold)' }}>✦</span>
-          Nic nie pasuje? Poproś Sous o nowy pomysł
-        </button>
-      </div>
+      {canEdit && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+          <button
+            onClick={() => requestChat('Zaskocz mnie — wymyśl coś nowego z tego, co mam w spiżarni')}
+            style={{ border: 'none', background: 'transparent', color: 'var(--text-2)', font: "500 13px 'Hanken Grotesk'", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 9 }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-2)')}
+          >
+            <span style={{ color: 'var(--gold)' }}>✦</span>
+            Nic nie pasuje? Poproś Sous o nowy pomysł
+          </button>
+        </div>
+      )}
 
       {historyView.length > 0 && (
         <div style={{ marginTop: 22 }}>

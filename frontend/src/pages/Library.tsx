@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useRecipes } from '../api/hooks'
+import { useAuth, useRecipes } from '../api/hooks'
 import type { Cuisine, DishType, RecipeListItem, Source } from '../api/client'
 import { gradient } from '../lib/colors'
 import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishTypeLabel, recipeCountLabel, sourceBadge } from '../lib/labels'
@@ -48,6 +48,7 @@ function inTimeBucket(time: number, bucket: TimeBucket | null): boolean {
 export function Library() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
+  const { canEdit } = useAuth()
   const { data: recipes = [], isLoading } = useRecipes('all', '')
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
@@ -162,12 +163,14 @@ export function Library() {
               style={{ border: 'none', background: 'transparent', flex: 1, minWidth: 0, font: "400 14px 'Hanken Grotesk'", color: 'var(--text)' }}
             />
           </div>
-          <button
-            onClick={() => nav('/add')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', font: "600 13.5px 'Hanken Grotesk'", cursor: 'pointer' }}
-          >
-            <PlusIcon /> Dodaj
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => nav('/add')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', font: "600 13.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+            >
+              <PlusIcon /> Dodaj
+            </button>
+          )}
         </div>
       </div>
 
@@ -333,7 +336,7 @@ export function Library() {
           <div style={{ color: 'var(--text-3)', padding: 40 }}>Nie ma tu jeszcze przepisów.</div>
         )
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))', gap: 'clamp(12px, 2.5vw, 20px)' }}>
           {view.map((r) => (
             <Card key={r.id} r={r} showShortfall={almostReady || sort === 'missing'} onOpen={() => nav(`/recipe/${r.id}`)} />
           ))}

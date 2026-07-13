@@ -32,14 +32,24 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1}
+      # Access control: anonymous = read-only; writes need a whitelisted Google
+      # session or the X-Api-Key header (agents/MCP). See README "Going public".
+      Auth__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Auth__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Auth__AllowedEmails: ${AUTH_ALLOWED_EMAILS:-}
+      MISE_API_KEY: ${MISE_API_KEY:-}
+      Auth__DevBypass: ${AUTH_DEV_BYPASS:-false}
+      KeysDir: /data/keys
     volumes:
       # Shared with the host so you can open it with Codex / Claude Code.
       - ./context:/context
       - mise-images:/data/images
+      # DataProtection keys — without persistence every rebuild would log
+      # everyone out and break in-flight Google logins.
+      - mise-keys:/data/keys
     ports:
-      # Direct access (e.g. Swagger at http://localhost:5080/api/swagger).
-      # Loopback-only: the unauthenticated API must not be reachable from the
-      # LAN — phones use the app through nginx on :8080.
+      # Direct access for local agents/Swagger. Writes are auth-gated in the app
+      # itself (middleware), but keep the raw port loopback-only anyway.
       - "127.0.0.1:5080:8080"
     depends_on:
       db:
@@ -51,10 +61,28 @@ services:
       dockerfile: frontend/Dockerfile
     restart: unless-stopped
     ports:
-      - "8080:80"
+      # On a public host (VPS) set WEB_BIND=127.0.0.1:8080 in .env so nginx is
+      # loopback-only — cloudflared reaches it over the compose network,
+      # nothing else should. Default keeps LAN access for home use.
+      - "${WEB_BIND:-8080}:80"
     depends_on:
       - api
+
+  # Public exposure via Cloudflare Tunnel (TLS + domain, no open inbound ports).
+  # Opt-in: docker compose --profile public up -d --build
+  # Ingress is configured in the Cloudflare Zero Trust dashboard:
+  #   https://<your-domain> -> http://web:80
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    profiles: ["public"]
+    depends_on:
+      - web
 
 volumes:
   mise-db:
   mise-images:
+  mise-keys:

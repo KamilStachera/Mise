@@ -1,8 +1,9 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuestionnaire, useSaveAnswers } from '../api/hooks'
+import { useAuth, useQuestionnaire, useSaveAnswers } from '../api/hooks'
 import type { Question } from '../api/client'
 import { BackIcon } from '../components/icons'
+import { LoginPrompt } from '../components/LoginPrompt'
 
 const cardStyle: CSSProperties = {
   background: 'var(--card)',
@@ -40,6 +41,7 @@ const primaryBtn: CSSProperties = {
 
 export function Questionnaire() {
   const nav = useNavigate()
+  const { canEdit, isLoading: authLoading } = useAuth()
   const { data: q } = useQuestionnaire()
   const save = useSaveAnswers()
   const [step, setStep] = useState(0)
@@ -52,6 +54,10 @@ export function Questionnaire() {
       setLoaded(true)
     }
   }, [q, loaded])
+
+  // Editing household answers is edit-only (the guard sits after all hooks).
+  if (authLoading) return null
+  if (!canEdit) return <LoginPrompt title="Ankieta kulinarna wymaga zalogowania" />
 
   if (!q) return <div style={{ padding: 40, color: 'var(--text-3)', maxWidth: 760, margin: '0 auto' }}>Ładowanie…</div>
 

@@ -31,7 +31,9 @@ public static class AgentDocs
 
         Pliki w tym folderze są **generowane przez aplikację i nadpisywane przy każdej
         zmianie danych — niczego tu nie edytuj ani nie dodawaj**. Wszystkie zapisy wykonuj
-        przez API pod `{API}` (aplikacja musi działać: `docker compose up`):
+        przez API pod `{API}` (aplikacja musi działać: `docker compose up`). **Zapisy
+        wymagają nagłówka `X-Api-Key`** — wartość to `MISE_API_KEY` z pliku `.env`
+        aplikacji; szczegóły i przykład w `api.md`:
 
         - nowy przepis: `POST {API}/recipes`
         - zakupy → spiżarnia (delty, np. po paragonie): `POST {API}/pantry/adjust`
@@ -98,9 +100,23 @@ public static class AgentDocs
         # Mise — REST API dla agentów
 
         Baza: `{API}`. Aplikacja musi działać (`docker compose up`). JSON w UTF-8,
-        daty w formacie `YYYY-MM-DD`, identyfikatory to GUID-y. API nie ma
-        uwierzytelniania i jest przeznaczone wyłącznie do użytku lokalnego.
+        daty w formacie `YYYY-MM-DD`, identyfikatory to GUID-y.
         Każdy udany zapis automatycznie regeneruje pliki w folderze `context/`.
+
+        ## Uwierzytelnianie
+
+        Odczyty (GET) są otwarte. **Każdy zapis (POST/PUT/PATCH/DELETE) oraz `GET /chat/*`,
+        `GET /context/status` i `GET /context/connect` wymagają nagłówka `X-Api-Key`**
+        o wartości ze zmiennej `MISE_API_KEY` aplikacji (plik `.env` obok docker-compose):
+
+        ```bash
+        curl -X POST {API}/shopping -H "X-Api-Key: $MISE_API_KEY" \
+          -H "Content-Type: application/json" -d '{ "name": "Masło" }'
+        ```
+
+        Dodawaj ten nagłówek do wszystkich przykładów zapisu poniżej. Brak lub zły
+        klucz → `401`. (Ludzie w przeglądarce logują się kontem Google — agentów to
+        nie dotyczy; serwer MCP czyta klucz ze zmiennej środowiskowej `MISE_API_KEY`.)
 
         ## Słowniki
 
@@ -389,13 +405,16 @@ public static class AgentDocs
         pod `{API}` zgodnie z `{CTX}/api.md`. Nie edytuj plików w tym folderze.
         """.Replace("{CTX}", contextDir).Replace("{API}", apiBase);
 
-    public static string ClaudeMcpCommand(string repoDir) =>
-        $"claude mcp add mise -- node \"{repoDir}/mcp/dist/index.js\"";
+    public const string ApiKeyToken = "{{MISE_API_KEY}}";
 
-    public static string CodexMcpToml(string repoDir) => $"""
+    public static string ClaudeMcpCommand(string repoDir, string? apiKey = null) =>
+        $"claude mcp add mise -e MISE_API_KEY={apiKey ?? ApiKeyToken} -- node \"{repoDir}/mcp/dist/index.js\"";
+
+    public static string CodexMcpToml(string repoDir, string? apiKey = null) => $$"""
         [mcp_servers.mise]
         command = "node"
-        args = ["{repoDir}/mcp/dist/index.js"]
+        args = ["{{repoDir}}/mcp/dist/index.js"]
+        env = { MISE_API_KEY = "{{apiKey ?? ApiKeyToken}}" }
         """;
 
     public static string CommandsInstall(string contextDir) => """

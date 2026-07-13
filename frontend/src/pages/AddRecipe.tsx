@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCreateRecipe, useUploadRecipeImage } from '../api/hooks'
+import { useAuth, useCreateRecipe, useUploadRecipeImage } from '../api/hooks'
+import { LoginPrompt } from '../components/LoginPrompt'
 import type { Cuisine, DishType, RecipeInput, Source } from '../api/client'
 import { CUISINES, DISH_TYPES, cuisineLabel, dishTypeLabel } from '../lib/labels'
 import { BackIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
@@ -28,6 +29,7 @@ const label: CSSProperties = {
 
 export function AddRecipe() {
   const nav = useNavigate()
+  const { canEdit, isLoading: authLoading } = useAuth()
   const create = useCreateRecipe()
   const uploadImage = useUploadRecipeImage()
 
@@ -53,6 +55,10 @@ export function AddRecipe() {
   useEffect(() => () => {
     if (photoPreview) URL.revokeObjectURL(photoPreview)
   }, [photoPreview])
+
+  // After all hooks (rules of hooks). Adding recipes is edit-only.
+  if (authLoading) return null
+  if (!canEdit) return <LoginPrompt title="Dodawanie przepisów wymaga zalogowania" />
 
   function applyParsed() {
     const p = parseRecipe(paste)

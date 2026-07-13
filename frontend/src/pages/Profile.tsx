@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire } from '../api/hooks'
-import type { Equipment, Preferences } from '../api/client'
+import { useAuth, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire } from '../api/hooks'
+import { loginUrl, type Equipment, type Preferences } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
 
 const cardStyle: CSSProperties = {
@@ -28,6 +28,8 @@ const inputStyle: CSSProperties = {
 }
 
 export function Profile() {
+  const { data: auth, canEdit } = useAuth()
+  const logout = useLogout()
   const { data: prefs } = usePreferences()
   const { data: cookbook } = useCookbook()
   const save = useSavePreferences()
@@ -68,14 +70,24 @@ export function Profile() {
           </div>
           <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, margin: '0 0 5px' }}>Profil kulinarny</h1>
         </div>
-        {editing ? (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setEditing(false)} style={ghostBtn}>Anuluj</button>
-            <button onClick={onSave} style={primaryBtn}>{save.isPending ? 'Zapisywanie…' : 'Zapisz'}</button>
-          </div>
-        ) : (
-          <button onClick={() => setEditing(true)} style={ghostBtn}>Edytuj profil</button>
-        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {canEdit && (editing ? (
+            <>
+              <button onClick={() => setEditing(false)} style={ghostBtn}>Anuluj</button>
+              <button onClick={onSave} style={primaryBtn}>{save.isPending ? 'Zapisywanie…' : 'Zapisz'}</button>
+            </>
+          ) : (
+            <button onClick={() => setEditing(true)} style={ghostBtn}>Edytuj profil</button>
+          ))}
+          {/* Mobile entry point for the session — the tab bar has no room for it. */}
+          {canEdit ? (
+            <button onClick={() => logout.mutate()} title={auth?.email ?? undefined} style={ghostBtn}>Wyloguj</button>
+          ) : (
+            <button onClick={() => { window.location.href = loginUrl('/profile') }} style={primaryBtn}>
+              Zaloguj przez Google
+            </button>
+          )}
+        </div>
       </div>
       <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 28px', maxWidth: '60ch' }}>
         Te preferencje trafiają do pliku pamięci wysyłanego asystentowi na początku każdej rozmowy — żeby nigdy nie zaproponował
@@ -123,7 +135,7 @@ export function Profile() {
         )}
       </div>
 
-      <QuestionnaireCard />
+      <QuestionnaireCard canEdit={canEdit} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <div style={cardStyle}>
@@ -151,12 +163,14 @@ export function Profile() {
           <span style={{ font: "500 13px 'Spline Sans Mono'", color: '#e8dcc6' }}>cookbook.md</span>
           <span style={{ font: "400 11.5px 'Hanken Grotesk'", color: '#9a8c72' }}>— wysyłane do AI na początku każdej rozmowy</span>
           <div style={{ flex: 1 }} />
-          <button
-            onClick={onSync}
-            style={{ font: "500 11px 'Hanken Grotesk'", color: '#b9aa8e', background: 'transparent', border: '1px solid #4a3d2e', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}
-          >
-            {exportCtx.isPending ? 'Synchronizuję…' : 'Synchronizuj z ./context'}
-          </button>
+          {canEdit && (
+            <button
+              onClick={onSync}
+              style={{ font: "500 11px 'Hanken Grotesk'", color: '#b9aa8e', background: 'transparent', border: '1px solid #4a3d2e', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}
+            >
+              {exportCtx.isPending ? 'Synchronizuję…' : 'Synchronizuj z ./context'}
+            </button>
+          )}
         </div>
         <pre style={{ margin: 0, padding: '18px 20px', fontFamily: "'Spline Sans Mono', monospace", fontSize: 12.5, lineHeight: 1.7, color: '#d8ccb4', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>
           {cookbook?.markdown ?? 'Ładowanie…'}
@@ -164,12 +178,12 @@ export function Profile() {
         {syncMsg && <div style={{ padding: '0 20px 16px', font: "400 11.5px 'Spline Sans Mono'", color: '#9fb37a' }}>{syncMsg} — otwórz ten folder w Codex lub Claude Code.</div>}
       </div>
 
-      <ConnectAgentCard />
+      {canEdit && <ConnectAgentCard />}
     </div>
   )
 }
 
-function QuestionnaireCard() {
+function QuestionnaireCard({ canEdit }: { canEdit: boolean }) {
   const nav = useNavigate()
   const { data: q } = useQuestionnaire()
   if (!q) return null
@@ -186,9 +200,11 @@ function QuestionnaireCard() {
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ ...capStyle, marginBottom: 0 }}>Ankieta kulinarna</div>
         <div style={{ flex: 1 }} />
-        <button onClick={() => nav('/profile/ankieta')} style={answeredKeys.size === 0 ? primaryBtn : ghostBtn}>
-          {answeredKeys.size === 0 ? 'Wypełnij ankietę' : 'Edytuj odpowiedzi'}
-        </button>
+        {canEdit && (
+          <button onClick={() => nav('/profile/ankieta')} style={answeredKeys.size === 0 ? primaryBtn : ghostBtn}>
+            {answeredKeys.size === 0 ? 'Wypełnij ankietę' : 'Edytuj odpowiedzi'}
+          </button>
+        )}
       </div>
       <div style={{ fontSize: 13.5, color: 'var(--text-2)', margin: '10px 0 0' }}>
         Odpowiedziano na {answeredKeys.size} z {total} pytań — im więcej, tym lepiej asystent zna Waszą kuchnię.
