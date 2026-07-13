@@ -6,7 +6,7 @@ import {
 } from '../api/hooks'
 import type { CookProposalItem, RecipeImage } from '../api/client'
 import { gradient } from '../lib/colors'
-import { cuisineLabel, dishTypeLabel, formatQty, sourceBadge, statusColor, unitLabel } from '../lib/labels'
+import { cuisineLabel, dishTypeLabel, formatQty, macroSummary, sourceBadge, statusColor, unitLabel } from '../lib/labels'
 import { BackIcon, ClockIcon, ServingsIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
 import { IMAGE_ACCEPT } from '../lib/images'
 
@@ -93,6 +93,13 @@ export function RecipeDetail() {
           </Pill>
         )}
       </div>
+
+      {macroSummary(r) && (
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, margin: '-14px 0 26px', paddingLeft: 2 }}>
+          <span style={{ font: "600 12.5px 'Spline Sans Mono'", color: 'var(--text-2)' }}>{macroSummary(r)}</span>
+          <span style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)' }}>na porcję (szacunkowo)</span>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr', gap: 34, alignItems: 'start' }}>
         <div>

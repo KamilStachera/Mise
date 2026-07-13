@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePlan, usePlanAddMissing, useRecipes, useSetPlanEntry, useDeletePlanEntry } from '../api/hooks'
 import type { PlanEntry, Slot } from '../api/client'
-import { slotLabel, SLOTS, DAY_NAMES_PL } from '../lib/labels'
+import { formatGrams, slotLabel, SLOTS, DAY_NAMES_PL } from '../lib/labels'
 import { PlusIcon } from '../components/icons'
 
 const cardStyle: CSSProperties = {
@@ -73,6 +73,7 @@ export function Plan() {
   const startISO = toISO(weekStart)
   const todayISO = toISO(new Date())
   const { data: plan } = usePlan(startISO)
+  const { data: recipes } = useRecipes('all', '')
   const addMissing = usePlanAddMissing()
   const [editing, setEditing] = useState<CellRef | null>(null)
   const [shopMsg, setShopMsg] = useState<string | null>(null)
@@ -80,6 +81,22 @@ export function Plan() {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => toISO(addDays(weekStart, i))), [weekStart])
   const entryAt = (date: string, slot: Slot): PlanEntry | undefined =>
     plan?.entries.find((e) => e.date === date && e.slot === slot)
+
+  // Per-day macro sums (one serving per entry) — only entries whose linked
+  // recipe has a kcal estimate count; days with no data show nothing.
+  const macrosByDay = useMemo(() => {
+    const byId = new Map((recipes ?? []).map((r) => [r.id, r]))
+    const sums = new Map<string, { kcal: number; protein: number }>()
+    for (const e of plan?.entries ?? []) {
+      const r = e.recipeId ? byId.get(e.recipeId) : undefined
+      if (!r || r.kcal == null) continue
+      const day = sums.get(e.date) ?? { kcal: 0, protein: 0 }
+      day.kcal += r.kcal
+      day.protein += r.protein ?? 0
+      sums.set(e.date, day)
+    }
+    return sums
+  }, [plan, recipes])
 
   async function onAddMissing() {
     const r = await addMissing.mutateAsync({ start: startISO, days: 7 })
@@ -112,6 +129,12 @@ export function Plan() {
           <div key={d} style={{ textAlign: 'center', padding: '4px 0 8px' }}>
             <div style={{ font: "600 12px 'Hanken Grotesk'", color: d === todayISO ? 'var(--accent-deep)' : 'var(--text-2)' }}>{DAY_NAMES_PL[i]}</div>
             <div style={{ font: "500 11px 'Spline Sans Mono'", color: d === todayISO ? 'var(--accent)' : 'var(--text-3)', marginTop: 2 }}>{shortDate(d)}</div>
+            {macrosByDay.has(d) && (
+              <div style={{ font: "500 10px 'Spline Sans Mono'", color: 'var(--text-3)', marginTop: 3 }} title="Suma z zaplanowanych przepisów (na porcję); wpisy bez oszacowania pominięte">
+                ~{macrosByDay.get(d)!.kcal} kcal
+                {macrosByDay.get(d)!.protein > 0 && ` · B ${formatGrams(macrosByDay.get(d)!.protein)}`}
+              </div>
+            )}
           </div>
         ))}
 

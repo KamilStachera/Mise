@@ -208,6 +208,8 @@ public sealed class ContextExportService
         if (r.DishType is DishType d) header.Add(CookbookMarkdownBuilder.DishTypeLabel(d));
         if (r.Cuisine is Cuisine c) header.Add($"Kuchnia {CookbookMarkdownBuilder.CuisineLabel(c)}");
         sb.AppendLine($"> {string.Join(" · ", header)}");
+        if (CookbookMarkdownBuilder.MacroSummary(r) is string macros)
+            sb.AppendLine($"> Wartości odżywcze (na porcję): {macros}");
         sb.AppendLine();
         if (!string.IsNullOrWhiteSpace(r.Blurb))
         {

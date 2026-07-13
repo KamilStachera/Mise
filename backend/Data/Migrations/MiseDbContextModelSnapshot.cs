@@ -277,6 +277,9 @@ namespace Mise.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("CarbGrams")
+                        .HasColumnType("numeric");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -292,8 +295,17 @@ namespace Mise.Api.Data.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<decimal?>("FatGrams")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("ImagePath")
                         .HasColumnType("text");
+
+                    b.Property<int?>("KcalPerServing")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("ProteinGrams")
+                        .HasColumnType("numeric");
 
                     b.Property<int>("Servings")
                         .HasColumnType("integer");

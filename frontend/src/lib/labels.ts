@@ -84,6 +84,24 @@ export function formatQty(q: number, u: Unit): string {
   return `${q.toLocaleString('pl-PL', { maximumFractionDigits: 2 })} ${unitLabel[u]}`
 }
 
+/** Grams with Polish decimal comma: "32 g", "17,5 g". */
+export function formatGrams(g: number): string {
+  return `${g.toLocaleString('pl-PL', { maximumFractionDigits: 1 })} g`
+}
+
+/**
+ * "~520 kcal · B 32 g · T 18 g · W 55 g" — per-serving macro summary
+ * (mirrors CookbookMarkdownBuilder.MacroSummary); null when nothing estimated.
+ */
+export function macroSummary(r: { kcal: number | null; protein: number | null; fat: number | null; carbs: number | null }): string | null {
+  const parts: string[] = []
+  if (r.kcal != null) parts.push(`~${r.kcal} kcal`)
+  if (r.protein != null) parts.push(`B ${formatGrams(r.protein)}`)
+  if (r.fat != null) parts.push(`T ${formatGrams(r.fat)}`)
+  if (r.carbs != null) parts.push(`W ${formatGrams(r.carbs)}`)
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
 const CATEGORY_PL: Record<string, string> = {
   Produce: 'Warzywa i owoce',
   Fridge: 'Lodówka',

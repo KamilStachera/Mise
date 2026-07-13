@@ -80,6 +80,7 @@ public sealed class CookbookMarkdownBuilder
             if (r.DishType is DishType d) meta.Add(DishTypeLabel(d).ToLowerInvariant());
             if (r.Cuisine is Cuisine c) meta.Add($"kuchnia {CuisineLabel(c)}");
             if (AirFryer.Uses(r)) meta.Add("frytkownica");
+            if (r.KcalPerServing is int kcal) meta.Add($"~{kcal} kcal/porcja");
             sb.AppendLine($"- {r.Title} — {string.Join(", ", meta)} ({SourceLabel(r.Source)}). Zobacz `recipes/`.");
         }
 
@@ -183,4 +184,19 @@ public sealed class CookbookMarkdownBuilder
     /// <summary>"400 ml", "1,5 szt." — Polish decimal comma, unit label.</summary>
     public static string QuantityLabel(PantryItem p) =>
         $"{p.Quantity.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"))} {UnitLabel(p.Unit)}";
+
+    /// <summary>
+    /// "~520 kcal · B 32 g · T 18 g · W 55 g" — per-serving estimate for the recipe
+    /// files and cookbook index; null when nothing has been estimated yet.
+    /// </summary>
+    public static string? MacroSummary(Recipe r)
+    {
+        var parts = new List<string>();
+        if (r.KcalPerServing is int kcal) parts.Add($"~{kcal} kcal");
+        var pl = System.Globalization.CultureInfo.GetCultureInfo("pl-PL");
+        if (r.ProteinGrams is decimal p) parts.Add($"B {p.ToString("0.#", pl)} g");
+        if (r.FatGrams is decimal f) parts.Add($"T {f.ToString("0.#", pl)} g");
+        if (r.CarbGrams is decimal c) parts.Add($"W {c.ToString("0.#", pl)} g");
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
 }

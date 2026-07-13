@@ -52,6 +52,15 @@ public class Recipe
     public DishType? DishType { get; set; }
     public Cuisine? Cuisine { get; set; }
 
+    /// <summary>
+    /// Estimated nutrition PER SERVING. Null = not yet estimated (older recipes;
+    /// agents backfill via PUT, same pattern as <see cref="DishType"/>/<see cref="Cuisine"/>).
+    /// </summary>
+    public int? KcalPerServing { get; set; }
+    public decimal? ProteinGrams { get; set; }
+    public decimal? FatGrams { get; set; }
+    public decimal? CarbGrams { get; set; }
+
     public List<RecipeIngredient> Ingredients { get; set; } = new();
     public List<RecipeStep> Steps { get; set; } = new();
     public List<RecipeImage> Images { get; set; } = new();

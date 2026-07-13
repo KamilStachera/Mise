@@ -35,6 +35,15 @@ const recipeInputShape = {
     .boolean()
     .optional()
     .describe('Czy danie robi się we frytkownicy beztłuszczowej — zawsze ustawiaj (true/false); pominięte = zgadywanie z tekstu'),
+  kcal: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Szacunkowe kcal NA PORCJĘ — zawsze oszacuj (ze składników / liczby porcji); pominięte = brak oszacowania'),
+  protein: z.number().positive().optional().describe('Białko w gramach NA PORCJĘ (szacunek) — zawsze oszacuj'),
+  fat: z.number().positive().optional().describe('Tłuszcz w gramach NA PORCJĘ (szacunek) — zawsze oszacuj'),
+  carbs: z.number().positive().optional().describe('Węglowodany w gramach NA PORCJĘ (szacunek) — zawsze oszacuj'),
   blurb: z.string().optional().describe('Jedno-dwa zdania opisu'),
   tip: z.string().optional().describe('Wskazówka (opcjonalna)'),
   ingredients: z
@@ -105,7 +114,7 @@ server.tool(
 
 server.tool(
   'update_recipe',
-  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola; pominięte dishType/cuisine/usesAirFryer są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
+  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola; pominięte dishType/cuisine/usesAirFryer/kcal/protein/fat/carbs są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
   { id: z.string().uuid(), ...recipeInputShape },
   async ({ id, ...input }) => {
     await put(`/recipes/${id}`, input)

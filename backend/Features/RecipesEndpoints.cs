@@ -54,7 +54,8 @@ public static class RecipesEndpoints
                     r.TimeMinutes, r.Servings, r.Difficulty, r.Tint, r.Blurb,
                     Mapping.ImageUrl(r.ImagePath), toBuy,
                     Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
-                    AirFryer.Uses(r), r.CreatedAt);
+                    AirFryer.Uses(r), r.CreatedAt,
+                    r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams);
             });
             return Results.Ok(list);
         });
@@ -84,7 +85,8 @@ public static class RecipesEndpoints
                 Mapping.ImageUrl(r.ImagePath), r.Tip,
                 ingredients, steps, ingredients.Count - missing.Count, ingredients.Count, missing,
                 Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
-                AirFryer.Uses(r), GalleryDto(r)));
+                AirFryer.Uses(r), GalleryDto(r),
+                r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams));
         });
 
         g.MapPost("/", async (RecipeInput input, MiseDbContext db, IngredientMatcher matcher,
@@ -343,6 +345,11 @@ public static class RecipesEndpoints
         recipe.Tint = string.IsNullOrWhiteSpace(input.Tint) ? "#c0552d" : input.Tint!.Trim();
         recipe.Blurb = input.Blurb?.Trim() ?? "";
         recipe.Tip = string.IsNullOrWhiteSpace(input.Tip) ? null : input.Tip!.Trim();
+        // Per-serving estimates; non-positive values mean "no estimate" (full-replace clears).
+        recipe.KcalPerServing = input.Kcal is > 0 ? input.Kcal : null;
+        recipe.ProteinGrams = input.Protein is > 0 ? input.Protein : null;
+        recipe.FatGrams = input.Fat is > 0 ? input.Fat : null;
+        recipe.CarbGrams = input.Carbs is > 0 ? input.Carbs : null;
 
         var order = 0;
         foreach (var i in input.Ingredients ?? new())

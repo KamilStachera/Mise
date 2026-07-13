@@ -50,7 +50,8 @@ public static class AgentDocs
         1. Obejrzyj zdjęcie / przeczytaj źródło samodzielnie i wyciągnij przepis.
         2. Znormalizuj do schematu z `api.md`: tytuł, czas w minutach, porcje, składniki
            `{ "name", "quantity", "amountValue", "amountUnit" }` po polsku, kroki jako lista
-           zdań. Jeden produkt = jeden składnik (rozbijaj „Sól, pieprz i zioła" na osobne
+           zdań. Oszacuj też wartości odżywcze NA PORCJĘ (`kcal`, `protein`, `fat`, `carbs`)
+           — zawsze, tak jak `dishType` i `usesAirFryer`. Jeden produkt = jeden składnik (rozbijaj „Sól, pieprz i zioła" na osobne
            pozycje; przymiotniki tylko gdy odróżniają produkt). `source`: `"web"` dla
            zdjęcia z książki lub strony, `"ai"` dla własnej kreacji, `"manual"` dla rodzinnych notatek.
         3. Porównaj składniki z `pantry.json`; jeśli czegoś brakuje, zaproponuj zamianę
@@ -122,6 +123,12 @@ public static class AgentDocs
         przygotowuje się we frytkownicy beztłuszczowej (ulubiony sprzęt użytkownika), inaczej
         `false`. Pominięte/`null` = aplikacja zgaduje z tekstu przepisu (mniej przewidywalne).
 
+        `kcal` (int), `protein`, `fat`, `carbs` (liczby, gramy) — szacunkowe wartości odżywcze
+        **NA JEDNĄ PORCJĘ**, nie na całe danie. **Zawsze oszacuj je przy dodawaniu przepisu**
+        (policz ze składników i liczby porcji; wystarczy rozsądne przybliżenie) — napędzają
+        podsumowania kalorii w planie tygodnia. `null`/pominięte = jeszcze nie oszacowane
+        (starsze przepisy).
+
         ## Przepisy
 
         ### POST /recipes — dodaj przepis
@@ -135,6 +142,10 @@ public static class AgentDocs
           "dishType": "main",
           "cuisine": "middleeastern",
           "usesAirFryer": false,
+          "kcal": 420,
+          "protein": 21,
+          "fat": 27,
+          "carbs": 24,
           "blurb": "Jedno-patelniowe jajka w pomidorach.",
           "tip": "Podawaj z pieczywem.",
           "ingredients": [
@@ -169,8 +180,9 @@ public static class AgentDocs
         - `GET /recipes/{id}/cook-proposal` — co odjąć ze spiżarni po ugotowaniu
           (na składnik: `pantryItemId`, `proposedAmount`, `deductible`, `skipReason`).
         - `PUT /recipes/{id}` — pełna podmiana (to samo body co POST). **Uwaga:** pominięcie
-          `dishType`/`cuisine`/`usesAirFryer` czyści te pola — przy edycji starszego przepisu
-          bez nich uzupełnij je (sklasyfikuj danie), zamiast pomijać.
+          `dishType`/`cuisine`/`usesAirFryer`/`kcal`/`protein`/`fat`/`carbs` czyści te pola —
+          przy edycji starszego przepisu bez nich uzupełnij je (sklasyfikuj danie, oszacuj
+          makro na porcję), zamiast pomijać.
         - `DELETE /recipes/{id}`.
         - `POST /recipes/{id}/add-missing-to-shopping` — dopisz brakujące składniki do zakupów.
 

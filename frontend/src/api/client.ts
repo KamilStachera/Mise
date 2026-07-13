@@ -22,6 +22,11 @@ export interface RecipeListItem {
   cuisine: Cuisine | null
   usesAirFryer: boolean
   createdAt: string
+  /** Estimated nutrition per serving; null = not yet estimated. */
+  kcal: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
 }
 
 export interface Ingredient {
@@ -58,6 +63,11 @@ export interface RecipeDetail {
   dishType: DishType | null
   cuisine: Cuisine | null
   usesAirFryer: boolean
+  /** Estimated nutrition per serving; null = not yet estimated. */
+  kcal: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
 }
 
 export interface PantryItem {
@@ -160,6 +170,11 @@ export interface RecipeInput {
   cuisine?: Cuisine
   /** Omitted = the backend guesses from the recipe text. */
   usesAirFryer?: boolean
+  /** Estimated nutrition per serving; omitted on PUT clears the stored values. */
+  kcal?: number
+  protein?: number
+  fat?: number
+  carbs?: number
 }
 
 export interface CookLogEntry {

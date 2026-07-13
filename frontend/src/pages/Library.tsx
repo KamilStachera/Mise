@@ -361,6 +361,9 @@ function Card({ r, onOpen }: { r: RecipeListItem; onOpen: () => void }) {
             <ServingsIcon />
             {r.servings}
           </span>
+          {r.kcal != null && (
+            <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-3)' }}>~{r.kcal} kcal</span>
+          )}
           <span
             style={{
               marginLeft: 'auto',
