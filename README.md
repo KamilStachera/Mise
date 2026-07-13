@@ -6,7 +6,17 @@ help plan meals.
 
 - **Recipes** from AI, the web/books, or your own — with photos (a small gallery
   per recipe), dish-type / cuisine / time / air-fryer filters, and a live "what
-  you'd need to buy" badge based on your pantry.
+  you'd need to buy" badge based on your pantry. An "almost complete" toggle and
+  a "fewest missing" sort surface the recipes you could cook after buying 1–2
+  things.
+- **Per-serving nutrition estimates** (kcal / protein / fat / carbs) on every
+  recipe — agents estimate them when saving, the plan shows per-day totals.
+- A full-screen **cook mode** ("Tryb gotowania"): one step at a time in large
+  type, tappable countdown timers parsed from the step text, and a screen wake
+  lock so the display stays on at the stove.
+- **Phone-friendly**: below tablet width the nav becomes a bottom tab bar and the
+  shopping list gets store-sized tap targets; a minimal PWA manifest lets you
+  install it to your home screen (open `http://<host-ip>:8080` on the same LAN).
 - A **quantity-based pantry** (grams / ml / pieces, with low-stock thresholds and
   aliases) that doubles as your ingredient catalog — in / low / out is derived
   from the numbers. Receipts add deltas; a fridge photo sets absolute amounts.
