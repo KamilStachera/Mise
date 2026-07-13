@@ -3,27 +3,33 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useShopping } from '../api/hooks'
 import { RecipesIcon, DiceIcon, HistoryIcon, PlanIcon, PantryIcon, ShopIcon, ProfileIcon, ChatIcon } from './icons'
 
-function navStyle(active: boolean): CSSProperties {
+function navStyle(active: boolean, mobile = false): CSSProperties {
   return {
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: 5,
-    padding: '11px 6px',
+    gap: mobile ? 3 : 5,
+    padding: mobile ? '8px 2px' : '11px 6px',
     borderRadius: 14,
     cursor: 'pointer',
     border: 'none',
     background: active ? 'var(--accent-soft)' : 'transparent',
     color: active ? 'var(--accent-deep)' : 'var(--text-2)',
-    width: 58,
+    width: mobile ? undefined : 58,
+    flex: mobile ? 1 : undefined,
+    minWidth: 0,
     transition: 'all .15s',
     font: "500 10.5px 'Hanken Grotesk', sans-serif",
     letterSpacing: '.02em',
   }
 }
 
-export function NavRail({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggleChat: () => void }) {
+export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
+  chatOpen: boolean
+  onToggleChat: () => void
+  mobile?: boolean
+}) {
   const nav = useNavigate()
   const { pathname } = useLocation()
   const { data: shopping } = useShopping()
@@ -37,6 +43,72 @@ export function NavRail({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
   const isProfile = pathname.startsWith('/profile')
 
   const toBuy = shopping ? shopping.total - shopping.checkedCount : 0
+
+  const badge = toBuy > 0 && (
+    <span
+      style={{
+        position: 'absolute',
+        top: mobile ? 3 : 7,
+        right: mobile ? 'calc(50% - 22px)' : 11,
+        minWidth: 16,
+        height: 16,
+        padding: '0 4px',
+        borderRadius: 8,
+        background: 'var(--accent)',
+        color: '#fff',
+        fontSize: 9.5,
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {toBuy}
+    </span>
+  )
+
+  // Phone: bottom tab bar (the chat panel is desktop-only).
+  if (mobile) {
+    return (
+      <nav
+        style={{
+          flex: '0 0 auto',
+          display: 'flex',
+          alignItems: 'stretch',
+          gap: 2,
+          padding: '5px 6px calc(5px + env(safe-area-inset-bottom))',
+          background: 'var(--surface)',
+          borderTop: '1px solid var(--border)',
+        }}
+      >
+        <button onClick={() => nav('/')} style={navStyle(isLibrary, true)}>
+          <RecipesIcon />
+          <span>Przepisy</span>
+        </button>
+        <button onClick={() => nav('/random')} style={navStyle(isRandom, true)}>
+          <DiceIcon />
+          <span>Losuj</span>
+        </button>
+        <button onClick={() => nav('/plan')} style={navStyle(isPlan, true)}>
+          <PlanIcon />
+          <span>Plan</span>
+        </button>
+        <button onClick={() => nav('/pantry')} style={navStyle(isPantry, true)}>
+          <PantryIcon />
+          <span>Spiżarnia</span>
+        </button>
+        <button onClick={() => nav('/shopping')} style={navStyle(isShopping, true)}>
+          <ShopIcon />
+          <span>Zakupy</span>
+          {badge}
+        </button>
+        <button onClick={() => nav('/profile')} style={navStyle(isProfile || isHistory, true)}>
+          <ProfileIcon />
+          <span>Profil</span>
+        </button>
+      </nav>
+    )
+  }
 
   return (
     <nav
@@ -97,28 +169,7 @@ export function NavRail({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
       <button onClick={() => nav('/shopping')} style={navStyle(isShopping)}>
         <ShopIcon />
         <span>Zakupy</span>
-        {toBuy > 0 && (
-          <span
-            style={{
-              position: 'absolute',
-              top: 7,
-              right: 11,
-              minWidth: 16,
-              height: 16,
-              padding: '0 4px',
-              borderRadius: 8,
-              background: 'var(--accent)',
-              color: '#fff',
-              fontSize: 9.5,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {toBuy}
-          </span>
-        )}
+        {badge}
       </button>
       <button onClick={() => nav('/profile')} style={navStyle(isProfile)}>
         <ProfileIcon />

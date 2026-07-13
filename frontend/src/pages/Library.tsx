@@ -6,6 +6,7 @@ import { gradient } from '../lib/colors'
 import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishTypeLabel, recipeCountLabel, sourceBadge } from '../lib/labels'
 import { SearchIcon, ClockIcon, ServingsIcon, PlusIcon, FilterIcon, SortIcon } from '../components/icons'
 import { FilterDropdown } from '../components/FilterDropdown'
+import { useIsMobile } from '../lib/useIsMobile'
 
 function chip(active: boolean): CSSProperties {
   return {
@@ -45,6 +46,7 @@ function inTimeBucket(time: number, bucket: TimeBucket | null): boolean {
 
 export function Library() {
   const nav = useNavigate()
+  const isMobile = useIsMobile()
   const { data: recipes = [], isLoading } = useRecipes('all', '')
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
@@ -134,8 +136,8 @@ export function Library() {
   const pickSort = pick(setSort)
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '38px 42px 60px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 6 }}>
+    <div style={{ maxWidth: 980, margin: '0 auto', padding: isMobile ? '22px 14px 40px' : '38px 42px 60px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 6, flexWrap: 'wrap' }}>
         <div>
           <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
             Twoja kolekcja
@@ -145,7 +147,7 @@ export function Library() {
           </h1>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 11, padding: '9px 13px', width: 248 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 11, padding: '9px 13px', width: isMobile ? 170 : 248 }}>
             <SearchIcon />
             <input
               value={query}

@@ -107,8 +107,13 @@ each with a copy button:
 Set `HOST_CONTEXT_DIR` in `.env` (the absolute host path of `./context`) so the
 prompts come out ready to paste; otherwise the card asks for the path once.
 
-> **Security note:** the API on port 5080 has no authentication — it is meant for
-> localhost use only. Don't publish it on a LAN/WAN.
+> **Security note:** the API has no authentication. The raw API port is bound to
+> loopback only (`127.0.0.1:5080`), so agents and the MCP server on this machine
+> can reach it, but other devices cannot. The web app on port `8080` (nginx, which
+> proxies `/api`) **is** reachable from your LAN — that's what lets you open the
+> shopping list on your phone (`http://<host-ip>:8080`, installable as a PWA) —
+> so anyone on your network can read and change your cookbook data through it.
+> Fine on a trusted home network; don't expose 8080 beyond it (WAN/port forward).
 
 ## MCP server
 

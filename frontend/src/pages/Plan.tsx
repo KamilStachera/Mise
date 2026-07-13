@@ -123,7 +123,9 @@ export function Plan() {
         folderze context — asystent może go czytać i uzupełniać przez API.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '86px repeat(7, 1fr)', gap: 6 }}>
+      {/* Fixed 8-column week grid — scrolls sideways on phones instead of crushing. */}
+      <div style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '86px repeat(7, 1fr)', gap: 6, minWidth: 860 }}>
         <div />
         {days.map((d, i) => (
           <div key={d} style={{ textAlign: 'center', padding: '4px 0 8px' }}>
@@ -149,6 +151,7 @@ export function Plan() {
             editing={editing}
           />
         ))}
+      </div>
       </div>
 
       {editing && (

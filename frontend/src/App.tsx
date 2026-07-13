@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { registerChatOpener } from './lib/chatBus'
+import { useIsMobile } from './lib/useIsMobile'
 import { NavRail } from './components/NavRail'
 import { ChatSidebar } from './components/ChatSidebar'
 import { Library } from './pages/Library'
@@ -15,15 +16,26 @@ import { Random } from './pages/Random'
 import { History } from './pages/History'
 
 export default function App() {
-  const [chatOpen, setChatOpen] = useState(true)
+  const isMobile = useIsMobile()
+  const [chatOpen, setChatOpen] = useState(() => !window.matchMedia('(max-width: 700px)').matches)
 
   useEffect(() => registerChatOpener(() => setChatOpen(true)), [])
 
+  // Phone: content on top, bottom tab bar under it, no chat panel (desktop-only).
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100%', overflow: 'hidden', background: 'var(--bg)' }}>
-      <NavRail chatOpen={chatOpen} onToggleChat={() => setChatOpen((v) => !v)} />
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
+        height: '100dvh',
+        width: '100%',
+        overflow: 'hidden',
+        background: 'var(--bg)',
+      }}
+    >
+      {!isMobile && <NavRail chatOpen={chatOpen} onToggleChat={() => setChatOpen((v) => !v)} />}
 
-      <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', position: 'relative' }}>
+      <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
         <Routes>
           <Route path="/" element={<Library />} />
           <Route path="/random" element={<Random />} />
@@ -39,7 +51,8 @@ export default function App() {
         </Routes>
       </main>
 
-      {chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
+      {!isMobile && chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
+      {isMobile && <NavRail mobile chatOpen={false} onToggleChat={() => {}} />}
     </div>
   )
 }

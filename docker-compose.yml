@@ -38,7 +38,9 @@ services:
       - mise-images:/data/images
     ports:
       # Direct access (e.g. Swagger at http://localhost:5080/api/swagger).
-      - "5080:8080"
+      # Loopback-only: the unauthenticated API must not be reachable from the
+      # LAN — phones use the app through nginx on :8080.
+      - "127.0.0.1:5080:8080"
     depends_on:
       db:
         condition: service_healthy

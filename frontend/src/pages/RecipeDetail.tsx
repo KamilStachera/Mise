@@ -10,10 +10,12 @@ import { cuisineLabel, dishTypeLabel, formatQty, macroSummary, sourceBadge, stat
 import { BackIcon, ClockIcon, ServingsIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
 import { IMAGE_ACCEPT } from '../lib/images'
 import { CookMode } from '../components/CookMode'
+import { useIsMobile } from '../lib/useIsMobile'
 
 export function RecipeDetail() {
   const { id } = useParams()
   const nav = useNavigate()
+  const isMobile = useIsMobile()
   const location = useLocation()
   const { data: r, isLoading } = useRecipe(id)
   const addMissing = useAddMissingToShopping()
@@ -39,7 +41,7 @@ export function RecipeDetail() {
       : `Masz ${r.have} z ${r.total}. Do kupienia (${r.missing.length}): ${r.missing.join(', ')}.`
 
   return (
-    <div style={{ maxWidth: 780, margin: '0 auto', padding: '26px 42px 70px' }}>
+    <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '18px 14px 44px' : '26px 42px 70px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           onClick={() => nav('/')}
@@ -103,7 +105,7 @@ export function RecipeDetail() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.35fr', gap: 34, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.35fr', gap: 34, alignItems: 'start' }}>
         <div>
           <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: '0 0 13px' }}>Składniki</h2>
           <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 11, padding: '11px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 9 }}>
