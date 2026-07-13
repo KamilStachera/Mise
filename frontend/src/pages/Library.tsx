@@ -23,7 +23,7 @@ function chip(active: boolean): CSSProperties {
 
 type Filter = 'all' | Source
 type TimeBucket = '15' | '30' | '60' | '60plus'
-type SortMode = 'alpha' | 'newest' | 'quickest'
+type SortMode = 'alpha' | 'newest' | 'quickest' | 'missing'
 
 const TIME_BUCKETS: { key: TimeBucket; label: string }[] = [
   { key: '15', label: '≤ 15 min' },
@@ -36,6 +36,7 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
   { key: 'newest', label: 'Najnowsze' },
   { key: 'alpha', label: 'A–Z' },
   { key: 'quickest', label: 'Najszybsze' },
+  { key: 'missing', label: 'Najmniej brakuje' },
 ]
 
 function inTimeBucket(time: number, bucket: TimeBucket | null): boolean {
@@ -55,6 +56,7 @@ export function Library() {
   const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null)
   const [difficulty, setDifficulty] = useState<string>('all')
   const [canCookNow, setCanCookNow] = useState(false)
+  const [almostReady, setAlmostReady] = useState(false)
   const [airFryerOnly, setAirFryerOnly] = useState(false)
   const [sort, setSort] = useState<SortMode>('newest')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -87,19 +89,22 @@ export function Library() {
       .filter((r) => inTimeBucket(r.time, timeBucket))
       .filter((r) => difficulty === 'all' || r.difficulty === difficulty)
       .filter((r) => !canCookNow || r.toBuyCount === 0)
+      .filter((r) => !almostReady || (r.toBuyCount >= 1 && r.toBuyCount <= 2))
       .filter((r) => !airFryerOnly || r.usesAirFryer)
       .filter((r) => !q || r.title.toLowerCase().includes(q))
     // 'alpha' keeps the server order — it is already Polish-collated.
     if (sort === 'newest') filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     if (sort === 'quickest') filtered.sort((a, b) => a.time - b.time)
+    if (sort === 'missing')
+      filtered.sort((a, b) => a.toBuyCount - b.toBuyCount || b.createdAt.localeCompare(a.createdAt))
     return filtered
-  }, [recipes, filter, dish, cuisine, timeBucket, difficulty, canCookNow, airFryerOnly, query, sort])
+  }, [recipes, filter, dish, cuisine, timeBucket, difficulty, canCookNow, almostReady, airFryerOnly, query, sort])
 
   // The toolbar's "clear" covers only what the toolbar owns (design semantics);
   // source chips and search have their own affordances.
   const toolbarFiltersActive =
     dish !== 'all' || cuisine !== 'all' || timeBucket !== null || difficulty !== 'all' ||
-    canCookNow || airFryerOnly
+    canCookNow || almostReady || airFryerOnly
   const filtersActive = toolbarFiltersActive || filter !== 'all' || query.trim() !== ''
 
   function clearToolbarFilters() {
@@ -108,6 +113,7 @@ export function Library() {
     setTimeBucket(null)
     setDifficulty('all')
     setCanCookNow(false)
+    setAlmostReady(false)
     setAirFryerOnly(false)
     setOpenMenu(null)
   }
@@ -244,6 +250,27 @@ export function Library() {
           Mam składniki
         </button>
         <button
+          onClick={() => setAlmostReady(!almostReady)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            border: 'none',
+            background: almostReady ? 'var(--accent-soft)' : 'transparent',
+            color: almostReady ? 'var(--accent-deep)' : 'var(--text)',
+            borderRadius: 9,
+            padding: '7px 11px',
+            font: "600 13px 'Hanken Grotesk'",
+            cursor: 'pointer',
+            transition: 'background .13s',
+            whiteSpace: 'nowrap',
+          }}
+          title="Brakuje najwyżej 1–2 składników"
+        >
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: almostReady ? 'var(--accent)' : 'var(--border-2)', transition: 'background .13s' }} />
+          Prawie kompletne
+        </button>
+        <button
           onClick={() => setAirFryerOnly(!airFryerOnly)}
           style={{
             display: 'flex',
@@ -308,7 +335,7 @@ export function Library() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 20 }}>
           {view.map((r) => (
-            <Card key={r.id} r={r} onOpen={() => nav(`/recipe/${r.id}`)} />
+            <Card key={r.id} r={r} showShortfall={almostReady || sort === 'missing'} onOpen={() => nav(`/recipe/${r.id}`)} />
           ))}
         </div>
       )}
@@ -316,7 +343,7 @@ export function Library() {
   )
 }
 
-function Card({ r, onOpen }: { r: RecipeListItem; onOpen: () => void }) {
+function Card({ r, showShortfall = false, onOpen }: { r: RecipeListItem; showShortfall?: boolean; onOpen: () => void }) {
   const allIn = r.toBuyCount === 0
   return (
     <div
@@ -376,7 +403,7 @@ function Card({ r, onOpen }: { r: RecipeListItem; onOpen: () => void }) {
               borderRadius: 7,
             }}
           >
-            {allIn ? 'Wszystko jest' : `${r.toBuyCount} do kupienia`}
+            {allIn ? 'Wszystko jest' : showShortfall ? `brakuje ${r.toBuyCount}` : `${r.toBuyCount} do kupienia`}
           </span>
         </div>
       </div>
