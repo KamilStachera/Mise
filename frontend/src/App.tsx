@@ -42,7 +42,10 @@ export default function App() {
       style={{
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
-        height: '100dvh',
+        // 100% (via html/body/#root) not 100dvh: Chrome multiplies viewport
+        // units by the root zoom (tokens.css), which made the shell 25%
+        // taller than the screen on desktop.
+        height: '100%',
         width: '100%',
         overflow: 'hidden',
         background: 'var(--bg)',

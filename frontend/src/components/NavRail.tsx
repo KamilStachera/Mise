@@ -10,8 +10,8 @@ function navStyle(active: boolean, mobile = false): CSSProperties {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: mobile ? 3 : 5,
-    padding: mobile ? '8px 2px' : '11px 6px',
+    gap: mobile ? 3 : 4,
+    padding: mobile ? '8px 2px' : '8px 6px',
     borderRadius: 14,
     cursor: 'pointer',
     border: 'none',
@@ -125,13 +125,17 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
       style={{
         width: 78,
         flex: '0 0 78px',
+        // Counter the global desktop zoom (tokens.css): at 1.25× the full
+        // button stack outgrows short viewports and Wyloguj gets clipped.
+        zoom: 0.8,
+        overflowY: 'auto',
         background: 'var(--surface)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '18px 0 16px',
-        gap: 4,
+        padding: '14px 0 12px',
+        gap: 3,
       }}
     >
       <div
