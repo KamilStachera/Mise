@@ -42,6 +42,13 @@ body,
   height: 100%;
 }
 
+/* Standalone PWA: never let top-overscroll chain into the root scroller —
+   it pans the whole shell and drags the bottom tab bar off-screen. */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
 body {
   font-family: 'Hanken Grotesk', system-ui, sans-serif;
   color: var(--text);

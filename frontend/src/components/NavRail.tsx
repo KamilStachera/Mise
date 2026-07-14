@@ -75,7 +75,14 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
     return (
       <nav
         style={{
-          flex: '0 0 auto',
+          // Fixed, not a flex child: in the installed (standalone) PWA the root
+          // scroller can still pan on top-overscroll, which would carry a
+          // static bar off-screen. App.tsx pads <main> to keep content clear.
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 30,
           display: 'flex',
           alignItems: 'stretch',
           gap: 2,

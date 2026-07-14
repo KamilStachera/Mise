@@ -50,7 +50,18 @@ export default function App() {
     >
       {!isMobile && <NavRail chatOpen={chatOpen} onToggleChat={() => setChatOpen((v) => !v)} />}
 
-      <main style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
+      <main
+        style={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          overflowY: 'auto',
+          overscrollBehaviorY: 'contain',
+          position: 'relative',
+          // Clearance for the fixed bottom tab bar.
+          paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom))' : undefined,
+        }}
+      >
         <Routes>
           <Route path="/" element={<Library />} />
           <Route path="/random" element={<Random />} />
