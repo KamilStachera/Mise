@@ -24,7 +24,12 @@ const CUISINES = [
 ] as const
 
 const recipeInputShape = {
-  title: z.string().describe('Tytuł przepisu (po polsku)'),
+  title: z
+    .string()
+    .describe(
+      'Tytuł przepisu (po polsku) — nazwa dania, NIE lista elementów posiłku ' +
+        '("Jajecznica; pieczywo; gruszka" ✗ → "Jajecznica z pieczywem i warzywami" ✓)',
+    ),
   source: z.enum(['ai', 'web', 'manual']).describe('ai = kreacja AI, web = książka/strona, manual = własne'),
   time: z.number().int().positive().describe('Czas przygotowania w minutach'),
   servings: z.number().int().positive().describe('Liczba porcji (domyślnie 2)'),
@@ -40,10 +45,14 @@ const recipeInputShape = {
     .int()
     .positive()
     .optional()
-    .describe('Szacunkowe kcal NA PORCJĘ — zawsze oszacuj (ze składników / liczby porcji); pominięte = brak oszacowania'),
-  protein: z.number().positive().optional().describe('Białko w gramach NA PORCJĘ (szacunek) — zawsze oszacuj'),
-  fat: z.number().positive().optional().describe('Tłuszcz w gramach NA PORCJĘ (szacunek) — zawsze oszacuj'),
-  carbs: z.number().positive().optional().describe('Węglowodany w gramach NA PORCJĘ (szacunek) — zawsze oszacuj'),
+    .describe(
+      'Szacunkowe kcal NA PORCJĘ — zawsze oszacuj (ze składników / liczby porcji). ' +
+        'Zawsze komplet: kcal+protein+fat+carbs, nigdy samo kcal — gdy źródło podaje ' +
+        'tylko kalorie, resztę policz ze składników',
+    ),
+  protein: z.number().positive().optional().describe('Białko w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z fat i carbs'),
+  fat: z.number().positive().optional().describe('Tłuszcz w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i carbs'),
+  carbs: z.number().positive().optional().describe('Węglowodany w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i fat'),
   blurb: z.string().optional().describe('Jedno-dwa zdania opisu'),
   tip: z.string().optional().describe('Wskazówka (opcjonalna)'),
   ingredients: z
@@ -56,9 +65,13 @@ const recipeInputShape = {
       }),
     )
     .describe(
-      'Składniki — naturalne polskie nazwy. quantity to tekst do wyświetlania; amountValue+amountUnit ' +
-        'to ilość strukturalna (napędza "czy wystarczy w spiżarni" i odejmowanie po ugotowaniu) — ' +
-        'ZAWSZE podawaj, gdy ilość jest mierzalna (np. name: "Guanciale", quantity: "100 g", ' +
+      'Składniki — naturalne polskie nazwy W MIANOWNIKU, jak mówi się w kuchni, nie z bazy żywieniowej ' +
+        'ani z dopełniacza ("Jaja kurze całe" + "100 g" ✗ → name: "Jajka", quantity: "2 szt." ✓; ' +
+        '"Mięso z piersi indyka, bez skóry" → "Pierś z indyka"; "Miodu" → "Miód"). Ilość nigdy nie jest ' +
+        'częścią nazwy ("Łyżeczka pasty gochujang" → name: "Pasta gochujang", quantity: "1 łyżeczka"). ' +
+        'quantity to naturalny tekst do wyświetlania ("2 kromki (70 g)", nie "2 x Kromka (70.0 g)"); ' +
+        'amountValue+amountUnit to ilość strukturalna (napędza "czy wystarczy w spiżarni" i odejmowanie ' +
+        'po ugotowaniu) — ZAWSZE podawaj, gdy ilość jest mierzalna (np. name: "Guanciale", quantity: "100 g", ' +
         'amountValue: 100, amountUnit: "g"); pomiń przy "garść", "do smaku" itp. ' +
         'JEDEN produkt = JEDEN składnik: rozbijaj zbitki ("Sól, pieprz i zioła" → trzy osobne składniki), ' +
         'inaczej dopasuje się tylko pierwszy człon. Przymiotniki zostaw tylko, gdy odróżniają produkt ' +

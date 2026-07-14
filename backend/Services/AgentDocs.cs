@@ -53,9 +53,14 @@ public static class AgentDocs
         2. Znormalizuj do schematu z `api.md`: tytuł, czas w minutach, porcje, składniki
            `{ "name", "quantity", "amountValue", "amountUnit" }` po polsku, kroki jako lista
            zdań. Oszacuj też wartości odżywcze NA PORCJĘ (`kcal`, `protein`, `fat`, `carbs`)
-           — zawsze, tak jak `dishType` i `usesAirFryer`. Jeden produkt = jeden składnik (rozbijaj „Sól, pieprz i zioła" na osobne
-           pozycje; przymiotniki tylko gdy odróżniają produkt). `source`: `"web"` dla
-           zdjęcia z książki lub strony, `"ai"` dla własnej kreacji, `"manual"` dla rodzinnych notatek.
+           — zawsze wszystkie cztery (nigdy samo `kcal` — resztę policz ze składników),
+           tak jak `dishType` i `usesAirFryer`. Tytuł to nazwa dania, nie lista elementów
+           posiłku („Jajecznica; pieczywo; gruszka" ✗). Nazwy składników w mianowniku,
+           jak mówi się w kuchni („Jajka" + „2 szt.", nie „Jaja kurze całe" + „100 g";
+           „Miód", nie „Miodu"). Jeden produkt = jeden składnik (rozbijaj „Sól, pieprz
+           i zioła" na osobne pozycje; przymiotniki tylko gdy odróżniają produkt).
+           `source`: `"web"` dla zdjęcia z książki lub strony, `"ai"` dla własnej kreacji,
+           `"manual"` dla rodzinnych notatek.
         3. Porównaj składniki z `pantry.json`; jeśli czegoś brakuje, zaproponuj zamianę
            pasującą do naszej kuchni albo oznacz do kupienia.
         4. Pokaż mi propozycję. Po akceptacji: `POST {API}/recipes`, a brakujące składniki
@@ -143,7 +148,9 @@ public static class AgentDocs
         **NA JEDNĄ PORCJĘ**, nie na całe danie. **Zawsze oszacuj je przy dodawaniu przepisu**
         (policz ze składników i liczby porcji; wystarczy rozsądne przybliżenie) — napędzają
         podsumowania kalorii w planie tygodnia. `null`/pominięte = jeszcze nie oszacowane
-        (starsze przepisy).
+        (starsze przepisy). **Zawsze komplet czterech wartości, nigdy samo `kcal`** — gdy
+        źródło (np. jadłospis) podaje tylko kalorie, oszacuj białko/tłuszcz/węglowodany
+        ze składników.
 
         ## Przepisy
 
@@ -188,6 +195,23 @@ public static class AgentDocs
         osobne składniki — inaczej ze spiżarnią dopasuje się tylko pierwszy człon (sól),
         a reszta będzie niewidoczna. Przymiotniki zostaw tylko, gdy odróżniają produkt
         („Twaróg chudy" ≠ półtłusty — zostaw; „Dojrzałe awokado" → „Awokado").
+
+        **Tytuł to nazwa dania, nie lista elementów posiłku.** Importując jadłospis nie
+        zapisuj tytułu „Jajecznica; pieczywo; warzywa; gruszka" ani „Wrap + Sałatka” —
+        tytułem jest danie („Jajecznica z pieczywem i warzywami"), a dodatki posiłku
+        (owoc, sok, pieczywo) zostają zwykłymi składnikami.
+
+        **Nazwy składników w mianowniku, tak jak mówi się w kuchni.** Nie kopiuj nazw
+        z baz żywieniowych ani dopełniacza z listy („2 łyżki miodu" → nazwa „Miód",
+        quantity „2 łyżki"). Przykłady złych → dobrych:
+        - „Jaja kurze całe" + `100 g` → `"name": "Jajka", "quantity": "2 szt."`
+          (kroki mówią o dwóch jajkach — przelicz, 1 jajko ≈ 50 g);
+        - „Mięso z piersi indyka, bez skóry" → „Pierś z indyka";
+        - „Mąka pszenna, typ 550" → „Mąka pszenna"; „Czosnku" → „Czosnek".
+        Ilość nigdy nie jest częścią nazwy („Łyżeczka pasty gochujang" → nazwa
+        „Pasta gochujang", quantity „1 łyżeczka"). `quantity` pisz naturalnie po polsku
+        („2 kromki (70 g)", „1 łyżeczka (5 g)"), nie w formacie eksportu
+        („2 x Kromka (70.0 g)").
 
         ### Pozostałe
         - `GET /recipes?q=<szukaj>&source=<ai|web|manual|all>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>` — lista.
