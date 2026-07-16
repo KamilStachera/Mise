@@ -41,23 +41,21 @@ public static class DbInitializer
     }
 
     /// <summary>
-    /// Idempotent startup passes: (1) relink recipe ingredients to pantry items after
-    /// a pantry reseed (the fresh-start migration nulls all links), (2) backfill
-    /// structured amounts from the display quantity where it parses ("500 g" → 500/G).
+    /// Idempotent startup passes: (1) recompute recipe ingredient links against the
+    /// current pantry catalog, repairing stale fuzzy links as well as links cleared
+    /// by a pantry reseed, (2) backfill structured amounts from the display quantity
+    /// where it parses ("500 g" → 500/G).
     /// </summary>
     private static async Task RelinkAndBackfillAsync(MiseDbContext db, IngredientMatcher matcher,
         CancellationToken ct)
     {
-        var ingredients = await db.RecipeIngredients
-            .Where(i => i.PantryItemId == null || (i.AmountValue == null && i.Quantity != ""))
-            .ToListAsync(ct);
+        var ingredients = await db.RecipeIngredients.ToListAsync(ct);
         if (ingredients.Count == 0) return;
 
         var pantry = await db.PantryItems.AsNoTracking().ToListAsync(ct);
+        matcher.RelinkIngredients(ingredients, pantry);
         foreach (var ing in ingredients)
         {
-            if (ing.PantryItemId is null && matcher.FindMatch(ing.Name, pantry) is PantryItem hit)
-                ing.PantryItemId = hit.Id;
             if (ing.AmountValue is null && QuantityParser.TryParse(ing.Quantity, out var v, out var u))
             {
                 ing.AmountValue = v;

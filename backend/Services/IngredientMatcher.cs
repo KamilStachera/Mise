@@ -131,6 +131,37 @@ public sealed class IngredientMatcher
         return bestScore >= minScore ? best : null;
     }
 
+    /// <summary>
+    /// Recomputes recipe ingredient links against the current pantry catalog.
+    /// The current link is evaluated first, so an equally good candidate does
+    /// not cause churn, while a stronger match (especially an exact one) wins.
+    /// </summary>
+    public int RelinkIngredients(IEnumerable<RecipeIngredient> ingredients,
+        IReadOnlyList<PantryItem> pantry)
+    {
+        var pantryById = pantry.ToDictionary(p => p.Id);
+        var changed = 0;
+
+        foreach (var ingredient in ingredients)
+        {
+            IEnumerable<PantryItem> candidates = pantry;
+            if (ingredient.PantryItemId is Guid currentId
+                && pantryById.TryGetValue(currentId, out var current))
+            {
+                // FindMatch keeps the first candidate when scores tie.
+                candidates = new[] { current }.Concat(pantry.Where(p => p.Id != currentId));
+            }
+
+            var bestMatch = FindMatch(ingredient.Name, candidates);
+            if (ingredient.PantryItemId == bestMatch?.Id) continue;
+
+            ingredient.PantryItemId = bestMatch?.Id;
+            changed++;
+        }
+
+        return changed;
+    }
+
     /// <summary>The item's name plus its semicolon-separated aliases.</summary>
     public static IEnumerable<string> NamesOf(PantryItem p)
     {

@@ -7,6 +7,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "backend", "backend", "{1AE8
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mise.Api", "backend\Mise.Api.csproj", "{E0A0C1BF-0F72-4CBE-9EC1-C69D36443224}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mise.Api.Tests", "backend.tests\Mise.Api.Tests.csproj", "{E739E483-0A8C-4A06-AB04-7F6492EFBA56}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,11 +31,24 @@ Global
 		{E0A0C1BF-0F72-4CBE-9EC1-C69D36443224}.Release|x64.Build.0 = Release|Any CPU
 		{E0A0C1BF-0F72-4CBE-9EC1-C69D36443224}.Release|x86.ActiveCfg = Release|Any CPU
 		{E0A0C1BF-0F72-4CBE-9EC1-C69D36443224}.Release|x86.Build.0 = Release|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Debug|x64.Build.0 = Debug|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Debug|x86.Build.0 = Debug|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Release|x64.ActiveCfg = Release|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Release|x64.Build.0 = Release|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Release|x86.ActiveCfg = Release|Any CPU
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{E0A0C1BF-0F72-4CBE-9EC1-C69D36443224} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
+		{E739E483-0A8C-4A06-AB04-7F6492EFBA56} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
 	EndGlobalSection
 EndGlobal

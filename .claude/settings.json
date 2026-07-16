@@ -41,7 +41,6 @@
       "PowerShell(docker info --format '{{.ServerVersion}}')",
       "PowerShell(try { Invoke-WebRequest 'https://api.github.com/repos/KamilStachera/Mise' -UseBasicParsing | Select-Object -ExpandProperty StatusCode } catch { \"not public: $\\([int]$_.Exception.Response.StatusCode\\)\" })",
       "PowerShell(Set-Location \"C:\\\\Users\\\\kamil\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Ntropy-Repos-CukBuk\\\\48729043-d5b1-4a2e-8bb1-7b4162f91caa\\\\scratchpad\"; if \\(-not \\(Test-Path node_modules\\\\playwright\\)\\) { npm init -y | Out-Null; npm install playwright --no-audit --no-fund | Out-Null }; node -e \"require\\('playwright'\\); console.log\\('playwright ok'\\)\")",
-      "Bash(curl -s -H 'X-Api-Key: 206b240bec9a11397213531219da2c59de9e1f412dfec4f5d1d9e9e8b5909d6b' https://pichci.com/api/recipes -o __TRACKED_VAR__/recipes.json)",
       "Bash(curl -s \"https://pichci.com/api/recipes\")",
       "Bash(mkdir -p /c/Users/kamil/AppData/Local/Temp/claude/e--Ntropy-Repos-CukBuk/7f1678ac-b73e-4f7f-b7b4-08eb55716f11/scratchpad)",
       "Bash(curl -s https://pichci.com/api/recipes -o /c/Users/kamil/AppData/Local/Temp/claude/e--Ntropy-Repos-CukBuk/7f1678ac-b73e-4f7f-b7b4-08eb55716f11/scratchpad/recipes.json)",

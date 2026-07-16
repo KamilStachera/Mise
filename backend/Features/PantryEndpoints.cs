@@ -63,7 +63,7 @@ public static class PantryEndpoints
             if (input.Aliases is not null)
                 item.Aliases = JoinAliases(input.Aliases);
             item.UpdatedAt = DateTimeOffset.UtcNow;
-            await RelinkUnmatchedIngredientsAsync(db, matcher, item);
+            await RelinkIngredientsAsync(db, matcher, item);
             await db.SaveChangesAsync();
             await export.ExportAsync();
             return Results.Ok(Mapping.ToDto(item));
@@ -101,7 +101,7 @@ public static class PantryEndpoints
                 Aliases = JoinAliases(input.Aliases ?? new()),
             };
             db.PantryItems.Add(item);
-            await RelinkUnmatchedIngredientsAsync(db, matcher, item);
+            await RelinkIngredientsAsync(db, matcher, item);
             await db.SaveChangesAsync();
             await export.ExportAsync();
             return Results.Created($"/api/pantry/{item.Id}", Mapping.ToDto(item));
@@ -220,18 +220,20 @@ public static class PantryEndpoints
     });
 
     /// <summary>
-    /// A new or renamed pantry item may now match recipe ingredients that had no
-    /// pantry link (e.g. add "Feta" and the shakshuka's feta stops being "to buy").
+    /// A new or renamed pantry item may be a better match than an ingredient's
+    /// existing pantry link (e.g. "Masło orzechowe" was previously linked to
+    /// "Masło"). Re-evaluate against the whole catalog so exact matches replace
+    /// stale fuzzy links as well as filling empty links.
     /// </summary>
-    private static async Task RelinkUnmatchedIngredientsAsync(
+    private static async Task RelinkIngredientsAsync(
         MiseDbContext db, IngredientMatcher matcher, PantryItem item)
     {
-        var unlinked = await db.RecipeIngredients.Where(i => i.PantryItemId == null).ToListAsync();
-        var candidate = new[] { item };
-        foreach (var ing in unlinked)
-        {
-            if (matcher.FindMatch(ing.Name, candidate) is not null)
-                ing.PantryItemId = item.Id;
-        }
+        var ingredients = await db.RecipeIngredients.ToListAsync();
+        var pantry = await db.PantryItems.ToListAsync();
+
+        // A newly added entity is not returned by the database query until SaveChanges.
+        if (pantry.All(p => p.Id != item.Id)) pantry.Add(item);
+
+        matcher.RelinkIngredients(ingredients, pantry);
     }
 }
