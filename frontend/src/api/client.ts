@@ -33,6 +33,7 @@ export interface Ingredient {
   name: string
   quantity: string
   displayText: string | null
+  alternativeGroup: string | null
   status: Status
 }
 
@@ -117,13 +118,14 @@ export interface CookProposalItem {
   name: string
   quantityText: string
   displayText: string | null
+  alternativeGroup: string | null
   pantryItemId: string | null
   pantryItemName: string | null
   unit: Unit | null
   pantryQuantity: number | null
   proposedAmount: number | null
   deductible: boolean
-  skipReason: 'unlinked' | 'unparsed' | 'unit-mismatch' | null
+  skipReason: 'unlinked' | 'unparsed' | 'unit-mismatch' | 'alternative-not-selected' | null
 }
 export interface CookProposal {
   recipeId: string
@@ -170,6 +172,7 @@ export interface RecipeInput {
     name: string
     quantity?: string
     displayText?: string
+    alternativeGroup?: string
     amountValue?: number
     amountUnit?: Unit
   }[]

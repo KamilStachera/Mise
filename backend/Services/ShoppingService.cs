@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Data;
 using Mise.Api.Domain;
+using Mise.Api.Features;
 
 namespace Mise.Api.Services;
 
@@ -8,14 +9,15 @@ public sealed record ShoppingRecipeSource(string Key, string Label, Recipe Recip
 public sealed record ShoppingAddResult(int Added, int Updated);
 
 /// <summary>
-/// Explicit recipe/plan → shopping-list aggregation. The list remains standalone:
+/// Explicit recipe/plan to shopping-list aggregation. The list remains standalone:
 /// pantry changes never create or remove rows by themselves.
 /// </summary>
 public sealed class ShoppingService
 {
     private sealed record ProductKey(Guid? PantryItemId, string NormalizedName);
     private sealed record RowSnapshot(string Name, string Reason, decimal? Quantity,
-        PantryUnit? Unit, string Contributions);
+        PantryUnit? Unit, string? AlternativeKey, string? AlternativePantryItemIds,
+        string Contributions);
 
     private sealed class Requirement
     {
@@ -24,6 +26,15 @@ public sealed class ShoppingService
         public required ProductKey Key { get; init; }
         public required string ShoppingName { get; init; }
         public PantryItem? PantryItem { get; init; }
+    }
+
+    private sealed class AlternativeRequirement
+    {
+        public required ShoppingRecipeSource Source { get; init; }
+        public required string Key { get; init; }
+        public required string ShoppingName { get; init; }
+        public required IReadOnlyList<RecipeIngredient> Options { get; init; }
+        public required IReadOnlyList<PantryItem> PantryItems { get; init; }
     }
 
     /// <summary>
@@ -69,55 +80,27 @@ public sealed class ShoppingService
             affected.Add(row);
         }
 
-        var requirements = sources
-            .SelectMany(source => source.Recipe.Ingredients.Select(ingredient =>
-                CreateRequirement(source, ingredient, pantryById)))
+        var sourceRequirementGroups = sources.SelectMany(source =>
+            Mapping.IngredientRequirementGroups(source.Recipe.Ingredients)
+                .Select(group => (Source: source, Group: group))).ToList();
+        var requirements = sourceRequirementGroups
+            .Where(x => x.Group.Count == 1
+                && string.IsNullOrWhiteSpace(x.Group[0].AlternativeGroup))
+            .Select(x => CreateRequirement(x.Source, x.Group[0], pantryById))
             .Where(r => r is not null)
             .Cast<Requirement>()
             .ToList();
+        var alternativeRequirements = sourceRequirementGroups
+            .Where(x => !string.IsNullOrWhiteSpace(x.Group[0].AlternativeGroup))
+            .Select(x => CreateAlternativeRequirement(x.Source, x.Group, pantryById))
+            .Where(r => r is not null)
+            .Cast<AlternativeRequirement>()
+            .ToList();
 
-        foreach (var productGroup in requirements.GroupBy(r => r.Key))
-        {
-            var grouped = productGroup.ToList();
-            if (!NeedsPurchase(grouped)) continue;
-
-            var row = FindManagedRow(managedRows, productGroup.Key);
-            if (row is null)
-            {
-                var first = grouped[0];
-                row = new ShoppingItem
-                {
-                    Name = first.ShoppingName,
-                    Category = "Recipe",
-                    Origin = ShoppingOrigin.Recipe,
-                    PantryItemId = first.PantryItem?.Id,
-                };
-                db.ShoppingItems.Add(row);
-                managedRows.Add(row);
-            }
-
-            foreach (var sourceGroup in grouped.GroupBy(r => r.Source.Key, StringComparer.Ordinal))
-            {
-                var sourceRequirements = sourceGroup.ToList();
-                var first = sourceGroup.First();
-                var sourceUnit = SafeUnit(sourceRequirements);
-                var contribution = staleContributions.FirstOrDefault(c =>
-                    c.SourceKey == first.Source.Key && c.ShoppingItemId == row.Id);
-                if (contribution is null)
-                    contribution = new ShoppingContribution();
-                else
-                    staleContributions.Remove(contribution);
-
-                contribution.SourceKey = first.Source.Key;
-                contribution.SourceLabel = first.Source.Label;
-                contribution.RequiredQuantity = sourceUnit is PantryUnit
-                    ? sourceRequirements.Sum(r => r.Ingredient.AmountValue!.Value)
-                    : null;
-                contribution.Unit = sourceUnit;
-                row.Contributions.Add(contribution);
-            }
-            affected.Add(row);
-        }
+        AddOrdinaryRequirements(db, requirements, pantryById, managedRows,
+            affected, staleContributions);
+        AddAlternativeRequirements(db, alternativeRequirements, managedRows,
+            affected, staleContributions);
 
         db.ShoppingContributions.RemoveRange(staleContributions);
 
@@ -147,6 +130,108 @@ public sealed class ShoppingService
         return new(added, updated);
     }
 
+    private static void AddOrdinaryRequirements(MiseDbContext db,
+        IReadOnlyList<Requirement> requirements,
+        IReadOnlyDictionary<Guid, PantryItem> pantryById,
+        List<ShoppingItem> managedRows, HashSet<ShoppingItem> affected,
+        HashSet<ShoppingContribution> staleContributions)
+    {
+        foreach (var productGroup in requirements.GroupBy(r => r.Key))
+        {
+            var grouped = productGroup.ToList();
+            if (!NeedsPurchase(grouped)) continue;
+
+            var row = FindManagedRow(managedRows, productGroup.Key);
+            if (row is null)
+            {
+                var first = grouped[0];
+                row = new ShoppingItem
+                {
+                    Name = first.ShoppingName,
+                    Category = "Recipe",
+                    Origin = ShoppingOrigin.Recipe,
+                    PantryItemId = first.PantryItem?.Id,
+                };
+                db.ShoppingItems.Add(row);
+                managedRows.Add(row);
+            }
+
+            foreach (var sourceGroup in grouped.GroupBy(r => r.Source.Key, StringComparer.Ordinal))
+            {
+                var sourceRequirements = sourceGroup.ToList();
+                var first = sourceRequirements[0];
+                var sourceUnit = SafeUnit(sourceRequirements);
+                var contribution = TakeStaleContribution(staleContributions, first.Source.Key, row.Id)
+                    ?? new ShoppingContribution();
+                contribution.SourceKey = first.Source.Key;
+                contribution.SourceLabel = first.Source.Label;
+                contribution.RequiredQuantity = sourceUnit is PantryUnit
+                    ? sourceRequirements.Sum(r => r.Ingredient.AmountValue!.Value)
+                    : null;
+                contribution.Unit = sourceUnit;
+                row.Contributions.Add(contribution);
+            }
+            affected.Add(row);
+        }
+    }
+
+    private static void AddAlternativeRequirements(MiseDbContext db,
+        IReadOnlyList<AlternativeRequirement> requirements,
+        List<ShoppingItem> managedRows, HashSet<ShoppingItem> affected,
+        HashSet<ShoppingContribution> staleContributions)
+    {
+        foreach (var alternativeGroup in requirements.GroupBy(r => r.Key, StringComparer.Ordinal))
+        {
+            var grouped = alternativeGroup.ToList();
+            if (!AlternativeNeedsPurchase(grouped)) continue;
+
+            var row = managedRows.FirstOrDefault(r =>
+                string.Equals(r.AlternativeKey, alternativeGroup.Key, StringComparison.Ordinal));
+            if (row is null)
+            {
+                row = new ShoppingItem
+                {
+                    Name = grouped[0].ShoppingName,
+                    Category = "Recipe",
+                    Origin = ShoppingOrigin.Recipe,
+                    AlternativeKey = alternativeGroup.Key,
+                };
+                db.ShoppingItems.Add(row);
+                managedRows.Add(row);
+            }
+
+            row.Name = grouped[0].ShoppingName;
+            row.PantryItemId = null;
+            row.AlternativeKey = alternativeGroup.Key;
+            row.AlternativePantryItemIds = SerializePantryIds(grouped
+                .SelectMany(r => r.PantryItems).Select(p => p.Id));
+
+            foreach (var sourceGroup in grouped.GroupBy(r => r.Source.Key, StringComparer.Ordinal))
+            {
+                var sourceRequirements = sourceGroup.ToList();
+                var first = sourceRequirements[0];
+                var (requiredQuantity, unit) = SafeAlternativeAmount(sourceRequirements);
+                var contribution = TakeStaleContribution(staleContributions, first.Source.Key, row.Id)
+                    ?? new ShoppingContribution();
+                contribution.SourceKey = first.Source.Key;
+                contribution.SourceLabel = first.Source.Label;
+                contribution.RequiredQuantity = requiredQuantity;
+                contribution.Unit = unit;
+                row.Contributions.Add(contribution);
+            }
+            affected.Add(row);
+        }
+    }
+
+    private static ShoppingContribution? TakeStaleContribution(
+        HashSet<ShoppingContribution> staleContributions, string sourceKey, Guid rowId)
+    {
+        var contribution = staleContributions.FirstOrDefault(c =>
+            c.SourceKey == sourceKey && c.ShoppingItemId == rowId);
+        if (contribution is not null) staleContributions.Remove(contribution);
+        return contribution;
+    }
+
     private static Requirement? CreateRequirement(ShoppingRecipeSource source,
         RecipeIngredient ingredient, IReadOnlyDictionary<Guid, PantryItem> pantryById)
     {
@@ -173,6 +258,42 @@ public sealed class ShoppingService
         };
     }
 
+    private static AlternativeRequirement? CreateAlternativeRequirement(ShoppingRecipeSource source,
+        IReadOnlyList<RecipeIngredient> options,
+        IReadOnlyDictionary<Guid, PantryItem> pantryById)
+    {
+        var namedOptions = options.Where(i =>
+            IngredientMatcher.Normalize(i.Name).Length > 0).ToList();
+        if (namedOptions.Count == 0) return null;
+
+        var pantryItems = namedOptions
+            .Select(i => i.PantryItemId is Guid id ? pantryById.GetValueOrDefault(id) : null)
+            .Where(p => p is not null)
+            .Cast<PantryItem>()
+            .DistinctBy(p => p.Id)
+            .ToList();
+        var names = namedOptions.Select(i =>
+                i.PantryItemId is Guid id && pantryById.TryGetValue(id, out var pantry)
+                    ? pantry.Name
+                    : i.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var key = string.Join("|", names.Select(IngredientMatcher.Normalize)
+            .Where(n => n.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(n => n, StringComparer.Ordinal));
+        if (key.Length == 0) return null;
+
+        return new AlternativeRequirement
+        {
+            Source = source,
+            Key = key,
+            ShoppingName = string.Join(" lub ", names),
+            Options = namedOptions,
+            PantryItems = pantryItems,
+        };
+    }
+
     private static bool NeedsPurchase(IReadOnlyList<Requirement> requirements)
     {
         var pantryItem = requirements[0].PantryItem;
@@ -189,6 +310,24 @@ public sealed class ShoppingService
         }
         var required = requirements.Sum(r => r.Ingredient.AmountValue!.Value);
         return required > pantryItem.Quantity;
+    }
+
+    private static bool AlternativeNeedsPurchase(IReadOnlyList<AlternativeRequirement> requirements)
+    {
+        var safe = requirements.Select(SafeAlternativeAmount).ToList();
+        if (safe.All(x => x.RequiredQuantity is > 0 && x.Unit is not null)
+            && safe.Select(x => x.Unit).Distinct().Count() == 1)
+        {
+            var unit = safe[0].Unit!.Value;
+            return !CanSatisfyAlternativeDemands(
+                safe.Select(x => x.RequiredQuantity!.Value),
+                requirements.SelectMany(r => r.PantryItems).DistinctBy(p => p.Id), unit);
+        }
+
+        // Unknown amounts retain the existing presence-based semantics: any one
+        // alternative on hand satisfies the OR requirement.
+        return !requirements.SelectMany(r => r.PantryItems)
+            .DistinctBy(p => p.Id).Any(p => p.Quantity > 0);
     }
 
     /// <summary>
@@ -212,15 +351,72 @@ public sealed class ShoppingService
         return unit;
     }
 
+    private static (decimal? RequiredQuantity, PantryUnit? Unit) SafeAlternativeAmount(
+        AlternativeRequirement requirement)
+    {
+        PantryUnit? unit = null;
+        decimal? amount = null;
+        foreach (var option in requirement.Options)
+        {
+            if (option.AmountValue is not > 0 || option.AmountUnit is not PantryUnit current)
+                return (null, null);
+            if (option.PantryItemId is Guid id
+                && requirement.PantryItems.FirstOrDefault(p => p.Id == id) is PantryItem pantry
+                && pantry.Unit != current)
+                return (null, null);
+            if (unit is PantryUnit previous && previous != current) return (null, null);
+            if (amount is decimal previousAmount && previousAmount != option.AmountValue.Value)
+                return (null, null);
+            unit = current;
+            amount = option.AmountValue.Value;
+        }
+        return (amount, unit);
+    }
+
+    private static (decimal? RequiredQuantity, PantryUnit? Unit) SafeAlternativeAmount(
+        IReadOnlyList<AlternativeRequirement> requirements)
+    {
+        decimal total = 0;
+        PantryUnit? unit = null;
+        foreach (var requirement in requirements)
+        {
+            var safe = SafeAlternativeAmount(requirement);
+            if (safe.RequiredQuantity is not > 0 || safe.Unit is not PantryUnit current)
+                return (null, null);
+            if (unit is PantryUnit previous && previous != current) return (null, null);
+            total += safe.RequiredQuantity.Value;
+            unit = current;
+        }
+        return (total, unit);
+    }
+
     private static ShoppingItem? FindManagedRow(IEnumerable<ShoppingItem> rows, ProductKey key) =>
         key.PantryItemId is Guid pantryId
-            ? rows.FirstOrDefault(r => r.PantryItemId == pantryId)
-            : rows.FirstOrDefault(r => r.PantryItemId is null
+            ? rows.FirstOrDefault(r => r.PantryItemId == pantryId && r.AlternativeKey is null)
+            : rows.FirstOrDefault(r => r.PantryItemId is null && r.AlternativeKey is null
                 && IngredientMatcher.Normalize(r.Name) == key.NormalizedName);
 
     private static bool RowNeedsPurchase(ShoppingItem row,
         IReadOnlyDictionary<Guid, PantryItem> pantryById)
     {
+        if (row.AlternativeKey is not null)
+        {
+            var alternatives = ParsePantryIds(row.AlternativePantryItemIds)
+                .Select(id => pantryById.GetValueOrDefault(id))
+                .Where(p => p is not null)
+                .Cast<PantryItem>()
+                .ToList();
+            var contributions = row.Contributions.ToList();
+            if (contributions.All(c => c.RequiredQuantity is > 0 && c.Unit is not null)
+                && contributions.Select(c => c.Unit).Distinct().Count() == 1)
+            {
+                var unit = contributions[0].Unit!.Value;
+                return !CanSatisfyAlternativeDemands(
+                    contributions.Select(c => c.RequiredQuantity!.Value), alternatives, unit);
+            }
+            return !alternatives.Any(p => p.Quantity > 0);
+        }
+
         if (row.PantryItemId is not Guid id || !pantryById.TryGetValue(id, out var pantry))
             return true;
         if (row.Quantity is decimal quantity) return quantity > 0;
@@ -233,6 +429,16 @@ public sealed class ShoppingService
     private static void Recalculate(ShoppingItem row,
         IReadOnlyDictionary<Guid, PantryItem> pantryById)
     {
+        if (row.AlternativeKey is not null)
+        {
+            // Keep OR rows explicit and unquantified: a numeric total would hide
+            // which option the cook intends to buy.
+            row.Quantity = null;
+            row.Unit = null;
+            RecalculateReason(row);
+            return;
+        }
+
         row.Name = row.PantryItemId is Guid pantryId && pantryById.TryGetValue(pantryId, out var pantry)
             ? pantry.Name
             : row.Name;
@@ -255,14 +461,54 @@ public sealed class ShoppingService
             row.Unit = null;
         }
 
+        RecalculateReason(row);
+    }
+
+    private static void RecalculateReason(ShoppingItem row) =>
         row.Reason = "Do: " + string.Join("; ", row.Contributions
             .GroupBy(c => c.SourceLabel, StringComparer.Ordinal)
             .OrderBy(g => g.Key, Pl.Comparer)
             .Select(g => g.Count() > 1 ? $"{g.Key} ×{g.Count()}" : g.Key));
+
+    private static bool CanSatisfyAlternativeDemands(IEnumerable<decimal> requested,
+        IEnumerable<PantryItem> pantryItems, PantryUnit unit)
+    {
+        var demands = requested.Where(x => x > 0).OrderByDescending(x => x).ToArray();
+        var stocks = pantryItems.Where(p => p.Unit == unit && p.Quantity > 0)
+            .Select(p => p.Quantity).OrderByDescending(x => x).ToArray();
+        return Assign(0);
+
+        bool Assign(int demandIndex)
+        {
+            if (demandIndex == demands.Length) return true;
+            decimal? previousStock = null;
+            for (var i = 0; i < stocks.Length; i++)
+            {
+                if (stocks[i] < demands[demandIndex] || stocks[i] == previousStock) continue;
+                previousStock = stocks[i];
+                stocks[i] -= demands[demandIndex];
+                if (Assign(demandIndex + 1)) return true;
+                stocks[i] += demands[demandIndex];
+            }
+            return false;
+        }
     }
+
+    private static string? SerializePantryIds(IEnumerable<Guid> ids)
+    {
+        var value = string.Join(';', ids.Distinct().OrderBy(id => id));
+        return value.Length == 0 ? null : value;
+    }
+
+    private static IEnumerable<Guid> ParsePantryIds(string? value) =>
+        (value ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(token => Guid.TryParse(token, out var id) ? id : (Guid?)null)
+            .Where(id => id is not null)
+            .Select(id => id!.Value);
 
     private static RowSnapshot Snapshot(ShoppingItem row) => new(
         row.Name, row.Reason, row.Quantity, row.Unit,
+        row.AlternativeKey, row.AlternativePantryItemIds,
         string.Join("|", row.Contributions
             .OrderBy(c => c.SourceKey, StringComparer.Ordinal)
             .Select(c => $"{c.SourceKey}\u001f{c.SourceLabel}\u001f{c.RequiredQuantity}\u001f{c.Unit}")));

@@ -122,8 +122,11 @@ export function RecipeDetail() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {r.ingredients.map((ing, i) => {
               const detail = ingredientDetailText(ing.displayText, ing.quantity)
+              const followsAlternative = Boolean(ing.alternativeGroup
+                && r.ingredients[i - 1]?.alternativeGroup === ing.alternativeGroup)
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px', borderBottom: '1px solid var(--border)' }}>
+                  {followsAlternative && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>lub</span>}
                   <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                     {ing.name}
@@ -332,6 +335,7 @@ const SKIP_REASON_PL: Record<string, string> = {
   unlinked: 'brak dopasowania w spiżarni',
   unparsed: 'nieprzeliczalna ilość',
   'unit-mismatch': 'inna jednostka',
+  'alternative-not-selected': 'wybierz jeden zamiennik',
 }
 
 /** Editable checkbox+amount state for one proposal row of the cook dialog. */
@@ -428,7 +432,22 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
                   key={it.ingredientId}
                   item={it}
                   row={rows[it.ingredientId]}
-                  onChange={(row) => setRows({ ...rows, [it.ingredientId]: row })}
+                  onChange={(row) => setRows((current) => {
+                    if (!current) return current
+                    const next = { ...current, [it.ingredientId]: row }
+                    if (row.checked && it.alternativeGroup) {
+                      for (const option of proposal.items) {
+                        if (option.ingredientId !== it.ingredientId
+                            && option.alternativeGroup === it.alternativeGroup) {
+                          next[option.ingredientId] = {
+                            ...(next[option.ingredientId] ?? { amount: '' }),
+                            checked: false,
+                          }
+                        }
+                      }
+                    }
+                    return next
+                  })}
                 />
               ))}
             </div>

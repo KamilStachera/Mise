@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Data;
 using Mise.Api.Domain;
+using Mise.Api.Features;
 using Mise.Api.Services;
 using Xunit;
 
@@ -231,6 +232,95 @@ public class ShoppingServiceTests
         Assert.Empty(await db.ShoppingItems.ToListAsync());
     }
 
+    [Fact]
+    public async Task AnyAvailableAlternative_SatisfiesOneRecipeRequirement()
+    {
+        await using var db = NewDb();
+        var carrot = Pantry("Marchew", PantryUnit.G, 250);
+        var zucchini = Pantry("Cukinia", PantryUnit.G, 0);
+        db.PantryItems.AddRange(carrot, zucchini);
+        await db.SaveChangesAsync();
+
+        var result = await Add(db, Source("recipe:omelette", "Omlet pizza",
+            Alternative("Marchew", carrot, "vegetable", 200, PantryUnit.G),
+            Alternative("Cukinia", zucchini, "vegetable", 200, PantryUnit.G)));
+
+        Assert.Equal(new ShoppingAddResult(0, 0), result);
+        Assert.Empty(await db.ShoppingItems.ToListAsync());
+    }
+
+    [Fact]
+    public async Task MissingAlternatives_CreateOneExplicitOrRow()
+    {
+        await using var db = NewDb();
+        var carrot = Pantry("Marchew", PantryUnit.G, 0);
+        var zucchini = Pantry("Cukinia", PantryUnit.G, 0);
+        db.PantryItems.AddRange(carrot, zucchini);
+        await db.SaveChangesAsync();
+
+        await Add(db, Source("recipe:omelette", "Omlet pizza",
+            Alternative("Marchew", carrot, "vegetable", 200, PantryUnit.G),
+            Alternative("Cukinia", zucchini, "vegetable", 200, PantryUnit.G)));
+
+        var row = await db.ShoppingItems.Include(x => x.Contributions).SingleAsync();
+        Assert.Equal("Marchew lub Cukinia", row.Name);
+        Assert.Null(row.PantryItemId);
+        Assert.NotNull(row.AlternativeKey);
+        Assert.Null(row.Quantity);
+        Assert.Null(row.Unit);
+        Assert.Single(row.Contributions);
+        Assert.Equal(200, row.Contributions[0].RequiredQuantity);
+        Assert.Equal(PantryUnit.G, row.Contributions[0].Unit);
+    }
+
+    [Fact]
+    public async Task AlternativeStock_IsAllocatedAcrossDistinctPlanOccurrences()
+    {
+        await using var db = NewDb();
+        var carrot = Pantry("Marchew", PantryUnit.G, 200);
+        var zucchini = Pantry("Cukinia", PantryUnit.G, 200);
+        db.PantryItems.AddRange(carrot, zucchini);
+        await db.SaveChangesAsync();
+        var recipe = Recipe("Omlet pizza",
+            Alternative("Marchew", carrot, "vegetable", 200, PantryUnit.G),
+            Alternative("Cukinia", zucchini, "vegetable", 200, PantryUnit.G));
+
+        var covered = await Add(db,
+            new ShoppingRecipeSource("plan:monday", recipe.Title, recipe),
+            new ShoppingRecipeSource("plan:thursday", recipe.Title, recipe));
+        Assert.Equal(new ShoppingAddResult(0, 0), covered);
+
+        await Add(db,
+            new ShoppingRecipeSource("plan:monday", recipe.Title, recipe),
+            new ShoppingRecipeSource("plan:thursday", recipe.Title, recipe),
+            new ShoppingRecipeSource("plan:sunday", recipe.Title, recipe));
+
+        var row = await db.ShoppingItems.Include(x => x.Contributions).SingleAsync();
+        Assert.Equal(3, row.Contributions.Count);
+        Assert.Equal("Do: Omlet pizza ×3", row.Reason);
+    }
+
+    [Fact]
+    public void AlternativeRequirement_CountsOnceAndUsesEitherStatus()
+    {
+        var carrot = Pantry("Marchew", PantryUnit.G, 0);
+        var zucchini = Pantry("Cukinia", PantryUnit.G, 250);
+        var ingredients = new[]
+        {
+            Alternative("Marchew", carrot, "vegetable", 200, PantryUnit.G),
+            Alternative("Cukinia", zucchini, "vegetable", 200, PantryUnit.G),
+        };
+        var pantry = new Dictionary<Guid, PantryItem>
+        {
+            [carrot.Id] = carrot,
+            [zucchini.Id] = zucchini,
+        };
+
+        var group = Assert.Single(Mapping.IngredientRequirementGroups(ingredients));
+        Assert.False(Mapping.RequirementNeedsPurchase(group, pantry));
+        Assert.Equal("Marchew lub Cukinia", Mapping.RequirementName(group));
+    }
+
     private static MiseDbContext NewDb()
     {
         var options = new DbContextOptionsBuilder<MiseDbContext>()
@@ -257,6 +347,14 @@ public class ShoppingServiceTests
         AmountUnit = unit,
         Quantity = $"{amount} {unit.ToString().ToLowerInvariant()}",
     };
+
+    private static RecipeIngredient Alternative(string name, PantryItem pantry,
+        string group, decimal amount, PantryUnit unit)
+    {
+        var ingredient = Ingredient(name, pantry, amount, unit);
+        ingredient.AlternativeGroup = group;
+        return ingredient;
+    }
 
     private static Recipe Recipe(string title, params RecipeIngredient[] ingredients) => new()
     {

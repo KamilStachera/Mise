@@ -16,6 +16,14 @@ public static partial class QuantityParser
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Pattern();
 
+    [GeneratedRegex(@"\(\s*(?<num>\d+(?:[.,]\d+)?|\d+\s*/\s*\d+)\s*(?<unit>kg|dag|dkg|g|ml|l|szt\w*|sztuk\w*)\.?\s*\)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ParentheticalAmountPattern();
+
+    [GeneratedRegex(@"\d+(?:[.,]\d+)?\s*[–—-]\s*\d+(?:[.,]\d+)?",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex RangePattern();
+
     public static bool TryParse(string? text, out decimal value, out PantryUnit unit)
     {
         value = 0;
@@ -23,7 +31,16 @@ public static partial class QuantityParser
         if (string.IsNullOrWhiteSpace(text)) return false;
 
         var m = Pattern().Match(text);
-        if (!m.Success) return false;
+        if (!m.Success)
+        {
+            // A single exact metric/count value in parentheses is safe and common
+            // in recipe prose: "1 porcja (120 g)" or "3 kromki (105 g)". Ranges
+            // remain deliberately unquantified.
+            if (RangePattern().IsMatch(text)) return false;
+            var matches = ParentheticalAmountPattern().Matches(text);
+            if (matches.Count != 1) return false;
+            m = matches[0];
+        }
 
         var num = m.Groups["num"].Value.Replace(" ", "");
         decimal n;

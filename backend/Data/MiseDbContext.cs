@@ -47,6 +47,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200);
             e.Property(x => x.Quantity).HasMaxLength(100);
             e.Property(x => x.DisplayText).HasMaxLength(500);
+            e.Property(x => x.AlternativeGroup).HasMaxLength(100);
             e.Property(x => x.AmountValue).HasPrecision(10, 2);
             e.Property(x => x.AmountUnit).HasConversion<string>().HasMaxLength(8);
             e.HasOne(x => x.PantryItem).WithMany().HasForeignKey(x => x.PantryItemId).OnDelete(DeleteBehavior.SetNull);
@@ -71,6 +72,8 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Origin).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.AlternativeKey).HasMaxLength(1000);
+            e.Property(x => x.AlternativePantryItemIds).HasMaxLength(1000);
             e.Property(x => x.Quantity).HasPrecision(10, 2);
             e.Property(x => x.Unit).HasConversion<string>().HasMaxLength(8);
             e.HasIndex(x => x.PantryItemId);

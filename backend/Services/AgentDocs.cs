@@ -56,7 +56,10 @@ public static class AgentDocs
            — zawsze wszystkie cztery (nigdy samo `kcal` — resztę policz ze składników),
            tak jak `dishType` i `usesAirFryer`. Tytuł to nazwa dania, nie lista elementów
            posiłku („Jajecznica; pieczywo; gruszka" ✗). `name` to kanoniczny produkt
-           katalogu spiżarni, a opcjonalny `displayText` zachowuje pełny zapis z przepisu.
+           katalogu spiżarni, `quantity` to sama ilość pokazywana po prawej, a `displayText`
+           zachowuje oryginalny wiersz ze źródła jako doprecyzowanie pod nazwą. Przy imporcie
+           ze strony, zdjęcia lub książki zawsze ustaw `displayText`, jeśli źródło zawiera
+           dodatkowe informacje ponad prostą ilość i nazwę.
            Nazwy składników w mianowniku,
            jak mówi się w kuchni („Jajka" + „2 szt.", nie „Jaja kurze całe" + „100 g";
            „Miód", nie „Miodu"). Jeden produkt = jeden składnik (rozbijaj „Sól, pieprz
@@ -177,7 +180,9 @@ public static class AgentDocs
             { "name": "Jajka", "quantity": "4", "amountValue": 4, "amountUnit": "szt" },
             { "name": "Pomidory z puszki", "quantity": "1 puszka", "amountValue": 1, "amountUnit": "szt" },
             { "name": "Feta", "quantity": "100 g", "amountValue": 100, "amountUnit": "g" },
-            { "name": "Pieczywo", "quantity": "2–4 kromki", "displayText": "2–4 kromki chleba na zakwasie piwnym" }
+            { "name": "Pieczywo", "quantity": "2–4 kromki", "displayText": "2–4 kromki chleba na zakwasie piwnym" },
+            { "name": "Marchew", "quantity": "200 g", "amountValue": 200, "amountUnit": "g", "alternativeGroup": "warzywo" },
+            { "name": "Cukinia", "quantity": "200 g", "amountValue": 200, "amountUnit": "g", "alternativeGroup": "warzywo" }
           ],
           "steps": [
             "Podsmaż cebulę i czosnek, dodaj pomidory i zredukuj.",
@@ -190,17 +195,27 @@ public static class AgentDocs
         spiżarnią (dopasowanie odmian po polsku), więc podawaj naturalne polskie nazwy.
         `difficulty`: `Łatwe` / `Średnie` / `Trudne` (domyślnie `Łatwe`).
 
-        `name` to kanoniczna pozycja katalogu spiżarni. `quantity` to sama naturalna
-        ilość, a opcjonalny `displayText` zachowuje pełny zapis widoczny w przepisie
+        `name` to kanoniczna pozycja katalogu spiżarni i jest głównym tekstem w UI.
+        `quantity` to sama naturalna ilość pokazywana osobno po prawej, a opcjonalny
+        `displayText` zachowuje oryginalny zapis ze źródła jako mniejsze doprecyzowanie
         (np. `name: "Pieczywo"`, `displayText: "2–4 kromki chleba na zakwasie piwnym"`).
+        Przy imporcie ze strony, zdjęcia lub książki ustaw `displayText` zawsze, gdy wiersz
+        zawiera odmianę, wariant, sposób przygotowania albo inną informację wartą zachowania.
         `amountValue`+`amountUnit` to ilość
         strukturalna (napędza „czy wystarczy w spiżarni" i odejmowanie po ugotowaniu) —
         **zawsze podawaj, gdy ilość jest mierzalna**; pomiń przy „garść", „do smaku" itp.
 
-        **Jeden produkt = jeden składnik.** Zbitki typu „Sól, pieprz i zioła" rozbijaj na
+        **Jeden produkt = jeden składnik.** Zbitki typu „Sól, pieprz i zioła” rozbijaj na
         osobne składniki — inaczej ze spiżarnią dopasuje się tylko pierwszy człon (sól),
         a reszta będzie niewidoczna. Przymiotniki zostaw tylko, gdy odróżniają produkt
-        („Twaróg chudy" ≠ półtłusty — zostaw; „Dojrzałe awokado" → „Awokado").
+        („Twaróg chudy” ≠ półtłusty — zostaw; „Dojrzałe awokado” → „Awokado”).
+
+        **Alternatywy zapisuj jako osobne składniki z tym samym `alternativeGroup`.**
+        `Marchew` i `Cukinia` z grupą `warzywo` oznaczają „Marchew lub Cukinia”:
+        dowolna dostępna opcja spełnia przepis, lista zakupów tworzy jeden wiersz „A lub B”,
+        a po ugotowaniu domyślnie odejmowana jest tylko jedna opcja. Nie używaj ukośnika
+        wewnątrz `name` i nie stosuj grupy dla produktów potrzebnych jednocześnie.
+        API odrzuca połączone nazwy zawierające `/`, `lub` albo `albo`.
 
         **Tytuł to nazwa dania, nie lista elementów posiłku.** Importując jadłospis nie
         zapisuj tytułu „Jajecznica; pieczywo; warzywa; gruszka" ani „Wrap + Sałatka” —

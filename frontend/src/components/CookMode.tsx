@@ -100,8 +100,11 @@ export function CookMode({ title, steps, ingredients, onClose }: {
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '10px 14px', display: 'flex', flexDirection: 'column', maxHeight: '38vh', overflowY: 'auto' }}>
             {ingredients.map((ing, i) => {
               const detail = ingredientDetailText(ing.displayText, ing.quantity)
+              const followsAlternative = Boolean(ing.alternativeGroup
+                && ingredients[i - 1]?.alternativeGroup === ing.alternativeGroup)
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px', borderBottom: i < ingredients.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  {followsAlternative && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-3)' }}>lub</span>}
                   <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
                   <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>
                     {ing.name}

@@ -7,7 +7,7 @@ import { CUISINES, DISH_TYPES, cuisineLabel, dishTypeLabel } from '../lib/labels
 import { BackIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
 import { IMAGE_ACCEPT } from '../lib/images'
 
-type Ing = { name: string; quantity: string; displayText: string }
+type Ing = { name: string; quantity: string; displayText: string; alternativeGroup: string }
 
 const input: CSSProperties = {
   width: '100%',
@@ -47,7 +47,7 @@ export function AddRecipe() {
   const [tint, setTint] = useState('#c0552d')
   const [blurb, setBlurb] = useState('')
   const [tip, setTip] = useState('')
-  const [ings, setIngs] = useState<Ing[]>([{ name: '', quantity: '', displayText: '' }])
+  const [ings, setIngs] = useState<Ing[]>([{ name: '', quantity: '', displayText: '', alternativeGroup: '' }])
   const [steps, setSteps] = useState<string[]>([''])
   const [photo, setPhoto] = useState<File | null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
@@ -87,6 +87,7 @@ export function AddRecipe() {
         name: i.name.trim(),
         quantity: i.quantity.trim(),
         displayText: i.displayText.trim() || undefined,
+        alternativeGroup: i.alternativeGroup.trim() || undefined,
       })),
       steps: steps.map((s) => s.trim()).filter(Boolean),
       dishType: dishType || undefined,
@@ -206,15 +207,16 @@ export function AddRecipe() {
           </datalist>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {ings.map((ing, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, .8fr) 110px minmax(220px, 1.4fr) 40px', gap: 8 }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, .8fr) 110px minmax(220px, 1.4fr) 100px 40px', gap: 8 }}>
                 <input list="pantry-ingredient-names" style={input} value={ing.name} placeholder="produkt w spiżarni" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
                 <input style={input} value={ing.quantity} placeholder="ilość" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
                 <input style={input} value={ing.displayText} placeholder="pełny zapis, np. 2 kromki chleba na zakwasie" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, displayText: e.target.value } : x)))} />
+                <input style={input} value={ing.alternativeGroup} placeholder="grupa LUB" title="Ta sama wartość łączy zamienniki, np. spód" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, alternativeGroup: e.target.value } : x)))} />
                 <RemoveBtn onClick={() => setIngs((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />
               </div>
             ))}
           </div>
-          <AddBtn label="Dodaj składnik" onClick={() => setIngs((a) => [...a, { name: '', quantity: '', displayText: '' }])} />
+          <AddBtn label="Dodaj składnik" onClick={() => setIngs((a) => [...a, { name: '', quantity: '', displayText: '', alternativeGroup: '' }])} />
         </div>
 
         <div>
@@ -346,6 +348,13 @@ function stripBullet(s: string): string {
 
 function parseIngredient(line: string): Ing {
   const m = line.match(/^([\d¼½¾⅓⅔/.,–-]+\s*[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]*\b)\s+(.{2,})$/)
-  if (m && /\d/.test(m[1])) return { name: m[2].trim(), quantity: m[1].trim(), displayText: line }
-  return { name: line, quantity: '', displayText: line }
+  if (m && /\d/.test(m[1])) return { name: m[2].trim(), quantity: m[1].trim(), displayText: line, alternativeGroup: '' }
+
+  // Some recipe sites render ingredients as "product – amount" rather than
+  // "amount product". Keep the source line, but put the amount in its own field.
+  const reversed = line.match(/^(.{2,}?)\s+[–—-]\s+(.+)$/)
+  if (reversed && /^(?:[\d¼½¾⅓⅔]|do smaku\b|według uznania\b|szczypta\b|garść\b)/i.test(reversed[2])) {
+    return { name: reversed[1].trim(), quantity: reversed[2].trim(), displayText: line, alternativeGroup: '' }
+  }
+  return { name: line, quantity: '', displayText: line, alternativeGroup: '' }
 }

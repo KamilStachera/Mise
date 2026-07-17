@@ -8,7 +8,8 @@ public record RecipeListItemDto(Guid Id, string Title, string Source, int Time, 
     string? DishType, string? Cuisine, bool UsesAirFryer, DateTimeOffset CreatedAt,
     int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs);
 
-public record IngredientDto(string Name, string Quantity, string? DisplayText, string Status);
+public record IngredientDto(string Name, string Quantity, string? DisplayText,
+    string? AlternativeGroup, string Status);
 
 /// <summary>One gallery photo; IsDefault marks the one shown on cards and the hero.</summary>
 public record RecipeImageDto(Guid Id, string Url, bool IsDefault, DateTimeOffset CreatedAt);
@@ -35,6 +36,7 @@ public record ShoppingListDto(List<ShoppingItemDto> Items, int Total, int Checke
 public record ShoppingAddResultDto(int Added, int Updated);
 
 public record CookProposalItemDto(Guid IngredientId, string Name, string QuantityText, string? DisplayText,
+    string? AlternativeGroup,
     Guid? PantryItemId, string? PantryItemName, string? Unit, decimal? PantryQuantity,
     decimal? ProposedAmount, bool Deductible, string? SkipReason);
 public record CookProposalDto(Guid RecipeId, string Title, List<CookProposalItemDto> Items);
@@ -65,7 +67,8 @@ public record QuestionnaireDto(List<QuestionnaireSectionDto> Sections, Dictionar
 
 // ---- requests ----
 public record IngredientInput(string Name, string? Quantity,
-    decimal? AmountValue = null, string? AmountUnit = null, string? DisplayText = null);
+    decimal? AmountValue = null, string? AmountUnit = null, string? DisplayText = null,
+    string? AlternativeGroup = null);
 /// <summary>Kcal/Protein/Fat/Carbs are estimates PER SERVING; PUT is full-replace, so omitting them clears the stored values.</summary>
 public record RecipeInput(string Title, string Source, int Time, int Servings, string? Difficulty,
     string? Tint, string? Blurb, string? Tip, List<IngredientInput> Ingredients, List<string> Steps,
@@ -227,4 +230,41 @@ public static class Mapping
 
     /// <summary>An ingredient counts as "to buy" when it is short, out of stock or unmatched.</summary>
     public static bool IsToBuy(string status) => status is "out" or "unknown";
+
+    /// <summary>
+    /// A blank alternative key is an ordinary required ingredient. Rows sharing
+    /// a key are one OR requirement and therefore count once in summaries.
+    /// </summary>
+    public static IReadOnlyList<IReadOnlyList<RecipeIngredient>> IngredientRequirementGroups(
+        IEnumerable<RecipeIngredient> ingredients)
+    {
+        var ordered = ingredients.OrderBy(i => i.Order).ToList();
+        var alternatives = ordered
+            .Where(i => !string.IsNullOrWhiteSpace(i.AlternativeGroup))
+            .GroupBy(i => i.AlternativeGroup!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<RecipeIngredient>)g.ToList(),
+                StringComparer.OrdinalIgnoreCase);
+        var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<IReadOnlyList<RecipeIngredient>>();
+        foreach (var ingredient in ordered)
+        {
+            if (string.IsNullOrWhiteSpace(ingredient.AlternativeGroup))
+            {
+                result.Add(new[] { ingredient });
+                continue;
+            }
+
+            var key = ingredient.AlternativeGroup.Trim();
+            if (emitted.Add(key)) result.Add(alternatives[key]);
+        }
+        return result;
+    }
+
+    public static bool RequirementNeedsPurchase(IReadOnlyList<RecipeIngredient> requirement,
+        IReadOnlyDictionary<Guid, PantryItem> pantryById) =>
+        requirement.All(i => IsToBuy(IngredientAvailability(i, pantryById).Status));
+
+    public static string RequirementName(IReadOnlyList<RecipeIngredient> requirement) =>
+        string.Join(" lub ", requirement.Select(i => i.Name.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase));
 }

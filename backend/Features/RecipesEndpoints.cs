@@ -48,8 +48,8 @@ public static class RecipesEndpoints
                 recipes = recipes.Where(r => AirFryer.Uses(r) == wantAirFryer).ToList();
             var list = recipes.OrderBy(r => r.Title, Pl.Comparer).Select(r =>
             {
-                var toBuy = r.Ingredients.Count(i =>
-                    Mapping.IsToBuy(Mapping.IngredientAvailability(i, pantryById).Status));
+                var toBuy = Mapping.IngredientRequirementGroups(r.Ingredients)
+                    .Count(group => Mapping.RequirementNeedsPurchase(group, pantryById));
                 return new RecipeListItemDto(r.Id, r.Title, Mapping.SourceString(r.Source),
                     r.TimeMinutes, r.Servings, r.Difficulty, r.Tint, r.Blurb,
                     Mapping.ImageUrl(r.ImagePath), toBuy,
@@ -75,21 +75,26 @@ public static class RecipesEndpoints
 
             var ingredients = r.Ingredients.OrderBy(i => i.Order)
                 .Select(i => new IngredientDto(i.Name, i.Quantity, i.DisplayText,
+                    i.AlternativeGroup,
                     Mapping.IngredientAvailability(i, pantryById).Status))
                 .ToList();
-            var missing = ingredients.Where(i => Mapping.IsToBuy(i.Status)).Select(i => i.Name).ToList();
+            var requirements = Mapping.IngredientRequirementGroups(r.Ingredients);
+            var missing = requirements
+                .Where(group => Mapping.RequirementNeedsPurchase(group, pantryById))
+                .Select(Mapping.RequirementName)
+                .ToList();
             var steps = r.Steps.OrderBy(s => s.Order).Select(s => s.Text).ToList();
 
             return Results.Ok(new RecipeDetailDto(r.Id, r.Title, Mapping.SourceString(r.Source),
                 r.TimeMinutes, r.Servings, r.Difficulty, r.Tint, r.Blurb,
                 Mapping.ImageUrl(r.ImagePath), r.Tip,
-                ingredients, steps, ingredients.Count - missing.Count, ingredients.Count, missing,
+                ingredients, steps, requirements.Count - missing.Count, requirements.Count, missing,
                 Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
                 AirFryer.Uses(r), GalleryDto(r),
                 r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams));
         });
 
-        g.MapPost("/", async (RecipeInput input, MiseDbContext db, IngredientMatcher matcher,
+        g.MapPost("/", async (RecipeInput input, MiseDbContext db, RecipeIngredientNormalizer ingredientNormalizer,
             ContextExportService export) =>
         {
             if (!Mapping.TryParseDishType(input.DishType, out var dt))
@@ -98,9 +103,11 @@ public static class RecipesEndpoints
                 return BadCuisine();
             if (BadIngredientUnit(input) is IResult badUnit)
                 return badUnit;
+            if (BadIngredientAlternatives(input) is IResult badAlternatives)
+                return badAlternatives;
 
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
-            var recipe = ApplyInput(new Recipe(), input, dt, cu, pantry, matcher);
+            var recipe = ApplyInput(new Recipe(), input, dt, cu, pantry, ingredientNormalizer);
             db.Recipes.Add(recipe);
             await db.SaveChangesAsync();
             await export.ExportAsync();
@@ -108,7 +115,7 @@ public static class RecipesEndpoints
         });
 
         g.MapPut("/{id:guid}", async (Guid id, RecipeInput input, MiseDbContext db,
-            IngredientMatcher matcher, ContextExportService export) =>
+            RecipeIngredientNormalizer ingredientNormalizer, ContextExportService export) =>
         {
             if (!Mapping.TryParseDishType(input.DishType, out var dt))
                 return BadDishType();
@@ -116,6 +123,8 @@ public static class RecipesEndpoints
                 return BadCuisine();
             if (BadIngredientUnit(input) is IResult badUnit)
                 return badUnit;
+            if (BadIngredientAlternatives(input) is IResult badAlternatives)
+                return badAlternatives;
 
             var recipe = await db.Recipes
                 .Include(r => r.Ingredients)
@@ -130,7 +139,7 @@ public static class RecipesEndpoints
             recipe.Steps.Clear();
 
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
-            ApplyInput(recipe, input, dt, cu, pantry, matcher);
+            ApplyInput(recipe, input, dt, cu, pantry, ingredientNormalizer);
             // Children self-assign Guid ids, so change detection would treat them as
             // existing rows (UPDATE → 0 rows → concurrency error); register as inserts.
             db.RecipeIngredients.AddRange(recipe.Ingredients);
@@ -256,6 +265,14 @@ public static class RecipesEndpoints
 
             var pantryById = await db.PantryItems.AsNoTracking().ToDictionaryAsync(p => p.Id);
 
+            var selectedAlternatives = Mapping.IngredientRequirementGroups(r.Ingredients)
+                .Where(group => group.Count > 1
+                    && !string.IsNullOrWhiteSpace(group[0].AlternativeGroup))
+                .ToDictionary(
+                    group => group[0].AlternativeGroup!.Trim(),
+                    group => SelectCookAlternative(group, pantryById),
+                    StringComparer.OrdinalIgnoreCase);
+
             var items = r.Ingredients.OrderBy(i => i.Order).Select(i =>
             {
                 var pantryItem = i.PantryItemId is Guid pid ? pantryById.GetValueOrDefault(pid) : null;
@@ -265,13 +282,18 @@ public static class RecipesEndpoints
                 if (amount is null && QuantityParser.TryParse(i.Quantity, out var v, out var u))
                     (amount, unit) = (v, u);
 
-                var skip = pantryItem is null ? "unlinked"
+                var unselectedAlternative = !string.IsNullOrWhiteSpace(i.AlternativeGroup)
+                    && selectedAlternatives.TryGetValue(i.AlternativeGroup.Trim(), out var selectedId)
+                    && selectedId != i.Id;
+                var skip = unselectedAlternative ? "alternative-not-selected"
+                    : pantryItem is null ? "unlinked"
                     : amount is null ? "unparsed"
                     : unit != pantryItem.Unit ? "unit-mismatch"
                     : null;
 
                 return new CookProposalItemDto(
                     i.Id, i.Name, i.Quantity, i.DisplayText,
+                    i.AlternativeGroup,
                     pantryItem?.Id, pantryItem?.Name,
                     pantryItem is not null ? Mapping.UnitString(pantryItem.Unit) : null,
                     pantryItem?.Quantity,
@@ -301,6 +323,29 @@ public static class RecipesEndpoints
         });
 
         return api;
+    }
+
+    private static Guid SelectCookAlternative(IReadOnlyList<RecipeIngredient> alternatives,
+        IReadOnlyDictionary<Guid, PantryItem> pantryById) => alternatives
+        .OrderBy(i => CookAlternativeScore(i, pantryById))
+        .ThenBy(i => i.Order)
+        .First().Id;
+
+    private static int CookAlternativeScore(RecipeIngredient ingredient,
+        IReadOnlyDictionary<Guid, PantryItem> pantryById)
+    {
+        if (ingredient.PantryItemId is not Guid id || !pantryById.TryGetValue(id, out var pantry))
+            return 4;
+
+        var amount = ingredient.AmountValue;
+        var unit = ingredient.AmountUnit;
+        if (amount is null && QuantityParser.TryParse(ingredient.Quantity, out var parsed, out var parsedUnit))
+            (amount, unit) = (parsed, parsedUnit);
+
+        if (amount is > 0 && unit == pantry.Unit && pantry.Quantity >= amount) return 0;
+        if (pantry.Quantity > 0) return 1;
+        if (amount is > 0 && unit == pantry.Unit) return 2;
+        return 3;
     }
 
     /// <summary>Gallery newest-first; the default photo is flagged, not reordered.</summary>
@@ -333,9 +378,41 @@ public static class RecipesEndpoints
         return null;
     }
 
+    private static IResult? BadIngredientAlternatives(RecipeInput input)
+    {
+        var combined = (input.Ingredients ?? new()).FirstOrDefault(i =>
+            RecipeIngredientNormalizer.ContainsCombinedProductSyntax(i.Name));
+        if (combined is not null)
+            return Results.BadRequest(new
+            {
+                error = $"Składnik '{combined.Name}' zawiera kilka produktów. Rozbij je na osobne wiersze; dla zamienników ustaw ten sam alternativeGroup.",
+            });
+
+        var groups = (input.Ingredients ?? new())
+            .Where(i => !string.IsNullOrWhiteSpace(i.AlternativeGroup))
+            .GroupBy(i => i.AlternativeGroup!.Trim(), StringComparer.OrdinalIgnoreCase);
+        foreach (var group in groups)
+        {
+            if (group.Key.Length > 100)
+                return Results.BadRequest(new
+                {
+                    error = "alternativeGroup może mieć maksymalnie 100 znaków.",
+                });
+            if (group.Select(i => IngredientMatcher.Normalize(i.Name))
+                    .Where(name => name.Length > 0)
+                    .Distinct(StringComparer.Ordinal)
+                    .Count() < 2)
+                return Results.BadRequest(new
+                {
+                    error = $"Grupa alternatywna '{group.Key}' musi zawierać co najmniej dwa różne produkty.",
+                });
+        }
+        return null;
+    }
+
     private static Recipe ApplyInput(Recipe recipe, RecipeInput input,
         DishType? dishType, Cuisine? cuisine,
-        IReadOnlyList<PantryItem> pantry, IngredientMatcher matcher)
+        IReadOnlyList<PantryItem> pantry, RecipeIngredientNormalizer ingredientNormalizer)
     {
         recipe.Title = input.Title.Trim();
         recipe.Source = Mapping.ParseSource(input.Source);
@@ -358,29 +435,7 @@ public static class RecipesEndpoints
         foreach (var i in input.Ingredients ?? new())
         {
             if (string.IsNullOrWhiteSpace(i.Name)) continue;
-            var match = matcher.FindMatch(i.Name, pantry);
-            var quantityText = i.Quantity?.Trim() ?? "";
-
-            // Structured amount: explicit input wins (agents send it); otherwise a
-            // best-effort parse of the display text covers UI-entered recipes.
-            decimal? amountValue = null;
-            PantryUnit? amountUnit = null;
-            if (i.AmountValue is > 0 && Mapping.TryParseUnit(i.AmountUnit, out var explicitUnit)
-                && explicitUnit is PantryUnit eu)
-                (amountValue, amountUnit) = (i.AmountValue, eu);
-            else if (QuantityParser.TryParse(quantityText, out var v, out var u))
-                (amountValue, amountUnit) = (v, u);
-
-            recipe.Ingredients.Add(new RecipeIngredient
-            {
-                Name = i.Name.Trim(),
-                Quantity = quantityText,
-                DisplayText = string.IsNullOrWhiteSpace(i.DisplayText) ? null : i.DisplayText.Trim(),
-                Order = order++,
-                AmountValue = amountValue,
-                AmountUnit = amountUnit,
-                PantryItemId = match?.Id,
-            });
+            recipe.Ingredients.Add(ingredientNormalizer.Create(i, pantry, order++));
         }
 
         order = 0;

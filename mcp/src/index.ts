@@ -34,6 +34,7 @@ const recipeInputShape = {
   time: z.number().int().positive().describe('Czas przygotowania w minutach'),
   servings: z.number().int().positive().describe('Liczba porcji (domyślnie 2)'),
   difficulty: z.string().optional().describe('Łatwe / Średnie / Trudne'),
+  tint: z.string().optional().describe('Kolor karty przepisu, np. #c0552d; przy pełnej podmianie zachowaj wartość z odczytu'),
   dishType: z.enum(DISH_TYPES).optional().describe('Rodzaj dania — zawsze ustawiaj; napędza filtry biblioteki'),
   cuisine: z.enum(CUISINES).optional().describe('Kuchnia/pochodzenie — zawsze ustawiaj; "other" gdy żadna nie pasuje'),
   usesAirFryer: z
@@ -58,10 +59,13 @@ const recipeInputShape = {
   ingredients: z
     .array(
       z.object({
-        name: z.string(),
-        quantity: z.string().optional().describe('Tekst do wyświetlania, np. "100 g", "2 łyżki"'),
+        name: z.string().describe('Kanoniczna nazwa produktu ze spiżarni, bez ilości i bez opisu przygotowania'),
+        quantity: z.string().optional().describe('Sama ilość, pokazywana osobno po prawej, np. "100 g", "2 łyżki"'),
         displayText: z.string().optional().describe(
-          'Opcjonalny pełny zapis z przepisu, np. "2–4 kromki chleba na zakwasie piwnym"; name pozostaje nazwą produktu w katalogu spiżarni',
+          'Oryginalny pełny wiersz ze źródła, gdy zawiera dodatkowe informacje, np. "2–4 kromki chleba na zakwasie piwnym"; UI pokazuje go jako doprecyzowanie pod kanonicznym name',
+        ),
+        alternativeGroup: z.string().optional().describe(
+          'Wspólny klucz dla zamienników typu A lub B. Każda opcja jest osobnym składnikiem z tą samą wartością, np. Marchew i Cukinia z alternativeGroup: "warzywo"',
         ),
         amountValue: z.number().positive().optional(),
         amountUnit: z.enum(UNITS).optional(),
@@ -72,7 +76,8 @@ const recipeInputShape = {
         'ani z dopełniacza ("Jaja kurze całe" + "100 g" ✗ → name: "Jajka", quantity: "2 szt." ✓; ' +
         '"Mięso z piersi indyka, bez skóry" → "Pierś z indyka"; "Miodu" → "Miód"). Ilość nigdy nie jest ' +
         'częścią nazwy ("Łyżeczka pasty gochujang" → name: "Pasta gochujang", quantity: "1 łyżeczka"). ' +
-        'name to kanoniczny produkt ze spiżarni (np. "Pieczywo"), a displayText zachowuje pełne brzmienie ' +
+        'name to kanoniczny produkt ze spiżarni (np. "Pieczywo"), quantity jest wyświetlane osobno po prawej, ' +
+        'a displayText zachowuje pełne oryginalne brzmienie ' +
         'z przepisu (np. "2 kromki chleba na zakwasie"). quantity to sama naturalna ilość ' +
         '("2 kromki (70 g)", nie "2 x Kromka (70.0 g)"); ' +
         'amountValue+amountUnit to ilość strukturalna (napędza "czy wystarczy w spiżarni" i odejmowanie ' +
@@ -80,7 +85,10 @@ const recipeInputShape = {
         'amountValue: 100, amountUnit: "g"); pomiń przy "garść", "do smaku" itp. ' +
         'JEDEN produkt = JEDEN składnik: rozbijaj zbitki ("Sól, pieprz i zioła" → trzy osobne składniki), ' +
         'inaczej dopasuje się tylko pierwszy człon. Przymiotniki zostaw tylko, gdy odróżniają produkt ' +
-        '("Twaróg chudy" ≠ półtłusty — zostaw; "Dojrzałe awokado" → "Awokado").',
+        '("Twaróg chudy" ≠ półtłusty — zostaw; "Dojrzałe awokado" → "Awokado"). ' +
+        'Prawdziwe alternatywy zapisuj jako osobne składniki z tym samym alternativeGroup ' +
+        '(Marchew lub Cukinia → dwa wiersze, oba alternativeGroup: "warzywo"); API odrzuca ' +
+        'połączone name zawierające ukośnik, "lub" albo "albo".',
     ),
   steps: z.array(z.string()).describe('Kroki przygotowania, po jednym zdaniu-akapicie'),
 }
@@ -132,7 +140,7 @@ server.tool(
 
 server.tool(
   'update_recipe',
-  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola; pominięte dishType/cuisine/usesAirFryer/kcal/protein/fat/carbs są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
+  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola i zachowaj tint z odczytu; pominięte dishType/cuisine/usesAirFryer/kcal/protein/fat/carbs są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
   { id: z.string().uuid(), ...recipeInputShape },
   async ({ id, ...input }) => {
     await put(`/recipes/${id}`, input)

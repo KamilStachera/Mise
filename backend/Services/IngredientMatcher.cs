@@ -36,7 +36,7 @@ public sealed class IngredientMatcher
     {
         if (string.IsNullOrWhiteSpace(s)) return "";
         s = FoldDiacritics(s.ToLowerInvariant());
-        s = Regex.Replace(s, @"\(.*?\)", " ");          // drop "(z puszki)" etc.
+        s = Regex.Replace(s, @"\(.*?(?:\)|$)", " ");    // drop "(z puszki)" etc., including a truncated suffix
         var comma = s.IndexOf(',');
         if (comma >= 0) s = s[..comma];                  // drop ", posiekany" etc.
         s = Regex.Replace(s, @"[^a-z0-9 ]", " ");

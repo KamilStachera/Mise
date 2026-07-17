@@ -217,10 +217,17 @@ public sealed class ContextExportService
             sb.AppendLine();
         }
         sb.AppendLine("## Składniki");
+        var emittedAlternativeGroups = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var i in r.Ingredients.OrderBy(i => i.Order))
+        {
+            var isAlternative = !string.IsNullOrWhiteSpace(i.AlternativeGroup);
+            var followsAlternative = isAlternative
+                && !emittedAlternativeGroups.Add(i.AlternativeGroup!.Trim());
+            var name = followsAlternative ? $"lub: {i.Name}" : i.Name;
             sb.AppendLine(string.IsNullOrWhiteSpace(i.DisplayText)
-                ? $"- {Features.Mapping.IngredientDisplayText(i)}"
-                : $"- **{i.Name}** — {i.DisplayText.Trim()}");
+                ? $"- {(followsAlternative ? "lub: " : "")}{Features.Mapping.IngredientDisplayText(i)}"
+                : $"- **{name}** — {i.DisplayText.Trim()}");
+        }
         sb.AppendLine();
         sb.AppendLine("## Przygotowanie");
         var n = 1;

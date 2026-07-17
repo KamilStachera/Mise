@@ -23,7 +23,8 @@ help plan meals.
 - A **Shopping list** that is deliberately independent of the pantry — items come
   from recipes ("add what's missing"), from you, or from agents. Recipe-origin
   rows merge by canonical pantry item and sum compatible quantities; manual rows
-  stay independent.
+  stay independent. Explicit ingredient alternatives create one "A or B" row and
+  are satisfied by any sufficiently stocked option.
 - A **Cooking Profile** + a detailed **kitchen questionnaire** (30 questions) that
   compile into a `cookbook.md` memory file.
 - A **weekly meal plan** and a **cook log** ("we made this — too salty") that
@@ -47,7 +48,9 @@ TypeScript · all containerized with Docker Compose.
 The UI and all content (seed recipes, pantry, exported AI context) are in **Polish**;
 ingredient↔pantry matching is Polish-aware (diacritics + inflection, so "czosnku"
 matches "Czosnek"). Recipe ingredients keep that canonical product separately
-from an optional verbatim display line. Code, API contracts and this README stay in English.
+from an optional verbatim display line. Alternatives are separate ingredient rows
+sharing an `alternativeGroup`, never a slash inside the product name. Code, API
+contracts and this README stay in English.
 
 ---
 

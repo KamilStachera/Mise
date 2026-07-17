@@ -84,6 +84,12 @@ public class RecipeIngredient
     /// "quantity + name" presentation.
     /// </summary>
     public string? DisplayText { get; set; }
+    /// <summary>
+    /// Optional caller-defined key joining ingredients that are substitutes for
+    /// one another. All rows with the same key inside a recipe form one "A or B"
+    /// requirement: any one sufficiently available option satisfies it.
+    /// </summary>
+    public string? AlternativeGroup { get; set; }
     public int Order { get; set; }
 
     /// <summary>
@@ -186,6 +192,13 @@ public class ShoppingItem
 
     /// <summary>Provenance link to the pantry item this row restocks (helps receipt check-off).</summary>
     public Guid? PantryItemId { get; set; }
+    /// <summary>
+    /// Stable normalized identity for a recipe-origin "A or B" row. Null for
+    /// ordinary and manual shopping items.
+    /// </summary>
+    public string? AlternativeKey { get; set; }
+    /// <summary>Semicolon-separated pantry ids that may satisfy the alternative.</summary>
+    public string? AlternativePantryItemIds { get; set; }
     public List<ShoppingContribution> Contributions { get; set; } = new();
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

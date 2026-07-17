@@ -1,0 +1,83 @@
+[
+  {
+    "sourceUrl": "https://aniagotuje.pl/przepis/chleb-w-jajku",
+    "raw": "4 kromki pszennego pieczywa - może być czerstwe",
+    "inputName": "chleb razowy",
+    "quantity": "4 kromki",
+    "expectedName": "Pieczywo",
+    "expectedAmountValue": null,
+    "expectedAmountUnit": null
+  },
+  {
+    "sourceUrl": "https://aniagotuje.pl/przepis/chleb-w-jajku",
+    "raw": "2 średniej wielkości jajka",
+    "inputName": "Jajko",
+    "quantity": "2 szt.",
+    "expectedName": "Jajka",
+    "expectedAmountValue": 2,
+    "expectedAmountUnit": "szt"
+  },
+  {
+    "sourceUrl": "https://aniagotuje.pl/przepis/chleb-w-jajku",
+    "raw": "2 łyżki oleju do smażenia",
+    "inputName": "olej do smażenia",
+    "quantity": "2 łyżki",
+    "expectedName": "Olej rzepakowy",
+    "expectedAmountValue": null,
+    "expectedAmountUnit": null
+  },
+  {
+    "sourceUrl": "https://kuchnialidla.pl/salatka-z-rukoli-z-ciepla-mozzarella-w-szynce-bresaola",
+    "raw": "rukola – 150 g",
+    "inputName": "Rukola",
+    "quantity": "150 g",
+    "expectedName": "Rukola",
+    "expectedAmountValue": 150,
+    "expectedAmountUnit": "g"
+  },
+  {
+    "sourceUrl": "https://kuchnialidla.pl/salatka-z-rukoli-z-ciepla-mozzarella-w-szynce-bresaola",
+    "raw": "oliwa z oliwek – 4 łyżki",
+    "inputName": "Oliwa z oliwek",
+    "quantity": "4 łyżki",
+    "expectedName": "Oliwa z oliwek",
+    "expectedAmountValue": null,
+    "expectedAmountUnit": null
+  },
+  {
+    "sourceUrl": "https://kuchnialidla.pl/salatka-z-rukoli-z-ciepla-mozzarella-w-szynce-bresaola",
+    "raw": "sól – do smaku",
+    "inputName": "Sól",
+    "quantity": "do smaku",
+    "expectedName": "Sól",
+    "expectedAmountValue": null,
+    "expectedAmountUnit": null
+  },
+  {
+    "sourceUrl": "https://www.kwestiasmaku.com/przepis/kaszotto-z-kurczakiem-marchewka-i-groszkiem",
+    "raw": "1/2 paczki (225 g) mrożonej marchewki z groszkiem",
+    "inputName": "Marchew z groszkiem",
+    "quantity": "1/2 paczki (225 g)",
+    "expectedName": "Marchew z groszkiem",
+    "expectedAmountValue": 225,
+    "expectedAmountUnit": "g"
+  },
+  {
+    "sourceUrl": "https://aniagotuje.pl/przepis/chleb-z-oliwkami",
+    "raw": "7 g drożdży instant - mała saszetka",
+    "inputName": "drożdże instant",
+    "quantity": "7 g",
+    "expectedName": "Drożdże",
+    "expectedAmountValue": 7,
+    "expectedAmountUnit": "g"
+  },
+  {
+    "sourceUrl": "https://aniagotuje.pl/przepis/chleb-z-oliwkami",
+    "raw": "1 mała cebula - około 130 g",
+    "inputName": "Cebula",
+    "quantity": "1 szt. (130 g)",
+    "expectedName": "Cebula",
+    "expectedAmountValue": 130,
+    "expectedAmountUnit": "g"
+  }
+]

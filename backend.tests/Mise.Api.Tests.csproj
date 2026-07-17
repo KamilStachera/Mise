@@ -24,4 +24,8 @@
     <ProjectReference Include="..\backend\Mise.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Fixtures\web-ingredient-cases.json" />
+  </ItemGroup>
+
 </Project>
