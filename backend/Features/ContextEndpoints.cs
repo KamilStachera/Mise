@@ -21,15 +21,12 @@ public static class ContextEndpoints
         // Everything the "Połącz agenta" card needs: copyable prompts/snippets for
         // Codex & Claude Code. When HOST_CONTEXT_DIR is unset the strings contain
         // {{CONTEXT_DIR}} / {{REPO_DIR}} tokens the frontend substitutes client-side.
-        g.MapGet("/connect", (ContextExportService export, IConfiguration config) =>
+        g.MapGet("/connect", (ContextExportService export) =>
         {
             var ctxDir = export.HostDirectory ?? AgentDocs.ContextDirToken;
             var repoDir = export.HostDirectory is string host
                 ? (System.IO.Path.GetDirectoryName(host.TrimEnd('\\', '/')) ?? AgentDocs.RepoDirToken)
                 : AgentDocs.RepoDirToken;
-            // This endpoint is privileged (see ApiAccessMiddleware), so the real key
-            // may be rendered into the copyable MCP snippets when configured.
-            var apiKey = config["MISE_API_KEY"] is string k && !string.IsNullOrWhiteSpace(k) ? k : null;
             return Results.Ok(new
             {
                 apiBase = export.ApiBase,
@@ -40,8 +37,8 @@ public static class ContextEndpoints
                     oneShot = AgentDocs.OneShotPrompt(ctxDir, export.ApiBase),
                     globalSnippet = AgentDocs.GlobalSnippet(ctxDir, export.ApiBase),
                     commandsInstall = AgentDocs.CommandsInstall(ctxDir),
-                    claudeMcpCommand = AgentDocs.ClaudeMcpCommand(repoDir, apiKey),
-                    codexMcpToml = AgentDocs.CodexMcpToml(repoDir, apiKey),
+                    claudeMcpCommand = AgentDocs.ClaudeMcpCommand(repoDir),
+                    codexMcpToml = AgentDocs.CodexMcpToml(repoDir),
                 },
             });
         });

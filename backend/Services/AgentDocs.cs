@@ -440,16 +440,16 @@ public static class AgentDocs
         pod `{API}` zgodnie z `{CTX}/api.md`. Nie edytuj plików w tym folderze.
         """.Replace("{CTX}", contextDir).Replace("{API}", apiBase);
 
-    public const string ApiKeyToken = "{{MISE_API_KEY}}";
+    // Connection snippets are rendered in the browser. They intentionally contain
+    // paths only: secrets must be configured locally in the agent process and must
+    // never be returned by /context/connect.
+    public static string ClaudeMcpCommand(string repoDir) =>
+        $"claude mcp add mise -- node \"{repoDir}/mcp/dist/index.js\"";
 
-    public static string ClaudeMcpCommand(string repoDir, string? apiKey = null) =>
-        $"claude mcp add mise -e MISE_API_KEY={apiKey ?? ApiKeyToken} -- node \"{repoDir}/mcp/dist/index.js\"";
-
-    public static string CodexMcpToml(string repoDir, string? apiKey = null) => $$"""
+    public static string CodexMcpToml(string repoDir) => $$"""
         [mcp_servers.mise]
         command = "node"
         args = ["{{repoDir}}/mcp/dist/index.js"]
-        env = { MISE_API_KEY = "{{apiKey ?? ApiKeyToken}}" }
         """;
 
     public static string CommandsInstall(string contextDir) => """
