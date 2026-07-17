@@ -77,6 +77,13 @@ public class RecipeIngredient
 
     public string Name { get; set; } = "";
     public string Quantity { get; set; } = "";
+    /// <summary>
+    /// Optional verbatim ingredient line shown to the cook, e.g.
+    /// "2–4 kromki chleba na zakwasie piwnym". <see cref="Name"/> remains the
+    /// canonical product used for pantry matching; null keeps the legacy
+    /// "quantity + name" presentation.
+    /// </summary>
+    public string? DisplayText { get; set; }
     public int Order { get; set; }
 
     /// <summary>
@@ -179,7 +186,28 @@ public class ShoppingItem
 
     /// <summary>Provenance link to the pantry item this row restocks (helps receipt check-off).</summary>
     public Guid? PantryItemId { get; set; }
+    public List<ShoppingContribution> Contributions { get; set; } = new();
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// One recipe/plan occurrence contributing demand to an unchecked recipe-origin
+/// shopping row. SourceKey makes a recipe button idempotent while individual plan
+/// entries remain separate occurrences.
+/// </summary>
+public class ShoppingContribution
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ShoppingItemId { get; set; }
+    public ShoppingItem? ShoppingItem { get; set; }
+
+    /// <summary>Stable source identity: recipe:{id} or plan:{entryId}.</summary>
+    public string SourceKey { get; set; } = "";
+    /// <summary>Recipe-title snapshot used to build the shopping-list reason.</summary>
+    public string SourceLabel { get; set; } = "";
+    /// <summary>Full recipe demand before pantry stock is subtracted.</summary>
+    public decimal? RequiredQuantity { get; set; }
+    public PantryUnit? Unit { get; set; }
 }
 
 /// <summary>A "we cooked this" journal entry — the feedback loop the AI learns from.</summary>

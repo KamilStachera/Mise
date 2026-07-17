@@ -51,11 +51,13 @@ public static class AgentDocs
         ### Przepis ze zdjęcia (lub tekstu / strony)
         1. Obejrzyj zdjęcie / przeczytaj źródło samodzielnie i wyciągnij przepis.
         2. Znormalizuj do schematu z `api.md`: tytuł, czas w minutach, porcje, składniki
-           `{ "name", "quantity", "amountValue", "amountUnit" }` po polsku, kroki jako lista
+           `{ "name", "quantity", "displayText", "amountValue", "amountUnit" }` po polsku, kroki jako lista
            zdań. Oszacuj też wartości odżywcze NA PORCJĘ (`kcal`, `protein`, `fat`, `carbs`)
            — zawsze wszystkie cztery (nigdy samo `kcal` — resztę policz ze składników),
            tak jak `dishType` i `usesAirFryer`. Tytuł to nazwa dania, nie lista elementów
-           posiłku („Jajecznica; pieczywo; gruszka" ✗). Nazwy składników w mianowniku,
+           posiłku („Jajecznica; pieczywo; gruszka" ✗). `name` to kanoniczny produkt
+           katalogu spiżarni, a opcjonalny `displayText` zachowuje pełny zapis z przepisu.
+           Nazwy składników w mianowniku,
            jak mówi się w kuchni („Jajka" + „2 szt.", nie „Jaja kurze całe" + „100 g";
            „Miód", nie „Miodu"). Jeden produkt = jeden składnik (rozbijaj „Sól, pieprz
            i zioła" na osobne pozycje; przymiotniki tylko gdy odróżniają produkt).
@@ -174,7 +176,8 @@ public static class AgentDocs
           "ingredients": [
             { "name": "Jajka", "quantity": "4", "amountValue": 4, "amountUnit": "szt" },
             { "name": "Pomidory z puszki", "quantity": "1 puszka", "amountValue": 1, "amountUnit": "szt" },
-            { "name": "Feta", "quantity": "100 g", "amountValue": 100, "amountUnit": "g" }
+            { "name": "Feta", "quantity": "100 g", "amountValue": 100, "amountUnit": "g" },
+            { "name": "Pieczywo", "quantity": "2–4 kromki", "displayText": "2–4 kromki chleba na zakwasie piwnym" }
           ],
           "steps": [
             "Podsmaż cebulę i czosnek, dodaj pomidory i zredukuj.",
@@ -187,7 +190,10 @@ public static class AgentDocs
         spiżarnią (dopasowanie odmian po polsku), więc podawaj naturalne polskie nazwy.
         `difficulty`: `Łatwe` / `Średnie` / `Trudne` (domyślnie `Łatwe`).
 
-        `quantity` to tekst do wyświetlania; `amountValue`+`amountUnit` to ilość
+        `name` to kanoniczna pozycja katalogu spiżarni. `quantity` to sama naturalna
+        ilość, a opcjonalny `displayText` zachowuje pełny zapis widoczny w przepisie
+        (np. `name: "Pieczywo"`, `displayText: "2–4 kromki chleba na zakwasie piwnym"`).
+        `amountValue`+`amountUnit` to ilość
         strukturalna (napędza „czy wystarczy w spiżarni" i odejmowanie po ugotowaniu) —
         **zawsze podawaj, gdy ilość jest mierzalna**; pomiń przy „garść", „do smaku" itp.
 
@@ -225,6 +231,8 @@ public static class AgentDocs
           makro na porcję), zamiast pomijać.
         - `DELETE /recipes/{id}`.
         - `POST /recipes/{id}/add-missing-to-shopping` — dopisz brakujące składniki do zakupów.
+          Ponowienie dla tego samego przepisu jest idempotentne; odpowiedź ma
+          `{ "added": N, "updated": N }`.
 
         ### Zdjęcia dania (galeria)
         - `POST /recipes/{id}/image` — multipart (`file`), JPG/PNG/WebP do 5 MB:
@@ -306,7 +314,8 @@ public static class AgentDocs
         - `GET /plan?start=YYYY-MM-DD&days=14` — wpisy (domyślnie od poniedziałku bieżącego tygodnia).
         - `DELETE /plan/entry/{id}`.
         - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7 }`;
-          dopisuje do zakupów brakujące składniki zaplanowanych przepisów.
+          sumuje wymagania wszystkich wpisów (także powtórzeń tego samego przepisu),
+          odejmuje wspólny stan raz i dopisuje lub aktualizuje scalone zakupy.
 
         ## Historia gotowania (cook log)
 
@@ -337,7 +346,9 @@ public static class AgentDocs
         ## Zakupy
 
         Lista jest niezależna od spiżarni: nic nie pojawia się ani nie znika na niej
-        automatycznie. Po paragonie odhaczaj/usuwaj kupione pozycje.
+        automatycznie. Nieodhaczone pozycje dodane z przepisów łączą się po kanonicznej
+        pozycji spiżarni; wpisy ręczne i odhaczone pozostają osobne. Po paragonie
+        odhaczaj/usuwaj kupione pozycje.
 
         - `GET /shopping` — lista (z `id` do check/delete).
         - `POST /shopping` — `{ "name": "Guanciale", "category": "Fridge", "quantity": 100, "unit": "g", "reason": "Do: Carbonara" }`

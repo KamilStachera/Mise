@@ -218,7 +218,9 @@ public sealed class ContextExportService
         }
         sb.AppendLine("## Składniki");
         foreach (var i in r.Ingredients.OrderBy(i => i.Order))
-            sb.AppendLine(string.IsNullOrWhiteSpace(i.Quantity) ? $"- {i.Name}" : $"- {i.Quantity} {i.Name}");
+            sb.AppendLine(string.IsNullOrWhiteSpace(i.DisplayText)
+                ? $"- {Features.Mapping.IngredientDisplayText(i)}"
+                : $"- **{i.Name}** — {i.DisplayText.Trim()}");
         sb.AppendLine();
         sb.AppendLine("## Przygotowanie");
         var n = 1;

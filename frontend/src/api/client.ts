@@ -32,6 +32,7 @@ export interface RecipeListItem {
 export interface Ingredient {
   name: string
   quantity: string
+  displayText: string | null
   status: Status
 }
 
@@ -115,6 +116,7 @@ export interface CookProposalItem {
   ingredientId: string
   name: string
   quantityText: string
+  displayText: string | null
   pantryItemId: string | null
   pantryItemName: string | null
   unit: Unit | null
@@ -164,7 +166,13 @@ export interface RecipeInput {
   tint?: string
   blurb?: string
   tip?: string
-  ingredients: { name: string; quantity?: string }[]
+  ingredients: {
+    name: string
+    quantity?: string
+    displayText?: string
+    amountValue?: number
+    amountUnit?: Unit
+  }[]
   steps: string[]
   dishType?: DishType
   cuisine?: Cuisine
@@ -298,7 +306,7 @@ export const api = {
     http<{ id: string }>(`/recipes`, { method: 'POST', body: JSON.stringify(input) }),
   deleteRecipe: (id: string) => http<void>(`/recipes/${id}`, { method: 'DELETE' }),
   addMissingToShopping: (id: string) =>
-    http<{ added: number }>(`/recipes/${id}/add-missing-to-shopping`, { method: 'POST' }),
+    http<{ added: number; updated: number }>(`/recipes/${id}/add-missing-to-shopping`, { method: 'POST' }),
   // Multipart — bypasses the JSON `http` helper so the browser sets the boundary header.
   uploadRecipeImage: async (id: string, file: File) => {
     const form = new FormData()
@@ -360,7 +368,7 @@ export const api = {
     http<PlanEntry>(`/plan/entry`, { method: 'PUT', body: JSON.stringify(input) }),
   deletePlanEntry: (id: string) => http<void>(`/plan/entry/${id}`, { method: 'DELETE' }),
   planAddMissing: (start: string, days: number) =>
-    http<{ added: number }>(`/plan/add-missing-to-shopping`, { method: 'POST', body: JSON.stringify({ start, days }) }),
+    http<{ added: number; updated: number }>(`/plan/add-missing-to-shopping`, { method: 'POST', body: JSON.stringify({ start, days }) }),
 
   cookbook: () => http<{ markdown: string }>(`/context/cookbook`),
   contextStatus: () => http<{ path: string; hostPath: string | null }>(`/context/status`),

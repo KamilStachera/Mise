@@ -71,19 +71,20 @@ public static class PlanEndpoints
             var from = input.Start ?? StartOfWeek(DateOnly.FromDateTime(DateTime.Today));
             var to = from.AddDays(Math.Clamp(input.Days ?? 7, 1, 60));
 
-            var recipeIds = await db.PlanEntries.AsNoTracking()
+            var entries = await db.PlanEntries.AsNoTracking()
+                .Include(e => e.Recipe)!
+                    .ThenInclude(r => r!.Ingredients)
+                .AsSplitQuery()
                 .Where(e => e.Date >= from && e.Date < to && e.RecipeId != null)
-                .Select(e => e.RecipeId!.Value)
-                .Distinct()
-                .ToListAsync();
-            var recipes = await db.Recipes.AsNoTracking()
-                .Include(r => r.Ingredients)
-                .Where(r => recipeIds.Contains(r.Id))
                 .ToListAsync();
 
-            var added = await shopping.AddMissingForRecipesAsync(db, recipes);
-            if (added > 0) await export.ExportAsync();
-            return Results.Ok(new { added });
+            var sources = entries.Where(e => e.Recipe is not null)
+                .Select(e => new ShoppingRecipeSource(
+                    $"plan:{e.Id}", e.Recipe!.Title, e.Recipe))
+                .ToList();
+            var result = await shopping.AddMissingForRecipesAsync(db, sources);
+            if (result.Added > 0 || result.Updated > 0) await export.ExportAsync();
+            return Results.Ok(new ShoppingAddResultDto(result.Added, result.Updated));
         });
 
         return api;

@@ -100,8 +100,11 @@ export function CookMode({ title, steps, ingredients, onClose }: {
             {ingredients.map((ing, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px', borderBottom: i < ingredients.length - 1 ? '1px solid var(--border)' : 'none' }}>
                 <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
-                <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text)' }}>{ing.name}</span>
-                <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-2)' }}>{ing.quantity}</span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--text)' }}>
+                  {ing.displayText ?? ing.name}
+                  {ing.displayText && <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'var(--text-3)' }}>Spiżarnia: {ing.name}</span>}
+                </span>
+                {!ing.displayText && <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-2)' }}>{ing.quantity}</span>}
               </div>
             ))}
           </div>

@@ -15,6 +15,7 @@ public class MiseDbContext : DbContext
     public DbSet<Preferences> Preferences => Set<Preferences>();
     public DbSet<EquipmentItem> EquipmentItems => Set<EquipmentItem>();
     public DbSet<ShoppingItem> ShoppingItems => Set<ShoppingItem>();
+    public DbSet<ShoppingContribution> ShoppingContributions => Set<ShoppingContribution>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<CookLogEntry> CookLog => Set<CookLogEntry>();
     public DbSet<PlanEntry> PlanEntries => Set<PlanEntry>();
@@ -45,6 +46,7 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Name).HasMaxLength(200);
             e.Property(x => x.Quantity).HasMaxLength(100);
+            e.Property(x => x.DisplayText).HasMaxLength(500);
             e.Property(x => x.AmountValue).HasPrecision(10, 2);
             e.Property(x => x.AmountUnit).HasConversion<string>().HasMaxLength(8);
             e.HasOne(x => x.PantryItem).WithMany().HasForeignKey(x => x.PantryItemId).OnDelete(DeleteBehavior.SetNull);
@@ -72,6 +74,18 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Quantity).HasPrecision(10, 2);
             e.Property(x => x.Unit).HasConversion<string>().HasMaxLength(8);
             e.HasIndex(x => x.PantryItemId);
+            e.HasMany(x => x.Contributions).WithOne(x => x.ShoppingItem!)
+                .HasForeignKey(x => x.ShoppingItemId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ShoppingContribution>(e =>
+        {
+            e.Property(x => x.SourceKey).HasMaxLength(100);
+            e.Property(x => x.SourceLabel).HasMaxLength(300);
+            e.Property(x => x.RequiredQuantity).HasPrecision(10, 2);
+            e.Property(x => x.Unit).HasConversion<string>().HasMaxLength(8);
+            e.HasIndex(x => x.SourceKey);
+            e.HasIndex(x => new { x.ShoppingItemId, x.SourceKey });
         });
 
         b.Entity<ChatMessage>(e =>

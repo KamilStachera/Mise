@@ -8,7 +8,7 @@ public record RecipeListItemDto(Guid Id, string Title, string Source, int Time, 
     string? DishType, string? Cuisine, bool UsesAirFryer, DateTimeOffset CreatedAt,
     int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs);
 
-public record IngredientDto(string Name, string Quantity, string Status);
+public record IngredientDto(string Name, string Quantity, string? DisplayText, string Status);
 
 /// <summary>One gallery photo; IsDefault marks the one shown on cards and the hero.</summary>
 public record RecipeImageDto(Guid Id, string Url, bool IsDefault, DateTimeOffset CreatedAt);
@@ -32,8 +32,9 @@ public record PantryAdjustResultDto(List<PantryItemDto> Updated, List<UnmatchedI
 public record ShoppingItemDto(Guid Id, string Name, string Category, string Reason, bool Checked,
     string Origin, decimal? Quantity, string? Unit);
 public record ShoppingListDto(List<ShoppingItemDto> Items, int Total, int CheckedCount);
+public record ShoppingAddResultDto(int Added, int Updated);
 
-public record CookProposalItemDto(Guid IngredientId, string Name, string QuantityText,
+public record CookProposalItemDto(Guid IngredientId, string Name, string QuantityText, string? DisplayText,
     Guid? PantryItemId, string? PantryItemName, string? Unit, decimal? PantryQuantity,
     decimal? ProposedAmount, bool Deductible, string? SkipReason);
 public record CookProposalDto(Guid RecipeId, string Title, List<CookProposalItemDto> Items);
@@ -64,7 +65,7 @@ public record QuestionnaireDto(List<QuestionnaireSectionDto> Sections, Dictionar
 
 // ---- requests ----
 public record IngredientInput(string Name, string? Quantity,
-    decimal? AmountValue = null, string? AmountUnit = null);
+    decimal? AmountValue = null, string? AmountUnit = null, string? DisplayText = null);
 /// <summary>Kcal/Protein/Fat/Carbs are estimates PER SERVING; PUT is full-replace, so omitting them clears the stored values.</summary>
 public record RecipeInput(string Title, string Source, int Time, int Servings, string? Difficulty,
     string? Tint, string? Blurb, string? Tip, List<IngredientInput> Ingredients, List<string> Steps,
@@ -153,6 +154,11 @@ public static class Mapping
     public static ShoppingItemDto ToDto(ShoppingItem s) => new(s.Id, s.Name, s.Category, s.Reason,
         s.Checked, s.Origin.ToString().ToLowerInvariant(), s.Quantity,
         s.Unit is PantryUnit u ? UnitString(u) : null);
+
+    public static string IngredientDisplayText(RecipeIngredient ingredient) =>
+        !string.IsNullOrWhiteSpace(ingredient.DisplayText) ? ingredient.DisplayText.Trim()
+        : string.IsNullOrWhiteSpace(ingredient.Quantity) ? ingredient.Name
+        : $"{ingredient.Quantity} {ingredient.Name}";
 
     public static MealSlot ParseSlot(string? s) => (s ?? "").Trim().ToLowerInvariant() switch
     {

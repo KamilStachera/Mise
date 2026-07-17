@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, useCreateRecipe, useUploadRecipeImage } from '../api/hooks'
+import { useAuth, useCreateRecipe, usePantry, useUploadRecipeImage } from '../api/hooks'
 import { LoginPrompt } from '../components/LoginPrompt'
 import type { Cuisine, DishType, RecipeInput, Source } from '../api/client'
 import { CUISINES, DISH_TYPES, cuisineLabel, dishTypeLabel } from '../lib/labels'
 import { BackIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
 import { IMAGE_ACCEPT } from '../lib/images'
 
-type Ing = { name: string; quantity: string }
+type Ing = { name: string; quantity: string; displayText: string }
 
 const input: CSSProperties = {
   width: '100%',
@@ -32,6 +32,7 @@ export function AddRecipe() {
   const { canEdit, isLoading: authLoading } = useAuth()
   const create = useCreateRecipe()
   const uploadImage = useUploadRecipeImage()
+  const { data: pantry } = usePantry()
 
   const [paste, setPaste] = useState('')
   const [title, setTitle] = useState('')
@@ -46,12 +47,16 @@ export function AddRecipe() {
   const [tint, setTint] = useState('#c0552d')
   const [blurb, setBlurb] = useState('')
   const [tip, setTip] = useState('')
-  const [ings, setIngs] = useState<Ing[]>([{ name: '', quantity: '' }])
+  const [ings, setIngs] = useState<Ing[]>([{ name: '', quantity: '', displayText: '' }])
   const [steps, setSteps] = useState<string[]>([''])
   const [photo, setPhoto] = useState<File | null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
 
   const photoPreview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo])
+  const pantryNames = useMemo(
+    () => (pantry ?? []).flatMap((group) => group.items.map((item) => item.name)),
+    [pantry],
+  )
   useEffect(() => () => {
     if (photoPreview) URL.revokeObjectURL(photoPreview)
   }, [photoPreview])
@@ -78,7 +83,11 @@ export function AddRecipe() {
       tint,
       blurb: blurb.trim(),
       tip: tip.trim() || undefined,
-      ingredients: ings.filter((i) => i.name.trim()).map((i) => ({ name: i.name.trim(), quantity: i.quantity.trim() })),
+      ingredients: ings.filter((i) => i.name.trim()).map((i) => ({
+        name: i.name.trim(),
+        quantity: i.quantity.trim(),
+        displayText: i.displayText.trim() || undefined,
+      })),
       steps: steps.map((s) => s.trim()).filter(Boolean),
       dishType: dishType || undefined,
       cuisine: cuisine || undefined,
@@ -192,16 +201,20 @@ export function AddRecipe() {
 
         <div>
           <label style={label}>Składniki</label>
+          <datalist id="pantry-ingredient-names">
+            {pantryNames.map((name) => <option key={name} value={name} />)}
+          </datalist>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {ings.map((ing, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8 }}>
-                <input style={{ ...input, flex: 1 }} value={ing.name} placeholder="składnik" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-                <input style={{ ...input, width: 130 }} value={ing.quantity} placeholder="ilość" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, .8fr) 110px minmax(220px, 1.4fr) 40px', gap: 8 }}>
+                <input list="pantry-ingredient-names" style={input} value={ing.name} placeholder="produkt w spiżarni" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
+                <input style={input} value={ing.quantity} placeholder="ilość" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
+                <input style={input} value={ing.displayText} placeholder="pełny zapis, np. 2 kromki chleba na zakwasie" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, displayText: e.target.value } : x)))} />
                 <RemoveBtn onClick={() => setIngs((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />
               </div>
             ))}
           </div>
-          <AddBtn label="Dodaj składnik" onClick={() => setIngs((a) => [...a, { name: '', quantity: '' }])} />
+          <AddBtn label="Dodaj składnik" onClick={() => setIngs((a) => [...a, { name: '', quantity: '', displayText: '' }])} />
         </div>
 
         <div>
@@ -332,7 +345,7 @@ function stripBullet(s: string): string {
 }
 
 function parseIngredient(line: string): Ing {
-  const m = line.match(/^([\d¼½¾⅓⅔/.,]+\s*[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]*\b)\s+(.{2,})$/)
-  if (m && /\d/.test(m[1])) return { name: m[2].trim(), quantity: m[1].trim() }
-  return { name: line, quantity: '' }
+  const m = line.match(/^([\d¼½¾⅓⅔/.,–-]+\s*[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]*\b)\s+(.{2,})$/)
+  if (m && /\d/.test(m[1])) return { name: m[2].trim(), quantity: m[1].trim(), displayText: line }
+  return { name: line, quantity: '', displayText: line }
 }

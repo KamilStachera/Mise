@@ -101,7 +101,13 @@ export function Plan() {
 
   async function onAddMissing() {
     const r = await addMissing.mutateAsync({ start: startISO, days: 7 })
-    setShopMsg(r.added > 0 ? `Dodano ${r.added} pozycji do zakupów.` : 'Wszystko z tego tygodnia już masz (lub jest na liście).')
+    const parts = [
+      r.added > 0 ? `dodano ${r.added}` : '',
+      r.updated > 0 ? `zaktualizowano ${r.updated}` : '',
+    ].filter(Boolean)
+    setShopMsg(parts.length > 0
+      ? `${parts.join(', ')} pozycji na liście zakupów.`
+      : 'Wszystko z tego tygodnia już masz (lub jest na liście).')
   }
 
   return (

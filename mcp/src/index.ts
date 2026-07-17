@@ -60,6 +60,9 @@ const recipeInputShape = {
       z.object({
         name: z.string(),
         quantity: z.string().optional().describe('Tekst do wyświetlania, np. "100 g", "2 łyżki"'),
+        displayText: z.string().optional().describe(
+          'Opcjonalny pełny zapis z przepisu, np. "2–4 kromki chleba na zakwasie piwnym"; name pozostaje nazwą produktu w katalogu spiżarni',
+        ),
         amountValue: z.number().positive().optional(),
         amountUnit: z.enum(UNITS).optional(),
       }),
@@ -69,7 +72,9 @@ const recipeInputShape = {
         'ani z dopełniacza ("Jaja kurze całe" + "100 g" ✗ → name: "Jajka", quantity: "2 szt." ✓; ' +
         '"Mięso z piersi indyka, bez skóry" → "Pierś z indyka"; "Miodu" → "Miód"). Ilość nigdy nie jest ' +
         'częścią nazwy ("Łyżeczka pasty gochujang" → name: "Pasta gochujang", quantity: "1 łyżeczka"). ' +
-        'quantity to naturalny tekst do wyświetlania ("2 kromki (70 g)", nie "2 x Kromka (70.0 g)"); ' +
+        'name to kanoniczny produkt ze spiżarni (np. "Pieczywo"), a displayText zachowuje pełne brzmienie ' +
+        'z przepisu (np. "2 kromki chleba na zakwasie"). quantity to sama naturalna ilość ' +
+        '("2 kromki (70 g)", nie "2 x Kromka (70.0 g)"); ' +
         'amountValue+amountUnit to ilość strukturalna (napędza "czy wystarczy w spiżarni" i odejmowanie ' +
         'po ugotowaniu) — ZAWSZE podawaj, gdy ilość jest mierzalna (np. name: "Guanciale", quantity: "100 g", ' +
         'amountValue: 100, amountUnit: "g"); pomiń przy "garść", "do smaku" itp. ' +

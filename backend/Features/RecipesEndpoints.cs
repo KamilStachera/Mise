@@ -74,7 +74,7 @@ public static class RecipesEndpoints
                 .ToDictionaryAsync(p => p.Id);
 
             var ingredients = r.Ingredients.OrderBy(i => i.Order)
-                .Select(i => new IngredientDto(i.Name, i.Quantity,
+                .Select(i => new IngredientDto(i.Name, i.Quantity, i.DisplayText,
                     Mapping.IngredientAvailability(i, pantryById).Status))
                 .ToList();
             var missing = ingredients.Where(i => Mapping.IsToBuy(i.Status)).Select(i => i.Name).ToList();
@@ -271,7 +271,7 @@ public static class RecipesEndpoints
                     : null;
 
                 return new CookProposalItemDto(
-                    i.Id, i.Name, i.Quantity,
+                    i.Id, i.Name, i.Quantity, i.DisplayText,
                     pantryItem?.Id, pantryItem?.Name,
                     pantryItem is not null ? Mapping.UnitString(pantryItem.Unit) : null,
                     pantryItem?.Quantity,
@@ -292,9 +292,12 @@ public static class RecipesEndpoints
                 .FirstOrDefaultAsync(r => r.Id == id);
             if (recipe is null) return Results.NotFound();
 
-            var added = await shopping.AddMissingForRecipesAsync(db, new[] { recipe });
-            if (added > 0) await export.ExportAsync();
-            return Results.Ok(new { added });
+            var result = await shopping.AddMissingForRecipesAsync(db, new[]
+            {
+                new ShoppingRecipeSource($"recipe:{recipe.Id}", recipe.Title, recipe),
+            });
+            if (result.Added > 0 || result.Updated > 0) await export.ExportAsync();
+            return Results.Ok(new ShoppingAddResultDto(result.Added, result.Updated));
         });
 
         return api;
@@ -372,6 +375,7 @@ public static class RecipesEndpoints
             {
                 Name = i.Name.Trim(),
                 Quantity = quantityText,
+                DisplayText = string.IsNullOrWhiteSpace(i.DisplayText) ? null : i.DisplayText.Trim(),
                 Order = order++,
                 AmountValue = amountValue,
                 AmountUnit = amountUnit,

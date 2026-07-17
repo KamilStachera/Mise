@@ -17,7 +17,7 @@ namespace Mise.Api.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.17")
+                .HasAnnotation("ProductVersion", "9.0.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -380,6 +380,10 @@ namespace Mise.Api.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
 
+                    b.Property<string>("DisplayText")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -429,6 +433,42 @@ namespace Mise.Api.Data.Migrations
                     b.HasIndex("RecipeId");
 
                     b.ToTable("RecipeSteps");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.ShoppingContribution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("RequiredQuantity")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<Guid>("ShoppingItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SourceKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SourceLabel")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceKey");
+
+                    b.HasIndex("ShoppingItemId", "SourceKey");
+
+                    b.ToTable("ShoppingContributions");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.ShoppingItem", b =>
@@ -550,6 +590,17 @@ namespace Mise.Api.Data.Migrations
                     b.Navigation("Recipe");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.ShoppingContribution", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.ShoppingItem", "ShoppingItem")
+                        .WithMany("Contributions")
+                        .HasForeignKey("ShoppingItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ShoppingItem");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.Preferences", b =>
                 {
                     b.Navigation("Equipment");
@@ -562,6 +613,11 @@ namespace Mise.Api.Data.Migrations
                     b.Navigation("Ingredients");
 
                     b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.ShoppingItem", b =>
+                {
+                    b.Navigation("Contributions");
                 });
 #pragma warning restore 612, 618
         }
