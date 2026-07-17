@@ -6,6 +6,11 @@
 context/*
 !context/.gitkeep
 
+# --- Local Mise data exports ---
+mise-images/
+mise.sql
+tmp/
+
 # --- .NET ---
 bin/
 obj/
