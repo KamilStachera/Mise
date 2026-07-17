@@ -11,6 +11,7 @@ import { BackIcon, ClockIcon, ServingsIcon, PlayIcon, PlusIcon, TrashIcon, Camer
 import { IMAGE_ACCEPT } from '../lib/images'
 import { CookMode } from '../components/CookMode'
 import { useIsMobile } from '../lib/useIsMobile'
+import { ingredientDetailText } from '../lib/ingredients'
 
 export function RecipeDetail() {
   const { id } = useParams()
@@ -119,16 +120,19 @@ export function RecipeDetail() {
             <div style={{ font: "500 12.5px 'Hanken Grotesk'", color: 'var(--accent-deep)', lineHeight: 1.35 }}>{haveSummary}</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {r.ingredients.map((ing, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: 'var(--text)' }}>
-                  {ing.displayText ?? ing.name}
-                  {ing.displayText && <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, color: 'var(--text-3)' }}>Spiżarnia: {ing.name}</span>}
-                </span>
-                {!ing.displayText && <span style={{ font: "500 12px 'Spline Sans Mono'", color: 'var(--text-2)' }}>{ing.quantity}</span>}
-              </div>
-            ))}
+            {r.ingredients.map((ing, i) => {
+              const detail = ingredientDetailText(ing.displayText, ing.quantity)
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                    {ing.name}
+                    {detail && <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, fontWeight: 400, color: 'var(--text-3)' }}>{detail}</span>}
+                  </span>
+                  {ing.quantity && <span style={{ flex: '0 0 auto', font: "500 12px 'Spline Sans Mono'", color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
+                </div>
+              )
+            })}
           </div>
           {canEdit && r.missing.length > 0 && (
             <button
@@ -505,6 +509,7 @@ function DeductionRowView({ item, row, onChange }: {
   // opted in manually (the user types the amount in the pantry item's unit).
   const canDeduct = item.pantryItemId != null
   const checked = row?.checked ?? false
+  const detail = ingredientDetailText(item.displayText, item.quantityText)
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px', borderBottom: '1px solid var(--border)', opacity: canDeduct ? 1 : 0.55 }}>
@@ -515,11 +520,11 @@ function DeductionRowView({ item, row, onChange }: {
         onChange={(e) => onChange({ checked: e.target.checked, amount: row?.amount ?? '' })}
         style={{ accentColor: 'var(--accent)', width: 15, height: 15, cursor: canDeduct ? 'pointer' : 'default' }}
       />
-      <span style={{ flex: 1, fontSize: 13.5, color: 'var(--text)' }}>
-        {item.displayText ?? item.name}
-        {item.displayText
-          ? <span style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Spiżarnia: {item.name}</span>
-          : <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-3)', marginLeft: 7 }}>{item.quantityText}</span>}
+      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>
+        {item.name}
+        {detail
+          ? <span style={{ display: 'block', fontSize: 11, fontWeight: 400, color: 'var(--text-3)', marginTop: 2 }}>{detail}</span>
+          : item.quantityText && <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-3)', marginLeft: 7 }}>{item.quantityText}</span>}
       </span>
       {!canDeduct ? (
         <span style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)', fontStyle: 'italic' }}>

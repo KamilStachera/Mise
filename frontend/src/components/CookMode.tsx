@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import type { Ingredient } from '../api/client'
 import { parseStepDurations, formatCountdown } from '../lib/durations'
 import { statusColor } from '../lib/labels'
+import { ingredientDetailText } from '../lib/ingredients'
 import { BackIcon, ChevronRight, ClockIcon, CloseIcon } from './icons'
 
 /**
@@ -97,16 +98,19 @@ export function CookMode({ title, steps, ingredients, onClose }: {
       {showIngredients && (
         <div style={{ padding: '16px 18px 0', maxWidth: 640, margin: '0 auto', width: '100%' }}>
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '10px 14px', display: 'flex', flexDirection: 'column', maxHeight: '38vh', overflowY: 'auto' }}>
-            {ingredients.map((ing, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px', borderBottom: i < ingredients.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: 'var(--text)' }}>
-                  {ing.displayText ?? ing.name}
-                  {ing.displayText && <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'var(--text-3)' }}>Spiżarnia: {ing.name}</span>}
-                </span>
-                {!ing.displayText && <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-2)' }}>{ing.quantity}</span>}
-              </div>
-            ))}
+            {ingredients.map((ing, i) => {
+              const detail = ingredientDetailText(ing.displayText, ing.quantity)
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px', borderBottom: i < ingredients.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>
+                    {ing.name}
+                    {detail && <span style={{ display: 'block', marginTop: 2, fontSize: 11, fontWeight: 400, color: 'var(--text-3)' }}>{detail}</span>}
+                  </span>
+                  {ing.quantity && <span style={{ flex: '0 0 auto', font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
