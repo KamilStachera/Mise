@@ -14,7 +14,9 @@ public record IngredientDto(string Name, string Quantity, string? DisplayText,
 /// <summary>One gallery photo; IsDefault marks the one shown on cards and the hero.</summary>
 public record RecipeImageDto(Guid Id, string Url, bool IsDefault, DateTimeOffset CreatedAt);
 
+/// <summary>SelectedServings = the saved portion choice (defaults to Servings); ingredient amounts are already scaled to it.</summary>
 public record RecipeDetailDto(Guid Id, string Title, string Source, int Time, int Servings,
+    int SelectedServings,
     string Difficulty, string Tint, string Blurb, string? ImageUrl, string? Tip,
     List<IngredientDto> Ingredients, List<string> Steps,
     int Have, int Total, List<string> Missing,
@@ -81,6 +83,9 @@ public record PantryQuantityInput(decimal Quantity);
 /// <summary>A delta: positive = bought, negative = used up / thrown away.</summary>
 public record PantryAdjustItem(string Name, decimal Quantity, string? Unit = null);
 public record PantryAdjustInput(List<PantryAdjustItem> Items);
+
+/// <summary>Portion choice for the recipe screen; equal to the base Servings clears the scaling.</summary>
+public record RecipeServingsInput(int Servings);
 
 public record ShoppingItemInput(string Name, string? Category,
     decimal? Quantity = null, string? Unit = null, string? Reason = null);

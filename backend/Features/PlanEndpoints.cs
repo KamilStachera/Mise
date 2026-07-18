@@ -80,7 +80,8 @@ public static class PlanEndpoints
 
             var sources = entries.Where(e => e.Recipe is not null)
                 .Select(e => new ShoppingRecipeSource(
-                    $"plan:{e.Id}", e.Recipe!.Title, e.Recipe))
+                    // Demand follows each recipe's saved portion scaling.
+                    $"plan:{e.Id}", e.Recipe!.Title, RecipeScaling.Scaled(e.Recipe)))
                 .ToList();
             var result = await shopping.AddMissingForRecipesAsync(db, sources);
             if (result.Added > 0 || result.Updated > 0) await export.ExportAsync();

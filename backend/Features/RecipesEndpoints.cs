@@ -48,7 +48,8 @@ public static class RecipesEndpoints
                 recipes = recipes.Where(r => AirFryer.Uses(r) == wantAirFryer).ToList();
             var list = recipes.OrderBy(r => r.Title, Pl.Comparer).Select(r =>
             {
-                var toBuy = Mapping.IngredientRequirementGroups(r.Ingredients)
+                // Saved portion scaling changes the amounts, so it changes what's short.
+                var toBuy = Mapping.IngredientRequirementGroups(RecipeScaling.ScaledIngredients(r))
                     .Count(group => Mapping.RequirementNeedsPurchase(group, pantryById));
                 return new RecipeListItemDto(r.Id, r.Title, Mapping.SourceString(r.Source),
                     r.TimeMinutes, r.Servings, r.Difficulty, r.Tint, r.Blurb,
@@ -73,12 +74,14 @@ public static class RecipesEndpoints
             var pantryById = await db.PantryItems.AsNoTracking()
                 .ToDictionaryAsync(p => p.Id);
 
-            var ingredients = r.Ingredients.OrderBy(i => i.Order)
+            // Amounts (display + structured) are served at the saved portion scaling.
+            var scaledIngredients = RecipeScaling.ScaledIngredients(r);
+            var ingredients = scaledIngredients.OrderBy(i => i.Order)
                 .Select(i => new IngredientDto(i.Name, i.Quantity, i.DisplayText,
                     i.AlternativeGroup,
                     Mapping.IngredientAvailability(i, pantryById).Status))
                 .ToList();
-            var requirements = Mapping.IngredientRequirementGroups(r.Ingredients);
+            var requirements = Mapping.IngredientRequirementGroups(scaledIngredients);
             var missing = requirements
                 .Where(group => Mapping.RequirementNeedsPurchase(group, pantryById))
                 .Select(Mapping.RequirementName)
@@ -86,7 +89,8 @@ public static class RecipesEndpoints
             var steps = r.Steps.OrderBy(s => s.Order).Select(s => s.Text).ToList();
 
             return Results.Ok(new RecipeDetailDto(r.Id, r.Title, Mapping.SourceString(r.Source),
-                r.TimeMinutes, r.Servings, r.Difficulty, r.Tint, r.Blurb,
+                r.TimeMinutes, r.Servings, RecipeScaling.EffectiveServings(r),
+                r.Difficulty, r.Tint, r.Blurb,
                 Mapping.ImageUrl(r.ImagePath), r.Tip,
                 ingredients, steps, requirements.Count - missing.Count, requirements.Count, missing,
                 Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
@@ -139,7 +143,10 @@ public static class RecipesEndpoints
             recipe.Steps.Clear();
 
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
+            var previousServings = recipe.Servings;
             ApplyInput(recipe, input, dt, cu, pantry, ingredientNormalizer);
+            // A redefined portion count invalidates the saved scaling choice.
+            if (recipe.Servings != previousServings) recipe.SelectedServings = null;
             // Children self-assign Guid ids, so change detection would treat them as
             // existing rows (UPDATE → 0 rows → concurrency error); register as inserts.
             db.RecipeIngredients.AddRange(recipe.Ingredients);
@@ -265,7 +272,9 @@ public static class RecipesEndpoints
 
             var pantryById = await db.PantryItems.AsNoTracking().ToDictionaryAsync(p => p.Id);
 
-            var selectedAlternatives = Mapping.IngredientRequirementGroups(r.Ingredients)
+            // Deduction proposals follow the saved portion scaling.
+            var scaledIngredients = RecipeScaling.ScaledIngredients(r);
+            var selectedAlternatives = Mapping.IngredientRequirementGroups(scaledIngredients)
                 .Where(group => group.Count > 1
                     && !string.IsNullOrWhiteSpace(group[0].AlternativeGroup))
                 .ToDictionary(
@@ -273,7 +282,7 @@ public static class RecipesEndpoints
                     group => SelectCookAlternative(group, pantryById),
                     StringComparer.OrdinalIgnoreCase);
 
-            var items = r.Ingredients.OrderBy(i => i.Order).Select(i =>
+            var items = scaledIngredients.OrderBy(i => i.Order).Select(i =>
             {
                 var pantryItem = i.PantryItemId is Guid pid ? pantryById.GetValueOrDefault(pid) : null;
 
@@ -316,10 +325,31 @@ public static class RecipesEndpoints
 
             var result = await shopping.AddMissingForRecipesAsync(db, new[]
             {
-                new ShoppingRecipeSource($"recipe:{recipe.Id}", recipe.Title, recipe),
+                // Demand follows the saved portion scaling.
+                new ShoppingRecipeSource($"recipe:{recipe.Id}", recipe.Title, RecipeScaling.Scaled(recipe)),
             });
             if (result.Added > 0 || result.Updated > 0) await export.ExportAsync();
             return Results.Ok(new ShoppingAddResultDto(result.Added, result.Updated));
+        });
+
+        // Save the portion choice; every quantity-aware read/write above scales to it.
+        // Choosing the recipe's own portion count clears the scaling.
+        g.MapPut("/{id:guid}/servings", async (Guid id, RecipeServingsInput input, MiseDbContext db) =>
+        {
+            var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == id);
+            if (recipe is null) return Results.NotFound();
+
+            var max = Math.Max(RecipeScaling.MaxServings, recipe.Servings);
+            if (input.Servings < 1 || input.Servings > max)
+                return Results.BadRequest(new { error = $"Liczba porcji musi być od 1 do {max}." });
+
+            recipe.SelectedServings = input.Servings == recipe.Servings ? null : input.Servings;
+            await db.SaveChangesAsync();
+            return Results.Ok(new
+            {
+                servings = recipe.Servings,
+                selectedServings = RecipeScaling.EffectiveServings(recipe),
+            });
         });
 
         return api;

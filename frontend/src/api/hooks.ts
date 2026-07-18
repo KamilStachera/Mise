@@ -160,6 +160,19 @@ export function useAddMissingToShopping() {
   })
 }
 
+export function useSetRecipeServings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, servings }: { id: string; servings: number }) => api.setRecipeServings(id, servings),
+    onSuccess: () => {
+      // Scaling changes ingredient amounts, missing/to-buy and deduction proposals.
+      qc.invalidateQueries({ queryKey: ['recipe'] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['cookProposal'] })
+    },
+  })
+}
+
 export function useCreateRecipe() {
   const qc = useQueryClient()
   return useMutation({

@@ -307,6 +307,9 @@ namespace Mise.Api.Data.Migrations
                     b.Property<decimal?>("ProteinGrams")
                         .HasColumnType("numeric");
 
+                    b.Property<int?>("SelectedServings")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Servings")
                         .HasColumnType("integer");
 

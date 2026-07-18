@@ -126,9 +126,22 @@ server.tool(
 
 server.tool(
   'get_recipe',
-  'Pobierz pełny przepis (składniki ze statusem jest/brak, kroki).',
+  'Pobierz pełny przepis (składniki ze statusem jest/brak, kroki). Ilości składników są ' +
+    'przeskalowane do zapisanego wyboru porcji (selectedServings); servings to bazowa liczba porcji.',
   { id: z.string().uuid() },
   async ({ id }) => text(await get(`/recipes/${id}`)),
+)
+
+server.tool(
+  'set_recipe_servings',
+  'Zapisz wybór liczby porcji dla przepisu (1–8). Skaluje ilości składników wszędzie, gdzie się ' +
+    'liczą: szczegóły przepisu, do kupienia, cook-proposal i zapotrzebowanie na liście zakupów. ' +
+    'Wartość równa bazowej liczbie porcji przywraca przepis jak w oryginale.',
+  {
+    id: z.string().uuid().describe('Id przepisu'),
+    servings: z.number().int().min(1).describe('Wybrana liczba porcji (1–8)'),
+  },
+  async ({ id, servings }) => text(await put(`/recipes/${id}/servings`, { servings })),
 )
 
 server.tool(

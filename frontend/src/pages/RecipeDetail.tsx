@@ -2,11 +2,11 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   useAuth, useRecipe, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
-  useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage,
+  useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage, useSetRecipeServings,
 } from '../api/hooks'
 import type { CookProposalItem, RecipeImage } from '../api/client'
 import { gradient } from '../lib/colors'
-import { cuisineLabel, dishTypeLabel, formatGrams, formatQty, sourceBadge, statusColor, unitLabel } from '../lib/labels'
+import { cuisineLabel, dishTypeLabel, formatGrams, formatQty, plural, sourceBadge, statusColor, unitLabel } from '../lib/labels'
 import { BackIcon, ClockIcon, ServingsIcon, PlayIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
 import { IMAGE_ACCEPT } from '../lib/images'
 import { CookMode } from '../components/CookMode'
@@ -89,9 +89,12 @@ export function RecipeDetail() {
         <Pill>
           <ClockIcon size={15} color="var(--accent)" /> {r.time} min
         </Pill>
-        <Pill>
-          <ServingsIcon size={15} color="var(--accent)" /> Porcje: {r.servings}
-        </Pill>
+        <ServingsPill
+          recipeId={r.id}
+          base={r.servings}
+          selected={r.selectedServings}
+          canEdit={canEdit}
+        />
         <Pill>{r.difficulty}</Pill>
         {r.dishType && <Pill>{dishTypeLabel[r.dishType]}</Pill>}
         {r.cuisine && <Pill>Kuchnia {cuisineLabel[r.cuisine]}</Pill>}
@@ -101,6 +104,13 @@ export function RecipeDetail() {
           </Pill>
         )}
       </div>
+
+      {r.selectedServings !== r.servings && (
+        <div style={{ font: "500 12.5px 'Hanken Grotesk'", color: 'var(--accent-deep)', margin: '-6px 0 16px' }}>
+          Ilości przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')} — przepis oryginalnie
+          na {plural(r.servings, 'porcję', 'porcje', 'porcji')}.
+        </div>
+      )}
 
       <MacroPanel kcal={r.kcal} protein={r.protein} fat={r.fat} carbs={r.carbs} />
 
@@ -581,5 +591,66 @@ function Pill({ children }: { children: React.ReactNode }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 13px', font: "500 13px 'Hanken Grotesk'", color: 'var(--text)' }}>
       {children}
     </div>
+  )
+}
+
+/**
+ * Portion picker (1–8; recipes written for more keep their base reachable).
+ * The choice is saved on the recipe, so it survives navigation, and the server
+ * rescales ingredient amounts, missing/to-buy and cook deductions to it.
+ */
+function ServingsPill({ recipeId, base, selected, canEdit }: {
+  recipeId: string
+  base: number
+  selected: number
+  canEdit: boolean
+}) {
+  const set = useSetRecipeServings()
+  const max = Math.max(8, base)
+
+  if (!canEdit) {
+    return (
+      <Pill>
+        <ServingsIcon size={15} color="var(--accent)" /> Porcje: {selected}
+      </Pill>
+    )
+  }
+
+  const stepBtn = (disabled: boolean): CSSProperties => ({
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    border: '1px solid var(--border)',
+    background: 'var(--card)',
+    color: disabled ? 'var(--border-2)' : 'var(--accent-deep)',
+    cursor: disabled ? 'default' : 'pointer',
+    font: "600 15px 'Hanken Grotesk'",
+    lineHeight: 1,
+    padding: 0,
+  })
+
+  return (
+    <Pill>
+      <ServingsIcon size={15} color="var(--accent)" /> Porcje:
+      <button
+        onClick={() => set.mutate({ id: recipeId, servings: selected - 1 })}
+        disabled={selected <= 1 || set.isPending}
+        title="Mniej porcji"
+        style={stepBtn(selected <= 1 || set.isPending)}
+      >
+        −
+      </button>
+      <span style={{ minWidth: 16, textAlign: 'center', font: "600 13.5px 'Spline Sans Mono'", color: selected !== base ? 'var(--accent-deep)' : 'var(--text)' }}>
+        {selected}
+      </span>
+      <button
+        onClick={() => set.mutate({ id: recipeId, servings: selected + 1 })}
+        disabled={selected >= max || set.isPending}
+        title="Więcej porcji"
+        style={stepBtn(selected >= max || set.isPending)}
+      >
+        +
+      </button>
+    </Pill>
   )
 }

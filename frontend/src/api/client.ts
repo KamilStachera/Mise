@@ -51,6 +51,8 @@ export interface RecipeDetail {
   source: Source
   time: number
   servings: number
+  /** Saved portion choice (defaults to servings); ingredient amounts arrive already scaled to it. */
+  selectedServings: number
   difficulty: string
   tint: string
   blurb: string
@@ -308,6 +310,11 @@ export const api = {
   createRecipe: (input: RecipeInput) =>
     http<{ id: string }>(`/recipes`, { method: 'POST', body: JSON.stringify(input) }),
   deleteRecipe: (id: string) => http<void>(`/recipes/${id}`, { method: 'DELETE' }),
+  setRecipeServings: (id: string, servings: number) =>
+    http<{ servings: number; selectedServings: number }>(`/recipes/${id}/servings`, {
+      method: 'PUT',
+      body: JSON.stringify({ servings }),
+    }),
   addMissingToShopping: (id: string) =>
     http<{ added: number; updated: number }>(`/recipes/${id}/add-missing-to-shopping`, { method: 'POST' }),
   // Multipart — bypasses the JSON `http` helper so the browser sets the boundary header.

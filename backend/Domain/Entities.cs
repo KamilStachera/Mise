@@ -33,6 +33,14 @@ public class Recipe
     public RecipeSource Source { get; set; } = RecipeSource.Manual;
     public int TimeMinutes { get; set; }
     public int Servings { get; set; } = 2;
+    /// <summary>
+    /// Last portion count chosen on the recipe screen; null = cook as written
+    /// (<see cref="Servings"/>). When set, ingredient amounts are served scaled by
+    /// SelectedServings/Servings everywhere quantities matter (detail, missing,
+    /// cook-proposal, shopping demand) — see <c>RecipeScaling</c>. Reset by a full
+    /// recipe update that changes the base <see cref="Servings"/>.
+    /// </summary>
+    public int? SelectedServings { get; set; }
     public string Difficulty { get; set; } = "Łatwe";
     /// <summary>Hex colour used for the card/hero gradient (from the design).</summary>
     public string Tint { get; set; } = "#c0552d";

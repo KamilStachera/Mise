@@ -237,7 +237,14 @@ public static class AgentDocs
         ### Pozostałe
         - `GET /recipes?q=<szukaj>&source=<ai|web|manual|all>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>` — lista.
         - `GET /recipes/{id}` — szczegóły + które składniki są na stanie / do kupienia
-          (uwzględnia ilości: za mało w spiżarni = do kupienia).
+          (uwzględnia ilości: za mało w spiżarni = do kupienia). `selectedServings` to
+          zapisany wybór porcji z ekranu przepisu — **ilości składników w odpowiedzi są
+          już przeskalowane** do tego wyboru (`servings` pozostaje bazową liczbą porcji
+          z przepisu; pliki w `context/recipes/` zawsze pokazują ilości bazowe).
+        - `PUT /recipes/{id}/servings` — body `{ "servings": 4 }` (1–8): zapisz wybór
+          porcji. Skaluje ilości wszędzie, gdzie się liczą (szczegóły, do kupienia,
+          cook-proposal, zapotrzebowanie na liście zakupów). Wartość równa bazowej
+          liczbie porcji przywraca przepis „jak w oryginale".
         - `GET /recipes/{id}/cook-proposal` — co odjąć ze spiżarni po ugotowaniu
           (na składnik: `pantryItemId`, `proposedAmount`, `deductible`, `skipReason`).
         - `PUT /recipes/{id}` — pełna podmiana (to samo body co POST). **Uwaga:** pominięcie
