@@ -22,7 +22,8 @@ public static class CookLogEndpoints
             return Results.Ok(entries.Select(ToDto));
         });
 
-        g.MapPost("/", async (CookLogInput input, MiseDbContext db, ContextExportService export) =>
+        g.MapPost("/", async (CookLogInput input, MiseDbContext db,
+            StockReliability reliability, ContextExportService export) =>
         {
             var dishName = input.DishName?.Trim() ?? "";
             Recipe? recipe = null;
@@ -57,9 +58,7 @@ public static class CookLogEndpoints
                         expectedUnit = Mapping.UnitString(item.Unit),
                     });
 
-                var taken = Math.Min(item.Quantity, d.Amount);
-                item.Quantity -= taken;
-                item.UpdatedAt = DateTimeOffset.UtcNow;
+                var taken = reliability.ApplyCookDeduction(item, d.Amount);
                 deducted.Add(new CookDeductedDto(item.Id, item.Name, taken, item.Quantity,
                     Mapping.StatusString(Mapping.StatusOf(item))));
             }

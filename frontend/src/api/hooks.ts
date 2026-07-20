@@ -4,6 +4,7 @@ import {
   type CookLogInput,
   type CookLogUpdateInput,
   type PantryItemInput,
+  type PantryConfirmation,
   type PlanEntryInput,
   type Preferences,
   type RecipeInput,
@@ -344,8 +345,22 @@ export function useDeletePlanEntry() {
 export function usePlanAddMissing() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ start, days }: { start: string; days: number }) => api.planAddMissing(start, days),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping'] }),
+    mutationFn: ({ start, days, confirmations }: { start: string; days: number; confirmations?: PantryConfirmation[] }) =>
+      api.planAddMissing(start, days, confirmations),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['shopping'] })
+      qc.invalidateQueries({ queryKey: ['pantry'] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['recipe'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
+    },
+  })
+}
+
+export function usePlanShoppingPreview() {
+  return useMutation({
+    mutationFn: ({ start, days }: { start: string; days: number }) =>
+      api.planShoppingPreview(start, days),
   })
 }
 

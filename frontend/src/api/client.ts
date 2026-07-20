@@ -2,6 +2,7 @@
 export type Source = 'ai' | 'web' | 'manual'
 export type Status = 'in' | 'low' | 'out' | 'unknown'
 export type Unit = 'g' | 'ml' | 'szt'
+export type StockConfidence = 'confirmed' | 'estimated' | 'stale'
 export type DishType = 'breakfast' | 'main' | 'soup' | 'salad' | 'side' | 'dessert' | 'snack' | 'baking'
 export type Cuisine =
   | 'polish' | 'italian' | 'french' | 'spanish' | 'greek' | 'mediterranean' | 'middleeastern'
@@ -80,6 +81,9 @@ export interface PantryItem {
   category: string
   unit: Unit
   quantity: number
+  planningQuantity: number
+  confidence: StockConfidence
+  reliabilityUpdatedAt: string | null
   lowThreshold: number | null
   /** Derived from quantity: 0 = out, below threshold = low. */
   status: Status
@@ -247,6 +251,31 @@ export interface PlanEntryInput {
   note?: string
 }
 
+export interface ShoppingPreviewItem {
+  key: string
+  pantryItemId: string | null
+  name: string
+  requiredQuantity: number | null
+  unit: Unit | null
+  estimatedQuantity: number | null
+  planningQuantity: number | null
+  estimatedPurchase: number | null
+  suggestedPurchase: number | null
+  confidence: StockConfidence | 'unknown'
+  needsConfirmation: boolean
+  sources: string[]
+  alternativePantryItemIds: string[] | null
+}
+export interface ShoppingPreview {
+  start: string
+  days: number
+  items: ShoppingPreviewItem[]
+}
+export interface PantryConfirmation {
+  pantryItemId: string
+  quantity: number
+}
+
 export interface Question {
   key: string
   label: string
@@ -392,8 +421,12 @@ export const api = {
   dismissCookReminder: (id: string) =>
     http<void>(`/plan/entry/${id}/dismiss-cook-reminder`, { method: 'POST' }),
   deletePlanEntry: (id: string) => http<void>(`/plan/entry/${id}`, { method: 'DELETE' }),
-  planAddMissing: (start: string, days: number) =>
-    http<{ added: number; updated: number }>(`/plan/add-missing-to-shopping`, { method: 'POST', body: JSON.stringify({ start, days }) }),
+  planShoppingPreview: (start: string, days: number) =>
+    http<ShoppingPreview>(`/plan/shopping-preview?start=${encodeURIComponent(start)}&days=${days}`),
+  planAddMissing: (start: string, days: number, confirmations?: PantryConfirmation[]) =>
+    http<{ added: number; updated: number }>(`/plan/add-missing-to-shopping`, {
+      method: 'POST', body: JSON.stringify({ start, days, confirmations }),
+    }),
 
   cookbook: () => http<{ markdown: string }>(`/context/cookbook`),
   contextStatus: () => http<{ path: string; hostPath: string | null }>(`/context/status`),

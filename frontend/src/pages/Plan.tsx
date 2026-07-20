@@ -1,8 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, usePlan, usePlanAddMissing, useRecipes, useSetPlanEntry, useDeletePlanEntry } from '../api/hooks'
-import type { PlanEntry, Slot } from '../api/client'
-import { formatGrams, slotLabel, SLOTS, DAY_NAMES_PL } from '../lib/labels'
+import { useAuth, usePantry, usePlan, usePlanAddMissing, usePlanShoppingPreview, useRecipes, useSetPlanEntry, useDeletePlanEntry } from '../api/hooks'
+import type { PantryConfirmation, PantryItem, PlanEntry, ShoppingPreviewItem, Slot } from '../api/client'
+import { formatGrams, formatQty, slotLabel, SLOTS, DAY_NAMES_PL } from '../lib/labels'
 import { CheckIcon, PlusIcon } from '../components/icons'
 
 const cardStyle: CSSProperties = {
@@ -76,8 +76,11 @@ export function Plan() {
   const { data: plan } = usePlan(startISO)
   const { data: recipes } = useRecipes('all', '')
   const addMissing = usePlanAddMissing()
+  const previewShopping = usePlanShoppingPreview()
+  const { data: pantryGroups = [] } = usePantry()
   const [editing, setEditing] = useState<CellRef | null>(null)
   const [shopMsg, setShopMsg] = useState<string | null>(null)
+  const [reviewItems, setReviewItems] = useState<ShoppingPreviewItem[] | null>(null)
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => toISO(addDays(weekStart, i))), [weekStart])
   const entryAt = (date: string, slot: Slot): PlanEntry | undefined =>
@@ -100,7 +103,18 @@ export function Plan() {
   }, [plan, recipes])
 
   async function onAddMissing() {
-    const r = await addMissing.mutateAsync({ start: startISO, days: 7 })
+    setShopMsg(null)
+    const preview = await previewShopping.mutateAsync({ start: startISO, days: 7 })
+    const uncertain = preview.items.filter((item) => item.needsConfirmation)
+    if (uncertain.length > 0) {
+      setReviewItems(uncertain)
+      return
+    }
+    await commitShopping([])
+  }
+
+  async function commitShopping(confirmations: PantryConfirmation[]) {
+    const r = await addMissing.mutateAsync({ start: startISO, days: 7, confirmations })
     const parts = [
       r.added > 0 ? `dodano ${r.added}` : '',
       r.updated > 0 ? `zaktualizowano ${r.updated}` : '',
@@ -108,6 +122,7 @@ export function Plan() {
     setShopMsg(parts.length > 0
       ? `${parts.join(', ')} pozycji na liście zakupów.`
       : 'Wszystko z tego tygodnia już masz (lub jest na liście).')
+    setReviewItems(null)
   }
 
   return (
@@ -120,9 +135,9 @@ export function Plan() {
           <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, margin: 0 }}>Plan posiłków</h1>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button style={ghostBtn} onClick={() => { setWeekStart((w) => addDays(w, -7)); setEditing(null) }}>‹ Poprzedni</button>
-          <button style={ghostBtn} onClick={() => { setWeekStart(mondayOf(new Date())); setEditing(null) }}>Dziś</button>
-          <button style={ghostBtn} onClick={() => { setWeekStart((w) => addDays(w, 7)); setEditing(null) }}>Następny ›</button>
+          <button style={ghostBtn} onClick={() => { setWeekStart((w) => addDays(w, -7)); setEditing(null); setReviewItems(null) }}>‹ Poprzedni</button>
+          <button style={ghostBtn} onClick={() => { setWeekStart(mondayOf(new Date())); setEditing(null); setReviewItems(null) }}>Dziś</button>
+          <button style={ghostBtn} onClick={() => { setWeekStart((w) => addDays(w, 7)); setEditing(null); setReviewItems(null) }}>Następny ›</button>
         </div>
       </div>
       <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 24px', maxWidth: '68ch' }}>
@@ -173,12 +188,95 @@ export function Plan() {
 
       {canEdit && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 22 }}>
-          <button onClick={onAddMissing} style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 7 }}>
-            <PlusIcon /> {addMissing.isPending ? 'Sprawdzam…' : 'Dodaj brakujące składniki z tego tygodnia do zakupów'}
+          <button disabled={addMissing.isPending || previewShopping.isPending} onClick={onAddMissing} style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <PlusIcon /> {addMissing.isPending || previewShopping.isPending ? 'Sprawdzam…' : 'Dodaj brakujące składniki z tego tygodnia do zakupów'}
           </button>
           {shopMsg && <span style={{ fontSize: 13, color: 'var(--text-2)' }}>{shopMsg}</span>}
         </div>
       )}
+      {reviewItems && (
+        <ShoppingReview
+          items={reviewItems}
+          pantry={pantryGroups.flatMap((group) => group.items)}
+          pending={addMissing.isPending}
+          onCancel={() => setReviewItems(null)}
+          onCommit={commitShopping}
+        />
+      )}
+    </div>
+  )
+}
+
+function ShoppingReview({ items, pantry, pending, onCancel, onCommit }: {
+  items: ShoppingPreviewItem[]
+  pantry: PantryItem[]
+  pending: boolean
+  onCancel: () => void
+  onCommit: (confirmations: PantryConfirmation[]) => Promise<void>
+}) {
+  const byId = new Map(pantry.map((item) => [item.id, item]))
+  const reviewable = items.flatMap((item) => item.pantryItemId
+    ? [byId.get(item.pantryItemId)].filter(Boolean) as PantryItem[]
+    : (item.alternativePantryItemIds ?? []).map((id) => byId.get(id)).filter(Boolean) as PantryItem[])
+    .filter((item, index, all) => all.findIndex((x) => x.id === item.id) === index)
+  const [drafts, setDrafts] = useState<Record<string, string>>(() => Object.fromEntries(
+    reviewable.map((item) => [item.id, String(item.quantity).replace('.', ',')]),
+  ))
+  const [confirmed, setConfirmed] = useState<Record<string, number>>({})
+
+  const setValue = (item: PantryItem, value: number) => {
+    setDrafts((current) => ({ ...current, [item.id]: String(value).replace('.', ',') }))
+    setConfirmed((current) => ({ ...current, [item.id]: value }))
+  }
+  const acceptCustom = (item: PantryItem) => {
+    const value = Number((drafts[item.id] ?? '').replace(',', '.'))
+    if (Number.isFinite(value) && value >= 0) setConfirmed((current) => ({ ...current, [item.id]: value }))
+  }
+
+  return (
+    <div style={{ ...cardStyle, marginTop: 16, borderColor: 'var(--gold)' }}>
+      <div style={{ ...capStyle, color: 'var(--gold)' }}>Krótki przegląd przed zakupami</div>
+      <p style={{ margin: '0 0 14px', color: 'var(--text-2)', fontSize: 13.5 }}>
+        Pytamy tylko o składniki, dla których niepewność zmienia listę. Możesz nic nie zaznaczać — wtedy policzymy zakupy bezpiecznie.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {items.map((preview) => {
+          const options = preview.pantryItemId
+            ? [byId.get(preview.pantryItemId)].filter(Boolean) as PantryItem[]
+            : (preview.alternativePantryItemIds ?? []).map((id) => byId.get(id)).filter(Boolean) as PantryItem[]
+          return (
+            <div key={preview.key} style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+              <div style={{ fontWeight: 650, fontSize: 14 }}>{preview.name}</div>
+              <div style={{ color: 'var(--text-3)', fontSize: 12, margin: '2px 0 7px' }}>
+                {preview.requiredQuantity != null && preview.unit ? `potrzeba ${formatQty(preview.requiredQuantity, preview.unit)}` : 'sprawdź, czy któryś zamiennik jest w domu'}
+                {' · '}{preview.sources.join(', ')}
+              </div>
+              {preview.unit && preview.estimatedQuantity != null && preview.planningQuantity != null && (
+                <div style={{ color: 'var(--text-2)', fontSize: 12, marginBottom: 7 }}>
+                  szacunek: ~{formatQty(preview.estimatedQuantity, preview.unit)} · bezpiecznie: {formatQty(preview.planningQuantity, preview.unit)}
+                  {preview.suggestedPurchase != null && ` · bez korekty kupimy ${formatQty(preview.suggestedPurchase, preview.unit)}`}
+                </div>
+              )}
+              {options.map((item) => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', margin: '5px 0' }}>
+                  <span style={{ width: 150, fontSize: 13 }}>{item.name}: ~{formatQty(item.quantity, item.unit)}</span>
+                  <button style={{ ...ghostBtn, padding: '5px 9px', background: confirmed[item.id] === item.quantity ? 'var(--accent-soft)' : 'var(--card)' }} onClick={() => setValue(item, item.quantity)}>Zgadza się</button>
+                  <button style={{ ...ghostBtn, padding: '5px 9px', background: confirmed[item.id] === 0 ? 'var(--accent-soft)' : 'var(--card)' }} onClick={() => setValue(item, 0)}>Brak</button>
+                  <input value={drafts[item.id] ?? ''} onChange={(e) => setDrafts((current) => ({ ...current, [item.id]: e.target.value }))} inputMode="decimal" style={{ ...inputStyle, width: 70, padding: '5px 8px' }} />
+                  <span style={{ color: 'var(--text-3)', fontSize: 12 }}>{item.unit}</span>
+                  <button style={{ ...ghostBtn, padding: '5px 9px' }} onClick={() => acceptCustom(item)}>Mam inaczej</button>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 15 }}>
+        <button style={primaryBtn} disabled={pending} onClick={() => onCommit(Object.entries(confirmed).map(([pantryItemId, quantity]) => ({ pantryItemId, quantity })))}>
+          {pending ? 'Dodaję…' : 'Przelicz i dodaj do zakupów'}
+        </button>
+        <button style={ghostBtn} onClick={onCancel}>Anuluj</button>
+      </div>
     </div>
   )
 }

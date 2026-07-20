@@ -20,8 +20,9 @@ public static class AgentDocs
         ## Najpierw przeczytaj (w tej kolejności)
 
         1. `cookbook.md` — gospodarstwo, sprzęt, umiejętności, smaki, profil szczegółowy i zasady.
-        2. `pantry.json` — katalog składników z ilościami liczbowymi (`ilosc` w jednostce
-           `jednostka`: g / ml / szt; `ilosc: 0` = brak w domu). Nigdy nie proponuj dania,
+        2. `pantry.json` — katalog składników z przybliżonym `ilosc` i konserwatywnym
+           `iloscDoPlanowania` w jednostce `jednostka` (g / ml / szt). Do decyzji zakupowych
+           używaj `iloscDoPlanowania`; `pewnosc` mówi, czy stan jest potwierdzony, szacowany lub stary. Nigdy nie proponuj dania,
            które wymaga czegoś, czego nie ma, bez oznaczenia tego jako „do kupienia".
         3. `plan.md` — co jest zaplanowane na ten i przyszły tydzień.
         4. `cooklog.md` — co ostatnio gotowaliśmy i jak wyszło; traktuj notatki jako feedback.
@@ -83,14 +84,15 @@ public static class AgentDocs
            dodaj przez `POST {API}/recipes/{id}/add-missing-to-shopping`.
 
         ### Paragon → spiżarnia + lista zakupów
-        1. Wyciągnij produkty spożywcze z ilościami w jednostkach metrycznych (g / ml / szt)
-           i **zmapuj je na pozycje katalogu** (nazwy i aliasy w `pantry.json`): paragon mówi
-           „BUŁKA KAJZERKA", katalog ma „Pieczywo" — wysyłaj nazwę katalogową. Pomiń chemię
+        1. Wyciągnij surowe nazwy produktów spożywczych z ilościami w jednostkach metrycznych
+           (g / ml / szt). Pomiń chemię
            i inne produkty niespożywcze.
-        2. Jedno `POST {API}/pantry/adjust` z deltami (ile DOSZŁO). Pozycje z `notInCatalog`
+        2. Jedno `POST {API}/pantry/adjust` z opcjonalnym `merchant` i deltami (ile DOSZŁO).
+           Wysyłaj nazwę z paragonu. Gdy rozstrzygasz nieznaną pozycję, dodaj jej kanoniczny
+           `pantryItemId`; aplikacja zapamięta to mapowanie dla kolejnych paragonów z tego sklepu.
+           Pozycje z `notInCatalog`
            NIE zostały zapisane — zdecyduj per pozycja:
-           - wariant czegoś z katalogu → dodaj alias (`PUT {API}/pantry/{id}` z rozszerzonym
-             `aliases`), żeby następnym razem dopasowało się samo, i ponów adjust;
+           - wariant czegoś z katalogu → ponów adjust z `pantryItemId` kandydata;
            - nowy stały produkt tej kuchni → `POST {API}/pantry` (z `unit` i `category`);
            - jednorazowy zakup → pomiń.
         3. Sprawdź `GET {API}/shopping` i odhacz kupione pozycje
@@ -108,7 +110,9 @@ public static class AgentDocs
         ### Plan tygodnia
         1. Przeczytaj `plan.md`, `cooklog.md` (nie powtarzaj świeżo gotowanych dań) i `recipes/`.
         2. Zapisuj `PUT {API}/plan/entry` dzień po dniu (sloty: `breakfast` / `lunch` / `dinner`).
-        3. Na koniec `POST {API}/plan/add-missing-to-shopping` i podsumuj, co trzeba dokupić.
+        3. Najpierw `GET {API}/plan/shopping-preview`, potem `POST {API}/plan/add-missing-to-shopping`.
+           Jeśli użytkownik poda korekty, prześlij je jako `confirmations`; bez nich system użyje
+           bezpiecznej ilości konserwatywnej. Podsumuj, co trzeba dokupić.
 
         ## Zasady
 
@@ -296,22 +300,31 @@ public static class AgentDocs
         istniejących pozycji (po nazwie i aliasach, z polską odmianą) — nigdy nie tworzą
         nowych; niedopasowane nazwy wracają w `notInCatalog` z podpowiedzią.
 
+        `quantity` jest najlepszym szacunkiem stanu. `planningQuantity` to konserwatywna
+        ilość używana przy wyliczaniu zakupów, a `confidence` ma wartość `confirmed`,
+        `estimated` lub `stale`. Ręczne ustawienie i `/bulk` potwierdzają stan; paragon
+        dodaje pewny zakup, a gotowanie pozostawia margines na niedokładne zużycie.
+
         ### POST /pantry/adjust — delty po zakupach (paragon)
         ```bash
         curl -X POST {API}/pantry/adjust -H "Content-Type: application/json" -d '{
+          "merchant": "Lidl",
           "items": [
-            { "name": "Mleko", "quantity": 1000, "unit": "ml" },
-            { "name": "Jajka", "quantity": 10 },
+            { "name": "MLEKO UHT 2%", "quantity": 1000, "unit": "ml", "pantryItemId": "<id Mleka>" },
+            { "name": "JAJA M 10", "quantity": 10, "pantryItemId": "<id Jajek>" },
             { "name": "Mąka", "quantity": 1, "unit": "kg" }
           ]
         }'
         ```
         `quantity` to delta (ile doszło; ujemna = ubyło, np. coś się zepsuło). `unit` jest
         opcjonalny — sprawdzany z jednostką pozycji; `kg`/`dag`→`g` i `l`→`ml` są przeliczane
-        automatycznie. Zwraca `{ "updated": [...], "notInCatalog": [...] }`.
+        automatycznie. Jawny `pantryItemId` zapisuje mapowanie surowej nazwy, opcjonalnie
+        w zakresie `merchant`. Zwraca `{ "updated", "notInCatalog", "matches" }`.
 
-        Pozycje z `notInCatalog`: wariant istniejącego produktu → rozszerz jego `aliases`
-        (`PUT /pantry/{id}`) i ponów; nowy staple → `POST /pantry`; jednorazowy → pomiń.
+        Pozycje z `notInCatalog`: wybierz bezpiecznego kandydata i ponów z `pantryItemId`;
+        nowy staple → `POST /pantry`; jednorazowy → pomiń. Mapowania paragonowe nie są
+        aliasami przepisu. `GET /pantry/receipt-mappings` je pokazuje, a
+        `DELETE /pantry/receipt-mappings/{id}` usuwa błędne mapowanie.
 
         ### POST /pantry/bulk — ilości absolutne (inwentaryzacja, zdjęcie lodówki)
         ```bash
@@ -333,7 +346,7 @@ public static class AgentDocs
         zamiast tworzyć nową.
 
         ### Pozostałe
-        - `GET /pantry` — katalog pogrupowany po kategoriach, z ilościami i wyliczonym statusem.
+        - `GET /pantry` — katalog z szacunkiem, `planningQuantity`, `confidence` i statusem.
         - `PUT /pantry/{id}` — edycja (nazwa, kategoria, jednostka, ilość, próg, aliasy).
         - `PATCH /pantry/{id}/quantity` — `{ "quantity": 350 }` (absolutnie, ujemne przycinane do 0).
         - `DELETE /pantry/{id}` — usuń z katalogu (zwykle lepiej wyzerować ilość).
@@ -360,9 +373,13 @@ public static class AgentDocs
           tygodnia). Każdy wpis ma `cooked` — czy istnieje pasujący wpis w historii
           gotowania (ten sam przepis/nazwa, ±1 dzień).
         - `DELETE /plan/entry/{id}`.
-        - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7 }`;
+        - `GET /plan/shopping-preview?start=YYYY-MM-DD&days=7` — porównuje szacunek z
+          ilością konserwatywną i oznacza `needsConfirmation` tylko gdy zmienia wynik zakupów.
+        - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7,
+          "confirmations": [{ "pantryItemId": "<guid>", "quantity": 350 }] }`;
           sumuje wymagania wszystkich wpisów (także powtórzeń tego samego przepisu),
-          odejmuje wspólny stan raz i dopisuje lub aktualizuje scalone zakupy.
+          atomowo potwierdza podane stany, odejmuje wspólny konserwatywny stan raz i dopisuje
+          lub aktualizuje scalone zakupy. `confirmations` jest opcjonalne.
         - `GET /plan/pending-cook?days=14` — zaległe wpisy planu: data w przeszłości
           i brak pasującego wpisu w historii gotowania (ten sam przepis lub nazwa,
           ±1 dzień). Użytkownik mógł zapomnieć odnotować posiłek — dopytaj; ugotowany
@@ -455,14 +472,13 @@ public static class AgentDocs
                 Zaktualizuj spiżarnię Pichci na podstawie: $ARGUMENTS (paragon lub zdjęcie lodówki/szafki).
 
                 1. Przeczytaj `{CTX}/AGENTS.md`.
-                2. Wyciągnij produkty spożywcze z ilościami metrycznymi (g / ml / szt) i zmapuj
-                   je na pozycje katalogu z `{CTX}/pantry.json` (nazwy i aliasy) — „BUŁKA
-                   KAJZERKA" wysyłaj jako „Pieczywo". Pomiń produkty niespożywcze.
+                2. Wyciągnij surowe nazwy produktów spożywczych z ilościami metrycznymi
+                   (g / ml / szt) oraz nazwę sklepu, jeśli jest widoczna. Pomiń produkty niespożywcze.
                 3. Pokaż mi listę do zatwierdzenia, potem:
                    - paragon → `POST {API}/pantry/adjust` z deltami (ile doszło);
                    - zdjęcie lodówki → `POST {API}/pantry/bulk` z ilościami absolutnymi (ile jest).
-                4. Pozycje z `notInCatalog`: wariant czegoś z katalogu → dodaj alias
-                   (`PUT {API}/pantry/{id}` z rozszerzonym `aliases`) i ponów; nowy stały
+                4. Pozycje z `notInCatalog`: wariant czegoś z katalogu → ponów adjust z
+                   właściwym `pantryItemId`, aby zapamiętać mapowanie paragonowe; nowy stały
                    produkt → `POST {API}/pantry` (z `unit` i `category`); jednorazowy → pomiń
                    i powiedz mi.
                 5. Po paragonie sprawdź `GET {API}/shopping` i odhacz/usuń kupione pozycje.

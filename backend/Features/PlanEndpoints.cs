@@ -103,27 +103,40 @@ public static class PlanEndpoints
             return Results.NoContent();
         });
 
+        g.MapGet("/shopping-preview", async (DateOnly? start, int? days,
+            MiseDbContext db, ShoppingService shopping) =>
+        {
+            var from = start ?? StartOfWeek(DateOnly.FromDateTime(DateTime.Today));
+            var count = Math.Clamp(days ?? 7, 1, 60);
+            var sources = await LoadShoppingSourcesAsync(db, from, count);
+            return Results.Ok(await shopping.PreviewAsync(db, sources, from, count));
+        });
+
         // Add every planned recipe's out-of-stock / unmatched ingredients to the shopping list.
-        g.MapPost("/add-missing-to-shopping", async (PlanRangeInput input, MiseDbContext db,
-            ShoppingService shopping, ContextExportService export) =>
+        g.MapPost("/add-missing-to-shopping", async (PlanAddMissingInput input, MiseDbContext db,
+            ShoppingService shopping, StockReliability reliability, ContextExportService export) =>
         {
             var from = input.Start ?? StartOfWeek(DateOnly.FromDateTime(DateTime.Today));
-            var to = from.AddDays(Math.Clamp(input.Days ?? 7, 1, 60));
+            var count = Math.Clamp(input.Days ?? 7, 1, 60);
+            await using var tx = await db.Database.BeginTransactionAsync();
+            foreach (var confirmation in (input.Confirmations ?? new())
+                .GroupBy(c => c.PantryItemId).Select(g => g.Last()))
+            {
+                if (confirmation.Quantity < 0)
+                    return Results.BadRequest(new { error = "Potwierdzona ilość nie może być ujemna." });
+                var item = await db.PantryItems.FirstOrDefaultAsync(p => p.Id == confirmation.PantryItemId);
+                if (item is null)
+                    return Results.NotFound(new { error = $"Nie ma pozycji spiżarni {confirmation.PantryItemId}." });
+                reliability.Confirm(item, confirmation.Quantity);
+            }
 
-            var entries = await db.PlanEntries.AsNoTracking()
-                .Include(e => e.Recipe)!
-                    .ThenInclude(r => r!.Ingredients)
-                .AsSplitQuery()
-                .Where(e => e.Date >= from && e.Date < to && e.RecipeId != null)
-                .ToListAsync();
-
-            var sources = entries.Where(e => e.Recipe is not null)
-                .Select(e => new ShoppingRecipeSource(
-                    // Demand follows each recipe's saved portion scaling.
-                    $"plan:{e.Id}", e.Recipe!.Title, RecipeScaling.Scaled(e.Recipe)))
-                .ToList();
+            if ((input.Confirmations?.Count ?? 0) > 0)
+                await db.SaveChangesAsync();
+            var sources = await LoadShoppingSourcesAsync(db, from, count);
             var result = await shopping.AddMissingForRecipesAsync(db, sources);
-            if (result.Added > 0 || result.Updated > 0) await export.ExportAsync();
+            await tx.CommitAsync();
+            if (result.Added > 0 || result.Updated > 0 || (input.Confirmations?.Count ?? 0) > 0)
+                await export.ExportAsync();
             return Results.Ok(new ShoppingAddResultDto(result.Added, result.Updated));
         });
 
@@ -135,6 +148,22 @@ public static class PlanEndpoints
         // Monday-based week, matching the UI's Pon–Nie grid.
         var diff = ((int)date.DayOfWeek + 6) % 7;
         return date.AddDays(-diff);
+    }
+
+    private static async Task<List<ShoppingRecipeSource>> LoadShoppingSourcesAsync(
+        MiseDbContext db, DateOnly from, int days)
+    {
+        var to = from.AddDays(days);
+        var entries = await db.PlanEntries.AsNoTracking()
+            .Include(e => e.Recipe)!
+                .ThenInclude(r => r!.Ingredients)
+            .AsSplitQuery()
+            .Where(e => e.Date >= from && e.Date < to && e.RecipeId != null)
+            .ToListAsync();
+        return entries.Where(e => e.Recipe is not null)
+            .Select(e => new ShoppingRecipeSource(
+                $"plan:{e.Id}", e.Recipe!.Title, RecipeScaling.Scaled(e.Recipe)))
+            .ToList();
     }
 
     /// <summary>

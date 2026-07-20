@@ -77,7 +77,7 @@ export function Pantry() {
       <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, margin: '0 0 5px' }}>Moja spiżarnia</h1>
       <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 8px' }}>
         {canEdit
-          ? 'Kliknij produkt, aby zmienić ilość. Zakupy najlepiej wprowadza asystent ze zdjęcia paragonu.'
+          ? 'Ilości ze znakiem ~ są szacunkami. Przed zakupami aplikacja poprosi tylko o potrzebne korekty.'
           : 'Podgląd tylko do odczytu — zaloguj się, aby zmieniać stany.'}
       </p>
 
@@ -177,9 +177,16 @@ function ItemCard({ item, editing, onToggle, onClose, canEdit }: {
         style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', background: 'transparent', border: 'none', padding: '11px 13px', cursor: canEdit ? 'pointer' : 'default', textAlign: 'left' }}
       >
         <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(item.status) }} />
-        <span style={{ flex: 1, font: "500 14px 'Hanken Grotesk'", color: 'var(--text)' }}>{item.name}</span>
+        <span style={{ flex: 1, font: "500 14px 'Hanken Grotesk'", color: 'var(--text)' }}>
+          {item.name}
+          {item.confidence !== 'confirmed' && (
+            <span style={{ display: 'block', marginTop: 2, fontSize: 10.5, fontWeight: 500, color: item.confidence === 'stale' ? 'var(--accent)' : 'var(--text-3)' }}>
+              {item.confidence === 'stale' ? 'sprawdź przy zakupach' : 'szacunek'}
+            </span>
+          )}
+        </span>
         <span style={{ font: "500 12.5px 'Spline Sans Mono'", color: item.quantity > 0 ? 'var(--text-2)' : 'var(--text-3)', whiteSpace: 'nowrap' }}>
-          {formatQty(item.quantity, item.unit)}
+          {item.confidence === 'confirmed' ? '' : '~'}{formatQty(item.quantity, item.unit)}
         </span>
         <span style={pill(item.status)}>{statusLabel[item.status] ?? item.status}</span>
       </button>

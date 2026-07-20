@@ -112,4 +112,12 @@ public class IngredientCorpusTests
 
         Assert.Equal(expected, new IngredientMatcher().FindMatch(input, pantry)?.Name);
     }
+
+    [Fact]
+    public void StrictStockMutation_DoesNotTreatPaprikaChipsAsPaprika()
+    {
+        var pantry = new[] { new PantryItem { Name = "Papryka" } };
+        Assert.Null(new IngredientMatcher().FindMatch(
+            "Chipsy paprykowe", pantry, IngredientMatcher.ExactishScore));
+    }
 }

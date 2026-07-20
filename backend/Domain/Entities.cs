@@ -149,10 +149,36 @@ public class PantryItem
     public PantryUnit Unit { get; set; } = PantryUnit.Szt;
     /// <summary>How much is at home, in <see cref="Unit"/>. Never negative.</summary>
     public decimal Quantity { get; set; }
+    /// <summary>
+    /// Conservative lower bound safe to subtract from recipe demand. It expires by
+    /// category; <c>StockReliability</c> is the single source of truth for the
+    /// effective planning quantity and confidence shown to callers.
+    /// </summary>
+    public decimal ReliableQuantity { get; set; }
+    /// <summary>When <see cref="ReliableQuantity"/> was last materialised from an observation.</summary>
+    public DateTimeOffset? ReliabilityUpdatedAt { get; set; }
     /// <summary>Below this the item shows as "Mało"; null = no low state.</summary>
     public decimal? LowThreshold { get; set; }
     /// <summary>Semicolon-separated alternate names fed to IngredientMatcher.</summary>
     public string Aliases { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// A store-specific raw receipt label resolved to a canonical pantry item. Receipt
+/// abbreviations intentionally live outside PantryItem.Aliases so they cannot affect
+/// recipe ingredient matching.
+/// </summary>
+public class ReceiptNameMapping
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>Normalised merchant label; empty means a global mapping.</summary>
+    public string Merchant { get; set; } = "";
+    public string RawName { get; set; } = "";
+    public string NormalizedName { get; set; } = "";
+    public Guid PantryItemId { get; set; }
+    public PantryItem? PantryItem { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 

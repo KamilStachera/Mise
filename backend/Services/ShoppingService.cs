@@ -130,6 +130,96 @@ public sealed class ShoppingService
         return new(added, updated);
     }
 
+    /// <summary>
+    /// Read-only comparison of best-estimate and conservative shopping outcomes.
+    /// A row needs confirmation only when that uncertainty changes the decision.
+    /// </summary>
+    public async Task<ShoppingPreviewDto> PreviewAsync(MiseDbContext db,
+        IEnumerable<ShoppingRecipeSource> recipeSources, DateOnly start, int days,
+        CancellationToken ct = default)
+    {
+        var sources = recipeSources.ToList();
+        var pantry = await db.PantryItems.AsNoTracking().ToListAsync(ct);
+        var pantryById = pantry.ToDictionary(p => p.Id);
+        var sourceRequirementGroups = sources.SelectMany(source =>
+            Mapping.IngredientRequirementGroups(source.Recipe.Ingredients)
+                .Select(group => (Source: source, Group: group))).ToList();
+        var requirements = sourceRequirementGroups
+            .Where(x => x.Group.Count == 1 && string.IsNullOrWhiteSpace(x.Group[0].AlternativeGroup))
+            .Select(x => CreateRequirement(x.Source, x.Group[0], pantryById))
+            .Where(r => r is not null).Cast<Requirement>().ToList();
+        var alternatives = sourceRequirementGroups
+            .Where(x => !string.IsNullOrWhiteSpace(x.Group[0].AlternativeGroup))
+            .Select(x => CreateAlternativeRequirement(x.Source, x.Group, pantryById))
+            .Where(r => r is not null).Cast<AlternativeRequirement>().ToList();
+
+        var items = new List<ShoppingPreviewItemDto>();
+        foreach (var productGroup in requirements.GroupBy(r => r.Key))
+        {
+            var grouped = productGroup.ToList();
+            var pantryItem = grouped[0].PantryItem;
+            var unit = SafeUnit(grouped);
+            decimal? required = unit is not null
+                ? grouped.Sum(r => r.Ingredient.AmountValue!.Value) : null;
+            var estimated = pantryItem?.Quantity;
+            decimal? planning = pantryItem is null ? null : StockReliability.PlanningQuantity(pantryItem);
+            decimal? estimatedPurchase = required is decimal demand
+                ? Math.Max(0, demand - (estimated ?? 0)) : null;
+            decimal? suggestedPurchase = required is decimal safeDemand
+                ? Math.Max(0, safeDemand - (planning ?? 0)) : null;
+            var needsConfirmation = pantryItem is not null && (required is not null
+                ? estimatedPurchase != suggestedPurchase
+                : (estimated > 0) != (planning > 0));
+            items.Add(new ShoppingPreviewItemDto(
+                productGroup.Key.PantryItemId?.ToString() ?? productGroup.Key.NormalizedName,
+                pantryItem?.Id,
+                grouped[0].ShoppingName,
+                required,
+                unit is PantryUnit u ? Mapping.UnitString(u) : null,
+                estimated,
+                planning,
+                estimatedPurchase,
+                suggestedPurchase,
+                pantryItem is null ? "unknown" : StockReliability.Confidence(pantryItem),
+                needsConfirmation,
+                grouped.Select(r => r.Source.Label).Distinct().OrderBy(x => x, Pl.Comparer).ToList()));
+        }
+
+        foreach (var alternativeGroup in alternatives.GroupBy(r => r.Key, StringComparer.Ordinal))
+        {
+            var grouped = alternativeGroup.ToList();
+            var pantryItems = grouped.SelectMany(r => r.PantryItems).DistinctBy(p => p.Id).ToList();
+            var safeAmounts = grouped.Select(SafeAlternativeAmount).ToList();
+            var numeric = safeAmounts.All(x => x.RequiredQuantity is > 0 && x.Unit is not null)
+                && safeAmounts.Select(x => x.Unit).Distinct().Count() == 1;
+            var estimatedEnough = numeric
+                ? CanSatisfyAlternativeDemandsUsing(
+                    safeAmounts.Select(x => x.RequiredQuantity!.Value), pantryItems,
+                    safeAmounts[0].Unit!.Value, p => p.Quantity)
+                : pantryItems.Any(p => p.Quantity > 0);
+            var planningEnough = numeric
+                ? CanSatisfyAlternativeDemands(
+                    safeAmounts.Select(x => x.RequiredQuantity!.Value), pantryItems,
+                    safeAmounts[0].Unit!.Value)
+                : pantryItems.Any(p => StockReliability.PlanningQuantity(p) > 0);
+            var confidence = pantryItems.Count == 0 ? "unknown"
+                : pantryItems.Any(p => StockReliability.Confidence(p) == "stale") ? "stale"
+                : pantryItems.Any(p => StockReliability.Confidence(p) == "estimated") ? "estimated"
+                : "confirmed";
+            items.Add(new ShoppingPreviewItemDto(
+                $"alternative:{alternativeGroup.Key}", null, grouped[0].ShoppingName,
+                numeric ? safeAmounts.Sum(x => x.RequiredQuantity!.Value) : null,
+                numeric ? Mapping.UnitString(safeAmounts[0].Unit!.Value) : null,
+                null, null, estimatedEnough ? 0 : null, planningEnough ? 0 : null,
+                confidence, estimatedEnough != planningEnough,
+                grouped.Select(r => r.Source.Label).Distinct().OrderBy(x => x, Pl.Comparer).ToList(),
+                pantryItems.Select(p => p.Id).ToList()));
+        }
+
+        return new ShoppingPreviewDto(start, days,
+            items.OrderBy(i => i.Name, Pl.Comparer).ToList());
+    }
+
     private static void AddOrdinaryRequirements(MiseDbContext db,
         IReadOnlyList<Requirement> requirements,
         IReadOnlyDictionary<Guid, PantryItem> pantryById,
@@ -306,10 +396,11 @@ public sealed class ShoppingService
                 .Where(r => r.Ingredient.AmountValue is > 0
                     && r.Ingredient.AmountUnit == pantryItem.Unit)
                 .Sum(r => r.Ingredient.AmountValue!.Value);
-            return pantryItem.Quantity <= 0 || comparableKnownDemand > pantryItem.Quantity;
+            var stock = StockReliability.PlanningQuantity(pantryItem);
+            return stock <= 0 || comparableKnownDemand > stock;
         }
         var required = requirements.Sum(r => r.Ingredient.AmountValue!.Value);
-        return required > pantryItem.Quantity;
+        return required > StockReliability.PlanningQuantity(pantryItem);
     }
 
     private static bool AlternativeNeedsPurchase(IReadOnlyList<AlternativeRequirement> requirements)
@@ -327,7 +418,7 @@ public sealed class ShoppingService
         // Unknown amounts retain the existing presence-based semantics: any one
         // alternative on hand satisfies the OR requirement.
         return !requirements.SelectMany(r => r.PantryItems)
-            .DistinctBy(p => p.Id).Any(p => p.Quantity > 0);
+            .DistinctBy(p => p.Id).Any(p => StockReliability.PlanningQuantity(p) > 0);
     }
 
     /// <summary>
@@ -414,7 +505,7 @@ public sealed class ShoppingService
                 return !CanSatisfyAlternativeDemands(
                     contributions.Select(c => c.RequiredQuantity!.Value), alternatives, unit);
             }
-            return !alternatives.Any(p => p.Quantity > 0);
+            return !alternatives.Any(p => StockReliability.PlanningQuantity(p) > 0);
         }
 
         if (row.PantryItemId is not Guid id || !pantryById.TryGetValue(id, out var pantry))
@@ -423,7 +514,8 @@ public sealed class ShoppingService
         var knownComparableDemand = row.Contributions
             .Where(c => c.RequiredQuantity is > 0 && c.Unit == pantry.Unit)
             .Sum(c => c.RequiredQuantity!.Value);
-        return pantry.Quantity <= 0 || knownComparableDemand > pantry.Quantity;
+        var stock = StockReliability.PlanningQuantity(pantry);
+        return stock <= 0 || knownComparableDemand > stock;
     }
 
     private static void Recalculate(ShoppingItem row,
@@ -451,7 +543,7 @@ public sealed class ShoppingService
             var unit = units[0]!.Value;
             var total = row.Contributions.Sum(c => c.RequiredQuantity!.Value);
             var stock = row.PantryItemId is Guid id && pantryById.TryGetValue(id, out var item)
-                && item.Unit == unit ? item.Quantity : 0;
+                && item.Unit == unit ? StockReliability.PlanningQuantity(item) : 0;
             row.Quantity = Math.Max(0, total - stock);
             row.Unit = unit;
         }
@@ -471,11 +563,17 @@ public sealed class ShoppingService
             .Select(g => g.Count() > 1 ? $"{g.Key} ×{g.Count()}" : g.Key));
 
     private static bool CanSatisfyAlternativeDemands(IEnumerable<decimal> requested,
-        IEnumerable<PantryItem> pantryItems, PantryUnit unit)
+        IEnumerable<PantryItem> pantryItems, PantryUnit unit) =>
+        CanSatisfyAlternativeDemandsUsing(requested, pantryItems, unit,
+            p => StockReliability.PlanningQuantity(p));
+
+    private static bool CanSatisfyAlternativeDemandsUsing(IEnumerable<decimal> requested,
+        IEnumerable<PantryItem> pantryItems, PantryUnit unit,
+        Func<PantryItem, decimal> stockOf)
     {
         var demands = requested.Where(x => x > 0).OrderByDescending(x => x).ToArray();
-        var stocks = pantryItems.Where(p => p.Unit == unit && p.Quantity > 0)
-            .Select(p => p.Quantity).OrderByDescending(x => x).ToArray();
+        var stocks = pantryItems.Where(p => p.Unit == unit && stockOf(p) > 0)
+            .Select(stockOf).OrderByDescending(x => x).ToArray();
         return Assign(0);
 
         bool Assign(int demandIndex)

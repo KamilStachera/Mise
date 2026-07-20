@@ -17,9 +17,10 @@ help plan meals.
 - **Phone-friendly**: below tablet width the nav becomes a bottom tab bar and the
   shopping list gets store-sized tap targets; a minimal PWA manifest lets you
   install it to your home screen (open `http://<host-ip>:8080` on the same LAN).
-- A **quantity-based pantry** (grams / ml / pieces, with low-stock thresholds and
-  aliases) that doubles as your ingredient catalog — in / low / out is derived
-  from the numbers. Receipts add deltas; a fridge photo sets absolute amounts.
+- An **approximate quantity pantry** (grams / ml / pieces) that keeps a visible
+  estimate plus a conservative planning amount. Receipt labels can be learned per
+  store, cooking tolerates small deviations, and only shopping-relevant uncertainty
+  asks for a quick confirmation.
 - A **Shopping list** that is deliberately independent of the pantry — items come
   from recipes ("add what's missing"), from you, or from agents. Recipe-origin
   rows merge by canonical pantry item and sum compatible quantities; manual rows
@@ -82,7 +83,7 @@ AI agent:
 ```
 context/
   cookbook.md        # profile + questionnaire + rules + pantry snapshot + recipe index
-  pantry.json        # ingredient catalog with quantities (g / ml / szt) + derived status
+  pantry.json        # ingredient catalog with estimates, planning quantities and confidence
   plan.md            # this week's + next week's meal plan
   cooklog.md         # what you cooked and how it went (the feedback loop)
   shopping.md        # current to-buy list
@@ -102,8 +103,8 @@ already knows your kitchen, your tastes, and what you'd need to buy.
 documented in `context/api.md`). The context files are regenerated on every change —
 agents must never edit them directly, and `AGENTS.md` says so. Typical flows the
 instructions cover: *recipe photo → `POST /recipes`*, *receipt → `POST /pantry/adjust`
-(deltas)*, *fridge photo → `POST /pantry/bulk` (absolute amounts)*, *"plan my week" →
-`PUT /plan/entry` + missing ingredients onto the shopping list*, *"we cooked it" →
+(deltas + learned raw-name mappings)*, *fridge photo → `POST /pantry/bulk` (absolute amounts)*,
+*"plan my week" → `PUT /plan/entry` + a focused shopping review*, *"we cooked it" →
 `POST /cooklog` (optionally deducting used ingredients)*.
 
 ## Connecting an agent
@@ -136,7 +137,7 @@ prompts come out ready to paste; otherwise the card asks for the path once.
 
 `mcp/` contains a small stdio MCP server that proxies the REST API as tools
 (`add_recipe`, `add_recipe_image`, `add_to_pantry`, `set_pantry_quantities`,
-`set_plan_entry`, `log_cook`, …):
+`preview_plan_shopping`, `add_plan_missing_to_shopping`, `set_plan_entry`, `log_cook`, …):
 
 ```bash
 cd mcp && npm install && npm run build

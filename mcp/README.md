@@ -7,10 +7,11 @@ cookbook REST API as first-class tools for Claude Code and Codex:
   `update_recipe`, `add_recipe_image`
 - pantry — `get_pantry`, `add_to_pantry` (deltas, e.g. after a receipt),
   `set_pantry_quantities` (absolute amounts), `create_pantry_item`,
-  `add_pantry_aliases`
+  `add_pantry_aliases`, `get_receipt_mappings`, `delete_receipt_mapping`
 - shopping — `get_shopping_list`, `add_shopping_items`, `check_shopping_items`,
   `remove_shopping_items`, `clear_shopping_list`
-- plan & log — `get_plan`, `set_plan_entry`, `log_cook` (with optional pantry
+- plan & log — `get_plan`, `set_plan_entry`, `preview_plan_shopping`,
+  `add_plan_missing_to_shopping`, `log_cook` (with optional pantry
   deductions), `update_cook_log_entry`, `get_pending_cooks` +
   `dismiss_cook_reminder` (plan entries never logged as cooked)
 

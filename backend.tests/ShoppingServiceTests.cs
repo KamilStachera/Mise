@@ -224,7 +224,7 @@ public class ShoppingServiceTests
         var source = Source("recipe:rice", "Risotto", Ingredient("Ryż", rice, 100, PantryUnit.G));
         await Add(db, source);
 
-        rice.Quantity = 200;
+        new StockReliability().Confirm(rice, 200);
         await db.SaveChangesAsync();
         var result = await Add(db, source);
 
@@ -335,6 +335,8 @@ public class ShoppingServiceTests
         Name = name,
         Unit = unit,
         Quantity = quantity,
+        ReliableQuantity = quantity,
+        ReliabilityUpdatedAt = DateTimeOffset.UtcNow,
         Aliases = aliases,
     };
 

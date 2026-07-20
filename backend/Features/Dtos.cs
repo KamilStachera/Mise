@@ -1,4 +1,5 @@
 using Mise.Api.Domain;
+using Mise.Api.Services;
 
 namespace Mise.Api.Features;
 
@@ -25,17 +26,30 @@ public record RecipeDetailDto(Guid Id, string Title, string Source, int Time, in
     int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs);
 
 public record PantryItemDto(Guid Id, string Name, string Category, string Unit,
-    decimal Quantity, decimal? LowThreshold, string Status, List<string> Aliases);
+    decimal Quantity, decimal PlanningQuantity, string Confidence, DateTimeOffset? ReliabilityUpdatedAt,
+    decimal? LowThreshold, string Status, List<string> Aliases);
 public record PantryGroupDto(string Category, List<PantryItemDto> Items);
 
 /// <summary>A name the agent sent that matched nothing — with a hint on what to do.</summary>
-public record UnmatchedItemDto(string Name, string Hint);
-public record PantryAdjustResultDto(List<PantryItemDto> Updated, List<UnmatchedItemDto> NotInCatalog);
+public record PantryMatchCandidateDto(Guid PantryItemId, string Name);
+public record UnmatchedItemDto(string Name, string Hint, List<PantryMatchCandidateDto>? Candidates = null);
+public record PantryAdjustmentMatchDto(string InputName, Guid PantryItemId, string PantryItemName,
+    string MatchedBy, Guid? ReceiptMappingId);
+public record PantryAdjustResultDto(List<PantryItemDto> Updated, List<UnmatchedItemDto> NotInCatalog,
+    List<PantryAdjustmentMatchDto>? Matches = null);
+public record ReceiptNameMappingDto(Guid Id, string Merchant, string RawName,
+    Guid PantryItemId, string PantryItemName, DateTimeOffset UpdatedAt);
 
 public record ShoppingItemDto(Guid Id, string Name, string Category, string Reason, bool Checked,
     string Origin, decimal? Quantity, string? Unit);
 public record ShoppingListDto(List<ShoppingItemDto> Items, int Total, int CheckedCount);
 public record ShoppingAddResultDto(int Added, int Updated);
+public record ShoppingPreviewItemDto(string Key, Guid? PantryItemId, string Name,
+    decimal? RequiredQuantity, string? Unit, decimal? EstimatedQuantity,
+    decimal? PlanningQuantity, decimal? EstimatedPurchase, decimal? SuggestedPurchase,
+    string Confidence, bool NeedsConfirmation, List<string> Sources,
+    List<Guid>? AlternativePantryItemIds = null);
+public record ShoppingPreviewDto(DateOnly Start, int Days, List<ShoppingPreviewItemDto> Items);
 
 public record CookProposalItemDto(Guid IngredientId, string Name, string QuantityText, string? DisplayText,
     string? AlternativeGroup,
@@ -82,8 +96,9 @@ public record PantryItemInput(string Name, string Category, string Unit,
     decimal? Quantity = null, decimal? LowThreshold = null, List<string>? Aliases = null);
 public record PantryQuantityInput(decimal Quantity);
 /// <summary>A delta: positive = bought, negative = used up / thrown away.</summary>
-public record PantryAdjustItem(string Name, decimal Quantity, string? Unit = null);
-public record PantryAdjustInput(List<PantryAdjustItem> Items);
+public record PantryAdjustItem(string Name, decimal Quantity, string? Unit = null,
+    Guid? PantryItemId = null);
+public record PantryAdjustInput(List<PantryAdjustItem> Items, string? Merchant = null);
 
 /// <summary>Portion choice for the recipe screen; equal to the base Servings clears the scaling.</summary>
 public record RecipeServingsInput(int Servings);
@@ -99,6 +114,9 @@ public record CookLogInput(Guid? RecipeId, string? DishName, int? Rating, string
 public record CookLogUpdateInput(string? DishName, int? Rating, string? Note, DateOnly? CookedAt);
 public record PlanEntryInput(DateOnly Date, string Slot, Guid? RecipeId, string? Title, string? Note);
 public record PlanRangeInput(DateOnly? Start, int? Days);
+public record PlanShoppingConfirmation(Guid PantryItemId, decimal Quantity);
+public record PlanAddMissingInput(DateOnly? Start, int? Days,
+    List<PlanShoppingConfirmation>? Confirmations = null);
 /// <summary>Absolute quantity set (inventory correction), matched by name — never creates.</summary>
 public record PantryBulkItem(string Name, string? Category, decimal Quantity,
     string? Unit = null, decimal? LowThreshold = null);
@@ -159,7 +177,9 @@ public static class Mapping
     }
 
     public static PantryItemDto ToDto(PantryItem p) => new(p.Id, p.Name, p.Category.ToString(),
-        UnitString(p.Unit), p.Quantity, p.LowThreshold, StatusString(StatusOf(p)),
+        UnitString(p.Unit), p.Quantity, StockReliability.PlanningQuantity(p),
+        StockReliability.Confidence(p), p.ReliabilityUpdatedAt,
+        p.LowThreshold, StatusString(StatusOf(p)),
         p.Aliases.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList());
 
     public static ShoppingItemDto ToDto(ShoppingItem s) => new(s.Id, s.Name, s.Category, s.Reason,

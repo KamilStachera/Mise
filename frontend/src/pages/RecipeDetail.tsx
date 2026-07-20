@@ -364,6 +364,7 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
   const [open, setOpen] = useState(initialOpen)
   const [rating, setRating] = useState<number | null>(null)
   const [note, setNote] = useState('')
+  const [showDeductions, setShowDeductions] = useState(false)
   const { data: proposal } = useCookProposal(recipeId, open)
   const [rows, setRows] = useState<Record<string, DeductionRow> | null>(null)
 
@@ -371,6 +372,7 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
   useEffect(() => {
     if (!open) {
       setRows(null)
+      setShowDeductions(false)
       return
     }
     if (proposal && rows === null) {
@@ -429,37 +431,47 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
 
       {open && (
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 13, padding: '14px 16px', marginBottom: 14 }}>
-          <div style={{ font: "600 13px 'Hanken Grotesk'", color: 'var(--text)', marginBottom: 4 }}>Odejmij ze spiżarni</div>
+          <div style={{ font: "600 13px 'Hanken Grotesk'", color: 'var(--text)', marginBottom: 4 }}>Potwierdź ugotowanie</div>
           <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '0 0 10px' }}>
-            Zaznaczone ilości zejdą ze stanu spiżarni (nie zejdzie poniżej zera). Popraw, jeśli zużyliście mniej lub więcej.
+            Domyślnie odejmiemy składniki zgodnie z przepisem. Stan pozostanie przybliżony, więc drobnych różnic nie trzeba poprawiać.
           </p>
           {!proposal || !rows ? (
             <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '6px 0 12px' }}>Ładowanie…</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
-              {proposal.items.map((it) => (
-                <DeductionRowView
-                  key={it.ingredientId}
-                  item={it}
-                  row={rows[it.ingredientId]}
-                  onChange={(row) => setRows((current) => {
-                    if (!current) return current
-                    const next = { ...current, [it.ingredientId]: row }
-                    if (row.checked && it.alternativeGroup) {
-                      for (const option of proposal.items) {
-                        if (option.ingredientId !== it.ingredientId
-                            && option.alternativeGroup === it.alternativeGroup) {
-                          next[option.ingredientId] = {
-                            ...(next[option.ingredientId] ?? { amount: '' }),
-                            checked: false,
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={() => setShowDeductions((value) => !value)}
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', font: "500 12px 'Hanken Grotesk'", marginBottom: showDeductions ? 8 : 0 }}
+              >
+                {showDeductions ? 'Ukryj szczegóły' : `Zmieniliśmy składniki lub ilości · ${proposal.items.filter((item) => item.deductible).length} odjęć`}
+              </button>
+              {showDeductions && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {proposal.items.map((it) => (
+                    <DeductionRowView
+                      key={it.ingredientId}
+                      item={it}
+                      row={rows[it.ingredientId]}
+                      onChange={(row) => setRows((current) => {
+                        if (!current) return current
+                        const next = { ...current, [it.ingredientId]: row }
+                        if (row.checked && it.alternativeGroup) {
+                          for (const option of proposal.items) {
+                            if (option.ingredientId !== it.ingredientId
+                                && option.alternativeGroup === it.alternativeGroup) {
+                              next[option.ingredientId] = {
+                                ...(next[option.ingredientId] ?? { amount: '' }),
+                                checked: false,
+                              }
+                            }
                           }
                         }
-                      }
-                    }
-                    return next
-                  })}
-                />
-              ))}
+                        return next
+                      })}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>

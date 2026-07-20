@@ -12,6 +12,7 @@ public class MiseDbContext : DbContext
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
     public DbSet<RecipeImage> RecipeImages => Set<RecipeImage>();
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
+    public DbSet<ReceiptNameMapping> ReceiptNameMappings => Set<ReceiptNameMapping>();
     public DbSet<Preferences> Preferences => Set<Preferences>();
     public DbSet<EquipmentItem> EquipmentItems => Set<EquipmentItem>();
     public DbSet<ShoppingItem> ShoppingItems => Set<ShoppingItem>();
@@ -58,9 +59,20 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Category).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.Unit).HasConversion<string>().HasMaxLength(8);
             e.Property(x => x.Quantity).HasPrecision(10, 2);
+            e.Property(x => x.ReliableQuantity).HasPrecision(10, 2);
             e.Property(x => x.LowThreshold).HasPrecision(10, 2);
             e.Property(x => x.Aliases).HasMaxLength(500);
             e.Property(x => x.Name).HasMaxLength(200);
+        });
+
+        b.Entity<ReceiptNameMapping>(e =>
+        {
+            e.Property(x => x.Merchant).HasMaxLength(120);
+            e.Property(x => x.RawName).HasMaxLength(300);
+            e.Property(x => x.NormalizedName).HasMaxLength(300);
+            e.HasIndex(x => new { x.Merchant, x.NormalizedName }).IsUnique();
+            e.HasOne(x => x.PantryItem).WithMany().HasForeignKey(x => x.PantryItemId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Preferences>(e =>

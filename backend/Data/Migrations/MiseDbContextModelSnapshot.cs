@@ -145,6 +145,13 @@ namespace Mise.Api.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("numeric(10,2)");
 
+                    b.Property<DateTimeOffset?>("ReliabilityUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ReliableQuantity")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(8)
@@ -268,6 +275,46 @@ namespace Mise.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ProfileAnswers");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.ReceiptNameMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Merchant")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("PantryItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RawName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PantryItemId");
+
+                    b.HasIndex("Merchant", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("ReceiptNameMappings");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.Recipe", b =>
@@ -566,6 +613,17 @@ namespace Mise.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Recipe");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.ReceiptNameMapping", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.PantryItem", "PantryItem")
+                        .WithMany()
+                        .HasForeignKey("PantryItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PantryItem");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.RecipeImage", b =>

@@ -226,8 +226,8 @@ server.tool(
 
 server.tool(
   'get_pantry',
-  'Katalog spiżarni pogrupowany po kategoriach: ilości liczbowe (quantity w jednostce unit: g/ml/szt; ' +
-    '0 = brak w domu, pozycja zostaje w katalogu). Status (in/low/out) jest wyliczany z ilości.',
+  'Katalog spiżarni: quantity to przybliżony stan, planningQuantity to konserwatywna ilość do zakupów, ' +
+    'confidence to confirmed/estimated/stale. 0 oznacza brak, pozycja zostaje w katalogu.',
   {},
   async () => text(await get('/pantry')),
 )
@@ -235,23 +235,41 @@ server.tool(
 server.tool(
   'add_to_pantry',
   'DODAJE ilości do spiżarni (delty) — używaj po paragonie / zakupach ("kupiłem 1000 ml mleka"). ' +
-    'Dopasowuje po nazwie z polską odmianą i aliasami; kg/dag/l są przeliczane na g/ml. ' +
-    'Najpierw zmapuj produkty z paragonu na pozycje katalogu (get_pantry — nazwy i aliasy) i wysyłaj ' +
-    'nazwy katalogowe ("BUŁKA KAJZERKA" → "Pieczywo"). Pozycje spoza katalogu wracają w notInCatalog ' +
-    'i NIE są zapisywane — wariant istniejącej pozycji → add_pantry_aliases; nowy stały produkt → ' +
+    'Wysyłaj surową nazwę z paragonu. Przy pierwszym rozstrzygnięciu podaj pantryItemId; aplikacja zapamięta ' +
+    'mapowanie, opcjonalnie dla merchant. Pozycje spoza katalogu wracają w notInCatalog z kandydatami ' +
+    'i NIE są zapisywane — wariant istniejącej pozycji → ponów z pantryItemId; nowy stały produkt → ' +
     'create_pantry_item; jednorazowy → pomiń.',
   {
+    merchant: z.string().optional().describe('Sklep z paragonu, np. Lidl; ogranicza zapamiętane mapowanie'),
     items: z
       .array(
         z.object({
-          name: z.string().describe('Prosta polska nazwa bazowa, np. "Mleko"'),
+          name: z.string().describe('Surowa nazwa produktu z paragonu'),
           quantity: z.number().describe('Delta: ile doszło (ujemna = ubyło, np. coś się zepsuło)'),
           unit: z.string().optional().describe('g / ml / szt (też kg, dag, l — przeliczane)'),
+          pantryItemId: z.string().uuid().optional().describe('Jawne rozstrzygnięcie do pozycji z get_pantry; zapisuje mapowanie'),
         }),
       )
       .min(1),
   },
-  async ({ items }) => text(await post('/pantry/adjust', { items })),
+  async ({ items, merchant }) => text(await post('/pantry/adjust', { items, merchant })),
+)
+
+server.tool(
+  'get_receipt_mappings',
+  'Pokaż zapamiętane mapowania surowych nazw z paragonów na kanoniczne produkty spiżarni.',
+  {},
+  async () => text(await get('/pantry/receipt-mappings')),
+)
+
+server.tool(
+  'delete_receipt_mapping',
+  'Usuń błędne zapamiętane mapowanie paragonowe (id z get_receipt_mappings).',
+  { id: z.string().uuid() },
+  async ({ id }) => {
+    await del(`/pantry/receipt-mappings/${id}`)
+    return text({ ok: true, removed: id })
+  },
 )
 
 server.tool(
@@ -295,9 +313,9 @@ server.tool(
 
 server.tool(
   'add_pantry_aliases',
-  'Naucz katalog nowego wariantu: dodaj aliasy (alternatywne nazwy) do istniejącej pozycji spiżarni, ' +
-    'np. "bułka kajzerka" i "bagietka" → Pieczywo. Używaj, gdy add_to_pantry zwróci notInCatalog dla ' +
-    'produktu, który JEST wariantem czegoś z katalogu — od tej pory będzie dopasowywany automatycznie.',
+  'Dodaj naturalne alternatywne nazwy używane w przepisach do istniejącej pozycji spiżarni, ' +
+    'np. "bagietka" → Pieczywo. Surowych skrótów z paragonu tu nie dodawaj — add_to_pantry ' +
+    'zapamiętuje je osobno po podaniu pantryItemId.',
   {
     name: z.string().describe('Nazwa istniejącej pozycji katalogu (np. "Pieczywo")'),
     aliases: z.array(z.string()).min(1).describe('Nowe aliasy, np. ["bułka kajzerka", "bagietka"]'),
@@ -318,7 +336,6 @@ server.tool(
       name: item.name,
       category: item.category,
       unit: item.unit,
-      quantity: item.quantity,
       lowThreshold: item.lowThreshold,
       aliases: merged,
     }))
@@ -434,6 +451,37 @@ server.tool(
     note: z.string().optional(),
   },
   async (input) => text(await put('/plan/entry', input)),
+)
+
+server.tool(
+  'preview_plan_shopping',
+  'Porównaj potrzeby planu z przybliżonym i konserwatywnym stanem spiżarni. ' +
+    'needsConfirmation=true tylko wtedy, gdy szybka korekta może zmienić zakupy.',
+  {
+    start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
+    days: z.number().int().positive().max(60).default(7),
+  },
+  async ({ start, days }) => {
+    const p = new URLSearchParams()
+    if (start) p.set('start', start)
+    p.set('days', String(days))
+    return text(await get(`/plan/shopping-preview?${p.toString()}`))
+  },
+)
+
+server.tool(
+  'add_plan_missing_to_shopping',
+  'Jawnie dodaj brakujące składniki planu do niezależnej listy zakupów. Bez confirmations używa ' +
+    'konserwatywnego stanu; podane korekty są atomowo potwierdzane przed przeliczeniem.',
+  {
+    start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
+    days: z.number().int().positive().max(60).default(7),
+    confirmations: z.array(z.object({
+      pantryItemId: z.string().uuid(),
+      quantity: z.number().min(0).describe('Przybliżona ilość faktycznie w domu'),
+    })).optional(),
+  },
+  async (input) => text(await post('/plan/add-missing-to-shopping', input)),
 )
 
 server.tool(

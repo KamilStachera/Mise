@@ -57,7 +57,7 @@ public sealed class CookbookMarkdownBuilder
         var airfryer = answers.GetValueOrDefault("assistant.airfryer", "gdy ma sens");
         sb.AppendLine("## Zasady dla asystenta");
         sb.AppendLine("- Sprawdź `pantry.json` przed propozycją — zaznacz wszystko, co trzeba dokupić.");
-        sb.AppendLine("- Ilości w spiżarni są liczbowe (g/ml/szt). Po zakupach dodawaj delty przez " +
+        sb.AppendLine("- Ilości w spiżarni są przybliżone (g/ml/szt); do zakupów używaj `iloscDoPlanowania`. Po zakupach dodawaj delty przez " +
             "`POST /pantry/adjust`; nowe pozycje katalogu tylko świadomie przez `POST /pantry`.");
         sb.AppendLine($"- Domyślnie {servings} porcje. Frytkownica beztłuszczowa: {airfryer}.");
         sb.AppendLine("- Zapisy (przepisy, spiżarnia, plan, historia) wyłącznie przez REST API — patrz `AGENTS.md` i `api.md`. Nie edytuj plików w tym folderze.");
@@ -68,7 +68,7 @@ public sealed class CookbookMarkdownBuilder
         var byStatus = pantry.ToLookup(Features.Mapping.StatusOf);
         var low = byStatus[PantryStatus.Low].Select(p => $"{p.Name} ({QuantityLabel(p)})").ToList();
         var outOf = byStatus[PantryStatus.Out].Select(p => p.Name).ToList();
-        sb.AppendLine($"- Na stanie: {byStatus[PantryStatus.In].Count()} pozycji (dokładne ilości w `pantry.json`).");
+        sb.AppendLine($"- Na stanie: {byStatus[PantryStatus.In].Count()} pozycji (szacunki i pewne ilości do planowania w `pantry.json`).");
         if (low.Count > 0) sb.AppendLine($"- Kończy się: {string.Join(", ", low)}.");
         if (outOf.Count > 0) sb.AppendLine($"- Brak: {string.Join(", ", outOf)}.");
         sb.AppendLine();
