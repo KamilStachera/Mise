@@ -280,6 +280,8 @@ export function useAddCookLog() {
       qc.invalidateQueries({ queryKey: ['cooklog'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
       qc.invalidateQueries({ queryKey: ['pendingCook'] })
+      // the plan grid shows a "cooked" checkmark derived from the cook log
+      qc.invalidateQueries({ queryKey: ['plan'] })
       // deductions change pantry stock and every have/missing computation
       qc.invalidateQueries({ queryKey: ['pantry'] })
       qc.invalidateQueries({ queryKey: ['recipes'] })
@@ -296,6 +298,8 @@ export function useUpdateCookLog() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cooklog'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
+      qc.invalidateQueries({ queryKey: ['pendingCook'] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
     },
   })
 }
@@ -308,6 +312,7 @@ export function useDeleteCookLog() {
       qc.invalidateQueries({ queryKey: ['cooklog'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
       qc.invalidateQueries({ queryKey: ['pendingCook'] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
     },
   })
 }

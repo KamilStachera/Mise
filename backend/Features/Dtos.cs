@@ -53,8 +53,9 @@ public record PreferencesDto(string HouseholdSummary, string HouseholdDetail, st
 public record CookLogEntryDto(Guid Id, Guid? RecipeId, string DishName, int? Rating, string Note, DateOnly CookedAt);
 public record CookLogResultDto(CookLogEntryDto Entry, List<CookDeductedDto> Deducted);
 
+/// <summary>Cooked = a matching cook-log entry exists (same recipe/dish, ±1 day) — see PlanEndpoints.IsCooked.</summary>
 public record PlanEntryDto(Guid Id, DateOnly Date, string Slot, Guid? RecipeId, string? RecipeTitle,
-    string Title, string Note);
+    string Title, string Note, bool Cooked = false);
 public record PlanRangeDto(DateOnly Start, int Days, List<PlanEntryDto> Entries);
 
 public record PantryBulkResultDto(int Updated, List<PantryItemDto> Results,

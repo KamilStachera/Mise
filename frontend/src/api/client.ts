@@ -231,6 +231,8 @@ export interface PlanEntry {
   recipeTitle: string | null
   title: string
   note: string
+  /** A matching cook-log entry exists (same recipe/dish, ±1 day). */
+  cooked: boolean
 }
 export interface PlanRange {
   start: string

@@ -22,7 +22,11 @@ public static class PlanEndpoints
                 .Where(e => e.Date >= from && e.Date < to)
                 .OrderBy(e => e.Date).ThenBy(e => e.Slot)
                 .ToListAsync();
-            return Results.Ok(new PlanRangeDto(from, count, entries.Select(e => ToDto(e)).ToList()));
+            var logs = await db.CookLog.AsNoTracking()
+                .Where(c => c.CookedAt >= from.AddDays(-1) && c.CookedAt <= to.AddDays(1))
+                .ToListAsync();
+            return Results.Ok(new PlanRangeDto(from, count,
+                entries.Select(e => ToDto(e, cooked: IsCooked(e, logs))).ToList()));
         });
 
         // Upsert on (date, slot) so agents and the UI can write idempotently.
@@ -75,16 +79,7 @@ public static class PlanEndpoints
                 .Where(c => c.CookedAt >= from.AddDays(-1))
                 .ToListAsync();
 
-            bool Cooked(PlanEntry e)
-            {
-                var title = e.Recipe?.Title ?? e.Title;
-                return logs.Any(c =>
-                    Math.Abs(c.CookedAt.DayNumber - e.Date.DayNumber) <= 1
-                    && ((e.RecipeId is not null && c.RecipeId == e.RecipeId)
-                        || string.Equals(c.DishName, title, StringComparison.OrdinalIgnoreCase)));
-            }
-
-            return Results.Ok(entries.Where(e => !Cooked(e)).Select(e => ToDto(e)).ToList());
+            return Results.Ok(entries.Where(e => !IsCooked(e, logs)).Select(e => ToDto(e)).ToList());
         });
 
         // No context export: the dismissed flag is reminder plumbing, not plan content.
@@ -142,7 +137,21 @@ public static class PlanEndpoints
         return date.AddDays(-diff);
     }
 
-    private static PlanEntryDto ToDto(PlanEntry e, string? recipeTitle = null) =>
+    /// <summary>
+    /// The one matching rule for "was this plan entry cooked": a cook-log entry with
+    /// the same recipe (or dish name, case-insensitive) within ±1 day. Shared by the
+    /// plan grid checkmark and /plan/pending-cook so they can never disagree.
+    /// </summary>
+    private static bool IsCooked(PlanEntry e, List<CookLogEntry> logs)
+    {
+        var title = e.Recipe?.Title ?? e.Title;
+        return logs.Any(c =>
+            Math.Abs(c.CookedAt.DayNumber - e.Date.DayNumber) <= 1
+            && ((e.RecipeId is not null && c.RecipeId == e.RecipeId)
+                || string.Equals(c.DishName, title, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static PlanEntryDto ToDto(PlanEntry e, string? recipeTitle = null, bool cooked = false) =>
         new(e.Id, e.Date, Mapping.SlotString(e.Slot), e.RecipeId,
-            e.Recipe?.Title ?? recipeTitle, e.Title, e.Note);
+            e.Recipe?.Title ?? recipeTitle, e.Title, e.Note, cooked);
 }

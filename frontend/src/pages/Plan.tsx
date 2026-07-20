@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, usePlan, usePlanAddMissing, useRecipes, useSetPlanEntry, useDeletePlanEntry } from '../api/hooks'
 import type { PlanEntry, Slot } from '../api/client'
 import { formatGrams, slotLabel, SLOTS, DAY_NAMES_PL } from '../lib/labels'
-import { PlusIcon } from '../components/icons'
+import { CheckIcon, PlusIcon } from '../components/icons'
 
 const cardStyle: CSSProperties = {
   background: 'var(--card)',
@@ -204,6 +204,7 @@ function SlotRow({ slot, days, todayISO, entryAt, onCell, editing, canEdit }: {
             onClick={() => onCell({ date, slot })}
             style={{
               ...cardStyle,
+              position: 'relative',
               padding: '10px 11px',
               minHeight: 74,
               textAlign: 'left',
@@ -221,9 +222,17 @@ function SlotRow({ slot, days, todayISO, entryAt, onCell, editing, canEdit }: {
               background: entry ? 'var(--card)' : 'var(--surface)',
             }}
           >
+            {entry?.cooked && (
+              <span
+                title="Ugotowane — jest wpis w historii gotowania"
+                style={{ position: 'absolute', top: 6, right: 6, width: 16, height: 16, borderRadius: '50%', background: 'var(--sage)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <CheckIcon size={10} />
+              </span>
+            )}
             {entry ? (
               <>
-                <span style={{ font: "600 12.5px 'Hanken Grotesk'", color: 'var(--text)', lineHeight: 1.3 }}>
+                <span style={{ font: "600 12.5px 'Hanken Grotesk'", color: 'var(--text)', lineHeight: 1.3, paddingRight: entry.cooked ? 16 : 0 }}>
                   {entry.recipeTitle ?? entry.title}
                 </span>
                 {entry.note && <span style={{ font: "400 11px 'Hanken Grotesk'", color: 'var(--text-3)', lineHeight: 1.3 }}>{entry.note}</span>}

@@ -356,7 +356,9 @@ public static class AgentDocs
         Ponowny zapis na tę samą datę i slot nadpisuje wpis.
 
         ### Pozostałe
-        - `GET /plan?start=YYYY-MM-DD&days=14` — wpisy (domyślnie od poniedziałku bieżącego tygodnia).
+        - `GET /plan?start=YYYY-MM-DD&days=14` — wpisy (domyślnie od poniedziałku bieżącego
+          tygodnia). Każdy wpis ma `cooked` — czy istnieje pasujący wpis w historii
+          gotowania (ten sam przepis/nazwa, ±1 dzień).
         - `DELETE /plan/entry/{id}`.
         - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7 }`;
           sumuje wymagania wszystkich wpisów (także powtórzeń tego samego przepisu),
