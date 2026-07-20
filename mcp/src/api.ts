@@ -1,4 +1,4 @@
-// Thin fetch wrapper over the Mise REST API. The MCP server is a proxy: the
+// Thin fetch wrapper over the Pichci REST API. The MCP server is a proxy: the
 // backend stays the source of truth and re-exports ./context after every write.
 const BASE = (process.env.MISE_API_URL ?? 'http://localhost:5080').replace(/\/+$/, '')
 const API_KEY = process.env.MISE_API_KEY
@@ -19,16 +19,16 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
     })
   } catch (e) {
     throw new Error(
-      `Nie mogę połączyć się z Mise pod ${BASE} — czy aplikacja działa (docker compose up)? (${(e as Error).message})`,
+      `Nie mogę połączyć się z Pichci pod ${BASE} — czy aplikacja działa (docker compose up)? (${(e as Error).message})`,
     )
   }
   const text = await res.text()
   if (res.status === 401) {
     throw new Error(
-      `Mise API 401: zapisy wymagają klucza API — ustaw zmienną środowiskową MISE_API_KEY (tę samą co w .env aplikacji). ${text}`,
+      `Pichci API 401: zapisy wymagają klucza API — ustaw zmienną środowiskową MISE_API_KEY (tę samą co w .env aplikacji). ${text}`,
     )
   }
-  if (!res.ok) throw new Error(`Mise API ${res.status} ${res.statusText}: ${text}`)
+  if (!res.ok) throw new Error(`Pichci API ${res.status} ${res.statusText}: ${text}`)
   return (text ? JSON.parse(text) : undefined) as T
 }
 

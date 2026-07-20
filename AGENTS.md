@@ -1,4 +1,4 @@
-# Mise / CukBuk — repository guide for coding agents
+# Pichci / CukBuk — repository guide for coding agents
 
 This file applies to the whole repository and is the entry point for Codex and
 other agents working from the repository root. More specific `AGENTS.md` files
@@ -84,7 +84,7 @@ particular, do not bypass these:
 ## Live cookbook and MCP/API operations
 
 For culinary tasks, follow `context/AGENTS.md` and `context/api.md`, not guesses
-from the UI. Prefer configured Mise MCP tools; use the REST API when MCP is not
+from the UI. Prefer configured Pichci MCP tools; use the REST API when MCP is not
 available or when its running process lacks current authentication.
 
 - Read the current recipe/pantry state immediately before deciding or writing.

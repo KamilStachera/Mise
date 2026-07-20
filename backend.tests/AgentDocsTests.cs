@@ -18,4 +18,18 @@ public class AgentDocsTests
         Assert.Contains("C:/repo/mcp/dist/index.js", claude, StringComparison.Ordinal);
         Assert.Contains("C:/repo/mcp/dist/index.js", codex, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void RecipeGuidelines_RequireConcreteQuantitiesAndCookingTimes()
+    {
+        var agents = AgentDocs.AgentsMd("http://localhost:5080/api");
+        var api = AgentDocs.ApiMd("http://localhost:5080/api");
+
+        Assert.Contains("Precyzja jest obowiązkowa", agents, StringComparison.Ordinal);
+        Assert.Contains("sól `2 g`, pieprz `0,5 g`", agents, StringComparison.Ordinal);
+        Assert.Contains("8 minut, do 74°C w środku", agents, StringComparison.Ordinal);
+        Assert.Contains("Precyzja przepisu jest obowiązkowa", api, StringComparison.Ordinal);
+        Assert.Contains("Nie odsyłaj do opakowania", api, StringComparison.Ordinal);
+        Assert.Contains("temperatura 74°C w środku", api, StringComparison.Ordinal);
+    }
 }

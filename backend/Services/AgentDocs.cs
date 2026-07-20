@@ -13,7 +13,7 @@ public static class AgentDocs
     public const string RepoDirToken = "{{REPO_DIR}}";
 
     public static string AgentsMd(string apiBase) => """
-        # Mise — instrukcje dla asystenta kulinarnego
+        # Pichci — instrukcje dla asystenta kulinarnego
 
         Pomagasz planować i gotować posiłki z tej kuchni. Ten folder to Twoja pamięć kulinarna.
 
@@ -66,6 +66,17 @@ public static class AgentDocs
            i zioła" na osobne pozycje; przymiotniki tylko gdy odróżniają produkt).
            `source`: `"web"` dla zdjęcia z książki lub strony, `"ai"` dla własnej kreacji,
            `"manual"` dla rodzinnych notatek.
+
+           **Precyzja jest obowiązkowa.** Składniki, kroki i wskazówki nie mogą zawierać
+           pustych ilości ani zwrotów typu „do smaku", „szczypta", „odrobina", „garść",
+           „kilka" lub „według instrukcji na opakowaniu" bez konkretnej wartości. Gdy
+           źródło jest nieprecyzyjne, dobierz rozsądną stałą ilość dla bazowej liczby
+           porcji i zapisz ją w g / ml / szt. razem z `amountValue` i `amountUnit`
+           (np. sól `2 g`, pieprz `0,5 g`). Każdy etap obróbki ma podawać liczbowy czas,
+           temperaturę albo poziom ognia; samo „aż zgęstnieje" lub „do miękkości" nie
+           wystarcza. Jeśli efekt może zależeć od sprzętu, podaj czas oraz sprawdzalny
+           punkt końcowy (np. `8 minut, do 74°C w środku`). Prawdziwe zamienniki mogą
+           pozostać, ale każda opcja musi mieć własną dokładną ilość.
         3. Porównaj składniki z `pantry.json`; jeśli czegoś brakuje, zaproponuj zamianę
            pasującą do naszej kuchni albo oznacz do kupienia.
         4. Pokaż mi propozycję. Po akceptacji: `POST {API}/recipes`, a brakujące składniki
@@ -107,7 +118,7 @@ public static class AgentDocs
         """.Replace("{API}", apiBase);
 
     public static string ApiMd(string apiBase) => """
-        # Mise — REST API dla agentów
+        # Pichci — REST API dla agentów
 
         Baza: `{API}`. Aplikacja musi działać (`docker compose up`). JSON w UTF-8,
         daty w formacie `YYYY-MM-DD`, identyfikatory to GUID-y.
@@ -203,7 +214,19 @@ public static class AgentDocs
         zawiera odmianę, wariant, sposób przygotowania albo inną informację wartą zachowania.
         `amountValue`+`amountUnit` to ilość
         strukturalna (napędza „czy wystarczy w spiżarni" i odejmowanie po ugotowaniu) —
-        **zawsze podawaj, gdy ilość jest mierzalna**; pomiń przy „garść", „do smaku" itp.
+        **zawsze podawaj, gdy ilość jest mierzalna**.
+
+        **Precyzja przepisu jest obowiązkowa.** Nie zapisuj pustej `quantity`, przedziałów
+        bez potrzeby ani określeń „do smaku", „szczypta", „odrobina", „garść", „kilka"
+        lub „do podania" bez liczby. Jeśli źródło nie podaje ilości, oszacuj jedną
+        rozsądną wartość dla bazowej liczby porcji i zapisz ją metrycznie w `quantity`,
+        `amountValue` i `amountUnit` (np. `2 g` soli, `0,5 g` pieprzu, `15 ml` oliwy).
+        Kroki i `tip` podlegają tej samej zasadzie: każda obróbka ma konkretny czas,
+        temperaturę albo poziom ognia. Nie odsyłaj do opakowania i nie kończ instrukcji
+        samym „aż zgęstnieje", „do miękkości" lub „do zarumienienia" — dodaj liczbowy
+        czas oraz, gdy pomaga, mierzalny punkt końcowy (np. temperatura 74°C w środku).
+        Prawdziwe alternatywy nadal zapisuj osobno przez `alternativeGroup`, z dokładną
+        ilością dla każdej opcji.
 
         **Jeden produkt = jeden składnik.** Zbitki typu „Sól, pieprz i zioła” rozbijaj na
         osobne składniki — inaczej ze spiżarnią dopasuje się tylko pierwszy człon (sól),
@@ -338,6 +361,12 @@ public static class AgentDocs
         - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7 }`;
           sumuje wymagania wszystkich wpisów (także powtórzeń tego samego przepisu),
           odejmuje wspólny stan raz i dopisuje lub aktualizuje scalone zakupy.
+        - `GET /plan/pending-cook?days=14` — zaległe wpisy planu: data w przeszłości
+          i brak pasującego wpisu w historii gotowania (ten sam przepis lub nazwa,
+          ±1 dzień). Użytkownik mógł zapomnieć odnotować posiłek — dopytaj; ugotowany
+          → `POST /cooklog` z `cookedAt` = data z planu.
+        - `POST /plan/entry/{id}/dismiss-cook-reminder` — posiłek pominięty: nie
+          przypominaj o tym wpisie.
 
         ## Historia gotowania (cook log)
 
@@ -363,6 +392,9 @@ public static class AgentDocs
 
         ### Pozostałe
         - `GET /cooklog?recipeId=<guid>&limit=50` — ostatnie wpisy.
+        - `PUT /cooklog/{id}` — popraw wpis: `{ "dishName"?, "rating"?, "note"?, "cookedAt"? }`.
+          `rating`/`note` są pełną podmianą (pominięte = wyczyszczone); `dishName`/`cookedAt`
+          pominięte zostają bez zmian. Odjęć ze spiżarni nie da się edytować.
         - `DELETE /cooklog/{id}`.
 
         ## Zakupy
@@ -378,6 +410,7 @@ public static class AgentDocs
         - `PATCH /shopping/{id}/check` — body `{ "checked": true|false }` ustawia stan
           (idempotentne — używaj tego); puste body przełącza.
         - `POST /shopping/clear-checked` — usuń odhaczone; `DELETE /shopping/{id}` — usuń pozycję.
+        - `POST /shopping/clear` — wyczyść całą listę (nieodwracalne).
 
         ## Profil
 
@@ -403,11 +436,13 @@ public static class AgentDocs
         return new Dictionary<string, string>
         {
             ["dodaj-przepis.md"] = T("""
-                Dodaj przepis do mojej książki kucharskiej Mise. Źródło (zdjęcie, plik, link lub opis): $ARGUMENTS
+                Dodaj przepis do mojej książki kucharskiej Pichci. Źródło (zdjęcie, plik, link lub opis): $ARGUMENTS
 
                 1. Przeczytaj `{CTX}/AGENTS.md` i schemat w `{CTX}/api.md`.
                 2. Obejrzyj / przeczytaj źródło i wyciągnij przepis; znormalizuj go do schematu
-                   `POST {API}/recipes` (polskie nazwy składników, kroki jako zdania).
+                   `POST {API}/recipes` (polskie nazwy składników, kroki jako zdania). Nie używaj
+                   „do smaku", „odrobina", „kilka minut" ani instrukcji „według opakowania":
+                   ustal dokładne ilości, czasy, temperatury i sprawdzalne punkty końcowe.
                 3. Porównaj składniki ze stanem w `{CTX}/pantry.json` i zaproponuj ewentualne zamiany.
                 4. Pokaż mi gotową propozycję; po mojej akceptacji zapisz przez API i dopisz
                    brakujące składniki do zakupów (`POST {API}/recipes/{id}/add-missing-to-shopping`).
@@ -415,7 +450,7 @@ public static class AgentDocs
                    `POST {API}/recipes/{id}/image` (multipart `file`) lub narzędziem MCP `add_recipe_image`.
                 """),
             ["paragon.md"] = T("""
-                Zaktualizuj spiżarnię Mise na podstawie: $ARGUMENTS (paragon lub zdjęcie lodówki/szafki).
+                Zaktualizuj spiżarnię Pichci na podstawie: $ARGUMENTS (paragon lub zdjęcie lodówki/szafki).
 
                 1. Przeczytaj `{CTX}/AGENTS.md`.
                 2. Wyciągnij produkty spożywcze z ilościami metrycznymi (g / ml / szt) i zmapuj
@@ -431,7 +466,7 @@ public static class AgentDocs
                 5. Po paragonie sprawdź `GET {API}/shopping` i odhacz/usuń kupione pozycje.
                 """),
             ["zaplanuj-tydzien.md"] = T("""
-                Zaplanuj posiłki w Mise. Wytyczne: $ARGUMENTS
+                Zaplanuj posiłki w Pichci. Wytyczne: $ARGUMENTS
 
                 1. Przeczytaj `{CTX}/AGENTS.md`, `{CTX}/cookbook.md`, `{CTX}/pantry.json`,
                    `{CTX}/plan.md` i `{CTX}/cooklog.md` (nie powtarzaj świeżo gotowanych dań).
@@ -444,7 +479,7 @@ public static class AgentDocs
     }
 
     public static string OneShotPrompt(string contextDir, string apiBase) => """
-        Mam cyfrową książkę kucharską Mise. Jej kontekst (profil, spiżarnia, przepisy, plan) leży w:
+        Mam cyfrową książkę kucharską Pichci. Jej kontekst (profil, spiżarnia, przepisy, plan) leży w:
         {CTX}
         Najpierw przeczytaj {CTX}/AGENTS.md i stosuj się do niego — w szczególności: niczego
         nie zapisuj do plików, zapisy wyłącznie przez REST API pod {API} (aplikacja działa).
@@ -453,7 +488,7 @@ public static class AgentDocs
         """.Replace("{CTX}", contextDir).Replace("{API}", apiBase);
 
     public static string GlobalSnippet(string contextDir, string apiBase) => """
-        ## Mise — moja książka kucharska
+        ## Pichci — moja książka kucharska
 
         Gdy rozmowa dotyczy gotowania, przepisów, spiżarni, zakupów spożywczych lub planowania
         posiłków: najpierw przeczytaj `{CTX}/AGENTS.md` i pliki kontekstu, na które wskazuje
@@ -466,10 +501,10 @@ public static class AgentDocs
     // paths only: secrets must be configured locally in the agent process and must
     // never be returned by /context/connect.
     public static string ClaudeMcpCommand(string repoDir) =>
-        $"claude mcp add mise -- node \"{repoDir}/mcp/dist/index.js\"";
+        $"claude mcp add pichci -- node \"{repoDir}/mcp/dist/index.js\"";
 
     public static string CodexMcpToml(string repoDir) => $$"""
-        [mcp_servers.mise]
+        [mcp_servers.pichci]
         command = "node"
         args = ["{{repoDir}}/mcp/dist/index.js"]
         """;

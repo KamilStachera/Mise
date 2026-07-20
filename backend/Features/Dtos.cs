@@ -94,6 +94,8 @@ public record ShoppingCheckInput(bool? Checked);
 public record CookDeductionInput(Guid PantryItemId, decimal Amount, string? Unit = null);
 public record CookLogInput(Guid? RecipeId, string? DishName, int? Rating, string? Note,
     DateOnly? CookedAt, List<CookDeductionInput>? Deductions = null);
+/// <summary>Rating/Note are full-replace (omitted = cleared); DishName/CookedAt keep the stored value when omitted.</summary>
+public record CookLogUpdateInput(string? DishName, int? Rating, string? Note, DateOnly? CookedAt);
 public record PlanEntryInput(DateOnly Date, string Slot, Guid? RecipeId, string? Title, string? Note);
 public record PlanRangeInput(DateOnly? Start, int? Days);
 /// <summary>Absolute quantity set (inventory correction), matched by name — never creates.</summary>

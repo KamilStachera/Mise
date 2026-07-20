@@ -54,6 +54,50 @@ public static class PlanEndpoints
             return Results.Ok(ToDto(entry, recipe?.Title));
         });
 
+        // Plan entries from the recent past with no matching cook-log entry — feeds the
+        // "did you forget to log this meal?" reminder. A cook-log entry within ±1 day
+        // with the same recipe (or the same dish name, case-insensitive) counts as done;
+        // the window absorbs "planned Monday, cooked Tuesday" without swallowing a
+        // repeat of the same recipe planned a few days later.
+        g.MapGet("/pending-cook", async (int? days, MiseDbContext db) =>
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var from = today.AddDays(-Math.Clamp(days ?? 14, 1, 60));
+
+            var entries = await db.PlanEntries.AsNoTracking()
+                .Include(e => e.Recipe)
+                .Where(e => e.Date >= from && e.Date < today && !e.CookReminderDismissed)
+                .OrderBy(e => e.Date).ThenBy(e => e.Slot)
+                .ToListAsync();
+            if (entries.Count == 0) return Results.Ok(new List<PlanEntryDto>());
+
+            var logs = await db.CookLog.AsNoTracking()
+                .Where(c => c.CookedAt >= from.AddDays(-1))
+                .ToListAsync();
+
+            bool Cooked(PlanEntry e)
+            {
+                var title = e.Recipe?.Title ?? e.Title;
+                return logs.Any(c =>
+                    Math.Abs(c.CookedAt.DayNumber - e.Date.DayNumber) <= 1
+                    && ((e.RecipeId is not null && c.RecipeId == e.RecipeId)
+                        || string.Equals(c.DishName, title, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            return Results.Ok(entries.Where(e => !Cooked(e)).Select(e => ToDto(e)).ToList());
+        });
+
+        // No context export: the dismissed flag is reminder plumbing, not plan content.
+        g.MapPost("/entry/{id:guid}/dismiss-cook-reminder", async (Guid id, MiseDbContext db) =>
+        {
+            var entry = await db.PlanEntries.FirstOrDefaultAsync(e => e.Id == id);
+            if (entry is null) return Results.NotFound();
+            entry.CookReminderDismissed = true;
+            entry.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
         g.MapDelete("/entry/{id:guid}", async (Guid id, MiseDbContext db, ContextExportService export) =>
         {
             var entry = await db.PlanEntries.FirstOrDefaultAsync(e => e.Id == id);

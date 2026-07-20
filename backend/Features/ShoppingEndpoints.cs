@@ -83,6 +83,16 @@ public static class ShoppingEndpoints
             return Results.Ok(new { removed = checkedItems.Count });
         });
 
+        // Wipe the whole list — the one-tap "start fresh" on the shopping screen.
+        g.MapPost("/clear", async (MiseDbContext db, ContextExportService export) =>
+        {
+            var all = await db.ShoppingItems.ToListAsync();
+            db.ShoppingItems.RemoveRange(all);
+            await db.SaveChangesAsync();
+            await export.ExportAsync();
+            return Results.Ok(new { removed = all.Count });
+        });
+
         return api;
     }
 }

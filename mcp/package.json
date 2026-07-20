@@ -1,7 +1,7 @@
 {
   "name": "mise-mcp",
   "version": "1.0.0",
-  "description": "MCP server exposing the Mise cookbook REST API as agent tools",
+  "description": "MCP server exposing the Pichci cookbook REST API as agent tools",
   "type": "module",
   "bin": {
     "mise-mcp": "dist/index.js"

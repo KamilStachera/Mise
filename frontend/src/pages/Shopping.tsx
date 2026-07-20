@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAuth, useShopping, useCheckShopping, useClearChecked, useAddShopping, useDeleteShopping } from '../api/hooks'
+import { useAuth, useShopping, useCheckShopping, useClearChecked, useClearShopping, useAddShopping, useDeleteShopping } from '../api/hooks'
 import type { ShoppingItem } from '../api/client'
 import { categoryLabel, formatQty } from '../lib/labels'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -23,6 +23,7 @@ export function Shopping() {
   const { data, isLoading } = useShopping()
   const check = useCheckShopping()
   const clear = useClearChecked()
+  const clearAll = useClearShopping()
   const add = useAddShopping()
   const remove = useDeleteShopping()
   const [name, setName] = useState('')
@@ -91,6 +92,16 @@ export function Shopping() {
             style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
           >
             Usuń odhaczone
+          </button>
+        )}
+        {canEdit && total > 0 && (
+          <button
+            onClick={() => {
+              if (window.confirm(`Wyczyścić całą listę zakupów (pozycji: ${total})?`)) clearAll.mutate()
+            }}
+            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--accent)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
+          >
+            Wyczyść listę
           </button>
         )}
       </div>

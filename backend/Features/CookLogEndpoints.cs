@@ -79,6 +79,27 @@ public static class CookLogEndpoints
             return Results.Created($"/api/cooklog/{entry.Id}", new CookLogResultDto(ToDto(entry), deducted));
         });
 
+        // Edits the journal fields only; deductions are POST-only — they already hit
+        // the pantry when the entry was created. RecipeId is immutable.
+        g.MapPut("/{id:guid}", async (Guid id, CookLogUpdateInput input,
+            MiseDbContext db, ContextExportService export) =>
+        {
+            var entry = await db.CookLog.FirstOrDefaultAsync(e => e.Id == id);
+            if (entry is null) return Results.NotFound();
+            if (input.Rating is int rating && rating is < 1 or > 5)
+                return Results.BadRequest(new { error = "Ocena musi być w zakresie 1–5." });
+
+            var dishName = input.DishName?.Trim();
+            if (!string.IsNullOrEmpty(dishName)) entry.DishName = dishName;
+            entry.Rating = input.Rating;
+            entry.Note = input.Note?.Trim() ?? "";
+            if (input.CookedAt is DateOnly cookedAt) entry.CookedAt = cookedAt;
+
+            await db.SaveChangesAsync();
+            await export.ExportAsync();
+            return Results.Ok(ToDto(entry));
+        });
+
         g.MapDelete("/{id:guid}", async (Guid id, MiseDbContext db, ContextExportService export) =>
         {
             var entry = await db.CookLog.FirstOrDefaultAsync(e => e.Id == id);

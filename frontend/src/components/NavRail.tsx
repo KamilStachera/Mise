@@ -155,7 +155,7 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
           }}
         >
           <span style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 21, color: '#fff', lineHeight: 1, marginTop: -1 }}>
-            m
+            p
           </span>
         </div>
       </div>

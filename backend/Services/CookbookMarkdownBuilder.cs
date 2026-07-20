@@ -14,7 +14,7 @@ public sealed class CookbookMarkdownBuilder
         IReadOnlyDictionary<string, string> answers)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# Pamięć kulinarna — Mise");
+        sb.AppendLine("# Pamięć kulinarna — Pichci");
         sb.AppendLine();
 
         sb.AppendLine("## Gospodarstwo");

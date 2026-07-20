@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MCP server "mise" — first-class tools over the Mise cookbook REST API for
+// MCP server "pichci" — first-class tools over the Pichci cookbook REST API for
 // Claude Code / Codex. The exported ./context folder stays the primary READ
 // path; these tools are for writes and quick queries when the folder isn't open.
 import { readFile } from 'node:fs/promises'
@@ -9,7 +9,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { del, get, patch, post, put } from './api.js'
 
-const server = new McpServer({ name: 'mise', version: '1.0.0' })
+const server = new McpServer({ name: 'pichci', version: '1.0.0' })
 
 const text = (data: unknown) => ({
   content: [{ type: 'text' as const, text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }],
@@ -55,12 +55,16 @@ const recipeInputShape = {
   fat: z.number().positive().optional().describe('Tłuszcz w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i carbs'),
   carbs: z.number().positive().optional().describe('Węglowodany w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i fat'),
   blurb: z.string().optional().describe('Jedno-dwa zdania opisu'),
-  tip: z.string().optional().describe('Wskazówka (opcjonalna)'),
+  tip: z.string().optional().describe(
+    'Wskazówka (opcjonalna), ale precyzyjna: bez „odrobiny”, „kilku minut” i innych wartości bez liczby',
+  ),
   ingredients: z
     .array(
       z.object({
         name: z.string().describe('Kanoniczna nazwa produktu ze spiżarni, bez ilości i bez opisu przygotowania'),
-        quantity: z.string().optional().describe('Sama ilość, pokazywana osobno po prawej, np. "100 g", "2 łyżki"'),
+        quantity: z.string().optional().describe(
+          'Dokładna ilość, pokazywana osobno po prawej, np. "100 g", "2 szt."; nie używaj pustej wartości, „do smaku”, „szczypty”, „odrobiny” ani „garści” bez liczby',
+        ),
         displayText: z.string().optional().describe(
           'Oryginalny pełny wiersz ze źródła, gdy zawiera dodatkowe informacje, np. "2–4 kromki chleba na zakwasie piwnym"; UI pokazuje go jako doprecyzowanie pod kanonicznym name',
         ),
@@ -82,7 +86,10 @@ const recipeInputShape = {
         '("2 kromki (70 g)", nie "2 x Kromka (70.0 g)"); ' +
         'amountValue+amountUnit to ilość strukturalna (napędza "czy wystarczy w spiżarni" i odejmowanie ' +
         'po ugotowaniu) — ZAWSZE podawaj, gdy ilość jest mierzalna (np. name: "Guanciale", quantity: "100 g", ' +
-        'amountValue: 100, amountUnit: "g"); pomiń przy "garść", "do smaku" itp. ' +
+        'amountValue: 100, amountUnit: "g"). PRECYZJA JEST OBOWIĄZKOWA: nie zapisuj pustej quantity, ' +
+        '"do smaku", "szczypty", "odrobiny", "garści", "kilku" ani niepotrzebnego przedziału. ' +
+        'Gdy źródło jest nieprecyzyjne, dobierz jedną rozsądną wartość dla bazowej liczby porcji ' +
+        'i zapisz ją metrycznie (np. sól 2 g, pieprz 0,5 g, oliwa 15 ml). ' +
         'JEDEN produkt = JEDEN składnik: rozbijaj zbitki ("Sól, pieprz i zioła" → trzy osobne składniki), ' +
         'inaczej dopasuje się tylko pierwszy człon. Przymiotniki zostaw tylko, gdy odróżniają produkt ' +
         '("Twaróg chudy" ≠ półtłusty — zostaw; "Dojrzałe awokado" → "Awokado"). ' +
@@ -90,7 +97,12 @@ const recipeInputShape = {
         '(Marchew lub Cukinia → dwa wiersze, oba alternativeGroup: "warzywo"); API odrzuca ' +
         'połączone name zawierające ukośnik, "lub" albo "albo".',
     ),
-  steps: z.array(z.string()).describe('Kroki przygotowania, po jednym zdaniu-akapicie'),
+  steps: z.array(z.string()).describe(
+    'Kroki przygotowania, po jednym zdaniu-akapicie. Każda obróbka ma liczbowy czas, temperaturę ' +
+      'albo poziom ognia; nie używaj „kilka minut”, „do miękkości”, „aż zgęstnieje” ani „według ' +
+      'instrukcji na opakowaniu” bez konkretu. Gdy wynik zależy od sprzętu, podaj czas i sprawdzalny ' +
+      'punkt końcowy, np. „8 minut, do 74°C w środku”.',
+  ),
 }
 
 server.tool(
@@ -146,7 +158,7 @@ server.tool(
 
 server.tool(
   'add_recipe',
-  'Zapisz nowy przepis w książce kucharskiej Mise. Składniki są automatycznie łączone ze spiżarnią. Zdjęcie dania dołączysz potem przez add_recipe_image (zwrócone id).',
+  'Zapisz nowy przepis w książce kucharskiej Pichci. Składniki są automatycznie łączone ze spiżarnią. Zdjęcie dania dołączysz potem przez add_recipe_image (zwrócone id).',
   recipeInputShape,
   async (input) => text(await post('/recipes', input)),
 )
@@ -369,6 +381,14 @@ server.tool(
 )
 
 server.tool(
+  'clear_shopping_list',
+  'Wyczyść CAŁĄ listę zakupów jednym ruchem (odhaczone i nieodhaczone). Nieodwracalne — ' +
+    'do usunięcia tylko kupionych pozycji użyj remove_shopping_items albo check_shopping_items.',
+  {},
+  async () => text(await post('/shopping/clear', {})),
+)
+
+server.tool(
   'get_plan',
   'Plan posiłków (domyślnie 14 dni od poniedziałku bieżącego tygodnia).',
   {
@@ -381,6 +401,25 @@ server.tool(
     if (days) p.set('days', String(days))
     const qs = p.toString()
     return text(await get(`/plan${qs ? '?' + qs : ''}`))
+  },
+)
+
+server.tool(
+  'get_pending_cooks',
+  'Zaległe posiłki: wpisy planu z przeszłości bez pasującego wpisu w historii gotowania ' +
+    '(użytkownik mógł zapomnieć odnotować). Dopytaj: ugotowane → log_cook z cookedAt = data ' +
+    'z planu; pominięte → dismiss_cook_reminder.',
+  { days: z.number().int().positive().max(60).optional().describe('Ile dni wstecz (domyślnie 14)') },
+  async ({ days }) => text(await get(`/plan/pending-cook${days ? `?days=${days}` : ''}`)),
+)
+
+server.tool(
+  'dismiss_cook_reminder',
+  'Oznacz zaległy wpis planu jako pominięty — zniknie z przypomnień (id z get_pending_cooks).',
+  { id: z.string().uuid() },
+  async ({ id }) => {
+    await post(`/plan/entry/${id}/dismiss-cook-reminder`, {})
+    return text({ ok: true, dismissed: id })
   },
 )
 
@@ -421,6 +460,21 @@ server.tool(
       .describe('Zużyte składniki do odjęcia ze spiżarni'),
   },
   async (input) => text(await post('/cooklog', input)),
+)
+
+server.tool(
+  'update_cook_log_entry',
+  'Popraw istniejący wpis historii gotowania (id z GET /cooklog lub cooklog.md) — uzupełnij ocenę, ' +
+    'notatkę, datę lub nazwę dania. rating/note są pełną podmianą (pominięte = wyczyszczone); ' +
+    'dishName/cookedAt pominięte zostają bez zmian. Odjęć ze spiżarni nie da się edytować.',
+  {
+    id: z.string().uuid().describe('Id wpisu historii'),
+    dishName: z.string().optional().describe('Nowa nazwa dania (tylko wpisy bez przepisu)'),
+    rating: z.number().int().min(1).max(5).optional().describe('Ocena 1–5; pominięta = wyczyszczona'),
+    note: z.string().optional().describe('Notatka; pominięta = wyczyszczona'),
+    cookedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
+  },
+  async ({ id, ...input }) => text(await put(`/cooklog/${id}`, input)),
 )
 
 const transport = new StdioServerTransport()

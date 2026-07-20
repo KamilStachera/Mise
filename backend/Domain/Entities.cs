@@ -262,6 +262,13 @@ public class PlanEntry
 
     public string Title { get; set; } = "";
     public string Note { get; set; } = "";
+
+    /// <summary>
+    /// True once the user waved off the "mark as cooked" reminder for this entry
+    /// (meal skipped / eaten out); such entries never reappear in /plan/pending-cook.
+    /// </summary>
+    public bool CookReminderDismissed { get; set; }
+
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 

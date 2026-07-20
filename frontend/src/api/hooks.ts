@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
   type CookLogInput,
+  type CookLogUpdateInput,
   type PantryItemInput,
   type PlanEntryInput,
   type Preferences,
@@ -60,6 +61,19 @@ export function useCookLog(recipeId?: string, limit?: number) {
 
 export function usePlan(start?: string) {
   return useQuery({ queryKey: ['plan', start ?? 'current'], queryFn: () => api.plan(start) })
+}
+
+/** Past plan entries never logged as cooked — drives the login reminder modal. */
+export function usePendingCook(enabled: boolean) {
+  return useQuery({ queryKey: ['pendingCook'], queryFn: api.pendingCook, enabled })
+}
+
+export function useDismissCookReminder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.dismissCookReminder(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pendingCook'] }),
+  })
 }
 
 export function useConnectInfo() {
@@ -132,6 +146,14 @@ export function useClearChecked() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => api.clearChecked(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping'] }),
+  })
+}
+
+export function useClearShopping() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.clearShopping(),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping'] }),
   })
 }
@@ -257,11 +279,23 @@ export function useAddCookLog() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cooklog'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
+      qc.invalidateQueries({ queryKey: ['pendingCook'] })
       // deductions change pantry stock and every have/missing computation
       qc.invalidateQueries({ queryKey: ['pantry'] })
       qc.invalidateQueries({ queryKey: ['recipes'] })
       qc.invalidateQueries({ queryKey: ['recipe'] })
       qc.invalidateQueries({ queryKey: ['cookProposal'] })
+    },
+  })
+}
+
+export function useUpdateCookLog() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: CookLogUpdateInput }) => api.updateCookLog(id, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cooklog'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
     },
   })
 }
@@ -273,6 +307,7 @@ export function useDeleteCookLog() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cooklog'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
+      qc.invalidateQueries({ queryKey: ['pendingCook'] })
     },
   })
 }
@@ -284,6 +319,7 @@ export function useSetPlanEntry() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['plan'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
+      qc.invalidateQueries({ queryKey: ['pendingCook'] })
     },
   })
 }
@@ -295,6 +331,7 @@ export function useDeletePlanEntry() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['plan'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
+      qc.invalidateQueries({ queryKey: ['pendingCook'] })
     },
   })
 }

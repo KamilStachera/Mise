@@ -1,4 +1,4 @@
-# Mise — AI-Assisted Cookbook
+# Pichci — AI-Assisted Cookbook
 
 A personal cookbook that keeps your recipes, your pantry, and your cooking
 preferences in one place — and turns all of it into context an AI can use to
@@ -140,13 +140,13 @@ prompts come out ready to paste; otherwise the card asks for the path once.
 
 ```bash
 cd mcp && npm install && npm run build
-claude mcp add mise -e MISE_API_KEY=<your-key> -- node <absolute-repo-path>/mcp/dist/index.js
+claude mcp add pichci -e MISE_API_KEY=<your-key> -- node <absolute-repo-path>/mcp/dist/index.js
 ```
 
 Codex equivalent (`~/.codex/config.toml`):
 
 ```toml
-[mcp_servers.mise]
+[mcp_servers.pichci]
 command = "node"
 args = ["<absolute-repo-path>/mcp/dist/index.js"]
 env = { MISE_API_KEY = "<your-key>" }

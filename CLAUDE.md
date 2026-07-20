@@ -1,6 +1,6 @@
-# Mise (repo: CukBuk) — developer guide
+# Pichci (repo: CukBuk) — developer guide
 
-Mise is a single-user, Polish-language AI-assisted cookbook: recipes, a
+Pichci (formerly "Mise") is a single-user, Polish-language AI-assisted cookbook: recipes, a
 quantity-based pantry, shopping list, weekly plan, cook log — all exported as an
 AI-readable `./context` folder and writable through a REST API / MCP server.
 See `README.md` for the user-facing story.

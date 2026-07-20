@@ -164,6 +164,9 @@ namespace Mise.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("CookReminderDismissed")
+                        .HasColumnType("boolean");
+
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 

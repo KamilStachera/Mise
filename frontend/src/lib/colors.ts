@@ -1,4 +1,4 @@
-// Ported from the Mise design: derive gradient shades/tints from a recipe's tint.
+// Ported from the Pichci design: derive gradient shades/tints from a recipe's tint.
 function hexToRgb(h: string): [number, number, number] {
   h = h.replace('#', '')
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]

@@ -27,7 +27,8 @@ builder.Services.AddScoped<IChatProvider>(sp =>
     ChatProviderFactory.Create(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<IHttpClientFactory>()));
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+    c.SwaggerDoc("v1", new() { Title = "Pichci API", Version = "v1" }));
 
 builder.Services.AddSingleton<AccessControl>();
 
@@ -110,7 +111,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseSwagger(c => c.RouteTemplate = "api/swagger/{documentName}/swagger.json");
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "Mise API v1");
+    c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "Pichci API v1");
     c.RoutePrefix = "api/swagger";
 });
 

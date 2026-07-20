@@ -1,9 +1,9 @@
 ---
 name: verify
-description: Build, launch and drive the Mise app (docker compose stack) to verify changes end-to-end at the real UI/API surface.
+description: Build, launch and drive the Pichci app (docker compose stack) to verify changes end-to-end at the real UI/API surface.
 ---
 
-# Verifying Mise (CukBuk) changes
+# Verifying Pichci (CukBuk) changes
 
 ## Build + launch
 

@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, useCookLog, useRecipes } from '../api/hooks'
+import { useAuth, useCookLog, useRecipes, useUpdateCookLog } from '../api/hooks'
 import type { CookLogEntry, RecipeListItem } from '../api/client'
 import { gradient } from '../lib/colors'
 import { cuisineLabel, plural } from '../lib/labels'
@@ -261,10 +261,93 @@ function StatTile({ cap, value, sub, small }: { cap: string; value: string; sub:
   )
 }
 
+const editInputStyle: CSSProperties = {
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
+  borderRadius: 9,
+  padding: '7px 10px',
+  font: "400 13px 'Hanken Grotesk'",
+  color: 'var(--text)',
+}
+
+/** Fills the row while editing: date, dish name (free-text entries only), stars, note. */
+function EditForm({ entry, hasRecipe, onClose }: { entry: CookLogEntry; hasRecipe: boolean; onClose: () => void }) {
+  const update = useUpdateCookLog()
+  const [dishName, setDishName] = useState(entry.dishName)
+  const [rating, setRating] = useState<number | null>(entry.rating)
+  const [note, setNote] = useState(entry.note)
+  const [cookedAt, setCookedAt] = useState(entry.cookedAt)
+
+  function save() {
+    update.mutate(
+      {
+        id: entry.id,
+        input: {
+          dishName: hasRecipe ? undefined : dishName.trim() || undefined,
+          rating,
+          note: note.trim() || undefined,
+          cookedAt: cookedAt || undefined,
+        },
+      },
+      { onSuccess: onClose },
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input type="date" value={cookedAt} onChange={(e) => setCookedAt(e.target.value)} style={editInputStyle} />
+        {!hasRecipe && (
+          <input
+            value={dishName}
+            onChange={(e) => setDishName(e.target.value)}
+            placeholder="Nazwa dania"
+            style={{ ...editInputStyle, flex: 1, minWidth: 140 }}
+          />
+        )}
+        <span style={{ display: 'inline-flex', gap: 1 }} title="Kliknij gwiazdkę; ta sama gwiazdka ponownie czyści ocenę">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              onClick={() => setRating(rating === n ? null : n)}
+              style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', fontSize: 17, lineHeight: 1, color: rating !== null && n <= rating ? 'var(--gold)' : 'var(--border-2)' }}
+            >
+              ★
+            </button>
+          ))}
+        </span>
+      </div>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Notatka — np. „następnym razem mniej soli”"
+        rows={2}
+        style={{ ...editInputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+      />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={save}
+          disabled={update.isPending}
+          style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 14px', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer', opacity: update.isPending ? 0.6 : 1 }}
+        >
+          {update.isPending ? 'Zapisywanie…' : 'Zapisz'}
+        </button>
+        <button
+          onClick={onClose}
+          style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '7px 14px', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+        >
+          Anuluj
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
   const nav = useNavigate()
   const { entry, recipe, occurrence, date } = item
-  const clickable = !!recipe
+  const [editing, setEditing] = useState(false)
+  const clickable = !!recipe && !editing
 
   const weekday = date.toLocaleDateString('pl-PL', { weekday: 'short' }).replace('.', '').toUpperCase()
   const meta = recipe
@@ -303,28 +386,47 @@ function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
         )}
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 16.5, color: 'var(--text)', lineHeight: 1.2 }}>
-            {recipe?.title ?? entry.dishName}
-          </span>
-          {occurrence > 1 && (
-            <span style={{ font: "600 10.5px 'Hanken Grotesk'", color: 'var(--gold)', background: 'rgba(189,139,44,.12)', borderRadius: 7, padding: '2px 7px', whiteSpace: 'nowrap' }}>
-              {occurrence}. raz
+      {editing ? (
+        <EditForm entry={entry} hasRecipe={!!recipe} onClose={() => setEditing(false)} />
+      ) : (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 16.5, color: 'var(--text)', lineHeight: 1.2 }}>
+              {recipe?.title ?? entry.dishName}
             </span>
+            {occurrence > 1 && (
+              <span style={{ font: "600 10.5px 'Hanken Grotesk'", color: 'var(--gold)', background: 'rgba(189,139,44,.12)', borderRadius: 7, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+                {occurrence}. raz
+              </span>
+            )}
+          </div>
+          {meta && <div style={{ font: "500 12px 'Hanken Grotesk'", color: 'var(--text-3)', marginTop: 2 }}>{meta}</div>}
+          {entry.note && (
+            <div style={{ fontStyle: 'italic', fontSize: 13, lineHeight: 1.45, color: 'var(--text-2)', marginTop: 6 }}>„{entry.note}”</div>
           )}
         </div>
-        {meta && <div style={{ font: "500 12px 'Hanken Grotesk'", color: 'var(--text-3)', marginTop: 2 }}>{meta}</div>}
-        {entry.note && (
-          <div style={{ fontStyle: 'italic', fontSize: 13, lineHeight: 1.45, color: 'var(--text-2)', marginTop: 6 }}>„{entry.note}”</div>
-        )}
-      </div>
+      )}
 
-      {entry.rating !== null && (
+      {!editing && entry.rating !== null && (
         <span style={{ color: 'var(--gold)', fontSize: 13, flex: '0 0 auto', letterSpacing: 1 }} title={`Ocena: ${entry.rating}/5`}>
           {'★'.repeat(entry.rating)}
           <span style={{ color: 'var(--border-2)' }}>{'★'.repeat(5 - entry.rating)}</span>
         </span>
+      )}
+
+      {!editing && canEdit && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setEditing(true)
+          }}
+          title="Edytuj wpis — ocena, notatka, data"
+          style={{ flex: '0 0 auto', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '6px 11px', font: "600 12px 'Hanken Grotesk'", cursor: 'pointer', whiteSpace: 'nowrap' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-deep)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+        >
+          Edytuj
+        </button>
       )}
 
       {clickable && canEdit && (

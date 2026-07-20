@@ -210,6 +210,13 @@ export interface CookLogInput {
   cookedAt?: string
   deductions?: CookDeduction[]
 }
+/** rating/note are full-replace (omitted = cleared); dishName/cookedAt keep the stored value when omitted. */
+export interface CookLogUpdateInput {
+  dishName?: string
+  rating?: number | null
+  note?: string
+  cookedAt?: string
+}
 export interface CookLogResult {
   entry: CookLogEntry
   deducted: { pantryItemId: string; name: string; deducted: number; newQuantity: number; status: Status }[]
@@ -345,6 +352,7 @@ export const api = {
     http<ShoppingItem>(`/shopping`, { method: 'POST', body: JSON.stringify({ name, category }) }),
   deleteShopping: (id: string) => http<void>(`/shopping/${id}`, { method: 'DELETE' }),
   clearChecked: () => http<{ removed: number }>(`/shopping/clear-checked`, { method: 'POST' }),
+  clearShopping: () => http<{ removed: number }>(`/shopping/clear`, { method: 'POST' }),
 
   preferences: () => http<Preferences>(`/preferences`),
   savePreferences: (p: Preferences) =>
@@ -365,6 +373,8 @@ export const api = {
   },
   addCookLog: (input: CookLogInput) =>
     http<CookLogResult>(`/cooklog`, { method: 'POST', body: JSON.stringify(input) }),
+  updateCookLog: (id: string, input: CookLogUpdateInput) =>
+    http<CookLogEntry>(`/cooklog/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   deleteCookLog: (id: string) => http<void>(`/cooklog/${id}`, { method: 'DELETE' }),
 
   plan: (start?: string, days?: number) => {
@@ -376,6 +386,9 @@ export const api = {
   },
   setPlanEntry: (input: PlanEntryInput) =>
     http<PlanEntry>(`/plan/entry`, { method: 'PUT', body: JSON.stringify(input) }),
+  pendingCook: () => http<PlanEntry[]>(`/plan/pending-cook`),
+  dismissCookReminder: (id: string) =>
+    http<void>(`/plan/entry/${id}/dismiss-cook-reminder`, { method: 'POST' }),
   deletePlanEntry: (id: string) => http<void>(`/plan/entry/${id}`, { method: 'DELETE' }),
   planAddMissing: (start: string, days: number) =>
     http<{ added: number; updated: number }>(`/plan/add-missing-to-shopping`, { method: 'POST', body: JSON.stringify({ start, days }) }),

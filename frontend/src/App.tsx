@@ -6,6 +6,7 @@ import { useIsMobile } from './lib/useIsMobile'
 import { useAuth } from './api/hooks'
 import { NavRail } from './components/NavRail'
 import { ChatSidebar } from './components/ChatSidebar'
+import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
 import { Library } from './pages/Library'
 import { RecipeDetail } from './pages/RecipeDetail'
@@ -82,6 +83,7 @@ export default function App() {
 
       {!isMobile && canEdit && chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
       {isMobile && <NavRail mobile chatOpen={false} onToggleChat={() => {}} />}
+      <PendingCookModal />
       <ToastHost />
     </div>
   )
