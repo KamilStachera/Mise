@@ -26,7 +26,7 @@ public static class PlanEndpoints
                 .Where(c => c.CookedAt >= from.AddDays(-1) && c.CookedAt <= to.AddDays(1))
                 .ToListAsync();
             return Results.Ok(new PlanRangeDto(from, count,
-                entries.Select(e => ToDto(e, cooked: IsCooked(e, logs))).ToList()));
+                entries.Select(e => ToDto(e, cooked: PlanShoppingService.IsCooked(e, logs))).ToList()));
         });
 
         // Upsert on (date, slot) so agents and the UI can write idempotently.
@@ -79,7 +79,9 @@ public static class PlanEndpoints
                 .Where(c => c.CookedAt >= from.AddDays(-1))
                 .ToListAsync();
 
-            return Results.Ok(entries.Where(e => !IsCooked(e, logs)).Select(e => ToDto(e)).ToList());
+            return Results.Ok(entries
+                .Where(e => !PlanShoppingService.IsCooked(e, logs))
+                .Select(e => ToDto(e)).ToList());
         });
 
         // No context export: the dismissed flag is reminder plumbing, not plan content.
@@ -108,8 +110,8 @@ public static class PlanEndpoints
         {
             var from = start ?? StartOfWeek(DateOnly.FromDateTime(DateTime.Today));
             var count = Math.Clamp(days ?? 7, 1, 60);
-            var sources = await LoadShoppingSourcesAsync(db, from, count);
-            return Results.Ok(await shopping.PreviewAsync(db, sources, from, count));
+            var selection = await PlanShoppingService.LoadAsync(db, from, count);
+            return Results.Ok(await shopping.PreviewAsync(db, selection.Sources, from, count));
         });
 
         // Add every planned recipe's out-of-stock / unmatched ingredients to the shopping list.
@@ -132,8 +134,9 @@ public static class PlanEndpoints
 
             if ((input.Confirmations?.Count ?? 0) > 0)
                 await db.SaveChangesAsync();
-            var sources = await LoadShoppingSourcesAsync(db, from, count);
-            var result = await shopping.AddMissingForRecipesAsync(db, sources);
+            var selection = await PlanShoppingService.LoadAsync(db, from, count);
+            var result = await shopping.AddMissingForRecipesAsync(
+                db, selection.Sources, selection.ScopeKeys);
             await tx.CommitAsync();
             if (result.Added > 0 || result.Updated > 0 || (input.Confirmations?.Count ?? 0) > 0)
                 await export.ExportAsync();
@@ -148,36 +151,6 @@ public static class PlanEndpoints
         // Monday-based week, matching the UI's Pon–Nie grid.
         var diff = ((int)date.DayOfWeek + 6) % 7;
         return date.AddDays(-diff);
-    }
-
-    private static async Task<List<ShoppingRecipeSource>> LoadShoppingSourcesAsync(
-        MiseDbContext db, DateOnly from, int days)
-    {
-        var to = from.AddDays(days);
-        var entries = await db.PlanEntries.AsNoTracking()
-            .Include(e => e.Recipe)!
-                .ThenInclude(r => r!.Ingredients)
-            .AsSplitQuery()
-            .Where(e => e.Date >= from && e.Date < to && e.RecipeId != null)
-            .ToListAsync();
-        return entries.Where(e => e.Recipe is not null)
-            .Select(e => new ShoppingRecipeSource(
-                $"plan:{e.Id}", e.Recipe!.Title, RecipeScaling.Scaled(e.Recipe)))
-            .ToList();
-    }
-
-    /// <summary>
-    /// The one matching rule for "was this plan entry cooked": a cook-log entry with
-    /// the same recipe (or dish name, case-insensitive) within ±1 day. Shared by the
-    /// plan grid checkmark and /plan/pending-cook so they can never disagree.
-    /// </summary>
-    private static bool IsCooked(PlanEntry e, List<CookLogEntry> logs)
-    {
-        var title = e.Recipe?.Title ?? e.Title;
-        return logs.Any(c =>
-            Math.Abs(c.CookedAt.DayNumber - e.Date.DayNumber) <= 1
-            && ((e.RecipeId is not null && c.RecipeId == e.RecipeId)
-                || string.Equals(c.DishName, title, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static PlanEntryDto ToDto(PlanEntry e, string? recipeTitle = null, bool cooked = false) =>

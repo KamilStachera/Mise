@@ -1,20 +1,18 @@
 import { useState } from 'react'
 import { useAuth, useShopping, useCheckShopping, useClearChecked, useClearShopping, useAddShopping, useDeleteShopping } from '../api/hooks'
-import type { ShoppingItem } from '../api/client'
 import { categoryLabel, formatQty } from '../lib/labels'
+import { alphabeticalShoppingGroups, lidlShoppingGroups, shoppingListAsText, type ShoppingLayout } from '../lib/shoppingAisles'
 import { useIsMobile } from '../lib/useIsMobile'
 import { CheckIcon, PlusIcon } from '../components/icons'
 
-/** Plain-text list for messaging apps; unchecked items only. */
-function listAsText(items: ShoppingItem[]): string {
-  return items
-    .filter((s) => !s.checked)
-    .map((s) => {
-      const qty = s.quantity != null && s.unit ? ` — ${formatQty(s.quantity, s.unit)}` : ''
-      const reason = s.reason ? ` (${s.reason})` : ''
-      return `• ${s.name}${qty}${reason}`
-    })
-    .join('\n')
+const LAYOUT_STORAGE_KEY = 'pichci.shopping.layout'
+
+function savedLayout(): ShoppingLayout {
+  try {
+    return localStorage.getItem(LAYOUT_STORAGE_KEY) === 'lidl' ? 'lidl' : 'alphabetical'
+  } catch {
+    return 'alphabetical'
+  }
 }
 
 export function Shopping() {
@@ -28,16 +26,27 @@ export function Shopping() {
   const remove = useDeleteShopping()
   const [name, setName] = useState('')
   const [copied, setCopied] = useState(false)
+  const [layout, setLayout] = useState<ShoppingLayout>(savedLayout)
 
   const items = data?.items ?? []
+  const groups = layout === 'lidl' ? lidlShoppingGroups(items) : alphabeticalShoppingGroups(items)
   const total = data?.total ?? 0
   const done = data?.checkedCount ?? 0
   const doneLabel = done > 0 ? `Odhaczono ${done} z ${total}.` : `${total} do kupienia.`
 
   async function copyList() {
-    await navigator.clipboard.writeText(listAsText(items))
+    await navigator.clipboard.writeText(shoppingListAsText(items, layout))
     setCopied(true)
     setTimeout(() => setCopied(false), 1600)
+  }
+
+  function changeLayout(next: ShoppingLayout) {
+    setLayout(next)
+    try {
+      localStorage.setItem(LAYOUT_STORAGE_KEY, next)
+    } catch {
+      // The view still changes when browser storage is unavailable.
+    }
   }
 
   return (
@@ -106,6 +115,23 @@ export function Shopping() {
         )}
       </div>
 
+      {items.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '-4px 0 12px' }}>
+          <label htmlFor="shopping-layout" style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+            Układ listy
+          </label>
+          <select
+            id="shopping-layout"
+            value={layout}
+            onChange={(event) => changeLayout(event.target.value as ShoppingLayout)}
+            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '7px 10px', font: "500 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+          >
+            <option value="alphabetical">Alfabetycznie</option>
+            <option value="lidl">Alejki Lidl (orientacyjnie)</option>
+          </select>
+        </div>
+      )}
+
       {isLoading ? (
         <div style={{ color: 'var(--text-3)', padding: 40 }}>Ładowanie…</div>
       ) : items.length === 0 ? (
@@ -114,7 +140,14 @@ export function Shopping() {
         </div>
       ) : (
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-          {items.map((s) => (
+          {groups.map((group) => (
+            <div key={group.key}>
+              {group.label && (
+                <div style={{ padding: isMobile ? '11px 14px 8px' : '10px 17px 7px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', font: "650 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', color: group.key === 'checked' ? 'var(--text-3)' : 'var(--sage)' }}>
+                  {group.label}
+                </div>
+              )}
+              {group.items.map((s) => (
             <div
               key={s.id}
               onClick={() => canEdit && check.mutate(s.id)}
@@ -166,6 +199,8 @@ export function Shopping() {
                   ✕
                 </button>
               )}
+                </div>
+              ))}
             </div>
           ))}
         </div>

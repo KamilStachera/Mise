@@ -38,19 +38,26 @@ public sealed class ShoppingService
     }
 
     /// <summary>
-    /// Adds or refreshes demand from the supplied explicit sources. Requirements are
-    /// aggregated before stock is subtracted. Recipe sources are idempotent; distinct
-    /// plan-entry keys count as distinct occurrences.
+    /// Adds or refreshes demand from the supplied explicit sources. When
+    /// <paramref name="sourceKeysToReplace"/> is supplied, existing contributions for
+    /// that whole scope are replaced even when a source is absent from the new demand.
+    /// Requirements are aggregated before stock is subtracted. Recipe sources are
+    /// idempotent; distinct plan-entry keys count as distinct occurrences.
     /// </summary>
     public async Task<ShoppingAddResult> AddMissingForRecipesAsync(MiseDbContext db,
-        IEnumerable<ShoppingRecipeSource> recipeSources, CancellationToken ct = default)
+        IEnumerable<ShoppingRecipeSource> recipeSources,
+        IEnumerable<string>? sourceKeysToReplace = null,
+        CancellationToken ct = default)
     {
         var sources = recipeSources.ToList();
-        if (sources.Count == 0) return new(0, 0);
-
         var sourceKeys = sources.Select(s => s.Key).ToHashSet(StringComparer.Ordinal);
         if (sourceKeys.Count != sources.Count)
             throw new ArgumentException("Shopping source keys must be unique within one operation.", nameof(recipeSources));
+        var replacementKeys = (sourceKeysToReplace ?? sourceKeys).ToHashSet(StringComparer.Ordinal);
+        if (!sourceKeys.IsSubsetOf(replacementKeys))
+            throw new ArgumentException("Replacement scope must contain every supplied source key.",
+                nameof(sourceKeysToReplace));
+        if (replacementKeys.Count == 0) return new(0, 0);
 
         var pantry = await db.PantryItems.AsNoTracking().ToListAsync(ct);
         var pantryById = pantry.ToDictionary(p => p.Id);
@@ -70,7 +77,7 @@ public sealed class ShoppingService
         // makes the action idempotent and lets recipe edits move demand to another row.
         foreach (var row in managedRows)
         {
-            var stale = row.Contributions.Where(c => sourceKeys.Contains(c.SourceKey)).ToList();
+            var stale = row.Contributions.Where(c => replacementKeys.Contains(c.SourceKey)).ToList();
             if (stale.Count == 0) continue;
             foreach (var contribution in stale)
             {
