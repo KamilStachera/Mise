@@ -69,6 +69,15 @@ Frontend dev loop: `docker compose up db api` then `cd frontend && npm run dev`
   (`Services/IngredientMatcher.cs`): 85 (`ExactishScore`, bidirectional) for
   quantity mutations, 60 for recipe-ingredient→pantry linking. Don't loosen the
   85 — it's what stops "Chipsy paprykowe" from adding to "Papryka".
+- **Supplies ("Dom") is a third, separate list.** `SupplyItem` is name + guessed
+  category only — no quantity, no unit, no pantry link, no relation to
+  `ShoppingItem`. `SupplyFavorite` is the add-count tally behind the "hot items"
+  chips and **deliberately outlives the items**: `clear-checked` hard-deletes rows,
+  so deleting the tally alongside them would destroy the only history the ranking
+  has. Ranking lives in `Services/SupplyService.cs` (pinned → decayed count →
+  `Pl.Comparer`); seeded staples carry `AddCount = 0` so they sort last and get
+  displaced by real use. Both lists share the `/shopping` route
+  (`pages/Shopping.tsx` is a shell; `/shopping/dom` selects the household tab).
 - **Shopping list is fully decoupled from the pantry.** Nothing appears or
   disappears automatically; rows come from recipe add-missing, manual entry, or
   agents. There is no sync-from-pantry code — don't reintroduce it.

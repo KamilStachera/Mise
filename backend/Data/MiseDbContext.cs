@@ -17,6 +17,8 @@ public class MiseDbContext : DbContext
     public DbSet<EquipmentItem> EquipmentItems => Set<EquipmentItem>();
     public DbSet<ShoppingItem> ShoppingItems => Set<ShoppingItem>();
     public DbSet<ShoppingContribution> ShoppingContributions => Set<ShoppingContribution>();
+    public DbSet<SupplyItem> SupplyItems => Set<SupplyItem>();
+    public DbSet<SupplyFavorite> SupplyFavorites => Set<SupplyFavorite>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<CookLogEntry> CookLog => Set<CookLogEntry>();
     public DbSet<PlanEntry> PlanEntries => Set<PlanEntry>();
@@ -101,6 +103,21 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Unit).HasConversion<string>().HasMaxLength(8);
             e.HasIndex(x => x.SourceKey);
             e.HasIndex(x => new { x.ShoppingItemId, x.SourceKey });
+        });
+
+        b.Entity<SupplyItem>(e =>
+        {
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.HasIndex(x => x.Checked);
+        });
+
+        b.Entity<SupplyFavorite>(e =>
+        {
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.NormalizedName).HasMaxLength(200);
+            e.HasIndex(x => x.NormalizedName).IsUnique();
         });
 
         b.Entity<ChatMessage>(e =>

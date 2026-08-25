@@ -26,6 +26,11 @@ help plan meals.
   rows merge by canonical pantry item and sum compatible quantities; manual rows
   stay independent. Explicit ingredient alternatives create one "A or B" row and
   are satisfied by any sufficiently stocked option.
+- A second **household list** ("Dom") on the same screen, for the non-food half of
+  the trip — toilet paper, dish soap, bin bags. Name-only rows, categories guessed
+  from the name, and no connection to the pantry or the food list whatsoever. It
+  learns what you buy most often and offers those as one-tap chips; you can pin
+  something so it always shows, or hide it for good.
 - A **Cooking Profile** + a detailed **kitchen questionnaire** (30 questions) that
   compile into a `cookbook.md` memory file.
 - A **weekly meal plan** and a **cook log** ("we made this — too salty") that
@@ -87,6 +92,7 @@ context/
   plan.md            # this week's + next week's meal plan
   cooklog.md         # what you cooked and how it went (the feedback loop)
   shopping.md        # current to-buy list
+  supplies.md        # household list (chemia / higiena / papier) + frequent items
   recipes/*.md       # one file per recipe (with a per-recipe cooking history)
   AGENTS.md          # instructions Codex reads automatically
   CLAUDE.md          # instructions Claude Code reads automatically

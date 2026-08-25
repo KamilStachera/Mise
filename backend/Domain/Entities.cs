@@ -257,6 +257,48 @@ public class ShoppingContribution
     public PantryUnit? Unit { get; set; }
 }
 
+/// <summary>Aisle-ish grouping for the household supplies list. Guessed from the name.</summary>
+public enum SupplyCategory { Cleaning, Hygiene, Paper, Kitchen, Pets, Other }
+
+/// <summary>
+/// One non-food household item to buy (papier toaletowy, płyn do naczyń). Deliberately
+/// independent of both the pantry and <see cref="ShoppingItem"/>: no ingredient matching,
+/// no PantryItemId, no sync in either direction — rows only ever come from manual entry
+/// or an agent. Name-only by design; household goods do not fit g/ml/szt.
+/// </summary>
+public class SupplyItem
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public SupplyCategory Category { get; set; } = SupplyCategory.Other;
+    public bool Checked { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// Learned "how often does this land on the list" tally, keyed by the normalized name so
+/// "Papier toaletowy" and "papier toaletowy" are one entry. This row deliberately outlives
+/// the <see cref="SupplyItem"/> rows: clear-checked hard-deletes items, so without a
+/// separate tally the history that "hot items" is computed from would be destroyed.
+/// </summary>
+public class SupplyFavorite
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>Identity key — IngredientMatcher.Normalize of the name. Unique.</summary>
+    public string NormalizedName { get; set; } = "";
+    /// <summary>Display form: the most recently used spelling.</summary>
+    public string Name { get; set; } = "";
+    public SupplyCategory Category { get; set; } = SupplyCategory.Other;
+    /// <summary>Times this has been added to the list. Never decremented.</summary>
+    public int AddCount { get; set; }
+    /// <summary>Null for a seeded suggestion that has never actually been added.</summary>
+    public DateTimeOffset? LastAddedAt { get; set; }
+    /// <summary>User pinned it: always leads the hot list, whatever the count.</summary>
+    public bool Pinned { get; set; }
+    /// <summary>User dismissed it: never suggested, however high the count.</summary>
+    public bool Hidden { get; set; }
+}
+
 /// <summary>A "we cooked this" journal entry — the feedback loop the AI learns from.</summary>
 public class CookLogEntry
 {

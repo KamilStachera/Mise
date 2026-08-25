@@ -76,6 +76,35 @@ public static class SeedData
             db.PantryItems.AddRange(pantry.Values);
         }
 
+        // Starter vocabulary for the household list's quick-add chips. AddCount 0 means
+        // they score 0 and sit at the tail of the hot row, so real usage displaces them
+        // without any special-casing in the ranking. Seeds whenever the table is empty,
+        // like the pantry catalog — the SupplyItems list itself is never seeded.
+        if (!await db.SupplyFavorites.AnyAsync(ct))
+        {
+            void S(string name, SupplyCategory cat)
+                => db.SupplyFavorites.Add(new SupplyFavorite
+                {
+                    Name = name,
+                    NormalizedName = Services.SupplyService.Key(name),
+                    Category = cat,
+                });
+
+            S("Papier toaletowy", SupplyCategory.Paper);
+            S("Ręczniki papierowe", SupplyCategory.Paper);
+            S("Chusteczki higieniczne", SupplyCategory.Paper);
+            S("Płyn do naczyń", SupplyCategory.Cleaning);
+            S("Tabletki do zmywarki", SupplyCategory.Cleaning);
+            S("Proszek do prania", SupplyCategory.Cleaning);
+            S("Płyn do płukania", SupplyCategory.Cleaning);
+            S("Worki na śmieci", SupplyCategory.Kitchen);
+            S("Gąbki do naczyń", SupplyCategory.Kitchen);
+            S("Folia aluminiowa", SupplyCategory.Kitchen);
+            S("Mydło w płynie", SupplyCategory.Hygiene);
+            S("Szampon", SupplyCategory.Hygiene);
+            S("Pasta do zębów", SupplyCategory.Hygiene);
+        }
+
         if (await db.Recipes.AnyAsync(ct))
         {
             await db.SaveChangesAsync(ct);

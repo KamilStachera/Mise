@@ -1,4 +1,4 @@
-import type { Cuisine, DishType, Slot, Source, Status, Unit } from '../api/client'
+import type { Cuisine, DishType, Slot, Source, Status, SupplyCategory, Unit } from '../api/client'
 
 // Polish display labels for English API tokens (enum values stay English on the wire).
 
@@ -114,6 +114,19 @@ const CATEGORY_PL: Record<string, string> = {
 export function categoryLabel(c: string): string {
   return CATEGORY_PL[c] ?? c
 }
+
+export const supplyCategoryLabel: Record<SupplyCategory, string> = {
+  cleaning: 'Chemia',
+  hygiene: 'Higiena',
+  paper: 'Papier',
+  kitchen: 'Kuchnia',
+  pets: 'Zwierzęta',
+  other: 'Inne',
+}
+
+/** Display order for the supplies list — Inne last, the rest by how often they come up. */
+export const SUPPLY_CATEGORIES: SupplyCategory[] =
+  ['cleaning', 'hygiene', 'paper', 'kitchen', 'pets', 'other']
 
 export const slotLabel: Record<Slot, string> = {
   breakfast: 'Śniadanie',

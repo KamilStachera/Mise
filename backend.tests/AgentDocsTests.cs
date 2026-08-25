@@ -32,4 +32,18 @@ public class AgentDocsTests
         Assert.Contains("Nie odsyłaj do opakowania", api, StringComparison.Ordinal);
         Assert.Contains("temperatura 74°C w środku", api, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void SuppliesDocs_StateTheDecouplingAndTheHotRanking()
+    {
+        var agents = AgentDocs.AgentsMd("http://localhost:5080/api");
+        var api = AgentDocs.ApiMd("http://localhost:5080/api");
+
+        Assert.Contains("`supplies.md`", agents, StringComparison.Ordinal);
+        Assert.Contains("POST http://localhost:5080/api/supplies", agents, StringComparison.Ordinal);
+        Assert.Contains("## Dom i chemia", api, StringComparison.Ordinal);
+        Assert.Contains("niezależna od spiżarni **i od listy zakupów spożywczych**", api,
+            StringComparison.Ordinal);
+        Assert.Contains("GET /supplies/hot", api, StringComparison.Ordinal);
+    }
 }

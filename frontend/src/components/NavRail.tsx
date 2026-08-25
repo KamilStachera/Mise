@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth, useLogout, useShopping } from '../api/hooks'
+import { useAuth, useLogout, useShopping, useSupplies } from '../api/hooks'
 import { loginUrl } from '../api/client'
 import { RecipesIcon, DiceIcon, HistoryIcon, PlanIcon, PantryIcon, ShopIcon, ProfileIcon, ChatIcon, LoginIcon, LogoutIcon } from './icons'
 
@@ -34,6 +34,7 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
   const nav = useNavigate()
   const { pathname } = useLocation()
   const { data: shopping } = useShopping()
+  const { data: supplies } = useSupplies()
   const { data: auth, canEdit } = useAuth()
   const logout = useLogout()
 
@@ -45,7 +46,9 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
   const isShopping = pathname.startsWith('/shopping')
   const isProfile = pathname.startsWith('/profile')
 
-  const toBuy = shopping ? shopping.total - shopping.checkedCount : 0
+  // Both lists live behind this tab, so the badge counts everything still to buy.
+  const toBuy = (shopping ? shopping.total - shopping.checkedCount : 0)
+    + (supplies ? supplies.total - supplies.checkedCount : 0)
 
   const badge = toBuy > 0 && (
     <span

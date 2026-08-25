@@ -74,6 +74,7 @@ export default function App() {
           <Route path="/plan" element={<Plan />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/shopping" element={<Shopping />} />
+          <Route path="/shopping/dom" element={<Shopping />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/ankieta" element={<Questionnaire />} />
           <Route path="/add" element={<AddRecipe />} />

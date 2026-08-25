@@ -12,7 +12,7 @@ public record ContextExportResult(string Path, List<string> Files, DateTimeOffse
 
 /// <summary>
 /// Writes the full cooking context to a folder you can open with Codex / Claude Code:
-/// cookbook.md, pantry.json, shopping.md, plan.md, cooklog.md, recipes/*.md, plus
+/// cookbook.md, pantry.json, shopping.md, supplies.md, plan.md, cooklog.md, recipes/*.md, plus
 /// AGENTS.md / CLAUDE.md / api.md (agent instructions + API reference, see
 /// <see cref="AgentDocs"/>) and commands/*.md (copyable slash commands). Reading is
 /// file-based; all writes go through the REST API. This is the primary AI path.
@@ -95,6 +95,19 @@ public sealed class ContextExportService
             .ToListAsync(ct);
         var shopping = (await _db.ShoppingItems.AsNoTracking().ToListAsync(ct))
             .OrderBy(s => s.Category).ThenBy(s => s.Name, Pl.Comparer).ToList();
+        var supplies = (await _db.SupplyItems.AsNoTracking().ToListAsync(ct))
+            .OrderBy(s => s.Category).ThenBy(s => s.Name, Pl.Comparer).ToList();
+        // Same ranking as SupplyService.HotAsync, minus the "already on the list" filter:
+        // an agent reading the file wants the full quick-add vocabulary.
+        var supplyFavorites = (await _db.SupplyFavorites.AsNoTracking()
+                .Where(f => !f.Hidden).ToListAsync(ct))
+            .Select(f => new HotSupply(f, SupplyService.ScoreOf(f, DateTimeOffset.UtcNow)))
+            .OrderByDescending(h => h.Favorite.Pinned)
+            .ThenByDescending(h => h.Score)
+            .ThenBy(h => h.Favorite.Name, Pl.Comparer)
+            .Select(h => h.Favorite)
+            .Take(SupplyService.HotCap)
+            .ToList();
         var answers = await LoadAnswersAsync(ct);
         var cookLog = await _db.CookLog.AsNoTracking()
             .OrderByDescending(e => e.CookedAt).ThenByDescending(e => e.CreatedAt)
@@ -133,6 +146,7 @@ public sealed class ContextExportService
         await WriteAsync("pantry.json", pantryJson, files, ct);
 
         await WriteAsync("shopping.md", BuildShoppingMarkdown(shopping), files, ct);
+        await WriteAsync("supplies.md", BuildSuppliesMarkdown(supplies, supplyFavorites), files, ct);
         await WriteAsync("plan.md", BuildPlanMarkdown(plan, recipes, planFrom), files, ct);
         await WriteAsync("cooklog.md", BuildCookLogMarkdown(cookLog), files, ct);
         await WriteAsync("AGENTS.md", AgentDocs.AgentsMd(ApiBase), files, ct);
@@ -348,6 +362,54 @@ public sealed class ContextExportService
             var reason = string.IsNullOrWhiteSpace(s.Reason) ? "" : $" — {s.Reason}";
             sb.AppendLine($"- {box} {s.Name}{qty}{reason}");
         }
+        return sb.ToString().TrimEnd() + "\n";
+    }
+
+    private static string SupplyCategoryLabel(SupplyCategory c) => c switch
+    {
+        SupplyCategory.Cleaning => "Chemia",
+        SupplyCategory.Hygiene => "Higiena",
+        SupplyCategory.Paper => "Papier",
+        SupplyCategory.Kitchen => "Kuchnia",
+        SupplyCategory.Pets => "Zwierzęta",
+        _ => "Inne",
+    };
+
+    private static string BuildSuppliesMarkdown(List<SupplyItem> items, List<SupplyFavorite> hot)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("# Dom i chemia");
+        sb.AppendLine();
+        sb.AppendLine("_Lista niezależna od spiżarni i od listy zakupów spożywczych._");
+        sb.AppendLine();
+
+        if (items.Count == 0)
+        {
+            sb.AppendLine("_Nic do kupienia._");
+        }
+        else
+        {
+            foreach (var group in items.GroupBy(s => s.Category).OrderBy(g => g.Key))
+            {
+                sb.AppendLine($"## {SupplyCategoryLabel(group.Key)}");
+                sb.AppendLine();
+                foreach (var s in group)
+                    sb.AppendLine($"- {(s.Checked ? "[x]" : "[ ]")} {s.Name}");
+                sb.AppendLine();
+            }
+        }
+
+        if (hot.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("## Częste");
+            sb.AppendLine();
+            sb.AppendLine("Rzeczy, które lądują tu najczęściej — dopisuj je po nazwie:");
+            sb.AppendLine();
+            foreach (var f in hot)
+                sb.AppendLine($"- {f.Name}{(f.Pinned ? " (przypięte)" : "")}");
+        }
+
         return sb.ToString().TrimEnd() + "\n";
     }
 

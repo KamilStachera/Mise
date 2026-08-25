@@ -118,6 +118,31 @@ export interface ShoppingList {
   checkedCount: number
 }
 
+export type SupplyCategory = 'cleaning' | 'hygiene' | 'paper' | 'kitchen' | 'pets' | 'other'
+
+/** A household item to buy. Name-only by design — no quantity, no pantry link. */
+export interface SupplyItem {
+  id: string
+  name: string
+  category: SupplyCategory
+  checked: boolean
+}
+/** A learned frequent item, ranked server-side; `id` addresses the tally, not a list row. */
+export interface HotSupply {
+  id: string
+  name: string
+  category: SupplyCategory
+  count: number
+  pinned: boolean
+  hidden: boolean
+}
+export interface SupplyList {
+  items: SupplyItem[]
+  total: number
+  checkedCount: number
+  hot: HotSupply[]
+}
+
 /** One row of the "Ugotowane!" confirm dialog — what would be deducted and why not. */
 export interface CookProposalItem {
   ingredientId: string
@@ -384,6 +409,20 @@ export const api = {
   deleteShopping: (id: string) => http<void>(`/shopping/${id}`, { method: 'DELETE' }),
   clearChecked: () => http<{ removed: number }>(`/shopping/clear-checked`, { method: 'POST' }),
   clearShopping: () => http<{ removed: number }>(`/shopping/clear`, { method: 'POST' }),
+
+  supplies: () => http<SupplyList>(`/supplies`),
+  /** Every learned entry, hidden included — for the manage panel. */
+  allHotSupplies: () => http<HotSupply[]>(`/supplies/hot?all=true`),
+  addSupply: (name: string, category?: SupplyCategory) =>
+    http<SupplyItem>(`/supplies`, { method: 'POST', body: JSON.stringify({ name, category }) }),
+  checkSupply: (id: string) => http<SupplyItem>(`/supplies/${id}/check`, { method: 'PATCH' }),
+  deleteSupply: (id: string) => http<void>(`/supplies/${id}`, { method: 'DELETE' }),
+  clearCheckedSupplies: () =>
+    http<{ removed: number }>(`/supplies/clear-checked`, { method: 'POST' }),
+  clearSupplies: () => http<{ removed: number }>(`/supplies/clear`, { method: 'POST' }),
+  updateHotSupply: (id: string, patch: { pinned?: boolean; hidden?: boolean }) =>
+    http<HotSupply>(`/supplies/hot/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  forgetHotSupply: (id: string) => http<void>(`/supplies/hot/${id}`, { method: 'DELETE' }),
 
   preferences: () => http<Preferences>(`/preferences`),
   savePreferences: (p: Preferences) =>

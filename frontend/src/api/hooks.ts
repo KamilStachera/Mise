@@ -8,6 +8,7 @@ import {
   type PlanEntryInput,
   type Preferences,
   type RecipeInput,
+  type SupplyCategory,
 } from './client'
 
 // Session state; the react-query cache is the shared auth state (no context needed).
@@ -39,6 +40,15 @@ export function usePantry() {
 
 export function useShopping() {
   return useQuery({ queryKey: ['shopping'], queryFn: api.shopping })
+}
+
+export function useSupplies() {
+  return useQuery({ queryKey: ['supplies'], queryFn: api.supplies })
+}
+
+/** Only fetched while the "Zarządzaj częstymi" panel is open. */
+export function useAllHotSupplies(enabled: boolean) {
+  return useQuery({ queryKey: ['supplies', 'hot', 'all'], queryFn: api.allHotSupplies, enabled })
 }
 
 export function usePreferences() {
@@ -173,6 +183,47 @@ export function useAddShopping() {
     mutationFn: ({ name, category }: { name: string; category?: string }) => api.addShopping(name, category),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping'] }),
   })
+}
+
+// The supplies list touches nothing else — not the pantry, not the food shopping
+// list — so these invalidate their own key and only their own key. `['supplies']`
+// carries the hot ranking too, which every one of these can move.
+function useSupplyMutation<TArgs>(mutationFn: (args: TArgs) => Promise<unknown>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['supplies'] }),
+  })
+}
+
+export function useAddSupply() {
+  return useSupplyMutation(({ name, category }: { name: string; category?: SupplyCategory }) =>
+    api.addSupply(name, category))
+}
+
+export function useCheckSupply() {
+  return useSupplyMutation((id: string) => api.checkSupply(id))
+}
+
+export function useDeleteSupply() {
+  return useSupplyMutation((id: string) => api.deleteSupply(id))
+}
+
+export function useClearCheckedSupplies() {
+  return useSupplyMutation<void>(() => api.clearCheckedSupplies())
+}
+
+export function useClearSupplies() {
+  return useSupplyMutation<void>(() => api.clearSupplies())
+}
+
+export function useUpdateHotSupply() {
+  return useSupplyMutation(({ id, ...patch }: { id: string; pinned?: boolean; hidden?: boolean }) =>
+    api.updateHotSupply(id, patch))
+}
+
+export function useForgetHotSupply() {
+  return useSupplyMutation((id: string) => api.forgetHotSupply(id))
 }
 
 export function useAddMissingToShopping() {

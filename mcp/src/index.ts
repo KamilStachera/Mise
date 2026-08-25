@@ -18,6 +18,7 @@ const text = (data: unknown) => ({
 const DISH_TYPES = ['breakfast', 'main', 'soup', 'salad', 'side', 'dessert', 'snack', 'baking'] as const
 const UNITS = ['g', 'ml', 'szt'] as const
 const PANTRY_CATEGORIES = ['produce', 'fridge', 'pantry', 'spices'] as const
+const SUPPLY_CATEGORIES = ['cleaning', 'hygiene', 'paper', 'kitchen', 'pets', 'other'] as const
 const CUISINES = [
   'polish', 'italian', 'french', 'spanish', 'greek', 'mediterranean', 'middleeastern',
   'indian', 'thai', 'vietnamese', 'chinese', 'japanese', 'korean', 'mexican', 'american', 'other',
@@ -403,6 +404,71 @@ server.tool(
     'do usunięcia tylko kupionych pozycji użyj remove_shopping_items albo check_shopping_items.',
   {},
   async () => text(await post('/shopping/clear', {})),
+)
+
+server.tool(
+  'get_supplies',
+  'Lista rzeczy do domu — chemia, higiena, papier, worki na śmieci (z id pozycji do ' +
+    'check_supplies / remove_supplies). Osobna lista, niezależna od spiżarni I od listy ' +
+    'zakupów spożywczych. Pole "hot" to rzeczy kupowane najczęściej — gotowy słownik do ' +
+    'szybkiego dopisywania (pomija to, co już jest na liście).',
+  {},
+  async () => text(await get('/supplies')),
+)
+
+server.tool(
+  'add_supplies',
+  'Dopisz rzeczy do listy domowej (papier toaletowy, płyn do naczyń…). Same nazwy — bez ' +
+    'ilości i jednostek. Kategoria opcjonalna: pominięta zostaje zgadnięta z nazwy. ' +
+    'Bezpieczne przy powtórzeniu: to, co już jest na liście, nie zduplikuje się.',
+  {
+    items: z
+      .array(
+        z.object({
+          name: z.string(),
+          category: z.enum(SUPPLY_CATEGORIES).optional(),
+        }),
+      )
+      .min(1),
+  },
+  async ({ items }) => {
+    const results = []
+    for (const item of items) results.push(await post('/supplies', item))
+    return text(results)
+  },
+)
+
+server.tool(
+  'check_supplies',
+  'Odhacz (lub odznacz) pozycje listy domowej. Id weź z get_supplies.',
+  {
+    ids: z.array(z.string().uuid()).min(1),
+    checked: z.boolean().default(true).describe('true = odhaczone (kupione), false = cofnij'),
+  },
+  async ({ ids, checked }) => {
+    const results = []
+    for (const id of ids) results.push(await patch(`/supplies/${id}/check`, { checked }))
+    return text(results)
+  },
+)
+
+server.tool(
+  'remove_supplies',
+  'Usuń pozycje z listy domowej. Id weź z get_supplies. Statystyki „częstych" rzeczy ' +
+    'zostają — to z nich liczy się ranking hot.',
+  { ids: z.array(z.string().uuid()).min(1) },
+  async ({ ids }) => {
+    for (const id of ids) await del(`/supplies/${id}`)
+    return text({ ok: true, removed: ids.length })
+  },
+)
+
+server.tool(
+  'clear_supplies',
+  'Wyczyść CAŁĄ listę domową jednym ruchem (odhaczone i nieodhaczone). Nieodwracalne — ' +
+    'do usunięcia tylko kupionych pozycji użyj remove_supplies albo check_supplies.',
+  {},
+  async () => text(await post('/supplies/clear', {})),
 )
 
 server.tool(

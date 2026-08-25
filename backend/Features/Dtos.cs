@@ -51,6 +51,14 @@ public record ShoppingPreviewItemDto(string Key, Guid? PantryItemId, string Name
     List<Guid>? AlternativePantryItemIds = null);
 public record ShoppingPreviewDto(DateOnly Start, int Days, List<ShoppingPreviewItemDto> Items);
 
+public record SupplyItemDto(Guid Id, string Name, string Category, bool Checked);
+/// <summary>Count = lifetime adds; the ranking itself is server-side (SupplyService.HotAsync).</summary>
+public record HotSupplyDto(Guid Id, string Name, string Category, int Count, bool Pinned,
+    bool Hidden);
+/// <summary>Hot ships inside the list payload so the supplies screen needs a single request.</summary>
+public record SupplyListDto(List<SupplyItemDto> Items, int Total, int CheckedCount,
+    List<HotSupplyDto> Hot);
+
 public record CookProposalItemDto(Guid IngredientId, string Name, string QuantityText, string? DisplayText,
     string? AlternativeGroup,
     Guid? PantryItemId, string? PantryItemName, string? Unit, decimal? PantryQuantity,
@@ -106,6 +114,11 @@ public record RecipeServingsInput(int Servings);
 public record ShoppingItemInput(string Name, string? Category,
     decimal? Quantity = null, string? Unit = null, string? Reason = null);
 public record ShoppingCheckInput(bool? Checked);
+
+public record SupplyItemInput(string Name, string? Category = null);
+public record SupplyCheckInput(bool? Checked);
+/// <summary>Both null = no change; the endpoint applies only the fields that are present.</summary>
+public record SupplyFavoriteInput(bool? Pinned = null, bool? Hidden = null);
 
 public record CookDeductionInput(Guid PantryItemId, decimal Amount, string? Unit = null);
 public record CookLogInput(Guid? RecipeId, string? DishName, int? Rating, string? Note,
@@ -185,6 +198,28 @@ public static class Mapping
     public static ShoppingItemDto ToDto(ShoppingItem s) => new(s.Id, s.Name, s.Category, s.Reason,
         s.Checked, s.Origin.ToString().ToLowerInvariant(), s.Quantity,
         s.Unit is PantryUnit u ? UnitString(u) : null);
+
+    public static string SupplyCategoryString(SupplyCategory c) => c.ToString().ToLowerInvariant();
+
+    public static readonly string[] AllowedSupplyCategories =
+        Enum.GetNames<SupplyCategory>().Select(n => n.ToLowerInvariant()).ToArray();
+
+    /// <summary>Strict like TryParseUnit — null/blank means "guess it from the name".</summary>
+    public static bool TryParseSupplyCategory(string? s, out SupplyCategory? category)
+    {
+        category = null;
+        if (string.IsNullOrWhiteSpace(s)) return true;
+        if (!Enum.TryParse<SupplyCategory>(s.Trim(), ignoreCase: true, out var parsed)) return false;
+        category = parsed;
+        return true;
+    }
+
+    public static SupplyItemDto ToDto(SupplyItem s) =>
+        new(s.Id, s.Name, SupplyCategoryString(s.Category), s.Checked);
+
+    public static HotSupplyDto ToDto(HotSupply h) =>
+        new(h.Favorite.Id, h.Favorite.Name, SupplyCategoryString(h.Favorite.Category),
+            h.Favorite.AddCount, h.Favorite.Pinned, h.Favorite.Hidden);
 
     public static string IngredientDisplayText(RecipeIngredient ingredient) =>
         !string.IsNullOrWhiteSpace(ingredient.DisplayText) ? ingredient.DisplayText.Trim()

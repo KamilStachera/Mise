@@ -27,6 +27,9 @@ public static class AgentDocs
         3. `plan.md` — co jest zaplanowane na ten i przyszły tydzień.
         4. `cooklog.md` — co ostatnio gotowaliśmy i jak wyszło; traktuj notatki jako feedback.
         5. `recipes/` — zapisane przepisy do wykorzystania lub adaptacji.
+        6. `supplies.md` — lista rzeczy do domu (chemia, higiena, papier). Nie ma nic
+           wspólnego ze spiżarnią ani z jedzeniem; sekcja „Częste" to rzeczy kupowane
+           regularnie, które można dopisywać bez pytania.
 
         ## Zapisywanie — wyłącznie przez REST API
 
@@ -43,6 +46,7 @@ public static class AgentDocs
         - plan tygodnia: `PUT {API}/plan/entry`
         - odnotowanie ugotowanego dania (+ zdjęcie składników ze stanu): `POST {API}/cooklog`
         - pozycja na liście zakupów: `POST {API}/shopping`
+        - pozycja na liście domowej (chemia, higiena, papier): `POST {API}/supplies`
 
         Pełna dokumentacja endpointów i schematów JSON z przykładami `curl`: **`api.md`**.
         Po udanym zapisie aplikacja sama odświeża pliki w tym folderze.
@@ -430,6 +434,31 @@ public static class AgentDocs
           (idempotentne — używaj tego); puste body przełącza.
         - `POST /shopping/clear-checked` — usuń odhaczone; `DELETE /shopping/{id}` — usuń pozycję.
         - `POST /shopping/clear` — wyczyść całą listę (nieodwracalne).
+
+        ## Dom i chemia
+
+        Osobna lista na rzeczy nieżywnościowe (papier toaletowy, płyn do naczyń, worki na
+        śmieci). Jest niezależna od spiżarni **i od listy zakupów spożywczych** — nic się
+        między nimi nie synchronizuje. Pozycje mają samą nazwę: bez ilości i bez jednostek.
+
+        Aplikacja liczy, jak często coś tu ląduje, i zwraca ranking `hot` — to gotowy
+        słownik do szybkiego dopisywania (np. „dopisz zwykłe rzeczy do domu").
+
+        - `GET /supplies` — `{ "items": [...], "total", "checkedCount", "hot": [...] }`.
+          `hot` pomija to, co już jest na liście.
+        - `POST /supplies` — `{ "name": "Papier toaletowy" }`. `category` opcjonalne
+          (`cleaning` | `hygiene` | `paper` | `kitchen` | `pets` | `other`); pominięte
+          zostaje zgadnięte z nazwy. Dopisanie czegoś, co już jest na liście, nic nie psuje
+          — zwraca istniejącą pozycję; odhaczoną pozycję odznacza z powrotem.
+        - `PATCH /supplies/{id}/check` — body `{ "checked": true|false }` (idempotentne);
+          puste body przełącza.
+        - `DELETE /supplies/{id}` — usuń pozycję; `POST /supplies/clear-checked` — usuń
+          odhaczone; `POST /supplies/clear` — wyczyść całą listę (nieodwracalne).
+        - `GET /supplies/hot` — sam ranking częstych rzeczy; `?all=true` zwraca wszystkie
+          zapamiętane wpisy razem z ukrytymi (bez limitu).
+        - `PATCH /supplies/hot/{id}` — `{ "pinned": true }` przypina na stałe,
+          `{ "hidden": true }` chowa z podpowiedzi; `DELETE /supplies/hot/{id}` kasuje
+          zliczenia (statystyki przeżywają usunięcie pozycji z listy — stąd ranking).
 
         ## Profil
 

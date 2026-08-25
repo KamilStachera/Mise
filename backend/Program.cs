@@ -19,6 +19,7 @@ builder.Services.AddDbContext<MiseDbContext>(o => o.UseNpgsql(connectionString))
 builder.Services.AddScoped<IngredientMatcher>();
 builder.Services.AddScoped<RecipeIngredientNormalizer>();
 builder.Services.AddScoped<ShoppingService>();
+builder.Services.AddScoped<SupplyService>();
 builder.Services.AddScoped<StockReliability>();
 builder.Services.AddSingleton<CookbookMarkdownBuilder>();
 builder.Services.AddSingleton<RecipeImageStore>();
@@ -123,6 +124,7 @@ api.MapAuth();
 api.MapRecipes();
 api.MapPantry();
 api.MapShopping();
+api.MapSupplies();
 api.MapPreferences();
 api.MapProfileQuestionnaire();
 api.MapCookLog();
