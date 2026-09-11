@@ -7,6 +7,10 @@ import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishTypeLabel, recipe
 import { SearchIcon, ClockIcon, ServingsIcon, PlusIcon, FilterIcon, SortIcon } from '../components/icons'
 import { FilterDropdown } from '../components/FilterDropdown'
 import { useIsMobile } from '../lib/useIsMobile'
+import { useInfiniteScroll } from '../lib/useInfiniteScroll'
+import { recipeCardImage } from '../lib/images'
+
+const EMPTY_RECIPES: RecipeListItem[] = []
 
 function chip(active: boolean): CSSProperties {
   return {
@@ -49,7 +53,7 @@ export function Library() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
   const { canEdit } = useAuth()
-  const { data: recipes = [], isLoading } = useRecipes('all', '')
+  const { data: recipes = EMPTY_RECIPES, isLoading, isError, refetch } = useRecipes('all', '')
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [dish, setDish] = useState<DishType | 'all'>('all')
@@ -100,6 +104,8 @@ export function Library() {
       filtered.sort((a, b) => a.toBuyCount - b.toBuyCount || b.createdAt.localeCompare(a.createdAt))
     return filtered
   }, [recipes, filter, dish, cuisine, timeBucket, difficulty, canCookNow, almostReady, airFryerOnly, query, sort])
+
+  const { visibleItems, sentinel, hasMore, loadMore } = useInfiniteScroll(view)
 
   // The toolbar's "clear" covers only what the toolbar owns (design semantics);
   // source chips and search have their own affordances.
@@ -318,7 +324,11 @@ export function Library() {
         {view.length === counts.all ? recipeCountLabel(view.length) : `${view.length} z ${counts.all} przepisów`}
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <div role="alert" style={{ color: 'var(--text-2)', padding: 40 }}>
+          Nie udało się załadować przepisów. <button onClick={() => refetch()}>Spróbuj ponownie</button>
+        </div>
+      ) : isLoading ? (
         <div style={{ color: 'var(--text-3)', padding: 40 }}>Ładowanie…</div>
       ) : view.length === 0 ? (
         filtersActive ? (
@@ -337,9 +347,17 @@ export function Library() {
         )
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))', gap: 'clamp(12px, 2.5vw, 20px)' }}>
-          {view.map((r) => (
+          {visibleItems.map((r) => (
             <Card key={r.id} r={r} showShortfall={almostReady || sort === 'missing'} onOpen={() => nav(`/recipe/${r.id}`)} />
           ))}
+        </div>
+      )}
+      {!isLoading && !isError && view.length > 0 && (
+        <div ref={sentinel} style={{ textAlign: 'center', padding: '24px 0 0', color: 'var(--text-3)' }}>
+          <div role="status" style={{ fontSize: 13, marginBottom: 12 }}>
+            Wyświetlono {visibleItems.length} z {view.length} przepisów
+          </div>
+          {hasMore && <button onClick={loadMore} style={chip(false)}>Pokaż więcej</button>}
         </div>
       )}
     </div>
@@ -363,7 +381,9 @@ function Card({ r, showShortfall = false, onOpen }: { r: RecipeListItem; showSho
     >
       <div style={{ position: 'relative', height: 132, background: gradient(r.tint), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {r.imageUrl ? (
-          <img src={r.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={recipeCardImage(r.imageUrl)} alt="" loading="lazy" decoding="async"
+            onError={(e) => { if (e.currentTarget.getAttribute('src') !== r.imageUrl) e.currentTarget.src = r.imageUrl! }}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <span style={{ fontFamily: "'Spectral', serif", fontSize: 60, fontWeight: 500, color: 'rgba(255,255,255,.9)', lineHeight: 1 }}>
             {r.title[0]}

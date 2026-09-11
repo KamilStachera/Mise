@@ -120,6 +120,7 @@ app.UseSwaggerUI(c =>
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 var api = app.MapGroup("/api");
+api.MapImages();
 api.MapAuth();
 api.MapRecipes();
 api.MapPantry();

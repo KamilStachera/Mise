@@ -9,6 +9,16 @@ help plan meals.
   you'd need to buy" badge based on your pantry. An "almost complete" toggle and
   a "fewest missing" sort surface the recipes you could cook after buying 1–2
   things.
+- **Progressive recipe browsing:** the library reveals 24 cards at a time as you
+  scroll, with a "Pokaż więcej" fallback. Search, counts, filters and sorting still
+  use the complete recipe metadata. Card photos are lazy-loaded WebP thumbnails
+  (640 px maximum edge, quality 78), generated on demand for existing and new
+  uploads and cached in `ImagesDir/card-v1`. Originals and gallery URLs are kept.
+  No database migration or image backfill is required; rebuild the API and web
+  to enable this. The image cache persists in the existing images volume.
+  Browser regression coverage: `cd frontend && npm run test:library` (Node 20+
+  and installed Microsoft Edge; `PLAYWRIGHT_CHANNEL` can select another installed
+  Playwright browser channel). Tests use 300 fixture recipes without a live API.
 - **Per-serving nutrition estimates** (kcal / protein / fat / carbs) on every
   recipe — agents estimate them when saving, the plan shows per-day totals.
 - A full-screen **cook mode** ("Tryb gotowania"): one step at a time in large

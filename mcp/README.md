@@ -21,6 +21,10 @@ cookbook REST API as first-class tools for Claude Code and Codex:
 The exported `./context` folder stays the primary **read** path (open it in your
 agent); MCP is the **write / quick-query** path that works from any directory.
 
+Recipe and gallery `imageUrl` values still refer to original uploads. The web
+library uses `GET /api/images/{fileName}/card-v1.webp` for cached 640 px WebP
+thumbnails. Recipe list responses and MCP tool schemas are unchanged.
+
 ## Build
 
 ```bash

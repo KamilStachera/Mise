@@ -288,6 +288,10 @@ public static class AgentDocs
           `{ "added": N, "updated": N }`.
 
         ### Zdjęcia dania (galeria)
+        - `GET /images/{fileName}/card-v1.webp` — miniatura WebP (maks. 640 px na dłuższym
+          boku), tworzona i zapisywana przy pierwszym odczycie, także dla starych zdjęć.
+          Obsługuje ETag / odczyt warunkowy; nieprawidłowe lub zbyt duże obrazy zwracają
+          oryginał. `imageUrl` oraz adresy galerii nadal wskazują oryginały.
         - `POST /recipes/{id}/image` — multipart (`file`), JPG/PNG/WebP do 5 MB:
           `curl -X POST {API}/recipes/<id>/image -F "file=@zdjecie.jpg"`.
           Nowe zdjęcie **staje się domyślnym** (na karcie i stronie przepisu);
