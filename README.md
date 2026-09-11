@@ -51,6 +51,13 @@ help plan meals.
 - **Spanish flashcards** ("Fiszki") — a small spaced-repetition trainer (50 words
   in 5 decks, a pronunciation cheat sheet, your own words) that lives in the same
   app so it doesn't need its own domain. Progress is kept in the browser only.
+  Under **Dźwięki → Strumień słów**, practice an endless shuffled stream of the
+  existing sound examples, vocabulary and custom words. Advance manually or select
+  a word in the text; reveal Polish pronunciation (with the existing sound rules),
+  translation, or both. Hint preferences are saved separately from flashcard
+  progress. Every entry is used before reshuffling; this is repeated practice,
+  not generated new vocabulary. Run `cd frontend && npm run test:spanish` for
+  desktop/mobile regression tests using installed Edge.
 - **Primary AI path:** an exported `./context` folder you open with **Codex**
   ("Sign in with ChatGPT") or **Claude Code** — covered by your existing
   subscription, no API key or extra cost. Agents read the folder and **write back

@@ -798,6 +798,48 @@
   color: var(--p-muted);
 }
 
+/* ---------- Continuous reading ---------- */
+.palabras .word-stream { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.palabras .word-stream__settings {
+  display: flex; flex-wrap: wrap; gap: 12px 22px; border: 0; margin: 0; padding: 0;
+}
+.palabras .word-stream__settings legend { font-size: 13px; color: var(--p-muted); margin-bottom: 9px; }
+.palabras .word-stream__settings label { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 14px; }
+.palabras .word-stream__settings input { accent-color: var(--p-red); width: 17px; height: 17px; }
+.palabras .word-stream__text {
+  max-height: 240px; overflow-y: auto; overscroll-behavior: contain; padding: 18px;
+  border: 1px solid var(--p-line); border-radius: 16px; background: var(--p-surface); line-height: 2.1;
+}
+.palabras .word-stream__word {
+  display: inline; font-family: var(--p-serif); font-size: 23px; line-height: 1.7;
+  border: 0; border-radius: 5px; background: transparent; color: var(--p-ink);
+  padding: 2px 6px; margin: 2px 6px 2px 0; cursor: pointer; overflow-wrap: anywhere; text-align: left;
+}
+.palabras .word-stream__word:hover { background: var(--p-red-tint); }
+.palabras .word-stream__word.is-past { color: var(--p-faint); }
+.palabras .word-stream__word.is-current { color: var(--p-on-red); background: var(--p-red); }
+.palabras .word-stream__answer { padding: 18px; border: 1px solid var(--p-line); border-radius: 16px; background: var(--p-surface-alt); }
+.palabras .word-stream__current { display: flex; gap: 8px 14px; align-items: center; flex-wrap: wrap; }
+.palabras .word-stream__current > span { font-size: 12px; color: var(--p-muted); }
+.palabras .word-stream__current > strong { font-family: var(--p-serif); font-size: 22px; overflow-wrap: anywhere; }
+.palabras .word-stream__current .speak { margin-left: auto; }
+.palabras .word-stream__hint { display: flex; flex-direction: column; gap: 5px; margin-top: 16px; }
+.palabras .word-stream__hint > strong { font-size: 21px; overflow-wrap: anywhere; }
+.palabras .word-stream__rule, .palabras .word-stream__placeholder { font-size: 14px; line-height: 1.5; color: var(--p-muted); margin: 8px 0 0; }
+.palabras .word-stream__actions {
+  display: flex; flex-wrap: wrap; gap: 8px; scroll-margin-bottom: 16px;
+}
+.palabras .word-stream__actions > button { flex: 1 1 auto; min-height: 44px; }
+.palabras .word-stream__actions > button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 480px) {
+  .palabras .word-stream__text { max-height: 200px; padding: 12px; }
+  .palabras .word-stream__word { font-size: 21px; }
+  .palabras .word-stream__actions > .btn-primary { flex-basis: 100%; order: -1; }
+}
+@media (max-width: 700px) {
+  .palabras .word-stream__actions { scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom)); }
+}
+
 /* ---------- Dodaj ---------- */
 
 .palabras .form {

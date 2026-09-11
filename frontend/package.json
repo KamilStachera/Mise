@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test:library": "node tests/library-scroll.mjs"
+    "test:library": "node tests/library-scroll.mjs",
+    "test:spanish": "node tests/spanish-stream.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.23",
