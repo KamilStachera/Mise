@@ -58,6 +58,14 @@ help plan meals.
   progress. Every entry is used before reshuffling; this is repeated practice,
   not generated new vocabulary. Run `cd frontend && npm run test:spanish` for
   desktop/mobile regression tests using installed Edge.
+  The sound reference includes 80 additional pronunciation examples for Polish
+  speakers (201 distinct entries in the stream before custom additions), including
+  gü, initial r, diphthongs and stressed vowel hiatus. Uppercase syllables mark
+  stress in the new Polish respellings; the on-screen key explains the approximations
+  and regional differences. Sound rules were checked against RAE guidance on
+  [g/gu/gü](https://www.rae.es/dpd/g), [r/rr](https://www.rae.es/dpd/r),
+  [h](https://www.rae.es/dpd/h), [stress](https://www.rae.es/dpd/tilde), and
+  [seseo](https://www.rae.es/buen-uso-espa%C3%B1ol/el-seseo-y-el-ceceo).
 - **Primary AI path:** an exported `./context` folder you open with **Codex**
   ("Sign in with ChatGPT") or **Claude Code** — covered by your existing
   subscription, no API key or extra cost. Agents read the folder and **write back

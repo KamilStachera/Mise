@@ -88,6 +88,9 @@ try {
       const { SOUNDS } = await import('/src/palabras/data/sounds.ts')
       const { WORDS } = await import('/src/palabras/data/words.ts')
       const pool = buildStreamPool(SOUNDS, WORDS)
+      const expanded = SOUNDS.flatMap((group) => group.words).filter((word) => /[A-ZŁŃ]/.test(word.resp))
+      const missingExpanded = expanded.filter((word) => !pool.some((entry) => entry.es === word.es
+        && entry.resp === word.resp && entry.pl === word.pl && entry.rules.length > 0))
       let seed = 1234
       const random = () => { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296 }
       let state = createStream(pool, random)
@@ -102,7 +105,8 @@ try {
       for (let i = 0; i < 100; i++) single = selectStreamWord(single, single.index + 1, [pool[0]], random)
       const duplicate = buildStreamPool([{ g: 'A', rule: 'one', words: [{ es: 'hola', pl: 'cześć', resp: 'ola' }] },
         { g: 'B', rule: 'two', words: [{ es: 'hola', pl: 'cześć', resp: 'ola' }] }], [])
-      return { size: pool.length, read, sizes, empty: empty.words.length, single: single.words.length,
+      return { size: pool.length, read, sizes, expanded: expanded.length, missingExpanded,
+        soundGroups: SOUNDS.length, empty: empty.words.length, single: single.words.length,
         rules: duplicate[0].rules.length, duplicateCount: duplicate.length }
     })
     for (let i = 0; i < checks.read.length; i += checks.size)
@@ -113,6 +117,10 @@ try {
     assert.equal(checks.single, 32)
     assert.equal(checks.rules, 2)
     assert.equal(checks.duplicateCount, 1)
+    assert.ok(checks.size >= 201, 'The stream includes the expanded pronunciation vocabulary')
+    assert.ok(checks.expanded >= 80, 'New words include marked stress')
+    assert.ok(checks.soundGroups >= 20, 'Includes gü, initial r, diphthongs and hiatus groups')
+    assert.deepEqual(checks.missingExpanded, [])
     assert.deepEqual(errors, [])
     console.log(`${mobile ? 'Mobile' : 'Desktop'} passed: manual controls, hints, preferences, unchanged SRS, ${checks.size} unique entries, six shuffled cycles and bounded rendering`)
     await page.close()

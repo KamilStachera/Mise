@@ -35,6 +35,16 @@ export function SoundsView({ words, hideResp, onToggleResp }: Props) {
           aria-pressed={mode === 'stream'} onClick={() => setMode('stream')}>Strumień słów</button>
       </div>
 
+      <details className="page-sub">
+        <summary>Jak czytać zapis wymowy?</summary>
+        <p>To przybliżenie zapisane polskimi literami. W nowych przykładach WIELKIE litery
+          oznaczają akcentowaną sylabę, a łączniki rozdzielają sylaby. „S” przed „i”
+          pozostaje twarde — nie czytaj go jak polskie „ś”.</p>
+        <p>Stosujemy uproszczenia: ll i y ≈ j, b i v ≈ b. C przed e/i oraz z zapisujemy
+          jako s; w większości Hiszpanii brzmią jak międzyzębowe „th”. Nagranie głosowe
+          może więc różnić się od zapisu.</p>
+      </details>
+
       {mode === 'stream' && <WordStream pool={pool} />}
       {mode === 'rules' && SOUNDS.map((group) => (
         <div className="sound" key={group.g}>

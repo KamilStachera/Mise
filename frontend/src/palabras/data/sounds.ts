@@ -1,4 +1,4 @@
-// Generated from Palabras.dc.html (repo E:/Repos/Palabras, `npm run gen:data`) and copied here. Do not edit by hand.
+// Generated from Palabras.dc.html by scripts/extract-data.cjs. Do not edit by hand.
 import type { SoundGroup } from '../types';
 
 export const SOUNDS: SoundGroup[] = [
@@ -10,6 +10,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "correr", resp: "korrer", pl: "biegać" },
       { es: "la cama", resp: "la kama", pl: "łóżko" },
       { es: "comprar", resp: "komprar", pl: "kupować" },
+      { es: "el cacao", resp: "el ka-KA-o", pl: "kakao" },
+      { es: "la cuna", resp: "la KU-na", pl: "kołyska" },
+      { es: "la copa", resp: "la KO-pa", pl: "kieliszek" },
+      { es: "el coco", resp: "el KO-ko", pl: "kokos" },
     ],
   },
   {
@@ -24,6 +28,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "cenar", resp: "senar", pl: "jeść kolację" },
       { es: "el aceite", resp: "el asejte", pl: "oliwa" },
       { es: "celoso", resp: "seloso", pl: "zazdrosny" },
+      { es: "la cena", resp: "la SE-na", pl: "kolacja" },
+      { es: "la cebolla", resp: "la se-BO-ja", pl: "cebula" },
+      { es: "la cereza", resp: "la se-RE-sa", pl: "czereśnia" },
+      { es: "la bicicleta", resp: "la bi-si-KLE-ta", pl: "rower" },
     ],
   },
   {
@@ -34,6 +42,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "la noche", resp: "la nocze", pl: "noc" },
       { es: "mucho", resp: "muczo", pl: "dużo" },
       { es: "el chocolate", resp: "el czokolate", pl: "czekolada" },
+      { es: "la chaqueta", resp: "la cza-KE-ta", pl: "kurtka" },
+      { es: "la mochila", resp: "la mo-CZI-la", pl: "plecak" },
+      { es: "el coche", resp: "el KO-cze", pl: "samochód" },
+      { es: "la salchicha", resp: "la sal-CZI-cza", pl: "kiełbaska" },
     ],
   },
   {
@@ -44,6 +56,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "el gol", resp: "el gol", pl: "gol" },
       { es: "el gato", resp: "el gato", pl: "kot" },
       { es: "el gorro", resp: "el gorro", pl: "czapka" },
+      { es: "el regalo", resp: "el re-GA-lo", pl: "prezent" },
+      { es: "la gota", resp: "la GO-ta", pl: "kropla" },
+      { es: "el gusano", resp: "el gu-SA-no", pl: "robak" },
+      { es: "la goma", resp: "la GO-ma", pl: "guma" },
     ],
   },
   {
@@ -58,6 +74,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "girar", resp: "chirar", pl: "obracać" },
       { es: "original", resp: "orichinal", pl: "oryginalny" },
       { es: "el gimnasio", resp: "el chimnasjo", pl: "siłownia" },
+      { es: "el gel", resp: "el CHEL", pl: "żel" },
+      { es: "la página", resp: "la PA-chi-na", pl: "strona" },
+      { es: "la magia", resp: "la MA-chja", pl: "magia" },
+      { es: "el colegio", resp: "el ko-LE-chjo", pl: "szkoła" },
     ],
   },
   {
@@ -72,6 +92,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "siguiente", resp: "sigjente", pl: "następny" },
       { es: "el guía", resp: "el gi-a", pl: "przewodnik" },
       { es: "la guitarra", resp: "la gitarra", pl: "gitara" },
+      { es: "la manguera", resp: "la man-GE-ra", pl: "wąż ogrodowy" },
+      { es: "la hoguera", resp: "la o-GE-ra", pl: "ognisko" },
+      { es: "el águila", resp: "el A-gi-la", pl: "orzeł" },
+      { es: "la hamburguesa", resp: "la am-bur-GE-sa", pl: "hamburger" },
     ],
   },
   {
@@ -82,6 +106,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "mejor", resp: "mechor", pl: "lepszy" },
       { es: "juntos", resp: "chuntos", pl: "razem" },
       { es: "trabajar", resp: "trabachar", pl: "pracować" },
+      { es: "el jamón", resp: "el cha-MON", pl: "szynka" },
+      { es: "el jabón", resp: "el cha-BON", pl: "mydło" },
+      { es: "el jardín", resp: "el char-DIN", pl: "ogród" },
+      { es: "la abeja", resp: "la a-BE-cha", pl: "pszczoła" },
     ],
   },
   {
@@ -92,6 +120,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "hola", resp: "ola", pl: "cześć" },
       { es: "hermoso", resp: "ermoso", pl: "piękny" },
       { es: "el horno", resp: "el orno", pl: "piekarnik" },
+      { es: "el helado", resp: "el e-LA-do", pl: "lód (deser)" },
+      { es: "el huevo", resp: "el ŁE-bo", pl: "jajko" },
+      { es: "el hielo", resp: "el JE-lo", pl: "lód (zamarznięta woda)" },
+      { es: "la almohada", resp: "la al-mo-A-da", pl: "poduszka" },
     ],
   },
   {
@@ -102,6 +134,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "el sueño", resp: "el słenio", pl: "sen" },
       { es: "la piña", resp: "la pinia", pl: "ananas" },
       { es: "la montaña", resp: "la montania", pl: "góra" },
+      { es: "el baño", resp: "el BA-nio", pl: "łazienka" },
+      { es: "pequeño", resp: "pe-KE-nio", pl: "mały" },
+      { es: "la muñeca", resp: "la mu-NIE-ka", pl: "lalka; nadgarstek" },
+      { es: "la araña", resp: "la a-RA-nia", pl: "pająk" },
     ],
   },
   {
@@ -112,6 +148,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "la lluvia", resp: "la jubja", pl: "deszcz" },
       { es: "la calle", resp: "la kaje", pl: "ulica" },
       { es: "llamarse", resp: "jamarse", pl: "nazywać się" },
+      { es: "la silla", resp: "la SI-ja", pl: "krzesło" },
+      { es: "la botella", resp: "la bo-TE-ja", pl: "butelka" },
+      { es: "la toalla", resp: "la to-A-ja", pl: "ręcznik" },
+      { es: "la rodilla", resp: "la ro-DI-ja", pl: "kolano" },
     ],
   },
   {
@@ -122,6 +162,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "el vino", resp: "el bino", pl: "wino" },
       { es: "vivir", resp: "bibir", pl: "żyć" },
       { es: "ver", resp: "ber", pl: "widzieć" },
+      { es: "la ventana", resp: "la ben-TA-na", pl: "okno" },
+      { es: "el vestido", resp: "el bes-TI-do", pl: "sukienka" },
+      { es: "el viernes", resp: "el BJER-nes", pl: "piątek" },
+      { es: "volver", resp: "bol-BER", pl: "wracać" },
     ],
   },
   {
@@ -132,6 +176,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "el yogur", resp: "el jogur", pl: "jogurt" },
       { es: "ayer", resp: "ajer", pl: "wczoraj" },
       { es: "hoy", resp: "oj", pl: "dziś" },
+      { es: "la yema", resp: "la JE-ma", pl: "żółtko" },
+      { es: "ayudar", resp: "a-ju-DAR", pl: "pomagać" },
+      { es: "el payaso", resp: "el pa-JA-so", pl: "klaun" },
+      { es: "el rayo", resp: "el RA-jo", pl: "promień; piorun" },
     ],
   },
   {
@@ -146,6 +194,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "quince", resp: "kinse", pl: "piętnaście" },
       { es: "alquilar", resp: "alkilar", pl: "wynajmować" },
       { es: "aquí", resp: "aki", pl: "tutaj" },
+      { es: "el bosque", resp: "el BOS-ke", pl: "las" },
+      { es: "el paquete", resp: "el pa-KE-te", pl: "paczka" },
+      { es: "la esquina", resp: "la es-KI-na", pl: "róg ulicy" },
+      { es: "la mantequilla", resp: "la man-te-KI-ja", pl: "masło" },
     ],
   },
   {
@@ -156,6 +208,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "la tierra", resp: "la tjerra", pl: "ziemia" },
       { es: "el perro", resp: "el perro", pl: "pies" },
       { es: "el error", resp: "el error", pl: "błąd" },
+      { es: "el arroz", resp: "el a-RROS", pl: "ryż" },
+      { es: "el burro", resp: "el BU-rro", pl: "osioł" },
+      { es: "la carrera", resp: "la ka-RRE-ra", pl: "wyścig; kariera" },
+      { es: "la carretera", resp: "la ka-rre-TE-ra", pl: "szosa" },
     ],
   },
   {
@@ -166,6 +222,10 @@ export const SOUNDS: SoundGroup[] = [
       { es: "el taxi", resp: "el taksi", pl: "taksówka" },
       { es: "extraño", resp: "ekstranio", pl: "dziwny" },
       { es: "el examen", resp: "el eksamen", pl: "egzamin" },
+      { es: "exacto", resp: "ek-SAK-to", pl: "dokładny; dokładnie" },
+      { es: "el éxito", resp: "el EK-si-to", pl: "sukces" },
+      { es: "el oxígeno", resp: "el ok-SI-che-no", pl: "tlen" },
+      { es: "próximo", resp: "PROK-si-mo", pl: "następny; bliski" },
     ],
   },
   {
@@ -176,6 +236,50 @@ export const SOUNDS: SoundGroup[] = [
       { es: "el zorro", resp: "el sorro", pl: "lis" },
       { es: "la luz", resp: "la lus", pl: "światło" },
       { es: "el pez", resp: "el pes", pl: "ryba" },
+      { es: "el zapato", resp: "el sa-PA-to", pl: "but" },
+      { es: "el azúcar", resp: "el a-SU-kar", pl: "cukier" },
+      { es: "la zanahoria", resp: "la sa-na-O-rja", pl: "marchew" },
+      { es: "el corazón", resp: "el ko-ra-SON", pl: "serce" },
+    ],
+  },
+  {
+    g: "GÜE / GÜI",
+    rule: "Kropki nad ü oznaczają, że u słychać: güe ≈ głe, güi ≈ głi. Nie pomijaj go jak w gue / gui.",
+    words: [
+      { es: "la vergüenza", resp: "la ber-GŁEN-sa", pl: "wstyd" },
+      { es: "el pingüino", resp: "el pin-GŁI-no", pl: "pingwin" },
+      { es: "la cigüeña", resp: "la si-GŁE-nia", pl: "bocian" },
+      { es: "bilingüe", resp: "bi-LIN-głe", pl: "dwujęzyczny" },
+    ],
+  },
+  {
+    g: "R na początku",
+    rule: "Na początku słowa pojedyncze r brzmi jak drżące rr. W środku, między samogłoskami, pojedyncze r to krótkie uderzenie języka.",
+    words: [
+      { es: "rojo", resp: "RRO-cho", pl: "czerwony" },
+      { es: "el ratón", resp: "el rra-TON", pl: "mysz" },
+      { es: "la rueda", resp: "la RRŁE-da", pl: "koło" },
+      { es: "la reina", resp: "la RREJ-na", pl: "królowa" },
+    ],
+  },
+  {
+    g: "UE / IE",
+    rule: "Tutaj dwie samogłoski tworzą jedną sylabę: ue ≈ łe, ie ≈ je. Nie rozdzielaj ich na u-e ani i-e.",
+    words: [
+      { es: "la puerta", resp: "la PŁER-ta", pl: "drzwi" },
+      { es: "el puente", resp: "el PŁEN-te", pl: "most" },
+      { es: "el fuego", resp: "el FŁE-go", pl: "ogień" },
+      { es: "la piedra", resp: "la PJE-dra", pl: "kamień" },
+    ],
+  },
+  {
+    g: "Í / Ú i dwie sylaby",
+    rule: "Akcentowane í lub ú obok a, e, o tworzy osobną sylabę. Zachowaj obie samogłoski, także gdy rozdziela je nieme h.",
+    words: [
+      { es: "el país", resp: "el pa-IS", pl: "kraj" },
+      { es: "el río", resp: "el RRI-o", pl: "rzeka" },
+      { es: "la sandía", resp: "la san-DI-a", pl: "arbuz" },
+      { es: "el búho", resp: "el BU-o", pl: "sowa" },
     ],
   },
 ];
