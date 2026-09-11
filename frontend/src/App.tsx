@@ -8,6 +8,7 @@ import { NavRail } from './components/NavRail'
 import { ChatSidebar } from './components/ChatSidebar'
 import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
+import { LoginPrompt } from './components/LoginPrompt'
 import { Library } from './pages/Library'
 import { RecipeDetail } from './pages/RecipeDetail'
 import { Pantry } from './pages/Pantry'
@@ -18,6 +19,7 @@ import { Plan } from './pages/Plan'
 import { Questionnaire } from './pages/Questionnaire'
 import { Random } from './pages/Random'
 import { History } from './pages/History'
+import { Palabras } from './pages/Palabras'
 
 export default function App() {
   const isMobile = useIsMobile()
@@ -78,6 +80,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/ankieta" element={<Questionnaire />} />
           <Route path="/add" element={<AddRecipe />} />
+          <Route path="/palabras" element={canEdit ? <Palabras /> : <LoginPrompt title="Fiszki są częścią Twojej kuchni" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
