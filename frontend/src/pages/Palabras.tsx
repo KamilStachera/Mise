@@ -73,7 +73,8 @@ export function Palabras() {
         />
       )}
 
-      {state.view === 'sounds' && <SoundsView words={p.allWords} hideResp={state.hideResp} onToggleResp={p.toggleResp} />}
+      {state.view === 'sounds' && <SoundsView words={p.allWords} initialDeckId={state.deckId}
+        hideResp={state.hideResp} onToggleResp={p.toggleResp} />}
 
       {state.view === 'add' && (
         <AddView

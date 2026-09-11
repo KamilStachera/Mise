@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { SOUNDS } from '../data/sounds';
+import { DECKS } from '../data/decks';
 import { say } from '../lib/speech';
 import { buildStreamPool } from '../lib/wordStream';
 import type { Word } from '../types';
@@ -7,13 +8,16 @@ import { WordStream } from './WordStream';
 
 interface Props {
   words: Word[];
+  initialDeckId?: string;
   hideResp: boolean;
   onToggleResp: () => void;
 }
 
-export function SoundsView({ words, hideResp, onToggleResp }: Props) {
+export function SoundsView({ words, initialDeckId = 'all', hideResp, onToggleResp }: Props) {
   const [mode, setMode] = useState<'rules' | 'stream'>('rules');
-  const pool = useMemo(() => buildStreamPool(SOUNDS, words), [words]);
+  const [deckId, setDeckId] = useState(initialDeckId);
+  const pool = useMemo(() => deckId === 'all' ? buildStreamPool(SOUNDS, words)
+    : buildStreamPool([], words.filter((word) => word.deck === deckId)), [words, deckId]);
   return (
     <div className="view view--sounds">
       <div className="page-head">
@@ -45,7 +49,16 @@ export function SoundsView({ words, hideResp, onToggleResp }: Props) {
           może więc różnić się od zapisu.</p>
       </details>
 
-      {mode === 'stream' && <WordStream pool={pool} />}
+      {mode === 'stream' && <>
+        <div className="field">
+          <label className="field__label" htmlFor="sound-stream-deck">Zestaw słów</label>
+          <select id="sound-stream-deck" className="input" value={deckId} onChange={(e) => setDeckId(e.target.value)}>
+            <option value="all">Wszystkie słowa i dźwięki</option>
+            {DECKS.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
+          </select>
+        </div>
+        <WordStream key={deckId} pool={pool} />
+      </>}
       {mode === 'rules' && SOUNDS.map((group) => (
         <div className="sound" key={group.g}>
           <div className="sound__head">

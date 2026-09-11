@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 
 const base = 'http://127.0.0.1:5185'
+const classSource = await readFile(new URL('./fixtures/class-words.tsv', import.meta.url), 'utf8')
+const expectedClass = new Map(classSource.trim().split(/\r?\n/).slice(1).map((line) => line.split('\t')))
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5185', '--strictPort'], {
   stdio: 'ignore', windowsHide: true,
 })
@@ -106,6 +108,7 @@ try {
       const duplicate = buildStreamPool([{ g: 'A', rule: 'one', words: [{ es: 'hola', pl: 'cześć', resp: 'ola' }] },
         { g: 'B', rule: 'two', words: [{ es: 'hola', pl: 'cześć', resp: 'ola' }] }], [])
       return { size: pool.length, read, sizes, expanded: expanded.length, missingExpanded,
+        classWords: WORDS.filter((word) => word.deck === 'zajecia'), ids: WORDS.map((word) => word.id),
         soundGroups: SOUNDS.length, empty: empty.words.length, single: single.words.length,
         rules: duplicate[0].rules.length, duplicateCount: duplicate.length }
     })
@@ -121,6 +124,48 @@ try {
     assert.ok(checks.expanded >= 80, 'New words include marked stress')
     assert.ok(checks.soundGroups >= 20, 'Includes gü, initial r, diphthongs and hiatus groups')
     assert.deepEqual(checks.missingExpanded, [])
+    assert.equal(checks.classWords.length, expectedClass.size)
+    assert.equal(new Set(checks.ids).size, checks.ids.length)
+    assert.equal(checks.classWords.filter((word) => word.es === 'correr').length, 1)
+    for (const word of checks.classWords) {
+      assert.ok(expectedClass.has(word.es))
+      assert.ok(word.resp && word.trap)
+      assert.ok(word.id.startsWith('zajecia-'))
+      assert.equal(word.pl, word.es === 'pague' ? 'niech pan/pani zapłaci' : expectedClass.get(word.es))
+    }
+    assert.ok(checks.classWords.find((word) => word.es === 'pague').trap.includes('pagué'))
+
+    // Select the lesson deck and verify it drives both flashcard practice and reading.
+    await page.getByRole('button', { name: 'Talia', exact: true }).click()
+    const classDeck = page.locator('.deck').filter({ hasText: 'Z zajęć' })
+    assert.ok((await classDeck.textContent()).includes('79 słów'))
+    await classDeck.click()
+    await page.getByRole('button', { name: /Zacznij sesję/ }).click()
+    assert.equal(await page.locator('.card__deck').textContent(), 'Z zajęć')
+    const lessonTerm = await page.locator('.card__es').textContent()
+    assert.ok(expectedClass.has(lessonTerm))
+    await page.getByRole('button', { name: 'Pokaż tłumaczenie', exact: true }).click()
+    assert.equal(await page.locator('.answer__pl').textContent(), checks.classWords.find((word) => word.es === lessonTerm).pl)
+    await page.getByRole('button', { name: /^Dobrze/ }).click()
+    const progress = await page.evaluate(() => JSON.parse(localStorage.getItem('palabras.v1')).srs)
+    assert.deepEqual(progress.w1, JSON.parse(before).srs.w1)
+    assert.ok(progress[checks.classWords.find((word) => word.es === lessonTerm).id])
+
+    await page.getByRole('button', { name: 'Dźwięki', exact: true }).click()
+    await page.getByRole('button', { name: 'Strumień słów', exact: true }).click()
+    const setSelector = page.getByLabel('Zestaw słów', { exact: true })
+    assert.equal(await setSelector.inputValue(), 'zajecia')
+    assert.ok((await page.locator('.word-stream > .page-sub').textContent()).includes('79'))
+    assert.ok((await page.locator('.word-stream__word').allTextContents()).every((word) => expectedClass.has(word)))
+    await page.getByRole('button', { name: 'Pokaż podpowiedź', exact: true }).click()
+    await setSelector.selectOption('all')
+    assert.equal(await page.locator('.word-stream__hint').count(), 0)
+    assert.equal(await page.locator('.word-stream__current > span').textContent(), 'Słowo 1')
+    await setSelector.selectOption('moje')
+    assert.equal(await page.locator('.word-stream__word').count(), 0)
+    assert.ok(await page.getByText('Dodaj słowa, żeby rozpocząć czytanie.', { exact: true }).isVisible())
+    await setSelector.selectOption('zajecia')
+    await page.screenshot({ path: `../tmp/spanish-stream/classes-${mobile ? 'mobile' : 'desktop'}.png`, fullPage: true })
     assert.deepEqual(errors, [])
     console.log(`${mobile ? 'Mobile' : 'Desktop'} passed: manual controls, hints, preferences, unchanged SRS, ${checks.size} unique entries, six shuffled cycles and bounded rendering`)
     await page.close()
