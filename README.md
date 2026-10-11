@@ -32,7 +32,8 @@ help plan meals.
   bottom. A minimal PWA manifest lets you install it to your home screen (open
   `http://<host-ip>:8080` on the same LAN).
 - Recipes can carry a free-text **source name** (a book, site or diet plan, e.g.
-  "Daily Dieta") shown above the title on cards and searchable in the library.
+  "Daily Dieta", "Blond Kuchara") shown above the title on cards; the library can
+  filter and sort by it, and `GET /api/recipes?sourceName=` filters for agents.
 - An **approximate quantity pantry** (grams / ml / pieces) that keeps a visible
   estimate plus a conservative planning amount. Receipt labels can be learned per
   store, cooking tolerates small deviations, and only shopping-relevant uncertainty

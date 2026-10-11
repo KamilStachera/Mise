@@ -12,7 +12,7 @@ public static class RecipesEndpoints
         var g = api.MapGroup("/recipes").WithTags("Recipes");
 
         g.MapGet("/", async (string? source, string? q, string? dishType, string? cuisine,
-            int? maxTime, bool? airFryer, MiseDbContext db) =>
+            int? maxTime, bool? airFryer, string? sourceName, MiseDbContext db) =>
         {
             if (!Mapping.TryParseDishType(dishType, out var dt))
                 return BadDishType();
@@ -33,7 +33,14 @@ public static class RecipesEndpoints
             if (!string.IsNullOrWhiteSpace(q))
             {
                 var term = q.Trim().ToLower();
-                query = query.Where(r => r.Title.ToLower().Contains(term));
+                query = query.Where(r => r.Title.ToLower().Contains(term)
+                    || (r.SourceName != null && r.SourceName.ToLower().Contains(term)));
+            }
+            // Exact origin, case-insensitive ("blond kuchara" finds "Blond Kuchara").
+            if (!string.IsNullOrWhiteSpace(sourceName))
+            {
+                var origin = sourceName.Trim().ToLower();
+                query = query.Where(r => r.SourceName != null && r.SourceName.ToLower() == origin);
             }
             if (dt is DishType wantedDish)
                 query = query.Where(r => r.DishType == wantedDish);

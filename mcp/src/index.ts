@@ -123,19 +123,21 @@ server.tool(
 
 server.tool(
   'search_recipes',
-  'Szukaj zapisanych przepisów po tytule, źródle, rodzaju dania, kuchni i/lub maksymalnym czasie.',
+  'Szukaj zapisanych przepisów po tytule, źródle (np. „Blond Kuchara”, „Daily Dieta” — lista źródeł w cookbook.md), rodzaju dania, kuchni i/lub maksymalnym czasie.',
   {
-    q: z.string().optional().describe('Fragment tytułu'),
+    q: z.string().optional().describe('Fragment tytułu lub źródła'),
     source: z.enum(['ai', 'web', 'manual']).optional(),
+    sourceName: z.string().optional().describe('Dokładne źródło przepisu, np. "Blond Kuchara" (wielkość liter bez znaczenia)'),
     dishType: z.enum(DISH_TYPES).optional().describe('Rodzaj dania'),
     cuisine: z.enum(CUISINES).optional().describe('Kuchnia/pochodzenie'),
     maxTime: z.number().int().positive().optional().describe('Maksymalny czas przygotowania w minutach'),
     airFryer: z.boolean().optional().describe('true = tylko dania z frytkownicy, false = tylko bez'),
   },
-  async ({ q, source, dishType, cuisine, maxTime, airFryer }) => {
+  async ({ q, source, sourceName, dishType, cuisine, maxTime, airFryer }) => {
     const p = new URLSearchParams()
     if (q) p.set('q', q)
     if (source) p.set('source', source)
+    if (sourceName) p.set('sourceName', sourceName)
     if (dishType) p.set('dishType', dishType)
     if (cuisine) p.set('cuisine', cuisine)
     if (maxTime) p.set('maxTime', String(maxTime))

@@ -171,7 +171,9 @@ public static class AgentDocs
         `sourceName` (tekst, maks. 80 znaków, opcjonalny) — skąd pochodzi przepis: książka,
         strona, jadłospis (np. „Daily Dieta”). Aplikacja pokazuje go nad tytułem na kartach.
         **Nie doklejaj go do tytułu** („Daily Dieta - Sernik” ✗ → `title`: „Sernik”,
-        `sourceName`: „Daily Dieta” ✓). Gdy źródła nie ma, pomiń pole.
+        `sourceName`: „Daily Dieta” ✓). Gdy źródła nie ma, pomiń pole. Biblioteka filtruje po
+        źródle, więc **użyj dokładnie tej pisowni, która już istnieje** (lista „Źródła” w
+        `cookbook.md`), zamiast tworzyć wariant („Blond Kuchara”, nie „Blond kucharz”).
 
         `kcal` (int), `protein`, `fat`, `carbs` (liczby, gramy) — szacunkowe wartości odżywcze
         **NA JEDNĄ PORCJĘ**, nie na całe danie. **Zawsze oszacuj je przy dodawaniu przepisu**
@@ -272,7 +274,8 @@ public static class AgentDocs
         („2 x Kromka (70.0 g)").
 
         ### Pozostałe
-        - `GET /recipes?q=<szukaj>&source=<ai|web|manual|all>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>` — lista.
+        - `GET /recipes?q=<szukaj>&source=<ai|web|manual|all>&sourceName=<źródło>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>` — lista.
+          `q` szuka w tytule i źródle; `sourceName` to dokładne źródło (bez względu na wielkość liter).
         - `GET /recipes/{id}` — szczegóły + które składniki są na stanie / do kupienia
           (uwzględnia ilości: za mało w spiżarni = do kupienia). `selectedServings` to
           zapisany wybór porcji z ekranu przepisu — **ilości składników w odpowiedzi są

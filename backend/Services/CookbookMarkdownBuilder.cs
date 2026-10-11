@@ -74,6 +74,14 @@ public sealed class CookbookMarkdownBuilder
         sb.AppendLine();
 
         sb.AppendLine($"## Zapisane przepisy ({recipes.Count})");
+        // Exact spellings, so agents reuse them and the library's "Źródło" filter stays grouped.
+        var origins = recipes.Where(r => r.SourceName is not null)
+            .GroupBy(r => r.SourceName!, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, Pl.Comparer)
+            .Select(g => $"„{g.Key}” ({g.Count()})")
+            .ToList();
+        if (origins.Count > 0)
+            sb.AppendLine($"Źródła (`sourceName`): {string.Join(", ", origins)}.");
         foreach (var r in recipes.OrderBy(r => r.Title, Pl.Comparer))
         {
             var meta = new List<string> { $"{r.TimeMinutes} min", $"{r.Servings} porcje" };

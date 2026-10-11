@@ -14,7 +14,7 @@ const EMPTY_RECIPES: RecipeListItem[] = []
 
 type Filter = 'all' | Source
 type TimeBucket = '15' | '30' | '60' | '60plus'
-type SortMode = 'alpha' | 'newest' | 'quickest' | 'missing'
+type SortMode = 'alpha' | 'newest' | 'quickest' | 'missing' | 'origin'
 type Stock = 'any' | 'have' | 'almost'
 
 const TIME_BUCKETS: { key: TimeBucket; label: string }[] = [
@@ -29,6 +29,7 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
   { key: 'alpha', label: 'A–Z' },
   { key: 'quickest', label: 'Najszybsze' },
   { key: 'missing', label: 'Najmniej brakuje' },
+  { key: 'origin', label: 'Wg źródła' },
 ]
 
 const STOCK_OPTIONS: { key: Stock; label: string }[] = [
@@ -36,6 +37,25 @@ const STOCK_OPTIONS: { key: Stock; label: string }[] = [
   { key: 'have', label: 'Mam wszystko' },
   { key: 'almost', label: 'Brakuje 1–2' },
 ]
+
+/** Origin filter key: the trimmed, case-folded sourceName; '' = no source. */
+function originKey(r: RecipeListItem): string {
+  return r.sourceName?.trim().toLocaleLowerCase('pl-PL') ?? ''
+}
+
+/** Sources present in the collection, biggest first; recipes without one come last. */
+function originOptions(recipes: RecipeListItem[]): { key: string; label: string; count: number }[] {
+  const byKey = new Map<string, { key: string; label: string; count: number }>()
+  for (const r of recipes) {
+    const key = originKey(r)
+    const entry = byKey.get(key) ?? { key, label: key ? r.sourceName!.trim() : 'Bez źródła', count: 0 }
+    entry.count++
+    byKey.set(key, entry)
+  }
+  return [...byKey.values()].sort(
+    (a, b) => Number(!a.key) - Number(!b.key) || b.count - a.count || a.label.localeCompare(b.label, 'pl-PL'),
+  )
+}
 
 function inTimeBucket(time: number, bucket: TimeBucket | null): boolean {
   if (bucket === null) return true
@@ -63,6 +83,7 @@ export function Library() {
   const [query, setQuery] = useState('')
   const [dish, setDish] = useState<DishType | 'all'>('all')
   const [cuisine, setCuisine] = useState<Cuisine | 'all'>('all')
+  const [origin, setOrigin] = useState<string | null>(null)
   const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null)
   const [difficulty, setDifficulty] = useState<string>('all')
   const [stock, setStock] = useState<Stock>('any')
@@ -90,12 +111,16 @@ export function Library() {
     [recipes],
   )
 
+  const origins = useMemo(() => originOptions(recipes), [recipes])
+  const originLabel = origins.find((o) => o.key === origin)?.label
+
   const view = useMemo(() => {
     const q = query.trim().toLowerCase()
     const filtered = recipes
       .filter((r) => filter === 'all' || r.source === filter)
       .filter((r) => dish === 'all' || r.dishType === dish)
       .filter((r) => cuisine === 'all' || r.cuisine === cuisine)
+      .filter((r) => origin === null || originKey(r) === origin)
       .filter((r) => inTimeBucket(r.time, timeBucket))
       .filter((r) => difficulty === 'all' || r.difficulty === difficulty)
       .filter((r) => stock !== 'have' || r.toBuyCount === 0)
@@ -107,13 +132,17 @@ export function Library() {
     if (sort === 'quickest') filtered.sort((a, b) => a.time - b.time)
     if (sort === 'missing')
       filtered.sort((a, b) => a.toBuyCount - b.toBuyCount || b.createdAt.localeCompare(a.createdAt))
+    // Stable sort over the A–Z server order, so titles stay alphabetical within a source.
+    if (sort === 'origin')
+      // Unnamed ones go last, grouped by the bucket their eyebrow shows.
+      filtered.sort((a, b) => Number(!a.sourceName) - Number(!b.sourceName) || sourceEyebrow(a).localeCompare(sourceEyebrow(b), 'pl-PL', { sensitivity: 'base' }))
     return filtered
-  }, [recipes, filter, dish, cuisine, timeBucket, difficulty, stock, airFryerOnly, query, sort])
+  }, [recipes, filter, dish, cuisine, origin, timeBucket, difficulty, stock, airFryerOnly, query, sort])
 
   const { visibleItems, sentinel, hasMore, loadMore } = useInfiniteScroll(view)
 
   const toolbarCount =
-    Number(dish !== 'all') + Number(cuisine !== 'all') + Number(timeBucket !== null) +
+    Number(dish !== 'all') + Number(cuisine !== 'all') + Number(origin !== null) + Number(timeBucket !== null) +
     Number(difficulty !== 'all') + Number(stock !== 'any') + Number(airFryerOnly)
   const filtersActive = toolbarCount > 0 || filter !== 'all' || query.trim() !== ''
   // The editorial block (hero, shortcuts, newest) only shows while browsing everything.
@@ -128,6 +157,7 @@ export function Library() {
   function clearToolbarFilters() {
     setDish('all')
     setCuisine('all')
+    setOrigin(null)
     setTimeBucket(null)
     setDifficulty('all')
     setStock('any')
@@ -168,6 +198,15 @@ export function Library() {
 
   const desktopFilters = (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
+      <FilterDropdown
+        {...menu('origin')}
+        label={originLabel ?? 'Źródło'}
+        active={origin !== null}
+        options={[
+          { label: 'Wszystkie źródła', selected: origin === null, onSelect: () => pick(setOrigin)(null) },
+          ...origins.map((o) => ({ label: `${o.label} (${o.count})`, selected: origin === o.key, onSelect: () => pick(setOrigin)(o.key) })),
+        ]}
+      />
       <FilterDropdown
         {...menu('dish')}
         label={dish === 'all' ? 'Kategoria' : dishTypeLabel[dish]}
@@ -351,6 +390,10 @@ export function Library() {
           <ChipGroup label="Kuchnia">
             <Chip active={cuisine === 'all'} onClick={() => setCuisine('all')}>Wszystkie</Chip>
             {CUISINES.map((c) => <Chip key={c} active={cuisine === c} onClick={() => setCuisine(c)}>{cuisineLabel[c]}</Chip>)}
+          </ChipGroup>
+          <ChipGroup label="Źródło">
+            <Chip active={origin === null} onClick={() => setOrigin(null)}>Wszystkie</Chip>
+            {origins.map((o) => <Chip key={o.key} active={origin === o.key} onClick={() => setOrigin(o.key)}>{o.label} · {o.count}</Chip>)}
           </ChipGroup>
           <ChipGroup label="Czas">
             <Chip active={timeBucket === null} onClick={() => setTimeBucket(null)}>Dowolny</Chip>
