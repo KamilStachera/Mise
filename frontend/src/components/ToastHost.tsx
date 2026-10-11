@@ -35,7 +35,7 @@ export function ToastHost() {
         borderRadius: 12,
         background: 'var(--text)',
         color: 'var(--surface)',
-        font: "500 13.5px 'Hanken Grotesk', sans-serif",
+        font: "500 13.5px var(--sans)",
         boxShadow: '0 6px 24px rgba(0,0,0,.25)',
         cursor: 'pointer',
       }}

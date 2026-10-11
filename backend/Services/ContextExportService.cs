@@ -66,6 +66,22 @@ public sealed class ContextExportService
         return _cookbook.Build(prefs, pantry, recipes, answers);
     }
 
+    /// <summary>
+    /// Full markdown of one recipe for the chat system prompt when the user asks
+    /// Sous from a recipe page; null when the id is unknown.
+    /// </summary>
+    public async Task<string?> BuildRecipeFocusAsync(Guid recipeId, CancellationToken ct = default)
+    {
+        var r = await _db.Recipes.AsNoTracking()
+            .Include(x => x.Ingredients).Include(x => x.Steps)
+            .FirstOrDefaultAsync(x => x.Id == recipeId, ct);
+        if (r is null) return null;
+        var md = BuildRecipeMarkdown(r);
+        return RecipeScaling.IsScaled(r)
+            ? md + $"\nUżytkownik ma ustawione {RecipeScaling.EffectiveServings(r)} porcje (przepis bazowy: {r.Servings}).\n"
+            : md;
+    }
+
     // Serialize writers: exports now fire on every data mutation, and two overlapping
     // exports would race on the same files.
     private static readonly SemaphoreSlim Gate = new(1, 1);

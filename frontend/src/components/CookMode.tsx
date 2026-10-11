@@ -60,10 +60,10 @@ export function CookMode({ title, steps, ingredients, onClose }: {
           <CloseIcon size={21} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 15.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 15.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {title}
           </div>
-          <div style={{ font: "500 12px 'Hanken Grotesk'", color: 'var(--text-3)' }}>
+          <div style={{ font: "500 12px var(--sans)", color: 'var(--text-3)' }}>
             Krok {step + 1} z {steps.length}
           </div>
         </div>
@@ -75,7 +75,7 @@ export function CookMode({ title, steps, ingredients, onClose }: {
             color: showIngredients ? 'var(--accent-deep)' : 'var(--text-2)',
             borderRadius: 11,
             padding: '10px 14px',
-            font: "600 13px 'Hanken Grotesk'",
+            font: "600 13px var(--sans)",
             cursor: 'pointer',
             minHeight: 44,
           }}
@@ -110,7 +110,7 @@ export function CookMode({ title, steps, ingredients, onClose }: {
                     {ing.name}
                     {detail && <span style={{ display: 'block', marginTop: 2, fontSize: 11, fontWeight: 400, color: 'var(--text-3)' }}>{detail}</span>}
                   </span>
-                  {ing.quantity && <span style={{ flex: '0 0 auto', font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
+                  {ing.quantity && <span style={{ flex: '0 0 auto', font: "500 11.5px var(--mono)", color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
                 </div>
               )
             })}
@@ -121,10 +121,10 @@ export function CookMode({ title, steps, ingredients, onClose }: {
       {/* the step */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, padding: '28px clamp(18px, 5vw, 48px)', textAlign: 'center' }}>
         <div key={step} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, animation: 'fadeUp .24s ease-out' }}>
-          <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'var(--surface)', border: '2px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 22px 'Spectral', serif" }}>
+          <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'var(--surface)', border: '2px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 22px var(--serif)" }}>
             {step + 1}
           </div>
-          <p style={{ margin: 0, maxWidth: '26ch', fontFamily: "'Spectral', serif", fontWeight: 500, fontSize: 'clamp(22px, 4.5vw, 32px)', lineHeight: 1.45, color: 'var(--text)', textWrap: 'pretty' }}>
+          <p style={{ margin: 0, maxWidth: '26ch', fontFamily: "var(--serif)", fontWeight: 500, fontSize: 'clamp(22px, 4.5vw, 32px)', lineHeight: 1.45, color: 'var(--text)', textWrap: 'pretty' }}>
             {steps[step]}
           </p>
           {durations.length > 0 && (
@@ -152,7 +152,7 @@ export function CookMode({ title, steps, ingredients, onClose }: {
             color: isFirst ? 'var(--text-3)' : 'var(--text)',
             borderRadius: 14,
             padding: 16,
-            font: "600 15px 'Hanken Grotesk'",
+            font: "600 15px var(--sans)",
             cursor: isFirst ? 'default' : 'pointer',
             opacity: isFirst ? 0.55 : 1,
             minHeight: 54,
@@ -162,7 +162,7 @@ export function CookMode({ title, steps, ingredients, onClose }: {
         </button>
         <button
           onClick={isLast ? onClose : next}
-          style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 14, padding: 16, font: "700 15.5px 'Hanken Grotesk'", cursor: 'pointer', minHeight: 54, boxShadow: '0 6px 18px rgba(160,66,32,.26)' }}
+          style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 14, padding: 16, font: "700 15.5px var(--sans)", cursor: 'pointer', minHeight: 54, boxShadow: '0 6px 18px rgba(160,66,32,.26)' }}
         >
           {isLast ? 'Gotowe' : 'Dalej'} <ChevronRight size={17} />
         </button>
@@ -257,7 +257,7 @@ function TimerChip({ label, seconds }: { label: string; seconds: number }) {
         color: c.col,
         borderRadius: 22,
         padding: '11px 19px',
-        font: "600 15px 'Hanken Grotesk'",
+        font: "600 15px var(--sans)",
         cursor: 'pointer',
         transition: 'all .15s',
         animation: state === 'done' ? 'timerPulse 1.1s ease-in-out infinite' : 'none',
@@ -265,7 +265,7 @@ function TimerChip({ label, seconds }: { label: string; seconds: number }) {
     >
       <ClockIcon size={16} />
       {state === 'idle' && <>{label}</>}
-      {state === 'running' && <span style={{ font: "600 16px 'Spline Sans Mono'" }}>{formatCountdown(left)}</span>}
+      {state === 'running' && <span style={{ font: "600 16px var(--mono)" }}>{formatCountdown(left)}</span>}
       {state === 'done' && <>Czas minął! ✕</>}
     </button>
   )

@@ -1,19 +1,30 @@
 :root {
-  --bg: #ece2d2;
-  --surface: #f7f1e6;
-  --card: #fffdf7;
-  --border: #e6dbc4;
-  --border-2: #d8cbb0;
-  --text: #2c241b;
-  --text-2: #8c7d68;
-  --text-3: #b3a892;
-  --accent: #c0552d;
-  --accent-deep: #9c4220;
-  --accent-soft: #f3e1d4;
-  --sage: #6e7a52;
-  --gold: #bd8b2c;
+  /* Pichci redesign (Claude Design, 2026-10): warm paper, ink rules, one accent. */
+  --bg: #f5f0e6;
+  --surface: #fbf8f2; /* inputs, highlighted cells */
+  --card: #fbf8f2;
+  --seg-bg: #ebe3d5; /* segmented-control track */
+  --border: #ddd3c3; /* thin rule between rows */
+  --border-2: #c9bca8; /* dashed placeholders */
+  --rule: #1d1813; /* strong 1px rule under headers / around strips */
+  --text: #1d1813;
+  --text-2: #5e5448;
+  --text-3: #7a6f61;
+  --accent: oklch(0.58 0.19 33);
+  --accent-deep: oklch(0.52 0.19 33);
+  --accent-text: oklch(0.52 0.19 33); /* accent used as text on paper */
+  --accent-warm: oklch(0.72 0.14 45); /* accent on dark backgrounds */
+  --accent-soft: #f6dfd5;
+  --accent-soft-text: #8f3a1f;
+  --sage: oklch(0.55 0.09 135); /* "jest" / have everything / checked */
+  --sage-text: oklch(0.5 0.1 135);
+  --gold: oklch(0.7 0.13 75); /* "mało" / stars */
 
-  /* Chat panel — espresso theme (the design's default) */
+  --serif: "Newsreader", Georgia, serif;
+  --sans: "Schibsted Grotesk", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Sous panel (espresso) */
   --panel-bg: #26201a;
   --panel-card: #332a21;
   --panel-text: #efe6d6;
@@ -21,18 +32,18 @@
   --ai-bubble: #332a21;
   --user-bubble: #4a3a2a;
   --panel-border: #42352a;
+
+  /* Cook mode */
+  --cook-bg: #221c16;
+  --cook-card: #2c241c;
+  --cook-line: #4a3e32;
+  --cook-line-soft: #332a21;
+  --cook-muted: #8a7c66;
+  --cook-progress: oklch(0.68 0.16 40);
 }
 
 * {
   box-sizing: border-box;
-}
-
-/* Desktop renders slightly larger; viewport units and media queries are
-   unaffected by zoom, so the ≤700px mobile layout stays as designed. */
-@media (min-width: 701px) {
-  html {
-    zoom: 1.25;
-  }
 }
 
 html,
@@ -50,7 +61,7 @@ body {
 }
 
 body {
-  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-family: var(--sans);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -75,13 +86,13 @@ textarea:focus {
   height: 9px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(120, 105, 80, 0.28);
+  background: rgba(29, 24, 19, 0.22);
   border-radius: 9px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 105, 80, 0.5);
+  background: rgba(29, 24, 19, 0.4);
   background-clip: padding-box;
 }
 
@@ -139,4 +150,22 @@ textarea:focus {
     opacity: 1;
     transform: none;
   }
+}
+@keyframes sheetUp {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Horizontal chip rows on phones scroll without a visible scrollbar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

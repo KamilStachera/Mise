@@ -38,7 +38,7 @@ function loadHistory(): string[] {
 }
 
 const ruleLabel: CSSProperties = {
-  font: "700 11px 'Hanken Grotesk'",
+  font: "700 11px var(--sans)",
   letterSpacing: '.08em',
   textTransform: 'uppercase',
   color: 'var(--text-3)',
@@ -50,7 +50,7 @@ function segBtn(on: boolean): CSSProperties {
     border: 'none',
     borderRadius: 8,
     padding: '7px 14px',
-    font: "600 12.5px 'Hanken Grotesk'",
+    font: "600 12.5px var(--sans)",
     cursor: 'pointer',
     background: on ? 'var(--card)' : 'transparent',
     color: on ? 'var(--accent-deep)' : 'var(--text-2)',
@@ -70,7 +70,7 @@ function togglePill(on: boolean): CSSProperties {
     color: on ? 'var(--sage)' : 'var(--text-2)',
     borderRadius: 20,
     padding: '8px 14px',
-    font: "600 12.5px 'Hanken Grotesk'",
+    font: "600 12.5px var(--sans)",
     cursor: 'pointer',
     transition: 'all .13s',
   }
@@ -199,10 +199,10 @@ export function Random() {
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: '38px 42px 60px' }}>
-      <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
+      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
         Ruletka obiadowa
       </div>
-      <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: '0 0 5px', color: 'var(--text)' }}>
+      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: '0 0 5px', color: 'var(--text)' }}>
         Losowy posiłek
       </h1>
       <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 24px' }}>
@@ -250,7 +250,7 @@ export function Random() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 18 }}>
-        <div style={{ font: "500 13px 'Hanken Grotesk'", color: 'var(--text-3)' }}>{poolLabel}</div>
+        <div style={{ font: "500 13px var(--sans)", color: 'var(--text-3)' }}>{poolLabel}</div>
         <button
           onClick={spin}
           style={{
@@ -262,7 +262,7 @@ export function Random() {
             color: '#fff',
             borderRadius: 13,
             padding: '13px 26px',
-            font: "700 14.5px 'Hanken Grotesk'",
+            font: "700 14.5px var(--sans)",
             cursor: spinning ? 'default' : 'pointer',
             boxShadow: '0 6px 18px rgba(160,66,32,.26)',
             opacity: spinning ? 0.75 : 1,
@@ -281,7 +281,7 @@ export function Random() {
           <div style={{ width: 58, height: 58, borderRadius: 16, background: 'var(--card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
             <DiceIcon size={27} color="var(--accent)" />
           </div>
-          <div style={{ fontFamily: "'Spectral', serif", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Los jeszcze nie przemówił</div>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Los jeszcze nie przemówił</div>
           <div style={{ fontSize: 13.5, color: 'var(--text-2)', maxWidth: '38ch' }}>
             Jedno kręcenie, jeden obiad. Bez przewijania i bez wahania — taka umowa.
           </div>
@@ -290,7 +290,7 @@ export function Random() {
 
       {spinning && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '70px 24px', border: '1.5px dashed var(--accent)', borderRadius: 18, background: 'var(--accent-soft)' }}>
-          <div style={{ fontFamily: "'Spectral', serif", fontSize: 24, fontWeight: 600, color: 'var(--accent-deep)', textAlign: 'center', lineHeight: 1.25 }}>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 24, fontWeight: 600, color: 'var(--accent-deep)', textAlign: 'center', lineHeight: 1.25 }}>
             {flash}
           </div>
         </div>
@@ -302,23 +302,23 @@ export function Random() {
             {pick.imageUrl ? (
               <img src={pick.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <span style={{ fontFamily: "'Spectral', serif", fontSize: 64, fontWeight: 500, color: 'rgba(255,255,255,.9)', lineHeight: 1 }}>
+              <span style={{ fontFamily: "var(--serif)", fontSize: 64, fontWeight: 500, color: 'rgba(255,255,255,.9)', lineHeight: 1 }}>
                 {pick.title[0]}
               </span>
             )}
-            <span style={{ position: 'absolute', top: 11, left: 11, font: "700 10px 'Hanken Grotesk'", letterSpacing: '.08em', padding: '4px 8px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[pick.source].col }}>
+            <span style={{ position: 'absolute', top: 11, left: 11, font: "700 10px var(--sans)", letterSpacing: '.08em', padding: '4px 8px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[pick.source].col }}>
               {sourceBadge[pick.source].label}
             </span>
           </div>
           <div style={{ padding: '20px 24px 22px' }}>
-            <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>
+            <div style={{ font: "600 11px var(--sans)", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>
               Dziś gotujesz
             </div>
-            <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 26, lineHeight: 1.12, margin: '0 0 8px', color: 'var(--text)' }}>
+            <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 26, lineHeight: 1.12, margin: '0 0 8px', color: 'var(--text)' }}>
               {pick.title}
             </h2>
             {pick.blurb && <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--text-2)', margin: '0 0 14px' }}>{pick.blurb}</p>}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: "500 13px 'Hanken Grotesk'", color: 'var(--text-2)', marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: "500 13px var(--sans)", color: 'var(--text-2)', marginBottom: 18, flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <ClockIcon size={14} />
                 {pick.time} min
@@ -330,7 +330,7 @@ export function Random() {
               </span>
               <span
                 style={{
-                  font: "600 11.5px 'Hanken Grotesk'",
+                  font: "600 11.5px var(--sans)",
                   color: pick.toBuyCount === 0 ? 'var(--sage)' : 'var(--accent)',
                   background: pick.toBuyCount === 0 ? 'rgba(110,122,82,.12)' : 'var(--accent-soft)',
                   padding: '3px 9px',
@@ -343,13 +343,13 @@ export function Random() {
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => nav(`/recipe/${pick.id}`)}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 11, padding: '11px 20px', font: "600 13.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 11, padding: '11px 20px', font: "600 13.5px var(--sans)", cursor: 'pointer' }}
               >
                 Ugotuj to <ChevronRight />
               </button>
               <button
                 onClick={spin}
-                style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text)', borderRadius: 11, padding: '11px 18px', font: "600 13.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+                style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text)', borderRadius: 11, padding: '11px 18px', font: "600 13.5px var(--sans)", cursor: 'pointer' }}
               >
                 Zakręć jeszcze raz
               </button>
@@ -360,13 +360,13 @@ export function Random() {
 
       {empty && (
         <DashedPanel>
-          <div style={{ fontFamily: "'Spectral', serif", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Nic nie pasuje do tych zasad</div>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Nic nie pasuje do tych zasad</div>
           <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>
             Poluzuj limit czasu albo wyłącz zasadę spiżarni — albo poproś Sous o coś nowego.
           </div>
           <button
             onClick={resetRules}
-            style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
+            style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
           >
             Zresetuj zasady
           </button>
@@ -377,7 +377,7 @@ export function Random() {
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
           <button
             onClick={() => requestChat('Zaskocz mnie — wymyśl coś nowego z tego, co mam w spiżarni')}
-            style={{ border: 'none', background: 'transparent', color: 'var(--text-2)', font: "500 13px 'Hanken Grotesk'", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 9 }}
+            style={{ border: 'none', background: 'transparent', color: 'var(--text-2)', font: "500 13px var(--sans)", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 9 }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-2)')}
           >
@@ -389,7 +389,7 @@ export function Random() {
 
       {historyView.length > 0 && (
         <div style={{ marginTop: 22 }}>
-          <div style={{ font: "700 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 9 }}>
+          <div style={{ font: "700 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 9 }}>
             Poprzednie losowania
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -397,7 +397,7 @@ export function Random() {
               <button
                 key={r.id}
                 onClick={() => nav(`/recipe/${r.id}`)}
-                style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 20, padding: '7px 13px', font: "500 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+                style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 20, padding: '7px 13px', font: "500 12.5px var(--sans)", cursor: 'pointer' }}
               >
                 {r.title}
               </button>

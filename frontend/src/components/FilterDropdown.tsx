@@ -40,7 +40,7 @@ export function FilterDropdown({
     color: active ? 'var(--accent-deep)' : muted ? 'var(--text-2)' : 'var(--text)',
     borderRadius: 9,
     padding: '7px 10px',
-    font: "600 13px 'Hanken Grotesk'",
+    font: "600 13px var(--sans)",
     cursor: 'pointer',
     transition: 'background .13s, color .13s',
     whiteSpace: 'nowrap',
@@ -84,7 +84,7 @@ export function FilterDropdown({
                 borderRadius: 9,
                 padding: '8px 11px',
                 cursor: 'pointer',
-                font: `${op.selected ? 600 : 500} 13px 'Hanken Grotesk'`,
+                font: `${op.selected ? 600 : 500} 13px var(--sans)`,
                 color: op.selected ? 'var(--accent-deep)' : 'var(--text)',
                 background: op.selected ? 'var(--accent-soft)' : 'transparent',
               }}

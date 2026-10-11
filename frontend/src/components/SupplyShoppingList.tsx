@@ -16,7 +16,7 @@ const secondaryBtn: CSSProperties = {
   borderRadius: 11,
   padding: '10px 14px',
   cursor: 'pointer',
-  font: "500 13px 'Hanken Grotesk'",
+  font: "500 13px var(--sans)",
   whiteSpace: 'nowrap',
 }
 
@@ -62,7 +62,7 @@ export function SupplyShoppingList() {
 
       {canEdit && hot.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 9 }}>
+          <div style={{ font: "600 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 9 }}>
             Częste
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
@@ -77,7 +77,7 @@ export function SupplyShoppingList() {
                   color: h.pinned ? 'var(--accent-deep)' : 'var(--text-2)',
                   borderRadius: 20,
                   padding: isMobile ? '9px 14px' : '8px 14px',
-                  font: "500 13px 'Hanken Grotesk'",
+                  font: "500 13px var(--sans)",
                   cursor: 'pointer',
                   transition: 'all .14s',
                 }}
@@ -97,11 +97,11 @@ export function SupplyShoppingList() {
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               placeholder="Dodaj coś do domu…"
-              style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px 'Hanken Grotesk'", color: 'var(--text)' }}
+              style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px var(--sans)", color: 'var(--text)' }}
             />
             <button
               onClick={submit}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px 'Hanken Grotesk'" }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px var(--sans)" }}
             >
               <PlusIcon />
             </button>
@@ -139,7 +139,7 @@ export function SupplyShoppingList() {
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
           {groups.map((group) => (
             <div key={group.key}>
-              <div style={{ padding: isMobile ? '11px 14px 8px' : '10px 17px 7px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', font: "650 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', color: group.key === 'checked' ? 'var(--text-3)' : 'var(--sage)' }}>
+              <div style={{ padding: isMobile ? '11px 14px 8px' : '10px 17px 7px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', font: "650 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: group.key === 'checked' ? 'var(--text-3)' : 'var(--sage)' }}>
                 {group.label}
               </div>
               {group.items.map((s) => (
@@ -164,11 +164,11 @@ export function SupplyShoppingList() {
                   >
                     {s.checked && <CheckIcon />}
                   </span>
-                  <div style={{ flex: 1, minWidth: 0, font: `600 ${isMobile ? 16 : 14.5}px 'Hanken Grotesk'`, color: s.checked ? 'var(--text-3)' : 'var(--text)', textDecoration: s.checked ? 'line-through' : 'none' }}>
+                  <div style={{ flex: 1, minWidth: 0, font: `600 ${isMobile ? 16 : 14.5}px var(--sans)`, color: s.checked ? 'var(--text-3)' : 'var(--text)', textDecoration: s.checked ? 'line-through' : 'none' }}>
                     {s.name}
                   </div>
                   {!isMobile && s.checked && (
-                    <span style={{ font: "500 11px 'Hanken Grotesk'", color: 'var(--text-3)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 7, padding: '3px 9px' }}>
+                    <span style={{ font: "500 11px var(--sans)", color: 'var(--text-3)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 7, padding: '3px 9px' }}>
                       {supplyCategoryLabel[s.category]}
                     </span>
                   )}
@@ -179,7 +179,7 @@ export function SupplyShoppingList() {
                         remove.mutate(s.id)
                       }}
                       title="Usuń z listy"
-                      style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px 'Hanken Grotesk'", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
+                      style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px var(--sans)", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
                       onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
                     >
@@ -197,7 +197,7 @@ export function SupplyShoppingList() {
         <div style={{ marginTop: 18 }}>
           <button
             onClick={() => setManaging((v) => !v)}
-            style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', padding: 0 }}
+            style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', padding: 0 }}
           >
             {managing ? '− ' : '+ '}Zarządzaj częstymi
           </button>
@@ -227,22 +227,22 @@ function HotManager({ onUpdate, onForget }: {
       {(data ?? []).map((h) => (
         <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid var(--border)', opacity: h.hidden ? 0.55 : 1 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ font: "600 13.5px 'Hanken Grotesk'", color: 'var(--text)' }}>{h.name}</div>
-            <div style={{ font: "500 11px 'Hanken Grotesk'", color: 'var(--text-3)' }}>
+            <div style={{ font: "600 13.5px var(--sans)", color: 'var(--text)' }}>{h.name}</div>
+            <div style={{ font: "500 11px var(--sans)", color: 'var(--text-3)' }}>
               {supplyCategoryLabel[h.category]} · dodane {h.count}×{h.hidden && ' · ukryte'}
             </div>
           </div>
           <button
             onClick={() => onUpdate({ id: h.id, pinned: !h.pinned })}
             title={h.pinned ? 'Odepnij' : 'Przypnij na stałe'}
-            style={{ border: '1px solid ' + (h.pinned ? 'var(--accent)' : 'var(--border)'), background: 'var(--card)', color: h.pinned ? 'var(--accent-deep)' : 'var(--text-2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', font: "500 12px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
+            style={{ border: '1px solid ' + (h.pinned ? 'var(--accent)' : 'var(--border)'), background: 'var(--card)', color: h.pinned ? 'var(--accent-deep)' : 'var(--text-2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', font: "500 12px var(--sans)", whiteSpace: 'nowrap' }}
           >
             {h.pinned ? '📌 Przypięte' : 'Przypnij'}
           </button>
           <button
             onClick={() => onUpdate({ id: h.id, hidden: !h.hidden })}
             title={h.hidden ? 'Podpowiadaj znowu' : 'Nie podpowiadaj tego'}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', font: "500 12px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
+            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', font: "500 12px var(--sans)", whiteSpace: 'nowrap' }}
           >
             {h.hidden ? 'Pokaż' : 'Ukryj'}
           </button>
@@ -251,7 +251,7 @@ function HotManager({ onUpdate, onForget }: {
               if (window.confirm(`Zapomnieć „${h.name}" i jego statystyki?`)) onForget(h.id)
             }}
             title="Zapomnij razem ze statystykami"
-            style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px 'Hanken Grotesk'", padding: '2px 6px', borderRadius: 7, lineHeight: 1 }}
+            style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px var(--sans)", padding: '2px 6px', borderRadius: 7, lineHeight: 1 }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
             onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
           >

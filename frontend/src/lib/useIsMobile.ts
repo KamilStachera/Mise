@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 const QUERY = '(max-width: 700px)'
 
-/** Phone-width viewport — NavRail becomes a bottom tab bar, pages tighten padding. */
+/** Phone-width viewport — Sidebar becomes a bottom tab bar (TabBar), pages tighten padding. */
 export function useIsMobile(): boolean {
   const [mobile, setMobile] = useState(() => window.matchMedia(QUERY).matches)
   useEffect(() => {

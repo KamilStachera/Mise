@@ -26,8 +26,11 @@ export function registerPromptConsumer(fn: (prompt: string) => void): () => void
   }
 }
 
-export function requestChat(prompt: string): void {
-  if (consumer) consumer(prompt)
-  else pending = prompt
+/** Open Sous; with a prompt, send it as soon as the panel is ready. */
+export function requestChat(prompt?: string): void {
+  if (prompt) {
+    if (consumer) consumer(prompt)
+    else pending = prompt
+  }
   openChat?.()
 }

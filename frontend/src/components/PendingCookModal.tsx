@@ -55,10 +55,10 @@ export function PendingCookModal() {
           boxShadow: '0 18px 50px rgba(50,35,18,.28)',
         }}
       >
-        <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>
+        <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>
           Dziennik kuchenny
         </div>
-        <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 24, margin: '0 0 4px', color: 'var(--text)' }}>
+        <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 24, margin: '0 0 4px', color: 'var(--text)' }}>
           Zaległe posiłki z planu
         </h2>
         <p style={{ fontSize: 13.5, color: 'var(--text-2)', margin: '0 0 16px', lineHeight: 1.45 }}>
@@ -75,13 +75,13 @@ export function PendingCookModal() {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button
             onClick={() => { close(); nav('/plan') }}
-            style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 10, padding: '8px 14px', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+            style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 10, padding: '8px 14px', font: "600 12.5px var(--sans)", cursor: 'pointer' }}
           >
             Otwórz plan
           </button>
           <button
             onClick={close}
-            style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '8px 16px', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+            style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '8px 16px', font: "600 12.5px var(--sans)", cursor: 'pointer' }}
           >
             Przypomnij później
           </button>
@@ -113,10 +113,10 @@ function PendingRow({ entry }: { entry: PlanEntry }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 12, padding: '10px 12px' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ font: "600 14px 'Hanken Grotesk'", color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ font: "600 14px var(--sans)", color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {title}
         </div>
-        <div style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)', marginTop: 1 }}>
+        <div style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)', marginTop: 1 }}>
           {when} · {slotLabel[entry.slot]}
         </div>
       </div>
@@ -124,7 +124,7 @@ function PendingRow({ entry }: { entry: PlanEntry }) {
         onClick={markCooked}
         disabled={busy}
         title="Dodaj wpis do historii z datą z planu"
-        style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 12px', font: "600 12px 'Hanken Grotesk'", cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.6 : 1 }}
+        style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 12px', font: "600 12px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.6 : 1 }}
       >
         ✓ Ugotowane
       </button>
@@ -132,7 +132,7 @@ function PendingRow({ entry }: { entry: PlanEntry }) {
         onClick={() => dismiss.mutate(entry.id)}
         disabled={busy}
         title="Nie przypominaj o tym posiłku (np. pominięty)"
-        style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '7px 12px', font: "600 12px 'Hanken Grotesk'", cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.6 : 1 }}
+        style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '7px 12px', font: "600 12px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap', opacity: busy ? 0.6 : 1 }}
       >
         Pomiń
       </button>

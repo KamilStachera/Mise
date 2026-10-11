@@ -11,7 +11,7 @@ function tabStyle(active: boolean): CSSProperties {
     color: active ? '#fff' : 'var(--text-2)',
     borderRadius: 20,
     padding: '8px 16px',
-    font: "500 13px 'Hanken Grotesk'",
+    font: "500 13px var(--sans)",
     cursor: 'pointer',
     transition: 'all .14s',
   }
@@ -30,10 +30,10 @@ export function Shopping() {
 
   return (
     <div style={{ maxWidth: 660, margin: '0 auto', padding: isMobile ? '22px 14px 28px' : '38px 42px 60px' }}>
-      <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
+      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
         Do kupienia
       </div>
-      <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: isMobile ? 30 : 38, margin: '0 0 14px' }}>
+      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: isMobile ? 30 : 38, margin: '0 0 14px' }}>
         {home ? 'Dom i chemia' : 'Lista zakupów'}
       </h1>
 

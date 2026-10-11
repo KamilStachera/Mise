@@ -35,7 +35,7 @@ export function ConnectAgentCard() {
 
       {needsPath && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ font: "500 12.5px 'Hanken Grotesk'", color: 'var(--text-2)', marginBottom: 6 }}>
+          <div style={{ font: "500 12.5px var(--sans)", color: 'var(--text-2)', marginBottom: 6 }}>
             Ścieżka folderu <Code>context</Code> na tym komputerze (albo ustaw <Code>HOST_CONTEXT_DIR</Code> w .env):
           </div>
           <input
@@ -83,13 +83,13 @@ function CopyBlock({ title, text, disabled }: { title: string; text: string; dis
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-        <span style={{ font: "500 12px 'Hanken Grotesk'", color: 'var(--text-2)' }}>{title}</span>
+        <span style={{ font: "500 12px var(--sans)", color: 'var(--text-2)' }}>{title}</span>
         <div style={{ flex: 1 }} />
         <button
           onClick={onCopy}
           disabled={disabled}
           style={{
-            font: "500 11.5px 'Hanken Grotesk'",
+            font: "500 11.5px var(--sans)",
             color: copied ? 'var(--sage)' : 'var(--text-2)',
             background: 'var(--surface)',
             border: '1px solid var(--border)',
@@ -109,7 +109,7 @@ function CopyBlock({ title, text, disabled }: { title: string; text: string; dis
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 9,
-          font: "400 11.5px 'Spline Sans Mono'",
+          font: "400 11.5px var(--mono)",
           lineHeight: 1.55,
           color: disabled ? 'var(--text-3)' : 'var(--text)',
           whiteSpace: 'pre-wrap',
@@ -125,7 +125,7 @@ function CopyBlock({ title, text, disabled }: { title: string; text: string; dis
 }
 
 function Code({ children }: { children: React.ReactNode }) {
-  return <code style={{ font: "500 12px 'Spline Sans Mono'", color: 'var(--accent-deep)' }}>{children}</code>
+  return <code style={{ font: "500 12px var(--mono)", color: 'var(--accent-deep)' }}>{children}</code>
 }
 
 const card: CSSProperties = {
@@ -135,7 +135,7 @@ const card: CSSProperties = {
   padding: '19px 21px',
 }
 const cap: CSSProperties = {
-  font: "700 11px 'Hanken Grotesk'",
+  font: "700 11px var(--sans)",
   letterSpacing: '.08em',
   textTransform: 'uppercase',
   color: 'var(--text-3)',
@@ -147,6 +147,6 @@ const input: CSSProperties = {
   background: 'var(--surface)',
   borderRadius: 9,
   padding: '8px 11px',
-  font: "400 13px 'Spline Sans Mono'",
+  font: "400 13px var(--mono)",
   color: 'var(--text)',
 }

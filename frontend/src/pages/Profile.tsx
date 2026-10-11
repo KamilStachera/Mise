@@ -11,7 +11,7 @@ const cardStyle: CSSProperties = {
   padding: '19px 21px',
 }
 const capStyle: CSSProperties = {
-  font: "700 11px 'Hanken Grotesk'",
+  font: "700 11px var(--sans)",
   letterSpacing: '.08em',
   textTransform: 'uppercase',
   color: 'var(--text-3)',
@@ -23,7 +23,7 @@ const inputStyle: CSSProperties = {
   background: 'var(--surface)',
   borderRadius: 9,
   padding: '8px 11px',
-  font: "400 14px 'Hanken Grotesk'",
+  font: "400 14px var(--sans)",
   color: 'var(--text)',
 }
 
@@ -65,10 +65,10 @@ export function Profile() {
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '38px 42px 60px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
+          <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
             Co wie asystent
           </div>
-          <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, margin: '0 0 5px' }}>Profil kulinarny</h1>
+          <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, margin: '0 0 5px' }}>Profil kulinarny</h1>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {canEdit && (editing ? (
@@ -104,7 +104,7 @@ export function Profile() {
             </>
           ) : (
             <>
-              <div style={{ fontFamily: "'Spectral', serif", fontSize: 22, fontWeight: 600, marginBottom: 3 }}>{view.householdSummary}</div>
+              <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 600, marginBottom: 3 }}>{view.householdSummary}</div>
               <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>{view.householdDetail}</div>
             </>
           )}
@@ -118,7 +118,7 @@ export function Profile() {
             </>
           ) : (
             <>
-              <div style={{ fontFamily: "'Spectral', serif", fontSize: 22, fontWeight: 600, marginBottom: 3 }}>{view.skillSummary}</div>
+              <div style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 600, marginBottom: 3 }}>{view.skillSummary}</div>
               <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>{view.skillDetail}</div>
             </>
           )}
@@ -160,22 +160,22 @@ export function Profile() {
       <div style={{ background: '#2a221a', borderRadius: 15, overflow: 'hidden', border: '1px solid #3a2f24' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 18px', borderBottom: '1px solid #3a2f24' }}>
           <span style={{ width: 11, height: 11, borderRadius: '50%', background: 'var(--accent)' }} />
-          <span style={{ font: "500 13px 'Spline Sans Mono'", color: '#e8dcc6' }}>cookbook.md</span>
-          <span style={{ font: "400 11.5px 'Hanken Grotesk'", color: '#9a8c72' }}>— wysyłane do AI na początku każdej rozmowy</span>
+          <span style={{ font: "500 13px var(--mono)", color: '#e8dcc6' }}>cookbook.md</span>
+          <span style={{ font: "400 11.5px var(--sans)", color: '#9a8c72' }}>— wysyłane do AI na początku każdej rozmowy</span>
           <div style={{ flex: 1 }} />
           {canEdit && (
             <button
               onClick={onSync}
-              style={{ font: "500 11px 'Hanken Grotesk'", color: '#b9aa8e', background: 'transparent', border: '1px solid #4a3d2e', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}
+              style={{ font: "500 11px var(--sans)", color: '#b9aa8e', background: 'transparent', border: '1px solid #4a3d2e', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}
             >
               {exportCtx.isPending ? 'Synchronizuję…' : 'Synchronizuj z ./context'}
             </button>
           )}
         </div>
-        <pre style={{ margin: 0, padding: '18px 20px', fontFamily: "'Spline Sans Mono', monospace", fontSize: 12.5, lineHeight: 1.7, color: '#d8ccb4', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>
+        <pre style={{ margin: 0, padding: '18px 20px', fontFamily: "var(--mono)", fontSize: 12.5, lineHeight: 1.7, color: '#d8ccb4', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>
           {cookbook?.markdown ?? 'Ładowanie…'}
         </pre>
-        {syncMsg && <div style={{ padding: '0 20px 16px', font: "400 11.5px 'Spline Sans Mono'", color: '#9fb37a' }}>{syncMsg} — otwórz ten folder w Codex lub Claude Code.</div>}
+        {syncMsg && <div style={{ padding: '0 20px 16px', font: "400 11.5px var(--mono)", color: '#9fb37a' }}>{syncMsg} — otwórz ten folder w Codex lub Claude Code.</div>}
       </div>
 
       {canEdit && <ConnectAgentCard />}
@@ -228,7 +228,7 @@ function EquipmentEditor({ editing, value, onChange }: { editing: boolean; value
 
   function chipStyle(fav: boolean): CSSProperties {
     return {
-      font: "500 13px 'Hanken Grotesk'",
+      font: "500 13px var(--sans)",
       padding: '8px 13px',
       borderRadius: 9,
       background: fav ? 'rgba(189,139,44,.1)' : 'var(--surface)',
@@ -276,7 +276,7 @@ function EquipmentEditor({ editing, value, onChange }: { editing: boolean; value
             }
           }}
           placeholder="+ dodaj sprzęt"
-          style={{ border: '1px dashed var(--border-2)', background: 'transparent', borderRadius: 9, padding: '8px 11px', font: "400 13px 'Hanken Grotesk'", color: 'var(--text)', width: 150 }}
+          style={{ border: '1px dashed var(--border-2)', background: 'transparent', borderRadius: 9, padding: '8px 11px', font: "400 13px var(--sans)", color: 'var(--text)', width: 150 }}
         />
       )}
     </div>
@@ -290,7 +290,7 @@ const ghostBtn: CSSProperties = {
   borderRadius: 10,
   padding: '8px 14px',
   cursor: 'pointer',
-  font: "500 13px 'Hanken Grotesk'",
+  font: "500 13px var(--sans)",
 }
 const primaryBtn: CSSProperties = {
   border: 'none',
@@ -299,5 +299,5 @@ const primaryBtn: CSSProperties = {
   borderRadius: 10,
   padding: '8px 16px',
   cursor: 'pointer',
-  font: "600 13px 'Hanken Grotesk'",
+  font: "600 13px var(--sans)",
 }

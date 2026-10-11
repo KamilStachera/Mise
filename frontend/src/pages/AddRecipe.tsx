@@ -15,11 +15,11 @@ const input: CSSProperties = {
   background: 'var(--card)',
   borderRadius: 10,
   padding: '10px 13px',
-  font: "400 14px 'Hanken Grotesk'",
+  font: "400 14px var(--sans)",
   color: 'var(--text)',
 }
 const label: CSSProperties = {
-  font: "600 11px 'Hanken Grotesk'",
+  font: "600 11px var(--sans)",
   letterSpacing: '.06em',
   textTransform: 'uppercase',
   color: 'var(--text-3)',
@@ -107,12 +107,12 @@ export function AddRecipe() {
 
   return (
     <div style={{ maxWidth: 780, margin: '0 auto', padding: '26px 42px 70px' }}>
-      <button onClick={() => nav('/')} style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px 'Hanken Grotesk'", padding: '6px 0', marginBottom: 14 }}>
+      <button onClick={() => nav('/')} style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px var(--sans)", padding: '6px 0', marginBottom: 14 }}>
         <BackIcon /> Wszystkie przepisy
       </button>
 
-      <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>Nowy przepis</div>
-      <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 34, margin: '0 0 18px' }}>Dodaj przepis</h1>
+      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>Nowy przepis</div>
+      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 34, margin: '0 0 18px' }}>Dodaj przepis</h1>
 
       {/* Wklej z AI */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, marginBottom: 26 }}>
@@ -121,9 +121,9 @@ export function AddRecipe() {
           value={paste}
           onChange={(e) => setPaste(e.target.value)}
           placeholder={'Wklej przepis (np. z ChatGPT) i kliknij Przetwórz.\nNajlepiej działa z nagłówkami „Składniki" i „Przygotowanie".'}
-          style={{ ...input, minHeight: 120, resize: 'vertical', lineHeight: 1.5, fontFamily: "'Spline Sans Mono', monospace", fontSize: 12.5 }}
+          style={{ ...input, minHeight: 120, resize: 'vertical', lineHeight: 1.5, fontFamily: "var(--mono)", fontSize: 12.5 }}
         />
-        <button onClick={applyParsed} disabled={!paste.trim()} style={{ marginTop: 10, background: 'var(--text)', color: 'var(--surface)', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: paste.trim() ? 'pointer' : 'not-allowed', font: "600 13px 'Hanken Grotesk'", opacity: paste.trim() ? 1 : 0.5 }}>
+        <button onClick={applyParsed} disabled={!paste.trim()} style={{ marginTop: 10, background: 'var(--text)', color: 'var(--surface)', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: paste.trim() ? 'pointer' : 'not-allowed', font: "600 13px var(--sans)", opacity: paste.trim() ? 1 : 0.5 }}>
           Przetwórz do formularza ↓
         </button>
       </div>
@@ -224,7 +224,7 @@ export function AddRecipe() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {steps.map((s, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <div style={{ flex: '0 0 26px', height: 26, marginTop: 6, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 12px 'Spectral', serif" }}>{i + 1}</div>
+                <div style={{ flex: '0 0 26px', height: 26, marginTop: 6, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 12px var(--serif)" }}>{i + 1}</div>
                 <textarea style={{ ...input, flex: 1, minHeight: 38, resize: 'vertical', lineHeight: 1.5 }} value={s} placeholder={`Krok ${i + 1}`} onChange={(e) => setSteps((a) => a.map((x, j) => (j === i ? e.target.value : x)))} />
                 <RemoveBtn onClick={() => setSteps((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />
               </div>
@@ -253,7 +253,7 @@ export function AddRecipe() {
               />
               <button
                 onClick={() => photoRef.current?.click()}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, height: 42, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 10, padding: '0 13px', font: "500 13px 'Hanken Grotesk'", cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, height: 42, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 10, padding: '0 13px', font: "500 13px var(--sans)", cursor: 'pointer' }}
               >
                 <CameraIcon /> {photo ? 'Zmień' : 'Wybierz'}
               </button>
@@ -274,10 +274,10 @@ export function AddRecipe() {
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-          <button onClick={submit} disabled={create.isPending} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '12px 22px', cursor: 'pointer', font: "600 14px 'Hanken Grotesk'" }}>
+          <button onClick={submit} disabled={create.isPending} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '12px 22px', cursor: 'pointer', font: "600 14px var(--sans)" }}>
             {create.isPending ? 'Zapisywanie…' : 'Zapisz przepis'}
           </button>
-          <button onClick={() => nav('/')} style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 11, padding: '12px 22px', cursor: 'pointer', font: "500 14px 'Hanken Grotesk'" }}>
+          <button onClick={() => nav('/')} style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 11, padding: '12px 22px', cursor: 'pointer', font: "500 14px var(--sans)" }}>
             Anuluj
           </button>
         </div>
@@ -288,7 +288,7 @@ export function AddRecipe() {
 
 function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, border: '1px dashed var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '8px 12px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'" }}>
+    <button onClick={onClick} style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, border: '1px dashed var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '8px 12px', cursor: 'pointer', font: "500 13px var(--sans)" }}>
       <PlusIcon size={14} /> {label}
     </button>
   )

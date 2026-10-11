@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useChatHealth, useChatHistory } from '../api/hooks'
+import { useMatch, useNavigate } from 'react-router-dom'
+import { useChatHealth, useChatHistory, useRecipe } from '../api/hooks'
 import { streamChat } from '../api/client'
 import { registerPromptConsumer } from '../lib/chatBus'
-import { SparkleIcon, ExpandIcon, CloseIcon, SendIcon } from './icons'
+import { plural } from '../lib/labels'
+import { mono, sans } from './ui'
 
 type Msg = { role: 'ai' | 'user'; content: string }
 
@@ -14,10 +15,16 @@ const QUICKS = [
   'Coś z frytkownicy',
 ]
 
-export function ChatSidebar({ onClose }: { onClose: () => void }) {
+/**
+ * Sous — the in-app assistant. Desktop: a 360px panel beside the content.
+ * Phones: a full-screen sheet. On a recipe page the conversation is scoped to
+ * that recipe (the server appends it to the system prompt).
+ */
+export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => void; fullscreen?: boolean }) {
   const { data: health } = useChatHealth()
   const { data: history } = useChatHistory()
-  const [expanded, setExpanded] = useState(false)
+  const recipeId = useMatch('/recipe/:id')?.params.id
+  const { data: recipe } = useRecipe(recipeId)
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
@@ -46,19 +53,32 @@ export function ChatSidebar({ onClose }: { onClose: () => void }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages, typing])
 
+  const quicks = recipe
+    ? [
+        `Przelicz na ${plural(recipe.selectedServings * 2, 'porcję', 'porcje', 'porcji')}`,
+        recipe.missing[0] ? `Czym zastąpić: ${recipe.missing[0]}?` : 'Co podać do tego?',
+        recipe.usesAirFryer ? 'Ile to trwa we frytkownicy?' : 'Czy da się to zrobić we frytkownicy?',
+      ]
+    : QUICKS
+
   async function send(text: string) {
     if (!text.trim() || !enabled || typing) return
     setInput('')
     setMessages((m) => [...m, { role: 'user', content: text.trim() }, { role: 'ai', content: '' }])
     setTyping(true)
     try {
-      await streamChat(text.trim(), (delta) => {
-        setMessages((m) => {
-          const next = [...m]
-          next[next.length - 1] = { role: 'ai', content: next[next.length - 1].content + delta }
-          return next
-        })
-      })
+      await streamChat(
+        text.trim(),
+        (delta) => {
+          setMessages((m) => {
+            const next = [...m]
+            next[next.length - 1] = { role: 'ai', content: next[next.length - 1].content + delta }
+            return next
+          })
+        },
+        undefined,
+        recipeId,
+      )
     } catch {
       // Keep whatever streamed before the failure instead of wiping it.
       setMessages((m) => {
@@ -77,69 +97,68 @@ export function ChatSidebar({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const panelStyle: CSSProperties = {
-    flex: `0 0 ${expanded ? 620 : 392}px`,
-    width: expanded ? 620 : 392,
-    background: 'var(--panel-bg)',
-    borderLeft: '1px solid var(--panel-border)',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'flex-basis .25s ease, width .25s ease',
-  }
+  const panelStyle: CSSProperties = fullscreen
+    ? { position: 'fixed', inset: 0, zIndex: 95, paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }
+    : { flex: '0 0 360px', width: 360 }
 
   return (
-    <aside style={panelStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '17px 19px 15px', borderBottom: '1px solid var(--panel-border)' }}>
-        <div style={{ width: 31, height: 31, borderRadius: 9, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 31px' }}>
-          <SparkleIcon />
+    <aside style={{ ...panelStyle, background: 'var(--panel-bg)', color: 'var(--panel-text)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '22px 22px 18px', borderBottom: '1px solid var(--panel-border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24, lineHeight: 1 }}>
+            Sous<span style={{ fontStyle: 'italic', color: 'var(--accent-warm)' }}>.</span>
+          </span>
+          <span style={{ font: sans(12.5), color: 'var(--panel-text-2)' }}>zna Twoją spiżarnię i profil</span>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 16, color: 'var(--panel-text)', lineHeight: 1.1 }}>Sous</div>
-          <div style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--sage)', display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--sage)' }} />
-            Zna Twoją spiżarnię i profil
-          </div>
-        </div>
-        <IconBtn onClick={() => setExpanded((v) => !v)} title="Powiększ">
-          <ExpandIcon />
-        </IconBtn>
-        <IconBtn onClick={onClose} title="Ukryj">
-          <CloseIcon />
-        </IconBtn>
+        <button
+          type="button"
+          onClick={onClose}
+          title="Zamknij"
+          style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text)', cursor: 'pointer', fontSize: 13 }}
+        >
+          ✕
+        </button>
       </div>
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px 19px 8px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: 22 }}>
+        {recipe && (
+          <span style={{ alignSelf: 'center', textAlign: 'center', font: mono(10.5, 500), letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--panel-text-2)' }}>
+            O przepisie · {recipe.title}
+          </span>
+        )}
+
         {messages.map((m, i) => (
           <Bubble key={i} msg={m} />
         ))}
 
         {!enabled && <DisabledNote />}
 
-        {typing && (
-          <div style={{ alignSelf: 'flex-start', background: 'var(--ai-bubble)', border: '1px solid var(--panel-border)', borderRadius: '14px 14px 14px 4px', padding: '13px 16px', display: 'flex', gap: 5 }}>
+        {typing && messages[messages.length - 1]?.content === '' && (
+          <div style={{ alignSelf: 'flex-start', background: 'var(--ai-bubble)', borderRadius: '14px 14px 14px 4px', padding: '13px 16px', display: 'flex', gap: 5 }}>
             {[0, 0.2, 0.4].map((d) => (
               <span key={d} style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--panel-text-2)', animation: `blink 1.2s infinite ${d}s` }} />
             ))}
           </div>
         )}
+
+        {enabled && !typing && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {quicks.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => send(q)}
+                style={{ padding: '7px 12px', borderRadius: 999, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text)', font: sans(13, 500), cursor: 'pointer', textAlign: 'left' }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {enabled && (
-        <div style={{ padding: '10px 16px 7px', display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {QUICKS.map((q) => (
-            <button
-              key={q}
-              onClick={() => send(q)}
-              style={{ border: '1px solid var(--panel-border)', background: 'var(--panel-card)', color: 'var(--panel-text)', borderRadius: 20, padding: '7px 12px', font: "500 12px 'Hanken Grotesk'", cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div style={{ padding: '8px 16px 17px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 9, background: 'var(--panel-card)', border: '1px solid var(--panel-border)', borderRadius: 14, padding: '8px 8px 8px 14px', opacity: enabled ? 1 : 0.55 }}>
+      <div style={{ flex: 'none', padding: '16px 18px 20px', borderTop: '1px solid var(--panel-border)' }}>
+        <div style={{ minHeight: 48, borderRadius: 12, background: 'var(--panel-card)', display: 'flex', alignItems: 'flex-end', gap: 8, padding: '6px 6px 6px 16px', opacity: enabled ? 1 : 0.55 }}>
           <textarea
             value={input}
             disabled={!enabled}
@@ -151,15 +170,17 @@ export function ChatSidebar({ onClose }: { onClose: () => void }) {
               }
             }}
             rows={1}
-            placeholder={enabled ? 'Zapytaj Sous o obiad…' : 'Czat w aplikacji jest wyłączony'}
-            style={{ flex: 1, border: 'none', background: 'transparent', resize: 'none', font: "400 14px 'Hanken Grotesk'", color: 'var(--panel-text)', lineHeight: 1.4, maxHeight: 90 }}
+            placeholder={!enabled ? 'Czat w aplikacji jest wyłączony' : recipe ? 'Zapytaj o przepis…' : 'Zapytaj Sous o obiad…'}
+            style={{ flex: 1, alignSelf: 'center', border: 0, background: 'transparent', resize: 'none', font: sans(fullscreen ? 16 : 14.5), color: 'var(--panel-text)', lineHeight: 1.4, maxHeight: 96, padding: '6px 0' }}
           />
           <button
+            type="button"
             onClick={() => send(input)}
             disabled={!enabled}
-            style={{ flex: '0 0 34px', width: 34, height: 34, borderRadius: 10, border: 'none', background: 'var(--accent)', cursor: enabled ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            aria-label="Wyślij"
+            style={{ flex: '0 0 36px', width: 36, height: 36, borderRadius: 9, border: 0, background: 'var(--accent)', color: '#fff', fontSize: 16, cursor: enabled ? 'pointer' : 'not-allowed' }}
           >
-            <SendIcon />
+            ↑
           </button>
         </div>
       </div>
@@ -169,17 +190,22 @@ export function ChatSidebar({ onClose }: { onClose: () => void }) {
 
 function Bubble({ msg }: { msg: Msg }) {
   const isAi = msg.role === 'ai'
+  if (isAi && !msg.content) return null
   return (
-    <div style={{ alignSelf: isAi ? 'flex-start' : 'flex-end', maxWidth: '90%' }}>
-      <div
-        style={
-          isAi
-            ? { background: 'var(--ai-bubble)', border: '1px solid var(--panel-border)', borderRadius: '14px 14px 14px 4px', padding: '12px 15px', font: "400 14px 'Hanken Grotesk'", lineHeight: 1.5, color: 'var(--panel-text)', whiteSpace: 'pre-wrap' }
-            : { background: 'var(--accent)', borderRadius: '14px 14px 4px 14px', padding: '12px 15px', font: "400 14px 'Hanken Grotesk'", lineHeight: 1.5, color: '#fff', whiteSpace: 'pre-wrap' }
-        }
-      >
-        {msg.content || '…'}
-      </div>
+    <div
+      style={{
+        alignSelf: isAi ? 'flex-start' : 'flex-end',
+        maxWidth: isAi ? '90%' : '84%',
+        padding: isAi ? '13px 15px' : '11px 14px',
+        borderRadius: isAi ? '14px 14px 14px 4px' : '14px 14px 4px 14px',
+        background: isAi ? 'var(--ai-bubble)' : 'var(--user-bubble)',
+        font: sans(14.5),
+        lineHeight: isAi ? 1.5 : 1.45,
+        whiteSpace: 'pre-wrap',
+        animation: 'msgIn .2s ease',
+      }}
+    >
+      {msg.content}
     </div>
   )
 }
@@ -187,30 +213,23 @@ function Bubble({ msg }: { msg: Msg }) {
 function DisabledNote() {
   const nav = useNavigate()
   return (
-    <div style={{ alignSelf: 'flex-start', maxWidth: '92%', background: 'var(--panel-card)', border: '1px solid var(--panel-border)', borderLeft: '3px solid var(--gold)', borderRadius: '0 12px 12px 0', padding: '13px 15px' }}>
-      <div style={{ font: "600 12.5px 'Hanken Grotesk'", color: 'var(--panel-text)', marginBottom: 6 }}>Czat w aplikacji jest wyłączony</div>
-      <div style={{ font: "400 13px 'Hanken Grotesk'", color: 'var(--panel-text-2)', lineHeight: 1.5 }}>
+    <div style={{ alignSelf: 'flex-start', maxWidth: '94%', display: 'flex', flexDirection: 'column', gap: 10, padding: '13px 15px', borderRadius: '14px 14px 14px 4px', background: 'var(--ai-bubble)' }}>
+      <span style={{ font: sans(14.5, 600) }}>Czat w aplikacji jest wyłączony</span>
+      <span style={{ font: sans(14), lineHeight: 1.5, color: 'var(--panel-text-2)' }}>
         Główna droga do AI to folder <strong style={{ color: 'var(--panel-text)' }}>./context</strong> — otwórz go w{' '}
         <strong style={{ color: 'var(--panel-text)' }}>Codex</strong> lub <strong style={{ color: 'var(--panel-text)' }}>Claude Code</strong> (w ramach Twojej
         subskrypcji). Zawiera Twoją książkę, spiżarnię i przepisy.
-      </div>
+      </span>
       <button
+        type="button"
         onClick={() => nav('/profile')}
-        style={{ marginTop: 10, font: "600 12px 'Hanken Grotesk'", color: 'var(--accent)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+        style={{ alignSelf: 'flex-start', font: sans(13, 600), color: 'var(--accent-warm)', background: 'transparent', border: 0, cursor: 'pointer', padding: 0 }}
       >
-        Otwórz Profil → Synchronizuj z ./context →
+        Profil → Synchronizuj z ./context →
       </button>
-      <div style={{ font: "400 11.5px 'Hanken Grotesk'", color: 'var(--panel-text-2)', marginTop: 8, lineHeight: 1.5 }}>
-        Aby włączyć ten panel, ustaw <code style={{ color: 'var(--gold)' }}>AI_PROVIDER</code> i klucz w <code style={{ color: 'var(--gold)' }}>.env</code>.
-      </div>
+      <span style={{ font: sans(12.5), color: 'var(--panel-text-2)', lineHeight: 1.5 }}>
+        Aby włączyć ten panel, ustaw <code style={{ color: 'var(--accent-warm)' }}>AI_PROVIDER</code> i klucz w <code style={{ color: 'var(--accent-warm)' }}>.env</code>.
+      </span>
     </div>
-  )
-}
-
-function IconBtn({ children, onClick, title }: { children: React.ReactNode; onClick: () => void; title: string }) {
-  return (
-    <button onClick={onClick} title={title} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--panel-text-2)', padding: 5, borderRadius: 7, display: 'flex' }}>
-      {children}
-    </button>
   )
 }

@@ -38,7 +38,7 @@ function groupLabel(date: Date, now: Date): string {
 }
 
 const capStyle: CSSProperties = {
-  font: "700 11px 'Hanken Grotesk'",
+  font: "700 11px var(--sans)",
   letterSpacing: '.08em',
   textTransform: 'uppercase',
   color: 'var(--text-3)',
@@ -49,7 +49,7 @@ function segBtn(on: boolean): CSSProperties {
     border: 'none',
     borderRadius: 8,
     padding: '7px 14px',
-    font: "600 12.5px 'Hanken Grotesk'",
+    font: "600 12.5px var(--sans)",
     cursor: 'pointer',
     background: on ? 'var(--card)' : 'transparent',
     color: on ? 'var(--accent-deep)' : 'var(--text-2)',
@@ -156,10 +156,10 @@ export function History() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '38px 42px 60px' }}>
-      <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
+      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
         Dziennik kuchenny
       </div>
-      <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: '0 0 5px', color: 'var(--text)' }}>
+      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: '0 0 5px', color: 'var(--text)' }}>
         Historia gotowania
       </h1>
       <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 22px' }}>{summary}</p>
@@ -169,13 +169,13 @@ export function History() {
           <div style={{ width: 58, height: 58, borderRadius: 16, background: 'var(--card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
             <HistoryIcon size={27} style={{ color: 'var(--accent)' }} />
           </div>
-          <div style={{ fontFamily: "'Spectral', serif", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Historia jest jeszcze pusta</div>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Historia jest jeszcze pusta</div>
           <div style={{ fontSize: 13.5, color: 'var(--text-2)', maxWidth: '42ch' }}>
             Ugotuj coś i kliknij „Ugotowane!” na stronie przepisu — każdy posiłek zapisze się tutaj.
           </div>
           <button
             onClick={() => nav('/')}
-            style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
+            style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
           >
             Przeglądaj przepisy
           </button>
@@ -194,7 +194,7 @@ export function History() {
               <button onClick={() => setFilter('all')} style={segBtn(filter === 'all')}>Wszystko</button>
               <button onClick={() => setFilter('high')} style={segBtn(filter === 'high')}>★ Wysoko oceniane</button>
             </div>
-            <div style={{ font: "500 12.5px 'Hanken Grotesk'", color: 'var(--text-3)' }}>
+            <div style={{ font: "500 12.5px var(--sans)", color: 'var(--text-3)' }}>
               {filter === 'high'
                 ? plural(stats.highCount, 'wysoko oceniony', 'wysoko ocenione', 'wysoko ocenionych')
                 : `${plural(total, 'wpis', 'wpisy', 'wpisów')} · ${plural(stats.highCount, 'wysoko oceniony', 'wysoko ocenione', 'wysoko ocenionych')}`}
@@ -203,11 +203,11 @@ export function History() {
 
           {filtered.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', padding: '50px 24px', border: '1.5px dashed var(--border-2)', borderRadius: 18, background: 'var(--surface)' }}>
-              <div style={{ fontFamily: "'Spectral', serif", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Brak wysoko ocenianych wpisów</div>
+              <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Brak wysoko ocenianych wpisów</div>
               <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>Oceń posiłek na 4–5 ★ przy zapisywaniu, a znajdzie się w tym widoku.</div>
               <button
                 onClick={() => setFilter('all')}
-                style={{ marginTop: 10, border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text)', borderRadius: 10, padding: '9px 16px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
+                style={{ marginTop: 10, border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text)', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
               >
                 Pokaż wszystko
               </button>
@@ -242,7 +242,7 @@ function StatTile({ cap, value, sub, small }: { cap: string; value: string; sub:
       <div style={{ ...capStyle, marginBottom: 7 }}>{cap}</div>
       <div
         style={{
-          fontFamily: "'Spectral', serif",
+          fontFamily: "var(--serif)",
           fontWeight: 600,
           fontSize: small ? 15.5 : 24,
           lineHeight: 1.15,
@@ -256,7 +256,7 @@ function StatTile({ cap, value, sub, small }: { cap: string; value: string; sub:
       >
         {value}
       </div>
-      <div style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)' }}>{sub}</div>
+      <div style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)' }}>{sub}</div>
     </div>
   )
 }
@@ -266,7 +266,7 @@ const editInputStyle: CSSProperties = {
   background: 'var(--surface)',
   borderRadius: 9,
   padding: '7px 10px',
-  font: "400 13px 'Hanken Grotesk'",
+  font: "400 13px var(--sans)",
   color: 'var(--text)',
 }
 
@@ -328,13 +328,13 @@ function EditForm({ entry, hasRecipe, onClose }: { entry: CookLogEntry; hasRecip
         <button
           onClick={save}
           disabled={update.isPending}
-          style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 14px', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer', opacity: update.isPending ? 0.6 : 1 }}
+          style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 14px', font: "600 12.5px var(--sans)", cursor: 'pointer', opacity: update.isPending ? 0.6 : 1 }}
         >
           {update.isPending ? 'Zapisywanie…' : 'Zapisz'}
         </button>
         <button
           onClick={onClose}
-          style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '7px 14px', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+          style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '7px 14px', font: "600 12.5px var(--sans)", cursor: 'pointer' }}
         >
           Anuluj
         </button>
@@ -372,15 +372,15 @@ function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
       }}
     >
       <div style={{ flex: '0 0 44px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-        <span style={{ font: "600 10.5px 'Hanken Grotesk'", letterSpacing: '.06em', color: 'var(--text-3)' }}>{weekday}</span>
-        <span style={{ fontFamily: "'Spectral', serif", fontSize: 20, fontWeight: 600, color: 'var(--text)', lineHeight: 1.1 }}>{date.getDate()}</span>
+        <span style={{ font: "600 10.5px var(--sans)", letterSpacing: '.06em', color: 'var(--text-3)' }}>{weekday}</span>
+        <span style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)', lineHeight: 1.1 }}>{date.getDate()}</span>
       </div>
 
       <div style={{ flex: '0 0 46px', width: 46, height: 46, borderRadius: 12, overflow: 'hidden', position: 'relative', background: gradient(recipe?.tint ?? '#b8a98c'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {recipe?.imageUrl ? (
           <img src={recipe.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <span style={{ fontFamily: "'Spectral', serif", fontSize: 22, fontWeight: 500, color: 'rgba(255,255,255,.92)' }}>
+          <span style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 500, color: 'rgba(255,255,255,.92)' }}>
             {(recipe?.title ?? entry.dishName)[0]}
           </span>
         )}
@@ -391,16 +391,16 @@ function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
       ) : (
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 16.5, color: 'var(--text)', lineHeight: 1.2 }}>
+            <span style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 16.5, color: 'var(--text)', lineHeight: 1.2 }}>
               {recipe?.title ?? entry.dishName}
             </span>
             {occurrence > 1 && (
-              <span style={{ font: "600 10.5px 'Hanken Grotesk'", color: 'var(--gold)', background: 'rgba(189,139,44,.12)', borderRadius: 7, padding: '2px 7px', whiteSpace: 'nowrap' }}>
+              <span style={{ font: "600 10.5px var(--sans)", color: 'var(--gold)', background: 'rgba(189,139,44,.12)', borderRadius: 7, padding: '2px 7px', whiteSpace: 'nowrap' }}>
                 {occurrence}. raz
               </span>
             )}
           </div>
-          {meta && <div style={{ font: "500 12px 'Hanken Grotesk'", color: 'var(--text-3)', marginTop: 2 }}>{meta}</div>}
+          {meta && <div style={{ font: "500 12px var(--sans)", color: 'var(--text-3)', marginTop: 2 }}>{meta}</div>}
           {entry.note && (
             <div style={{ fontStyle: 'italic', fontSize: 13, lineHeight: 1.45, color: 'var(--text-2)', marginTop: 6 }}>„{entry.note}”</div>
           )}
@@ -421,7 +421,7 @@ function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
             setEditing(true)
           }}
           title="Edytuj wpis — ocena, notatka, data"
-          style={{ flex: '0 0 auto', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '6px 11px', font: "600 12px 'Hanken Grotesk'", cursor: 'pointer', whiteSpace: 'nowrap' }}
+          style={{ flex: '0 0 auto', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '6px 11px', font: "600 12px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-deep)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
         >
@@ -436,7 +436,7 @@ function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
             nav(`/recipe/${recipe.id}`, { state: { cook: true } })
           }}
           title="Otwórz przepis z panelem „Ugotowane!”"
-          style={{ flex: '0 0 auto', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '6px 11px', font: "600 12px 'Hanken Grotesk'", cursor: 'pointer', whiteSpace: 'nowrap' }}
+          style={{ flex: '0 0 auto', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '6px 11px', font: "600 12px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap' }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-deep)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
         >

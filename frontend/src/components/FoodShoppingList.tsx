@@ -68,7 +68,7 @@ export function FoodShoppingList() {
                 }
               }}
               placeholder="Dodaj coś do kupienia…"
-              style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px 'Hanken Grotesk'", color: 'var(--text)' }}
+              style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px var(--sans)", color: 'var(--text)' }}
             />
             <button
               onClick={() => {
@@ -77,7 +77,7 @@ export function FoodShoppingList() {
                   setName('')
                 }
               }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px 'Hanken Grotesk'" }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px var(--sans)" }}
             >
               <PlusIcon />
             </button>
@@ -86,7 +86,7 @@ export function FoodShoppingList() {
         {items.some((s) => !s.checked) && (
           <button
             onClick={copyList}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: copied ? 'var(--sage)' : 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
+            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: copied ? 'var(--sage)' : 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px var(--sans)", whiteSpace: 'nowrap' }}
           >
             {copied ? '✓ Skopiowano' : 'Kopiuj listę'}
           </button>
@@ -94,7 +94,7 @@ export function FoodShoppingList() {
         {canEdit && done > 0 && (
           <button
             onClick={() => clear.mutate()}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
+            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px var(--sans)", whiteSpace: 'nowrap' }}
           >
             Usuń odhaczone
           </button>
@@ -104,7 +104,7 @@ export function FoodShoppingList() {
             onClick={() => {
               if (window.confirm(`Wyczyścić całą listę zakupów (pozycji: ${total})?`)) clearAll.mutate()
             }}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--accent)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", whiteSpace: 'nowrap' }}
+            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--accent)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px var(--sans)", whiteSpace: 'nowrap' }}
           >
             Wyczyść listę
           </button>
@@ -113,14 +113,14 @@ export function FoodShoppingList() {
 
       {items.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '-4px 0 12px' }}>
-          <label htmlFor="shopping-layout" style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+          <label htmlFor="shopping-layout" style={{ font: "600 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
             Układ listy
           </label>
           <select
             id="shopping-layout"
             value={layout}
             onChange={(event) => changeLayout(event.target.value as ShoppingLayout)}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '7px 10px', font: "500 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '7px 10px', font: "500 12.5px var(--sans)", cursor: 'pointer' }}
           >
             <option value="alphabetical">Alfabetycznie</option>
             <option value="lidl">Alejki Lidl (orientacyjnie)</option>
@@ -139,7 +139,7 @@ export function FoodShoppingList() {
           {groups.map((group) => (
             <div key={group.key}>
               {group.label && (
-                <div style={{ padding: isMobile ? '11px 14px 8px' : '10px 17px 7px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', font: "650 11px 'Hanken Grotesk'", letterSpacing: '.08em', textTransform: 'uppercase', color: group.key === 'checked' ? 'var(--text-3)' : 'var(--sage)' }}>
+                <div style={{ padding: isMobile ? '11px 14px 8px' : '10px 17px 7px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', font: "650 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: group.key === 'checked' ? 'var(--text-3)' : 'var(--sage)' }}>
                   {group.label}
                 </div>
               )}
@@ -166,18 +166,18 @@ export function FoodShoppingList() {
                 {s.checked && <CheckIcon />}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: `600 ${isMobile ? 16 : 14.5}px 'Hanken Grotesk'`, color: s.checked ? 'var(--text-3)' : 'var(--text)', textDecoration: s.checked ? 'line-through' : 'none' }}>
+                <div style={{ font: `600 ${isMobile ? 16 : 14.5}px var(--sans)`, color: s.checked ? 'var(--text-3)' : 'var(--text)', textDecoration: s.checked ? 'line-through' : 'none' }}>
                   {s.name}
                   {s.quantity != null && s.unit && (
-                    <span style={{ font: "500 12.5px 'Spline Sans Mono'", color: 'var(--text-2)', marginLeft: 8 }}>
+                    <span style={{ font: "500 12.5px var(--mono)", color: 'var(--text-2)', marginLeft: 8 }}>
                       {formatQty(s.quantity, s.unit)}
                     </span>
                   )}
                 </div>
-                <div style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)' }}>{s.reason}</div>
+                <div style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)' }}>{s.reason}</div>
               </div>
               {!isMobile && (
-                <span style={{ font: "500 11px 'Hanken Grotesk'", color: 'var(--text-3)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 7, padding: '3px 9px' }}>
+                <span style={{ font: "500 11px var(--sans)", color: 'var(--text-3)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 7, padding: '3px 9px' }}>
                   {categoryLabel(s.category)}
                 </span>
               )}
@@ -188,7 +188,7 @@ export function FoodShoppingList() {
                     remove.mutate(s.id)
                   }}
                   title="Usuń z listy"
-                  style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px 'Hanken Grotesk'", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
+                  style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px var(--sans)", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
                 >

@@ -19,7 +19,7 @@ function chip(active: boolean): CSSProperties {
     color: active ? '#fff' : 'var(--text-2)',
     borderRadius: 20,
     padding: '8px 14px',
-    font: "500 13px 'Hanken Grotesk'",
+    font: "500 13px var(--sans)",
     cursor: 'pointer',
     transition: 'all .14s',
   }
@@ -152,10 +152,10 @@ export function Library() {
     <div style={{ maxWidth: 980, margin: '0 auto', padding: isMobile ? '22px 14px 40px' : '38px 42px 60px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 6, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
+          <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
             Twoja kolekcja
           </div>
-          <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: 0, color: 'var(--text)' }}>
+          <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: 0, color: 'var(--text)' }}>
             Biblioteka przepisów
           </h1>
         </div>
@@ -166,13 +166,13 @@ export function Library() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Szukaj przepisów…"
-              style={{ border: 'none', background: 'transparent', flex: 1, minWidth: 0, font: "400 14px 'Hanken Grotesk'", color: 'var(--text)' }}
+              style={{ border: 'none', background: 'transparent', flex: 1, minWidth: 0, font: "400 14px var(--sans)", color: 'var(--text)' }}
             />
           </div>
           {canEdit && (
             <button
               onClick={() => nav('/add')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', font: "600 13.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', font: "600 13.5px var(--sans)", cursor: 'pointer' }}
             >
               <PlusIcon /> Dodaj
             </button>
@@ -249,7 +249,7 @@ export function Library() {
             color: canCookNow ? 'var(--sage)' : 'var(--text)',
             borderRadius: 9,
             padding: '7px 11px',
-            font: "600 13px 'Hanken Grotesk'",
+            font: "600 13px var(--sans)",
             cursor: 'pointer',
             transition: 'background .13s',
             whiteSpace: 'nowrap',
@@ -269,7 +269,7 @@ export function Library() {
             color: almostReady ? 'var(--accent-deep)' : 'var(--text)',
             borderRadius: 9,
             padding: '7px 11px',
-            font: "600 13px 'Hanken Grotesk'",
+            font: "600 13px var(--sans)",
             cursor: 'pointer',
             transition: 'background .13s',
             whiteSpace: 'nowrap',
@@ -290,7 +290,7 @@ export function Library() {
             color: airFryerOnly ? 'var(--gold)' : 'var(--text)',
             borderRadius: 9,
             padding: '7px 11px',
-            font: "600 13px 'Hanken Grotesk'",
+            font: "600 13px var(--sans)",
             cursor: 'pointer',
             transition: 'background .13s',
             whiteSpace: 'nowrap',
@@ -303,7 +303,7 @@ export function Library() {
         {toolbarFiltersActive && (
           <button
             onClick={clearToolbarFilters}
-            style={{ border: 'none', background: 'transparent', color: 'var(--accent)', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer', padding: '7px 9px', borderRadius: 8 }}
+            style={{ border: 'none', background: 'transparent', color: 'var(--accent)', font: "600 12.5px var(--sans)", cursor: 'pointer', padding: '7px 9px', borderRadius: 8 }}
           >
             Wyczyść filtry
           </button>
@@ -320,7 +320,7 @@ export function Library() {
         />
       </div>
 
-      <div style={{ font: "500 12.5px 'Hanken Grotesk'", color: 'var(--text-3)', margin: '0 0 16px', paddingLeft: 2 }}>
+      <div style={{ font: "500 12.5px var(--sans)", color: 'var(--text-3)', margin: '0 0 16px', paddingLeft: 2 }}>
         {view.length === counts.all ? recipeCountLabel(view.length) : `${view.length} z ${counts.all} przepisów`}
       </div>
 
@@ -333,11 +333,11 @@ export function Library() {
       ) : view.length === 0 ? (
         filtersActive ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', padding: '54px 20px', border: '1.5px dashed var(--border-2)', borderRadius: 16, background: 'var(--surface)' }}>
-            <div style={{ fontFamily: "'Spectral', serif", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Nic nie pasuje do tych filtrów</div>
+            <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Nic nie pasuje do tych filtrów</div>
             <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>Poluzuj któryś filtr — albo poproś Sous o coś, co pasuje.</div>
             <button
               onClick={clearAllFilters}
-              style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
+              style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
             >
               Wyczyść wszystkie filtry
             </button>
@@ -385,26 +385,26 @@ function Card({ r, showShortfall = false, onOpen }: { r: RecipeListItem; showSho
             onError={(e) => { if (e.currentTarget.getAttribute('src') !== r.imageUrl) e.currentTarget.src = r.imageUrl! }}
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <span style={{ fontFamily: "'Spectral', serif", fontSize: 60, fontWeight: 500, color: 'rgba(255,255,255,.9)', lineHeight: 1 }}>
+          <span style={{ fontFamily: "var(--serif)", fontSize: 60, fontWeight: 500, color: 'rgba(255,255,255,.9)', lineHeight: 1 }}>
             {r.title[0]}
           </span>
         )}
-        <span style={{ position: 'absolute', top: 11, left: 11, font: "700 10px 'Hanken Grotesk'", letterSpacing: '.08em', padding: '4px 8px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[r.source].col }}>
+        <span style={{ position: 'absolute', top: 11, left: 11, font: "700 10px var(--sans)", letterSpacing: '.08em', padding: '4px 8px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[r.source].col }}>
           {sourceBadge[r.source].label}
         </span>
       </div>
       <div style={{ padding: '15px 16px 17px' }}>
-        <h3 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 18, lineHeight: 1.18, margin: '0 0 9px', color: 'var(--text)' }}>
+        <h3 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 18, lineHeight: 1.18, margin: '0 0 9px', color: 'var(--text)' }}>
           {r.title}
         </h3>
         {(r.dishType || r.cuisine) && (
-          <div style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)', margin: '-4px 0 9px' }}>
+          <div style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)', margin: '-4px 0 9px' }}>
             {[r.dishType && dishTypeLabel[r.dishType], r.cuisine && `kuchnia ${cuisineLabel[r.cuisine]}`]
               .filter(Boolean)
               .join(' · ')}
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: "500 12.5px 'Hanken Grotesk'", color: 'var(--text-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: "500 12.5px var(--sans)", color: 'var(--text-2)' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <ClockIcon />
             {r.time} min
@@ -414,12 +414,12 @@ function Card({ r, showShortfall = false, onOpen }: { r: RecipeListItem; showSho
             {r.servings}
           </span>
           {r.kcal != null && (
-            <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-3)' }}>~{r.kcal} kcal</span>
+            <span style={{ font: "500 11.5px var(--mono)", color: 'var(--text-3)' }}>~{r.kcal} kcal</span>
           )}
           <span
             style={{
               marginLeft: 'auto',
-              font: "600 11.5px 'Hanken Grotesk'",
+              font: "600 11.5px var(--sans)",
               color: allIn ? 'var(--sage)' : 'var(--accent)',
               background: allIn ? 'rgba(110,122,82,.12)' : 'var(--accent-soft)',
               padding: '3px 9px',

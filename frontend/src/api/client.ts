@@ -490,11 +490,13 @@ export async function streamChat(
   message: string,
   onDelta: (text: string) => void,
   signal?: AbortSignal,
+  /** Recipe the user is looking at — the server adds it to the prompt. */
+  recipeId?: string,
 ): Promise<void> {
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, recipeId }),
     signal,
   })
   if (!res.ok || !res.body) throw new ApiError(res.status, res.statusText || 'chat')

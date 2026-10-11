@@ -4,7 +4,8 @@ import { registerChatOpener } from './lib/chatBus'
 import { showToast } from './lib/toastBus'
 import { useIsMobile } from './lib/useIsMobile'
 import { useAuth } from './api/hooks'
-import { NavRail } from './components/NavRail'
+import { Sidebar } from './components/Sidebar'
+import { TabBar, TAB_BAR_HEIGHT } from './components/TabBar'
 import { ChatSidebar } from './components/ChatSidebar'
 import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
@@ -37,22 +38,19 @@ export default function App() {
     }
   }, [])
 
-  // Phone: content on top, bottom tab bar under it, no chat panel (desktop-only).
+  // Desktop: sidebar | content | Sous panel. Phone: content over a fixed tab bar; Sous is a full-screen sheet.
   return (
     <div
       style={{
         display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
-        // 100% (via html/body/#root) not 100dvh: Chrome multiplies viewport
-        // units by the root zoom (tokens.css), which made the shell 25%
-        // taller than the screen on desktop.
         height: '100%',
         width: '100%',
         overflow: 'hidden',
         background: 'var(--bg)',
       }}
     >
-      {!isMobile && <NavRail chatOpen={chatOpen} onToggleChat={() => setChatOpen((v) => !v)} />}
+      {!isMobile && <Sidebar chatOpen={chatOpen} onToggleChat={() => setChatOpen((v) => !v)} />}
 
       <main
         style={{
@@ -63,7 +61,7 @@ export default function App() {
           overscrollBehaviorY: 'contain',
           position: 'relative',
           // Clearance for the fixed bottom tab bar.
-          paddingBottom: isMobile ? 'calc(64px + env(safe-area-inset-bottom))' : undefined,
+          paddingBottom: isMobile ? `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))` : undefined,
         }}
       >
         <Routes>
@@ -82,8 +80,8 @@ export default function App() {
         </Routes>
       </main>
 
-      {!isMobile && canEdit && chatOpen && <ChatSidebar onClose={() => setChatOpen(false)} />}
-      {isMobile && <NavRail mobile chatOpen={false} onToggleChat={() => {}} />}
+      {canEdit && chatOpen && <ChatSidebar fullscreen={isMobile} onClose={() => setChatOpen(false)} />}
+      {isMobile && <TabBar />}
       <PendingCookModal />
       <ToastHost />
     </div>

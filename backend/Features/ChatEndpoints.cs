@@ -8,7 +8,8 @@ using Mise.Api.Services.AiChat;
 
 namespace Mise.Api.Features;
 
-public record ChatRequest(string Message, string? SessionId);
+/// <param name="RecipeId">Recipe the user is looking at; its full text is appended to the system prompt.</param>
+public record ChatRequest(string Message, string? SessionId, Guid? RecipeId = null);
 
 public static class ChatEndpoints
 {
@@ -49,6 +50,10 @@ public static class ChatEndpoints
             await db.SaveChangesAsync(ct);
 
             var systemPrompt = await export.BuildCookbookAsync(ct);
+            if (req.RecipeId is Guid rid && await export.BuildRecipeFocusAsync(rid, ct) is string focus)
+                systemPrompt += "\n\n---\n\n## Użytkownik ogląda teraz ten przepis\n"
+                    + "Odpowiadaj w jego kontekście, chyba że pytanie wyraźnie dotyczy czegoś innego.\n\n"
+                    + focus;
             var history = await db.ChatMessages.AsNoTracking()
                 .Where(m => m.SessionId == sid)
                 .OrderByDescending(m => m.CreatedAt).Take(20)

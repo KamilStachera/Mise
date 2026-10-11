@@ -47,7 +47,7 @@ export function RecipeDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           onClick={() => nav('/')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px 'Hanken Grotesk'", padding: '6px 0', marginBottom: 14 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px var(--sans)", padding: '6px 0', marginBottom: 14 }}
         >
           <BackIcon /> Wszystkie przepisy
         </button>
@@ -59,7 +59,7 @@ export function RecipeDetail() {
                 nav('/')
               }
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "500 13px 'Hanken Grotesk'", marginBottom: 14 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "500 13px var(--sans)", marginBottom: 14 }}
           >
             <TrashIcon /> Usuń
           </button>
@@ -70,11 +70,11 @@ export function RecipeDetail() {
         {r.imageUrl ? (
           <img src={r.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <span style={{ fontFamily: "'Spectral', serif", fontSize: 96, fontWeight: 500, color: 'rgba(255,255,255,.92)', lineHeight: 1 }}>
+          <span style={{ fontFamily: "var(--serif)", fontSize: 96, fontWeight: 500, color: 'rgba(255,255,255,.92)', lineHeight: 1 }}>
             {r.title[0]}
           </span>
         )}
-        <span style={{ position: 'absolute', top: 16, left: 16, font: "700 10px 'Hanken Grotesk'", letterSpacing: '.08em', padding: '5px 9px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[r.source].col }}>
+        <span style={{ position: 'absolute', top: 16, left: 16, font: "700 10px var(--sans)", letterSpacing: '.08em', padding: '5px 9px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[r.source].col }}>
           {sourceBadge[r.source].label}
         </span>
         {canEdit && <PhotoControls recipeId={r.id} />}
@@ -82,7 +82,7 @@ export function RecipeDetail() {
 
       <PhotoGallery recipeId={r.id} images={r.images} canEdit={canEdit} />
 
-      <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 34, lineHeight: 1.08, margin: '22px 0 10px' }}>{r.title}</h1>
+      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 34, lineHeight: 1.08, margin: '22px 0 10px' }}>{r.title}</h1>
       <p style={{ fontSize: 15.5, lineHeight: 1.55, color: 'var(--text-2)', margin: '0 0 18px', maxWidth: '62ch' }}>{r.blurb}</p>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -106,7 +106,7 @@ export function RecipeDetail() {
       </div>
 
       {r.selectedServings !== r.servings && (
-        <div style={{ font: "500 12.5px 'Hanken Grotesk'", color: 'var(--accent-deep)', margin: '-6px 0 16px' }}>
+        <div style={{ font: "500 12.5px var(--sans)", color: 'var(--accent-deep)', margin: '-6px 0 16px' }}>
           Ilości przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')} — przepis oryginalnie
           na {plural(r.servings, 'porcję', 'porcje', 'porcji')}.
         </div>
@@ -117,7 +117,7 @@ export function RecipeDetail() {
       {r.steps.length > 0 && (
         <button
           onClick={() => setCookMode(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 12, padding: '13px 22px', font: "700 14.5px 'Hanken Grotesk'", cursor: 'pointer', boxShadow: '0 6px 18px rgba(160,66,32,.26)', margin: '0 0 28px', minHeight: 48 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 12, padding: '13px 22px', font: "700 14.5px var(--sans)", cursor: 'pointer', boxShadow: '0 6px 18px rgba(160,66,32,.26)', margin: '0 0 28px', minHeight: 48 }}
         >
           <PlayIcon /> Gotuj krok po kroku
         </button>
@@ -125,9 +125,9 @@ export function RecipeDetail() {
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.35fr', gap: 34, alignItems: 'start' }}>
         <div>
-          <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: '0 0 13px' }}>Składniki</h2>
+          <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 20, margin: '0 0 13px' }}>Składniki</h2>
           <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 11, padding: '11px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 9 }}>
-            <div style={{ font: "500 12.5px 'Hanken Grotesk'", color: 'var(--accent-deep)', lineHeight: 1.35 }}>{haveSummary}</div>
+            <div style={{ font: "500 12.5px var(--sans)", color: 'var(--accent-deep)', lineHeight: 1.35 }}>{haveSummary}</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {r.ingredients.map((ing, i) => {
@@ -142,7 +142,7 @@ export function RecipeDetail() {
                     {ing.name}
                     {detail && <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, fontWeight: 400, color: 'var(--text-3)' }}>{detail}</span>}
                   </span>
-                  {ing.quantity && <span style={{ flex: '0 0 auto', font: "500 12px 'Spline Sans Mono'", color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
+                  {ing.quantity && <span style={{ flex: '0 0 auto', font: "500 12px var(--mono)", color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
                 </div>
               )
             })}
@@ -153,7 +153,7 @@ export function RecipeDetail() {
                 await addMissing.mutateAsync(r.id)
                 nav('/shopping')
               }}
-              style={{ marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: 11, font: "600 13.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+              style={{ marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: 11, font: "600 13.5px var(--sans)", cursor: 'pointer' }}
             >
               <PlusIcon /> Dodaj {r.missing.length} brakujące do zakupów
             </button>
@@ -161,11 +161,11 @@ export function RecipeDetail() {
         </div>
 
         <div>
-          <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: '0 0 15px' }}>Przygotowanie</h2>
+          <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 20, margin: '0 0 15px' }}>Przygotowanie</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {r.steps.map((step, i) => (
               <div key={i} style={{ display: 'flex', gap: 14 }}>
-                <div style={{ flex: '0 0 28px', height: 28, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 13px 'Spectral', serif" }}>
+                <div style={{ flex: '0 0 28px', height: 28, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 13px var(--serif)" }}>
                   {i + 1}
                 </div>
                 <p style={{ margin: '2px 0 0', fontSize: 14.5, lineHeight: 1.6, color: 'var(--text)' }}>{step}</p>
@@ -174,7 +174,7 @@ export function RecipeDetail() {
           </div>
           {r.tip && (
             <div style={{ marginTop: 22, background: '#f4efe1', border: '1px solid var(--border)', borderLeft: '3px solid var(--gold)', borderRadius: '0 11px 11px 0', padding: '14px 16px' }}>
-              <div style={{ font: "700 11px 'Hanken Grotesk'", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 5 }}>Wskazówka</div>
+              <div style={{ font: "700 11px var(--sans)", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 5 }}>Wskazówka</div>
               <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: 'var(--text)' }}>{r.tip}</p>
             </div>
           )}
@@ -210,8 +210,8 @@ function MacroPanel({ kcal, protein, fat, carbs }: {
   ].filter((d): d is typeof d & { grams: number } => d.grams != null)
   const kcalTotal = defs.reduce((sum, d) => sum + d.grams * d.kcalPerGram, 0)
 
-  const value: CSSProperties = { fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 'clamp(21px, 4.5vw, 26px)', lineHeight: 1 }
-  const label: CSSProperties = { font: "600 10px 'Hanken Grotesk'", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)' }
+  const value: CSSProperties = { fontFamily: "var(--serif)", fontWeight: 600, fontSize: 'clamp(21px, 4.5vw, 26px)', lineHeight: 1 }
+  const label: CSSProperties = { font: "600 10px var(--sans)", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)' }
 
   return (
     <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px 13px', margin: '0 0 20px', maxWidth: 600 }}>
@@ -239,7 +239,7 @@ function MacroPanel({ kcal, protein, fat, carbs }: {
           ))}
         </div>
       )}
-      <div style={{ font: "500 11px 'Hanken Grotesk'", color: 'var(--text-3)', marginTop: 9 }}>na porcję · wartości szacunkowe</div>
+      <div style={{ font: "500 11px var(--sans)", color: 'var(--text-3)', marginTop: 9 }}>na porcję · wartości szacunkowe</div>
     </div>
   )
 }
@@ -257,7 +257,7 @@ function PhotoControls({ recipeId }: { recipeId: string }) {
     color: 'var(--text)',
     borderRadius: 8,
     padding: '6px 11px',
-    font: "600 11.5px 'Hanken Grotesk'",
+    font: "600 11.5px var(--sans)",
     cursor: 'pointer',
   }
 
@@ -329,7 +329,7 @@ function PhotoGallery({ recipeId, images, canEdit }: { recipeId: string; images:
               background: 'var(--card)',
               color: 'var(--text-2)',
               cursor: 'pointer',
-              font: "600 10px 'Hanken Grotesk'",
+              font: "600 10px var(--sans)",
               lineHeight: 1,
             }}
           >
@@ -414,12 +414,12 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
   return (
     <div style={{ marginTop: 34 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 13 }}>
-        <h2 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 20, margin: 0 }}>Historia gotowania</h2>
+        <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 20, margin: 0 }}>Historia gotowania</h2>
         <div style={{ flex: 1 }} />
         {canEdit && !open && (
           <button
             onClick={() => setOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 15px', font: "600 13px 'Hanken Grotesk'", cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 15px', font: "600 13px var(--sans)", cursor: 'pointer' }}
           >
             Ugotowane!
           </button>
@@ -431,7 +431,7 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
 
       {open && (
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 13, padding: '14px 16px', marginBottom: 14 }}>
-          <div style={{ font: "600 13px 'Hanken Grotesk'", color: 'var(--text)', marginBottom: 4 }}>Potwierdź ugotowanie</div>
+          <div style={{ font: "600 13px var(--sans)", color: 'var(--text)', marginBottom: 4 }}>Potwierdź ugotowanie</div>
           <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '0 0 10px' }}>
             Domyślnie odejmiemy składniki zgodnie z przepisem. Stan pozostanie przybliżony, więc drobnych różnic nie trzeba poprawiać.
           </p>
@@ -441,7 +441,7 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
             <div style={{ marginBottom: 14 }}>
               <button
                 onClick={() => setShowDeductions((value) => !value)}
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', font: "500 12px 'Hanken Grotesk'", marginBottom: showDeductions ? 8 : 0 }}
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', font: "500 12px var(--sans)", marginBottom: showDeductions ? 8 : 0 }}
               >
                 {showDeductions ? 'Ukryj szczegóły' : `Zmieniliśmy składniki lub ilości · ${proposal.items.filter((item) => item.deductible).length} odjęć`}
               </button>
@@ -475,7 +475,7 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
             </div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <span style={{ font: "500 13px 'Hanken Grotesk'", color: 'var(--text-2)' }}>Jak wyszło?</span>
+            <span style={{ font: "500 13px var(--sans)", color: 'var(--text-2)' }}>Jak wyszło?</span>
             <div>
               {[1, 2, 3, 4, 5].map((n) => (
                 <button key={n} style={starBtn(rating !== null && n <= rating)} onClick={() => setRating(rating === n ? null : n)}>
@@ -490,18 +490,18 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
             onKeyDown={(e) => e.key === 'Enter' && onSave()}
             placeholder="Notatka — np. następnym razem mniej soli, dzieciaki zachwycone…"
             autoFocus
-            style={{ width: '100%', border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 9, padding: '8px 11px', font: "400 13.5px 'Hanken Grotesk'", color: 'var(--text)', marginBottom: 11 }}
+            style={{ width: '100%', border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 9, padding: '8px 11px', font: "400 13.5px var(--sans)", color: 'var(--text)', marginBottom: 11 }}
           />
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={onSave}
-              style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 14px', font: "600 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+              style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 14px', font: "600 12.5px var(--sans)", cursor: 'pointer' }}
             >
               {add.isPending ? 'Zapisywanie…' : 'Zapisz'}
             </button>
             <button
               onClick={() => setOpen(false)}
-              style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 9, padding: '7px 14px', font: "500 12.5px 'Hanken Grotesk'", cursor: 'pointer' }}
+              style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 9, padding: '7px 14px', font: "500 12.5px var(--sans)", cursor: 'pointer' }}
             >
               Anuluj
             </button>
@@ -513,7 +513,7 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {entries.map((e) => (
             <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 2px', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ font: "500 12px 'Spline Sans Mono'", color: 'var(--text-3)', flex: '0 0 84px' }}>{e.cookedAt}</span>
+              <span style={{ font: "500 12px var(--mono)", color: 'var(--text-3)', flex: '0 0 84px' }}>{e.cookedAt}</span>
               {e.rating !== null && (
                 <span style={{ color: 'var(--gold)', fontSize: 13, flex: '0 0 auto', letterSpacing: 1 }}>
                   {'★'.repeat(e.rating)}
@@ -565,16 +565,16 @@ function DeductionRowView({ item, row, onChange }: {
         {item.name}
         {detail
           ? <span style={{ display: 'block', fontSize: 11, fontWeight: 400, color: 'var(--text-3)', marginTop: 2 }}>{detail}</span>
-          : item.quantityText && <span style={{ font: "500 11.5px 'Spline Sans Mono'", color: 'var(--text-3)', marginLeft: 7 }}>{item.quantityText}</span>}
+          : item.quantityText && <span style={{ font: "500 11.5px var(--mono)", color: 'var(--text-3)', marginLeft: 7 }}>{item.quantityText}</span>}
       </span>
       {!canDeduct ? (
-        <span style={{ font: "500 11.5px 'Hanken Grotesk'", color: 'var(--text-3)', fontStyle: 'italic' }}>
+        <span style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)', fontStyle: 'italic' }}>
           {SKIP_REASON_PL[item.skipReason ?? ''] ?? 'pominięte'}
         </span>
       ) : (
         <>
           {item.skipReason && (
-            <span style={{ font: "500 11px 'Hanken Grotesk'", color: 'var(--gold)' }}>
+            <span style={{ font: "500 11px var(--sans)", color: 'var(--gold)' }}>
               {SKIP_REASON_PL[item.skipReason]}
             </span>
           )}
@@ -584,12 +584,12 @@ function DeductionRowView({ item, row, onChange }: {
             onChange={(e) => onChange({ checked, amount: e.target.value })}
             inputMode="decimal"
             placeholder="0"
-            style={{ width: 62, textAlign: 'right', border: '1px solid var(--border)', background: checked ? 'var(--surface)' : 'transparent', borderRadius: 8, padding: '5px 8px', font: "500 12.5px 'Spline Sans Mono'", color: 'var(--text)' }}
+            style={{ width: 62, textAlign: 'right', border: '1px solid var(--border)', background: checked ? 'var(--surface)' : 'transparent', borderRadius: 8, padding: '5px 8px', font: "500 12.5px var(--mono)", color: 'var(--text)' }}
           />
-          <span style={{ font: "500 12px 'Hanken Grotesk'", color: 'var(--text-2)', width: 30 }}>
+          <span style={{ font: "500 12px var(--sans)", color: 'var(--text-2)', width: 30 }}>
             {item.unit ? unitLabel[item.unit] : ''}
           </span>
-          <span style={{ font: "500 11px 'Spline Sans Mono'", color: 'var(--text-3)', width: 108, textAlign: 'right' }}>
+          <span style={{ font: "500 11px var(--mono)", color: 'var(--text-3)', width: 108, textAlign: 'right' }}>
             {item.pantryQuantity != null && item.unit ? `w domu: ${formatQty(item.pantryQuantity, item.unit)}` : ''}
           </span>
         </>
@@ -600,7 +600,7 @@ function DeductionRowView({ item, row, onChange }: {
 
 function Pill({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 13px', font: "500 13px 'Hanken Grotesk'", color: 'var(--text)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 13px', font: "500 13px var(--sans)", color: 'var(--text)' }}>
       {children}
     </div>
   )
@@ -636,7 +636,7 @@ function ServingsPill({ recipeId, base, selected, canEdit }: {
     background: 'var(--card)',
     color: disabled ? 'var(--border-2)' : 'var(--accent-deep)',
     cursor: disabled ? 'default' : 'pointer',
-    font: "600 15px 'Hanken Grotesk'",
+    font: "600 15px var(--sans)",
     lineHeight: 1,
     padding: 0,
   })
@@ -652,7 +652,7 @@ function ServingsPill({ recipeId, base, selected, canEdit }: {
       >
         −
       </button>
-      <span style={{ minWidth: 16, textAlign: 'center', font: "600 13.5px 'Spline Sans Mono'", color: selected !== base ? 'var(--accent-deep)' : 'var(--text)' }}>
+      <span style={{ minWidth: 16, textAlign: 'center', font: "600 13.5px var(--mono)", color: selected !== base ? 'var(--accent-deep)' : 'var(--text)' }}>
         {selected}
       </span>
       <button

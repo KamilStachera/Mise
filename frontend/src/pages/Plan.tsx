@@ -12,7 +12,7 @@ const cardStyle: CSSProperties = {
   padding: '19px 21px',
 }
 const capStyle: CSSProperties = {
-  font: "700 11px 'Hanken Grotesk'",
+  font: "700 11px var(--sans)",
   letterSpacing: '.08em',
   textTransform: 'uppercase',
   color: 'var(--text-3)',
@@ -24,7 +24,7 @@ const inputStyle: CSSProperties = {
   background: 'var(--surface)',
   borderRadius: 9,
   padding: '8px 11px',
-  font: "400 14px 'Hanken Grotesk'",
+  font: "400 14px var(--sans)",
   color: 'var(--text)',
 }
 const ghostBtn: CSSProperties = {
@@ -34,7 +34,7 @@ const ghostBtn: CSSProperties = {
   borderRadius: 10,
   padding: '8px 14px',
   cursor: 'pointer',
-  font: "500 13px 'Hanken Grotesk'",
+  font: "500 13px var(--sans)",
 }
 const primaryBtn: CSSProperties = {
   border: 'none',
@@ -43,7 +43,7 @@ const primaryBtn: CSSProperties = {
   borderRadius: 10,
   padding: '8px 16px',
   cursor: 'pointer',
-  font: "600 13px 'Hanken Grotesk'",
+  font: "600 13px var(--sans)",
 }
 
 // Local-time date helpers (the API talks plain YYYY-MM-DD).
@@ -129,10 +129,10 @@ export function Plan() {
     <div style={{ maxWidth: 1150, margin: '0 auto', padding: '38px 42px 60px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px 14px', marginBottom: 6 }}>
         <div>
-          <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
+          <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
             Co jemy w tym tygodniu
           </div>
-          <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 38, margin: 0 }}>Plan posiłków</h1>
+          <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, margin: 0 }}>Plan posiłków</h1>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button style={ghostBtn} onClick={() => { setWeekStart((w) => addDays(w, -7)); setEditing(null); setReviewItems(null) }}>‹ Poprzedni</button>
@@ -141,7 +141,7 @@ export function Plan() {
         </div>
       </div>
       <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 24px', maxWidth: '68ch' }}>
-        Tydzień {shortDate(days[0])} – {shortDate(days[6])}. Plan trafia do <code style={{ font: "500 12.5px 'Spline Sans Mono'" }}>plan.md</code> w
+        Tydzień {shortDate(days[0])} – {shortDate(days[6])}. Plan trafia do <code style={{ font: "500 12.5px var(--mono)" }}>plan.md</code> w
         folderze context — asystent może go czytać i uzupełniać przez API.
       </p>
 
@@ -151,10 +151,10 @@ export function Plan() {
         <div />
         {days.map((d, i) => (
           <div key={d} style={{ textAlign: 'center', padding: '4px 0 8px' }}>
-            <div style={{ font: "600 12px 'Hanken Grotesk'", color: d === todayISO ? 'var(--accent-deep)' : 'var(--text-2)' }}>{DAY_NAMES_PL[i]}</div>
-            <div style={{ font: "500 11px 'Spline Sans Mono'", color: d === todayISO ? 'var(--accent)' : 'var(--text-3)', marginTop: 2 }}>{shortDate(d)}</div>
+            <div style={{ font: "600 12px var(--sans)", color: d === todayISO ? 'var(--accent-deep)' : 'var(--text-2)' }}>{DAY_NAMES_PL[i]}</div>
+            <div style={{ font: "500 11px var(--mono)", color: d === todayISO ? 'var(--accent)' : 'var(--text-3)', marginTop: 2 }}>{shortDate(d)}</div>
             {macrosByDay.has(d) && (
-              <div style={{ font: "500 10px 'Spline Sans Mono'", color: 'var(--text-3)', marginTop: 3 }} title="Suma z zaplanowanych przepisów (na porcję); wpisy bez oszacowania pominięte">
+              <div style={{ font: "500 10px var(--mono)", color: 'var(--text-3)', marginTop: 3 }} title="Suma z zaplanowanych przepisów (na porcję); wpisy bez oszacowania pominięte">
                 ~{macrosByDay.get(d)!.kcal} kcal
                 {macrosByDay.get(d)!.protein > 0 && ` · B ${formatGrams(macrosByDay.get(d)!.protein)}`}
               </div>
@@ -330,10 +330,10 @@ function SlotRow({ slot, days, todayISO, entryAt, onCell, editing, canEdit }: {
             )}
             {entry ? (
               <>
-                <span style={{ font: "600 12.5px 'Hanken Grotesk'", color: 'var(--text)', lineHeight: 1.3, paddingRight: entry.cooked ? 16 : 0 }}>
+                <span style={{ font: "600 12.5px var(--sans)", color: 'var(--text)', lineHeight: 1.3, paddingRight: entry.cooked ? 16 : 0 }}>
                   {entry.recipeTitle ?? entry.title}
                 </span>
-                {entry.note && <span style={{ font: "400 11px 'Hanken Grotesk'", color: 'var(--text-3)', lineHeight: 1.3 }}>{entry.note}</span>}
+                {entry.note && <span style={{ font: "400 11px var(--sans)", color: 'var(--text-3)', lineHeight: 1.3 }}>{entry.note}</span>}
               </>
             ) : (
               <span style={{ color: 'var(--text-3)', fontSize: 16, lineHeight: 1 }}>+</span>

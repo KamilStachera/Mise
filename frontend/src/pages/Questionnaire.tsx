@@ -17,7 +17,7 @@ const inputStyle: CSSProperties = {
   background: 'var(--surface)',
   borderRadius: 9,
   padding: '8px 11px',
-  font: "400 14px 'Hanken Grotesk'",
+  font: "400 14px var(--sans)",
   color: 'var(--text)',
 }
 const ghostBtn: CSSProperties = {
@@ -27,7 +27,7 @@ const ghostBtn: CSSProperties = {
   borderRadius: 10,
   padding: '8px 14px',
   cursor: 'pointer',
-  font: "500 13px 'Hanken Grotesk'",
+  font: "500 13px var(--sans)",
 }
 const primaryBtn: CSSProperties = {
   border: 'none',
@@ -36,7 +36,7 @@ const primaryBtn: CSSProperties = {
   borderRadius: 10,
   padding: '8px 16px',
   cursor: 'pointer',
-  font: "600 13px 'Hanken Grotesk'",
+  font: "600 13px var(--sans)",
 }
 
 export function Questionnaire() {
@@ -81,15 +81,15 @@ export function Questionnaire() {
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '30px 42px 60px' }}>
       <button
         onClick={() => nav('/profile')}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px 'Hanken Grotesk'", padding: '6px 0', marginBottom: 14 }}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px var(--sans)", padding: '6px 0', marginBottom: 14 }}
       >
         <BackIcon /> Profil kulinarny
       </button>
 
-      <div style={{ font: "600 11px 'Hanken Grotesk'", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
+      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
         Ankieta kulinarna · krok {step + 1} z {sections.length}
       </div>
-      <h1 style={{ fontFamily: "'Spectral', serif", fontWeight: 600, fontSize: 34, margin: '0 0 6px' }}>{section.title}</h1>
+      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 34, margin: '0 0 6px' }}>{section.title}</h1>
       <p style={{ fontSize: 14, color: 'var(--text-2)', margin: '0 0 20px', maxWidth: '62ch' }}>
         Każde pytanie jest opcjonalne — odpowiedzi trafiają do cookbook.md, z którego korzysta każdy asystent.
       </p>
@@ -137,11 +137,11 @@ export function Questionnaire() {
 
 function QuestionField({ question, value, onChange }: { question: Question; value: string; onChange: (v: string) => void }) {
   const label = (
-    <div style={{ font: "500 14px 'Hanken Grotesk'", color: 'var(--text)', marginBottom: 8 }}>{question.label}</div>
+    <div style={{ font: "500 14px var(--sans)", color: 'var(--text)', marginBottom: 8 }}>{question.label}</div>
   )
 
   const pill = (selected: boolean): CSSProperties => ({
-    font: "500 13px 'Hanken Grotesk'",
+    font: "500 13px var(--sans)",
     padding: '8px 13px',
     borderRadius: 9,
     background: selected ? 'var(--accent-soft)' : 'var(--surface)',
