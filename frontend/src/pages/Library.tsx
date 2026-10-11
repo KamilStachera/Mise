@@ -1,39 +1,27 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useRecipes } from '../api/hooks'
 import type { Cuisine, DishType, RecipeListItem, Source } from '../api/client'
-import { gradient } from '../lib/colors'
-import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishTypeLabel, recipeCountLabel, sourceBadge } from '../lib/labels'
-import { SearchIcon, ClockIcon, ServingsIcon, PlusIcon, FilterIcon, SortIcon } from '../components/icons'
+import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishLine, dishTypeLabel, sourceEyebrow, sourceLabel } from '../lib/labels'
 import { FilterDropdown } from '../components/FilterDropdown'
+import { RecipeThumb } from '../components/RecipeThumb'
+import { Button, Chip, Eyebrow, PageTitle, SearchField, Sheet, UnderlineTabs, mono, sans, usePagePad } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
-import { recipeCardImage } from '../lib/images'
+import { todayIso } from '../lib/dates'
 
 const EMPTY_RECIPES: RecipeListItem[] = []
-
-function chip(active: boolean): CSSProperties {
-  return {
-    border: '1px solid ' + (active ? 'var(--accent)' : 'var(--border)'),
-    background: active ? 'var(--accent)' : 'var(--card)',
-    color: active ? '#fff' : 'var(--text-2)',
-    borderRadius: 20,
-    padding: '8px 14px',
-    font: "500 13px var(--sans)",
-    cursor: 'pointer',
-    transition: 'all .14s',
-  }
-}
 
 type Filter = 'all' | Source
 type TimeBucket = '15' | '30' | '60' | '60plus'
 type SortMode = 'alpha' | 'newest' | 'quickest' | 'missing'
+type Stock = 'any' | 'have' | 'almost'
 
 const TIME_BUCKETS: { key: TimeBucket; label: string }[] = [
-  { key: '15', label: '≤ 15 min' },
-  { key: '30', label: '≤ 30 min' },
-  { key: '60', label: '≤ 60 min' },
-  { key: '60plus', label: '60+ min' },
+  { key: '15', label: 'Do 15 min' },
+  { key: '30', label: 'Do 30 min' },
+  { key: '60', label: 'Do 60 min' },
+  { key: '60plus', label: 'Ponad 60 min' },
 ]
 
 const SORT_OPTIONS: { key: SortMode; label: string }[] = [
@@ -43,15 +31,41 @@ const SORT_OPTIONS: { key: SortMode; label: string }[] = [
   { key: 'missing', label: 'Najmniej brakuje' },
 ]
 
+const STOCK_OPTIONS: { key: Stock; label: string }[] = [
+  { key: 'any', label: 'Dowolne składniki' },
+  { key: 'have', label: 'Mam wszystko' },
+  { key: 'almost', label: 'Brakuje 1–2' },
+]
+
 function inTimeBucket(time: number, bucket: TimeBucket | null): boolean {
   if (bucket === null) return true
   if (bucket === '60plus') return time > 60
   return time <= Number(bucket)
 }
 
+/** "masz wszystko" (sage) / "N do kupienia" (accent). */
+export function StockNote({ toBuy, short = false }: { toBuy: number; short?: boolean }) {
+  return toBuy === 0 ? (
+    <span style={{ color: 'var(--sage-text)', whiteSpace: 'nowrap' }}>● masz wszystko</span>
+  ) : (
+    <span style={{ color: 'var(--accent-text)', whiteSpace: 'nowrap' }}>{short ? `brakuje ${toBuy}` : `${toBuy} do kupienia`}</span>
+  )
+}
+
+/** Stable "today's pick" for the hero: a cookable recipe with a photo, else any photo, else the first. */
+function pickHero(recipes: RecipeListItem[]): RecipeListItem | null {
+  if (recipes.length === 0) return null
+  const withPhoto = recipes.filter((r) => r.imageUrl)
+  const ready = withPhoto.filter((r) => r.toBuyCount === 0)
+  const pool = ready.length ? ready : withPhoto.length ? withPhoto : recipes
+  const seed = [...todayIso()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+  return [...pool].sort((a, b) => a.id.localeCompare(b.id))[seed % pool.length]
+}
+
 export function Library() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
+  const pad = usePagePad()
   const { canEdit } = useAuth()
   const { data: recipes = EMPTY_RECIPES, isLoading, isError, refetch } = useRecipes('all', '')
   const [filter, setFilter] = useState<Filter>('all')
@@ -60,11 +74,11 @@ export function Library() {
   const [cuisine, setCuisine] = useState<Cuisine | 'all'>('all')
   const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null)
   const [difficulty, setDifficulty] = useState<string>('all')
-  const [canCookNow, setCanCookNow] = useState(false)
-  const [almostReady, setAlmostReady] = useState(false)
+  const [stock, setStock] = useState<Stock>('any')
   const [airFryerOnly, setAirFryerOnly] = useState(false)
   const [sort, setSort] = useState<SortMode>('newest')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [filterSheet, setFilterSheet] = useState(false)
 
   // One menu open at a time; any click outside a [data-dd] wrapper closes it.
   useEffect(() => {
@@ -93,34 +107,39 @@ export function Library() {
       .filter((r) => cuisine === 'all' || r.cuisine === cuisine)
       .filter((r) => inTimeBucket(r.time, timeBucket))
       .filter((r) => difficulty === 'all' || r.difficulty === difficulty)
-      .filter((r) => !canCookNow || r.toBuyCount === 0)
-      .filter((r) => !almostReady || (r.toBuyCount >= 1 && r.toBuyCount <= 2))
+      .filter((r) => stock !== 'have' || r.toBuyCount === 0)
+      .filter((r) => stock !== 'almost' || (r.toBuyCount >= 1 && r.toBuyCount <= 2))
       .filter((r) => !airFryerOnly || r.usesAirFryer)
-      .filter((r) => !q || r.title.toLowerCase().includes(q))
+      .filter((r) => !q || r.title.toLowerCase().includes(q) || (r.sourceName ?? '').toLowerCase().includes(q))
     // 'alpha' keeps the server order — it is already Polish-collated.
     if (sort === 'newest') filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     if (sort === 'quickest') filtered.sort((a, b) => a.time - b.time)
     if (sort === 'missing')
       filtered.sort((a, b) => a.toBuyCount - b.toBuyCount || b.createdAt.localeCompare(a.createdAt))
     return filtered
-  }, [recipes, filter, dish, cuisine, timeBucket, difficulty, canCookNow, almostReady, airFryerOnly, query, sort])
+  }, [recipes, filter, dish, cuisine, timeBucket, difficulty, stock, airFryerOnly, query, sort])
 
   const { visibleItems, sentinel, hasMore, loadMore } = useInfiniteScroll(view)
 
-  // The toolbar's "clear" covers only what the toolbar owns (design semantics);
-  // source chips and search have their own affordances.
-  const toolbarFiltersActive =
-    dish !== 'all' || cuisine !== 'all' || timeBucket !== null || difficulty !== 'all' ||
-    canCookNow || almostReady || airFryerOnly
-  const filtersActive = toolbarFiltersActive || filter !== 'all' || query.trim() !== ''
+  const toolbarCount =
+    Number(dish !== 'all') + Number(cuisine !== 'all') + Number(timeBucket !== null) +
+    Number(difficulty !== 'all') + Number(stock !== 'any') + Number(airFryerOnly)
+  const filtersActive = toolbarCount > 0 || filter !== 'all' || query.trim() !== ''
+  // The editorial block (hero, shortcuts, newest) only shows while browsing everything.
+  const browsing = !filtersActive && !isLoading && recipes.length > 0
+
+  const hero = useMemo(() => (browsing ? pickHero(recipes) : null), [browsing, recipes])
+  const newest = useMemo(
+    () => [...recipes].filter((r) => r.id !== hero?.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4),
+    [recipes, hero],
+  )
 
   function clearToolbarFilters() {
     setDish('all')
     setCuisine('all')
     setTimeBucket(null)
     setDifficulty('all')
-    setCanCookNow(false)
-    setAlmostReady(false)
+    setStock('any')
     setAirFryerOnly(false)
     setOpenMenu(null)
   }
@@ -131,304 +150,366 @@ export function Library() {
     setQuery('')
   }
 
-  function toggleMenu(key: string) {
-    setOpenMenu((m) => (m === key ? null : key))
-  }
-
   function pick<T>(setter: (v: T) => void): (v: T) => void {
     return (v) => {
       setter(v)
       setOpenMenu(null)
     }
   }
+  const menu = (key: string) => ({ open: openMenu === key, onToggle: () => setOpenMenu((m) => (m === key ? null : key)) })
 
-  const pickDish = pick(setDish)
-  const pickCuisine = pick(setCuisine)
-  const pickTime = pick(setTimeBucket)
-  const pickDifficulty = pick(setDifficulty)
-  const pickSort = pick(setSort)
+  const open = (r: RecipeListItem) => nav(`/recipe/${r.id}`)
+  const shortfall = stock === 'almost' || sort === 'missing'
+
+  const tabs = (
+    <UnderlineTabs
+      rule={isMobile}
+      value={filter}
+      onChange={setFilter}
+      items={[
+        { key: 'all', label: 'Wszystkie', count: isMobile ? undefined : counts.all },
+        { key: 'ai', label: sourceLabel.ai, count: counts.ai },
+        { key: 'web', label: sourceLabel.web, count: counts.web },
+        { key: 'manual', label: isMobile ? 'Moje' : sourceLabel.manual, count: isMobile ? undefined : counts.manual },
+      ]}
+    />
+  )
+
+  const desktopFilters = (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
+      <FilterDropdown
+        {...menu('dish')}
+        label={dish === 'all' ? 'Kategoria' : dishTypeLabel[dish]}
+        active={dish !== 'all'}
+        options={[
+          { label: 'Wszystkie kategorie', selected: dish === 'all', onSelect: () => pick(setDish)('all') },
+          ...DISH_TYPES.map((d) => ({ label: dishTypeLabel[d], selected: dish === d, onSelect: () => pick(setDish)(d) })),
+        ]}
+      />
+      <FilterDropdown
+        {...menu('cuisine')}
+        label={cuisine === 'all' ? 'Kuchnia' : cuisineLabel[cuisine]}
+        active={cuisine !== 'all'}
+        options={[
+          { label: 'Wszystkie kuchnie', selected: cuisine === 'all', onSelect: () => pick(setCuisine)('all') },
+          ...CUISINES.map((c) => ({ label: cuisineLabel[c], selected: cuisine === c, onSelect: () => pick(setCuisine)(c) })),
+        ]}
+      />
+      <FilterDropdown
+        {...menu('time')}
+        label={timeBucket === null ? 'Czas' : TIME_BUCKETS.find((b) => b.key === timeBucket)!.label}
+        active={timeBucket !== null}
+        options={[
+          { label: 'Dowolny czas', selected: timeBucket === null, onSelect: () => pick(setTimeBucket)(null) },
+          ...TIME_BUCKETS.map((b) => ({ label: b.label, selected: timeBucket === b.key, onSelect: () => pick(setTimeBucket)(b.key) })),
+        ]}
+      />
+      <FilterDropdown
+        {...menu('difficulty')}
+        label={difficulty === 'all' ? 'Trudność' : difficulty}
+        active={difficulty !== 'all'}
+        options={[
+          { label: 'Dowolna trudność', selected: difficulty === 'all', onSelect: () => pick(setDifficulty)('all') },
+          ...DIFFICULTIES.map((d) => ({ label: d, selected: difficulty === d, onSelect: () => pick(setDifficulty)(d) })),
+        ]}
+      />
+      <FilterDropdown
+        {...menu('stock')}
+        label={stock === 'any' ? 'Składniki' : STOCK_OPTIONS.find((o) => o.key === stock)!.label}
+        active={stock !== 'any'}
+        options={STOCK_OPTIONS.map((o) => ({ label: o.label, selected: stock === o.key, onSelect: () => pick(setStock)(o.key) }))}
+      />
+      <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>
+        Frytkownica{airFryerOnly && ' ✕'}
+      </Chip>
+      {toolbarCount > 0 && (
+        <button type="button" onClick={clearToolbarFilters} style={{ border: 0, background: 'transparent', cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)', padding: '7px 4px' }}>
+          Wyczyść
+        </button>
+      )}
+      <FilterDropdown
+        {...menu('sort')}
+        muted
+        align="right"
+        active={false}
+        label={SORT_OPTIONS.find((o) => o.key === sort)!.label}
+        options={SORT_OPTIONS.map((o) => ({ label: o.label, selected: sort === o.key, onSelect: () => pick(setSort)(o.key) }))}
+      />
+    </div>
+  )
+
+  const mobileFilters = (
+    <div className="no-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px' }}>
+      <Chip active={toolbarCount > 0} onClick={() => setFilterSheet(true)}>
+        Filtry{toolbarCount > 0 ? ` · ${toolbarCount}` : ''}
+      </Chip>
+      <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
+      <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
+      <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
+      <Chip onClick={() => setFilterSheet(true)}>{SORT_OPTIONS.find((o) => o.key === sort)!.label} <span aria-hidden>▾</span></Chip>
+    </div>
+  )
+
+  const tiles = (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <Tile dark eyebrow="Nie wiem, co zjeść" title="Losuj obiad →" onClick={() => nav('/random')} />
+      <Tile eyebrow="Bez zakupów" title="Z tego, co mam →" onClick={() => setStock('have')} />
+    </div>
+  )
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: isMobile ? '22px 14px 40px' : '38px 42px 60px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 6, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
-            Twoja kolekcja
+    <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 28 }}>
+      <PageTitle
+        title="Przepisy"
+        count={counts.all || undefined}
+        right={
+          isMobile ? (
+            canEdit && <Button variant="outline" size="sm" onClick={() => nav('/add')}>+ Dodaj</Button>
+          ) : (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <SearchField value={query} onChange={setQuery} placeholder="Szukaj po nazwie lub źródle" style={{ width: 340 }} />
+              {canEdit && <Button onClick={() => nav('/add')}>+ Dodaj przepis</Button>}
+            </div>
+          )
+        }
+      />
+
+      {isMobile ? (
+        <>
+          <SearchField value={query} onChange={setQuery} placeholder="Szukaj po nazwie lub źródle" />
+          {browsing && tiles}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {tabs}
+            {mobileFilters}
           </div>
-          <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: 0, color: 'var(--text)' }}>
-            Biblioteka przepisów
-          </h1>
+        </>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 24, rowGap: 4, borderBottom: '1px solid var(--rule)' }}>
+          {tabs}
+          {desktopFilters}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 11, padding: '9px 13px', width: isMobile ? 170 : 248 }}>
-            <SearchIcon />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Szukaj przepisów…"
-              style={{ border: 'none', background: 'transparent', flex: 1, minWidth: 0, font: "400 14px var(--sans)", color: 'var(--text)' }}
-            />
-          </div>
-          {canEdit && (
-            <button
-              onClick={() => nav('/add')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', font: "600 13.5px var(--sans)", cursor: 'pointer' }}
-            >
-              <PlusIcon /> Dodaj
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, margin: '22px 0 12px', flexWrap: 'wrap' }}>
-        <button onClick={() => setFilter('all')} style={chip(filter === 'all')}>
-          Wszystkie <span style={{ opacity: 0.55, marginLeft: 2 }}>{counts.all}</span>
-        </button>
-        <button onClick={() => setFilter('ai')} style={chip(filter === 'ai')}>
-          ✦ Od AI <span style={{ opacity: 0.55, marginLeft: 2 }}>{counts.ai}</span>
-        </button>
-        <button onClick={() => setFilter('web')} style={chip(filter === 'web')}>
-          Sieć i książki <span style={{ opacity: 0.55, marginLeft: 2 }}>{counts.web}</span>
-        </button>
-        <button onClick={() => setFilter('manual')} style={chip(filter === 'manual')}>
-          Moje własne <span style={{ opacity: 0.55, marginLeft: 2 }}>{counts.manual}</span>
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap', margin: '0 0 10px', padding: '6px 8px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 13 }}>
-        <FilterIcon style={{ margin: '0 5px 0 4px', flex: '0 0 auto' }} />
-        <FilterDropdown
-          open={openMenu === 'dish'}
-          onToggle={() => toggleMenu('dish')}
-          label={dish === 'all' ? 'Kategoria' : dishTypeLabel[dish]}
-          active={dish !== 'all'}
-          options={[
-            { label: 'Wszystkie kategorie', selected: dish === 'all', onSelect: () => pickDish('all') },
-            ...DISH_TYPES.map((d) => ({ label: dishTypeLabel[d], selected: dish === d, onSelect: () => pickDish(d) })),
-          ]}
-        />
-        <FilterDropdown
-          open={openMenu === 'cuisine'}
-          onToggle={() => toggleMenu('cuisine')}
-          label={cuisine === 'all' ? 'Kuchnia' : cuisineLabel[cuisine]}
-          active={cuisine !== 'all'}
-          options={[
-            { label: 'Wszystkie kuchnie', selected: cuisine === 'all', onSelect: () => pickCuisine('all') },
-            ...CUISINES.map((c) => ({ label: cuisineLabel[c], selected: cuisine === c, onSelect: () => pickCuisine(c) })),
-          ]}
-        />
-        <FilterDropdown
-          open={openMenu === 'time'}
-          onToggle={() => toggleMenu('time')}
-          label={timeBucket === null ? 'Czas' : TIME_BUCKETS.find((b) => b.key === timeBucket)!.label}
-          active={timeBucket !== null}
-          options={[
-            { label: 'Dowolny czas', selected: timeBucket === null, onSelect: () => pickTime(null) },
-            ...TIME_BUCKETS.map((b) => ({ label: b.label, selected: timeBucket === b.key, onSelect: () => pickTime(b.key) })),
-          ]}
-        />
-        <FilterDropdown
-          open={openMenu === 'difficulty'}
-          onToggle={() => toggleMenu('difficulty')}
-          label={difficulty === 'all' ? 'Trudność' : difficulty}
-          active={difficulty !== 'all'}
-          options={[
-            { label: 'Dowolna trudność', selected: difficulty === 'all', onSelect: () => pickDifficulty('all') },
-            ...DIFFICULTIES.map((d) => ({ label: d, selected: difficulty === d, onSelect: () => pickDifficulty(d) })),
-          ]}
-        />
-        <span style={{ width: 1, height: 18, background: 'var(--border-2)', margin: '0 5px', flex: '0 0 auto' }} />
-        <button
-          onClick={() => setCanCookNow(!canCookNow)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            border: 'none',
-            background: canCookNow ? 'rgba(110,122,82,.16)' : 'transparent',
-            color: canCookNow ? 'var(--sage)' : 'var(--text)',
-            borderRadius: 9,
-            padding: '7px 11px',
-            font: "600 13px var(--sans)",
-            cursor: 'pointer',
-            transition: 'background .13s',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: canCookNow ? 'var(--sage)' : 'var(--border-2)', transition: 'background .13s' }} />
-          Mam składniki
-        </button>
-        <button
-          onClick={() => setAlmostReady(!almostReady)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            border: 'none',
-            background: almostReady ? 'var(--accent-soft)' : 'transparent',
-            color: almostReady ? 'var(--accent-deep)' : 'var(--text)',
-            borderRadius: 9,
-            padding: '7px 11px',
-            font: "600 13px var(--sans)",
-            cursor: 'pointer',
-            transition: 'background .13s',
-            whiteSpace: 'nowrap',
-          }}
-          title="Brakuje najwyżej 1–2 składników"
-        >
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: almostReady ? 'var(--accent)' : 'var(--border-2)', transition: 'background .13s' }} />
-          Prawie kompletne
-        </button>
-        <button
-          onClick={() => setAirFryerOnly(!airFryerOnly)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            border: 'none',
-            background: airFryerOnly ? 'rgba(189,139,44,.16)' : 'transparent',
-            color: airFryerOnly ? 'var(--gold)' : 'var(--text)',
-            borderRadius: 9,
-            padding: '7px 11px',
-            font: "600 13px var(--sans)",
-            cursor: 'pointer',
-            transition: 'background .13s',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: airFryerOnly ? 'var(--gold)' : 'var(--border-2)', transition: 'background .13s' }} />
-          Frytkownica
-        </button>
-        <div style={{ flex: 1 }} />
-        {toolbarFiltersActive && (
-          <button
-            onClick={clearToolbarFilters}
-            style={{ border: 'none', background: 'transparent', color: 'var(--accent)', font: "600 12.5px var(--sans)", cursor: 'pointer', padding: '7px 9px', borderRadius: 8 }}
-          >
-            Wyczyść filtry
-          </button>
-        )}
-        <FilterDropdown
-          open={openMenu === 'sort'}
-          onToggle={() => toggleMenu('sort')}
-          label={SORT_OPTIONS.find((o) => o.key === sort)!.label}
-          active={false}
-          muted
-          align="right"
-          leadingIcon={<SortIcon />}
-          options={SORT_OPTIONS.map((o) => ({ label: o.label, selected: sort === o.key, onSelect: () => pickSort(o.key) }))}
-        />
-      </div>
-
-      <div style={{ font: "500 12.5px var(--sans)", color: 'var(--text-3)', margin: '0 0 16px', paddingLeft: 2 }}>
-        {view.length === counts.all ? recipeCountLabel(view.length) : `${view.length} z ${counts.all} przepisów`}
-      </div>
+      )}
 
       {isError ? (
-        <div role="alert" style={{ color: 'var(--text-2)', padding: 40 }}>
-          Nie udało się załadować przepisów. <button onClick={() => refetch()}>Spróbuj ponownie</button>
+        <div role="alert" style={{ color: 'var(--text-2)', padding: '40px 0' }}>
+          Nie udało się załadować przepisów.{' '}
+          <Button variant="text" onClick={() => refetch()} style={{ color: 'var(--accent-text)' }}>Spróbuj ponownie</Button>
         </div>
       ) : isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40 }}>Ładowanie…</div>
+        <div style={{ color: 'var(--text-3)', padding: '40px 0' }}>Ładowanie…</div>
       ) : view.length === 0 ? (
-        filtersActive ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', padding: '54px 20px', border: '1.5px dashed var(--border-2)', borderRadius: 16, background: 'var(--surface)' }}>
-            <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Nic nie pasuje do tych filtrów</div>
-            <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>Poluzuj któryś filtr — albo poproś Sous o coś, co pasuje.</div>
-            <button
-              onClick={clearAllFilters}
-              style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
-            >
-              Wyczyść wszystkie filtry
-            </button>
-          </div>
-        ) : (
-          <div style={{ color: 'var(--text-3)', padding: 40 }}>Nie ma tu jeszcze przepisów.</div>
-        )
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10, padding: '28px 0', borderBottom: '1px solid var(--border)' }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 26, fontWeight: 500 }}>
+            {filtersActive ? 'Nic nie pasuje do tych filtrów' : 'Nie ma tu jeszcze przepisów'}
+          </span>
+          {filtersActive && (
+            <>
+              <span style={{ font: sans(15), color: 'var(--text-2)' }}>Poluzuj któryś filtr — albo poproś Sous o coś, co pasuje.</span>
+              <Button variant="outline" onClick={clearAllFilters}>Wyczyść wszystkie filtry</Button>
+            </>
+          )}
+        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 210px), 1fr))', gap: 'clamp(12px, 2.5vw, 20px)' }}>
-          {visibleItems.map((r) => (
-            <Card key={r.id} r={r} showShortfall={almostReady || sort === 'missing'} onOpen={() => nav(`/recipe/${r.id}`)} />
-          ))}
-        </div>
-      )}
-      {!isLoading && !isError && view.length > 0 && (
-        <div ref={sentinel} style={{ textAlign: 'center', padding: '24px 0 0', color: 'var(--text-3)' }}>
-          <div role="status" style={{ fontSize: 13, marginBottom: 12 }}>
-            Wyświetlono {visibleItems.length} z {view.length} przepisów
+        <>
+          {browsing && hero && (
+            isMobile ? (
+              <Hero r={hero} onOpen={() => open(hero)} />
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.45fr) minmax(0,1fr)', gap: 44 }}>
+                <Hero r={hero} onOpen={() => open(hero)} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                  {tiles}
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <Eyebrow style={{ paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>Ostatnio dodane</Eyebrow>
+                    {newest.map((r) => <Row key={r.id} r={r} heading={false} onOpen={() => open(r)} />)}
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+
+          {isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {visibleItems.map((r, i) => (
+                <Row key={r.id} r={r} first={i === 0} shortfall={shortfall} onOpen={() => open(r)} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, borderTop: browsing ? '1px solid var(--rule)' : undefined, paddingTop: browsing ? 20 : 0 }}>
+              {browsing && <Eyebrow>Wszystkie przepisy · {view.length}</Eyebrow>}
+              {!browsing && <Eyebrow>{view.length} z {counts.all}</Eyebrow>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', columnGap: 24, rowGap: 32 }}>
+                {visibleItems.map((r) => <GridCard key={r.id} r={r} shortfall={shortfall} onOpen={() => open(r)} />)}
+              </div>
+            </div>
+          )}
+
+          <div ref={sentinel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 0', font: mono(12), color: 'var(--text-3)' }}>
+            <span role="status">Wyświetlono {visibleItems.length} z {view.length} przepisów</span>
+            {hasMore && <Chip onClick={loadMore}>Pokaż więcej</Chip>}
           </div>
-          {hasMore && <button onClick={loadMore} style={chip(false)}>Pokaż więcej</button>}
-        </div>
+        </>
       )}
+
+      <Sheet open={filterSheet} onClose={() => setFilterSheet(false)} title="Filtry">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <ChipGroup label="Kategoria">
+            <Chip active={dish === 'all'} onClick={() => setDish('all')}>Wszystkie</Chip>
+            {DISH_TYPES.map((d) => <Chip key={d} active={dish === d} onClick={() => setDish(d)}>{dishTypeLabel[d]}</Chip>)}
+          </ChipGroup>
+          <ChipGroup label="Kuchnia">
+            <Chip active={cuisine === 'all'} onClick={() => setCuisine('all')}>Wszystkie</Chip>
+            {CUISINES.map((c) => <Chip key={c} active={cuisine === c} onClick={() => setCuisine(c)}>{cuisineLabel[c]}</Chip>)}
+          </ChipGroup>
+          <ChipGroup label="Czas">
+            <Chip active={timeBucket === null} onClick={() => setTimeBucket(null)}>Dowolny</Chip>
+            {TIME_BUCKETS.map((b) => <Chip key={b.key} active={timeBucket === b.key} onClick={() => setTimeBucket(b.key)}>{b.label}</Chip>)}
+          </ChipGroup>
+          <ChipGroup label="Trudność">
+            <Chip active={difficulty === 'all'} onClick={() => setDifficulty('all')}>Dowolna</Chip>
+            {DIFFICULTIES.map((d) => <Chip key={d} active={difficulty === d} onClick={() => setDifficulty(d)}>{d}</Chip>)}
+          </ChipGroup>
+          <ChipGroup label="Składniki">
+            {STOCK_OPTIONS.map((o) => <Chip key={o.key} active={stock === o.key} onClick={() => setStock(o.key)}>{o.label}</Chip>)}
+            <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
+          </ChipGroup>
+          <ChipGroup label="Sortowanie">
+            {SORT_OPTIONS.map((o) => <Chip key={o.key} active={sort === o.key} onClick={() => setSort(o.key)}>{o.label}</Chip>)}
+          </ChipGroup>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+            <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={clearToolbarFilters}>Wyczyść</Button>
+            <Button size="xl" style={{ flex: 1.4 }} onClick={() => setFilterSheet(false)}>Pokaż {view.length}</Button>
+          </div>
+        </div>
+      </Sheet>
     </div>
   )
 }
 
-function Card({ r, showShortfall = false, onOpen }: { r: RecipeListItem; showShortfall?: boolean; onOpen: () => void }) {
-  const allIn = r.toBuyCount === 0
+function ChipGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <Eyebrow>{label}</Eyebrow>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{children}</div>
+    </div>
+  )
+}
+
+function Tile({ eyebrow, title, dark, onClick }: { eyebrow: string; title: string; dark?: boolean; onClick: () => void }) {
+  const isMobile = useIsMobile()
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: isMobile ? 18 : 20,
+        minHeight: isMobile ? 92 : 108,
+        padding: isMobile ? 14 : 16,
+        borderRadius: 14,
+        border: 0,
+        cursor: 'pointer',
+        textAlign: 'left',
+        background: dark ? 'var(--text)' : 'var(--accent-soft)',
+        color: dark ? 'var(--bg)' : 'var(--text)',
+      }}
+    >
+      <Eyebrow tone={dark ? 'light' : 'muted'} style={dark ? undefined : { color: 'var(--accent-soft-text)' }}>{eyebrow}</Eyebrow>
+      <span style={{ fontFamily: 'var(--serif)', fontSize: isMobile ? 22 : 24, lineHeight: 1.05 }}>{title}</span>
+    </button>
+  )
+}
+
+const badgeStyle: CSSProperties = {
+  position: 'absolute',
+  left: 16,
+  top: 16,
+  font: mono(10.5, 500),
+  letterSpacing: '.1em',
+  textTransform: 'uppercase',
+  padding: '5px 8px',
+  borderRadius: 5,
+  background: 'var(--surface)',
+  color: 'var(--text)',
+}
+
+function Hero({ r, onOpen }: { r: RecipeListItem; onOpen: () => void }) {
+  const isMobile = useIsMobile()
+  const line = dishLine(r)
+  return (
+    <div onClick={onOpen} style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 16, cursor: 'pointer', minWidth: 0 }}>
+      <div style={{ position: 'relative' }}>
+        <RecipeThumb r={r} full letterSize={80} style={{ height: isMobile ? 190 : 380, borderRadius: isMobile ? 14 : 16 }} />
+        {!isMobile && <span style={badgeStyle}>{sourceEyebrow(r)}</span>}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 5 : 8, minWidth: 0 }}>
+          {line && !isMobile && <Eyebrow tone="accent">{line}</Eyebrow>}
+          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 24 : 36, lineHeight: isMobile ? 1.1 : 1.05, letterSpacing: '-0.02em' }}>{r.title}</span>
+          {isMobile && (
+            <span style={{ display: 'flex', flexWrap: 'wrap', gap: 10, font: mono(12), color: 'var(--text-2)' }}>
+              <span>{r.time} min</span>
+              {r.kcal != null && <span>~{r.kcal} kcal</span>}
+              <StockNote toBuy={r.toBuyCount} />
+            </span>
+          )}
+        </div>
+        {!isMobile && (
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flex: 'none', font: mono(13), color: 'var(--text-2)' }}>
+            <span>{r.time} min{r.kcal != null && ` · ~${r.kcal} kcal`}</span>
+            <StockNote toBuy={r.toBuyCount} />
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Thumbnail list row (desktop "Ostatnio dodane", the whole list on phones). */
+function Row({ r, onOpen, first, shortfall, heading = true }: { r: RecipeListItem; onOpen: () => void; first?: boolean; shortfall?: boolean; heading?: boolean }) {
+  const Title = heading ? 'h3' : 'span'
+  const isMobile = useIsMobile()
+  const size = isMobile ? 76 : 84
   return (
     <div
       onClick={onOpen}
-      style={{ cursor: 'pointer', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', transition: 'transform .16s, box-shadow .16s' }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-3px)'
-        e.currentTarget.style.boxShadow = '0 10px 24px rgba(80,60,30,.13)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'none'
-        e.currentTarget.style.boxShadow = 'none'
+      style={{
+        display: 'flex',
+        gap: isMobile ? 14 : 16,
+        padding: '14px 0',
+        cursor: 'pointer',
+        borderBottom: isMobile ? undefined : '1px solid var(--border)',
+        borderTop: isMobile && !first ? '1px solid var(--border)' : undefined,
       }}
     >
-      <div style={{ position: 'relative', height: 132, background: gradient(r.tint), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {r.imageUrl ? (
-          <img src={recipeCardImage(r.imageUrl)} alt="" loading="lazy" decoding="async"
-            onError={(e) => { if (e.currentTarget.getAttribute('src') !== r.imageUrl) e.currentTarget.src = r.imageUrl! }}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <span style={{ fontFamily: "var(--serif)", fontSize: 60, fontWeight: 500, color: 'rgba(255,255,255,.9)', lineHeight: 1 }}>
-            {r.title[0]}
-          </span>
-        )}
-        <span style={{ position: 'absolute', top: 11, left: 11, font: "700 10px var(--sans)", letterSpacing: '.08em', padding: '4px 8px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[r.source].col }}>
-          {sourceBadge[r.source].label}
+      <RecipeThumb r={r} letterSize={30} style={{ width: size, height: size, borderRadius: 10 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, minWidth: 0 }}>
+        <Eyebrow size={10.5}>{sourceEyebrow(r)}</Eyebrow>
+        <Title style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 19 : 20, lineHeight: 1.15 }}>{r.title}</Title>
+        <span style={{ display: 'flex', gap: 10, font: mono(12), color: 'var(--text-2)' }}>
+          <span>{r.time} min</span>
+          <StockNote toBuy={r.toBuyCount} short={shortfall} />
         </span>
       </div>
-      <div style={{ padding: '15px 16px 17px' }}>
-        <h3 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 18, lineHeight: 1.18, margin: '0 0 9px', color: 'var(--text)' }}>
-          {r.title}
-        </h3>
-        {(r.dishType || r.cuisine) && (
-          <div style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)', margin: '-4px 0 9px' }}>
-            {[r.dishType && dishTypeLabel[r.dishType], r.cuisine && `kuchnia ${cuisineLabel[r.cuisine]}`]
-              .filter(Boolean)
-              .join(' · ')}
-          </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: "500 12.5px var(--sans)", color: 'var(--text-2)' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ClockIcon />
-            {r.time} min
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ServingsIcon />
-            {r.servings}
-          </span>
-          {r.kcal != null && (
-            <span style={{ font: "500 11.5px var(--mono)", color: 'var(--text-3)' }}>~{r.kcal} kcal</span>
-          )}
-          <span
-            style={{
-              marginLeft: 'auto',
-              font: "600 11.5px var(--sans)",
-              color: allIn ? 'var(--sage)' : 'var(--accent)',
-              background: allIn ? 'rgba(110,122,82,.12)' : 'var(--accent-soft)',
-              padding: '3px 9px',
-              borderRadius: 7,
-            }}
-          >
-            {allIn ? 'Wszystko jest' : showShortfall ? `brakuje ${r.toBuyCount}` : `${r.toBuyCount} do kupienia`}
-          </span>
-        </div>
+    </div>
+  )
+}
+
+function GridCard({ r, onOpen, shortfall }: { r: RecipeListItem; onOpen: () => void; shortfall?: boolean }) {
+  return (
+    <div onClick={onOpen} style={{ display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer', minWidth: 0 }}>
+      <RecipeThumb r={r} letterSize={56} style={{ height: 170, borderRadius: 12 }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <Eyebrow size={10.5}>{sourceEyebrow(r)}</Eyebrow>
+        <h3 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 19, lineHeight: 1.2 }}>{r.title}</h3>
+        <span style={{ display: 'flex', flexWrap: 'wrap', columnGap: 10, font: mono(12), color: 'var(--text-2)' }}>
+          <span>{r.time} min</span>
+          {r.kcal != null && <span>~{r.kcal} kcal</span>}
+          <StockNote toBuy={r.toBuyCount} short={shortfall} />
+        </span>
       </div>
     </div>
   )

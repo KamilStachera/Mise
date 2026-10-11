@@ -137,3 +137,20 @@ export const slotLabel: Record<Slot, string> = {
 export const SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner']
 
 export const DAY_NAMES_PL = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela']
+
+/** Source bucket names as the library tabs call them. */
+export const sourceLabel: Record<Source, string> = {
+  ai: 'Od AI',
+  web: 'Sieć i książki',
+  manual: 'Moje własne',
+}
+
+/** Card eyebrow: the free-text origin when known ("Daily Dieta"), else the bucket. */
+export function sourceEyebrow(r: { source: Source; sourceName?: string | null }): string {
+  return r.sourceName?.trim() || sourceLabel[r.source]
+}
+
+/** "Danie główne · śródziemnomorska" — empty string when neither is set. */
+export function dishLine(r: { dishType: DishType | null; cuisine: Cuisine | null }): string {
+  return [r.dishType && dishTypeLabel[r.dishType], r.cuisine && cuisineLabel[r.cuisine]].filter(Boolean).join(' · ')
+}

@@ -1,17 +1,21 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   useAuth, useRecipe, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
   useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage, useSetRecipeServings,
 } from '../api/hooks'
-import type { CookProposalItem, RecipeImage } from '../api/client'
-import { gradient } from '../lib/colors'
-import { cuisineLabel, dishTypeLabel, formatGrams, formatQty, plural, sourceBadge, statusColor, unitLabel } from '../lib/labels'
-import { BackIcon, ClockIcon, ServingsIcon, PlayIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
+import type { CookProposalItem, RecipeDetail as Recipe, RecipeImage } from '../api/client'
+import { dishLine, formatGrams, formatQty, plural, sourceEyebrow, unitLabel } from '../lib/labels'
 import { IMAGE_ACCEPT } from '../lib/images'
+import { requestChat } from '../lib/chatBus'
 import { CookMode } from '../components/CookMode'
+import { RecipeThumb } from '../components/RecipeThumb'
+import { Button, Eyebrow, SectionHead, Sheet, StatusDot, inputStyle, mono, sans } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { ingredientDetailText } from '../lib/ingredients'
+
+/** Height of the phone's sticky action bar (above the safe area). */
+const ACTION_BAR = 78
 
 export function RecipeDetail() {
   const { id } = useParams()
@@ -22,6 +26,9 @@ export function RecipeDetail() {
   const { data: r, isLoading } = useRecipe(id)
   const addMissing = useAddMissingToShopping()
   const del = useDeleteRecipe()
+  const upload = useUploadRecipeImage()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // "Ugotuj ponownie" (History) lands here with { cook: true } in router state.
   // Capture it before clearing — CookLogSection mounts only after the recipe
@@ -34,258 +41,313 @@ export function RecipeDetail() {
   }, [])
 
   if (isLoading || !r) {
-    return <div style={{ padding: 40, color: 'var(--text-3)', maxWidth: 780, margin: '0 auto' }}>Ładowanie…</div>
-  }
-
-  const haveSummary =
-    r.missing.length === 0
-      ? `Masz wszystko — ${r.have} z ${r.total} składników w domu.`
-      : `Masz ${r.have} z ${r.total}. Do kupienia (${r.missing.length}): ${r.missing.join(', ')}.`
-
-  return (
-    <div style={{ maxWidth: 780, margin: '0 auto', padding: isMobile ? '18px 14px 44px' : '26px 42px 70px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button
-          onClick={() => nav('/')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px var(--sans)", padding: '6px 0', marginBottom: 14 }}
-        >
-          <BackIcon /> Wszystkie przepisy
-        </button>
-        {canEdit && (
-          <button
-            onClick={async () => {
-              if (confirm(`Usunąć „${r.title}”?`)) {
-                await del.mutateAsync(r.id)
-                nav('/')
-              }
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "500 13px var(--sans)", marginBottom: 14 }}
-          >
-            <TrashIcon /> Usuń
-          </button>
-        )}
-      </div>
-
-      <div style={{ position: 'relative', height: 'clamp(150px, 32vw, 200px)', borderRadius: 18, background: gradient(r.tint), display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        {r.imageUrl ? (
-          <img src={r.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <span style={{ fontFamily: "var(--serif)", fontSize: 96, fontWeight: 500, color: 'rgba(255,255,255,.92)', lineHeight: 1 }}>
-            {r.title[0]}
-          </span>
-        )}
-        <span style={{ position: 'absolute', top: 16, left: 16, font: "700 10px var(--sans)", letterSpacing: '.08em', padding: '5px 9px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[r.source].col }}>
-          {sourceBadge[r.source].label}
-        </span>
-        {canEdit && <PhotoControls recipeId={r.id} />}
-      </div>
-
-      <PhotoGallery recipeId={r.id} images={r.images} canEdit={canEdit} />
-
-      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 34, lineHeight: 1.08, margin: '22px 0 10px' }}>{r.title}</h1>
-      <p style={{ fontSize: 15.5, lineHeight: 1.55, color: 'var(--text-2)', margin: '0 0 18px', maxWidth: '62ch' }}>{r.blurb}</p>
-
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-        <Pill>
-          <ClockIcon size={15} color="var(--accent)" /> {r.time} min
-        </Pill>
-        <ServingsPill
-          recipeId={r.id}
-          base={r.servings}
-          selected={r.selectedServings}
-          canEdit={canEdit}
-        />
-        <Pill>{r.difficulty}</Pill>
-        {r.dishType && <Pill>{dishTypeLabel[r.dishType]}</Pill>}
-        {r.cuisine && <Pill>Kuchnia {cuisineLabel[r.cuisine]}</Pill>}
-        {r.usesAirFryer && (
-          <Pill>
-            <span style={{ color: 'var(--gold)' }}>★</span> Frytkownica
-          </Pill>
-        )}
-      </div>
-
-      {r.selectedServings !== r.servings && (
-        <div style={{ font: "500 12.5px var(--sans)", color: 'var(--accent-deep)', margin: '-6px 0 16px' }}>
-          Ilości przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')} — przepis oryginalnie
-          na {plural(r.servings, 'porcję', 'porcje', 'porcji')}.
-        </div>
-      )}
-
-      <MacroPanel kcal={r.kcal} protein={r.protein} fat={r.fat} carbs={r.carbs} />
-
-      {r.steps.length > 0 && (
-        <button
-          onClick={() => setCookMode(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 9, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 12, padding: '13px 22px', font: "700 14.5px var(--sans)", cursor: 'pointer', boxShadow: '0 6px 18px rgba(160,66,32,.26)', margin: '0 0 28px', minHeight: 48 }}
-        >
-          <PlayIcon /> Gotuj krok po kroku
-        </button>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1.35fr', gap: 34, alignItems: 'start' }}>
-        <div>
-          <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 20, margin: '0 0 13px' }}>Składniki</h2>
-          <div style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent)', borderRadius: 11, padding: '11px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 9 }}>
-            <div style={{ font: "500 12.5px var(--sans)", color: 'var(--accent-deep)', lineHeight: 1.35 }}>{haveSummary}</div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {r.ingredients.map((ing, i) => {
-              const detail = ingredientDetailText(ing.displayText, ing.quantity)
-              const followsAlternative = Boolean(ing.alternativeGroup
-                && r.ingredients[i - 1]?.alternativeGroup === ing.alternativeGroup)
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 2px', borderBottom: '1px solid var(--border)' }}>
-                  {followsAlternative && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>lub</span>}
-                  <span style={{ flex: '0 0 9px', width: 9, height: 9, borderRadius: '50%', background: statusColor(ing.status) }} />
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                    {ing.name}
-                    {detail && <span style={{ display: 'block', marginTop: 2, fontSize: 11.5, fontWeight: 400, color: 'var(--text-3)' }}>{detail}</span>}
-                  </span>
-                  {ing.quantity && <span style={{ flex: '0 0 auto', font: "500 12px var(--mono)", color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
-                </div>
-              )
-            })}
-          </div>
-          {canEdit && r.missing.length > 0 && (
-            <button
-              onClick={async () => {
-                await addMissing.mutateAsync(r.id)
-                nav('/shopping')
-              }}
-              style={{ marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: 11, font: "600 13.5px var(--sans)", cursor: 'pointer' }}
-            >
-              <PlusIcon /> Dodaj {r.missing.length} brakujące do zakupów
-            </button>
-          )}
-        </div>
-
-        <div>
-          <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 20, margin: '0 0 15px' }}>Przygotowanie</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {r.steps.map((step, i) => (
-              <div key={i} style={{ display: 'flex', gap: 14 }}>
-                <div style={{ flex: '0 0 28px', height: 28, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 13px var(--serif)" }}>
-                  {i + 1}
-                </div>
-                <p style={{ margin: '2px 0 0', fontSize: 14.5, lineHeight: 1.6, color: 'var(--text)' }}>{step}</p>
-              </div>
-            ))}
-          </div>
-          {r.tip && (
-            <div style={{ marginTop: 22, background: '#f4efe1', border: '1px solid var(--border)', borderLeft: '3px solid var(--gold)', borderRadius: '0 11px 11px 0', padding: '14px 16px' }}>
-              <div style={{ font: "700 11px var(--sans)", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 5 }}>Wskazówka</div>
-              <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: 'var(--text)' }}>{r.tip}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <CookLogSection recipeId={r.id} initialOpen={cookRequested && canEdit} canEdit={canEdit} />
-
-      {cookMode && (
-        <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} onClose={() => setCookMode(false)} />
-      )}
-    </div>
-  )
-}
-
-/**
- * Per-serving nutrition card: kcal, macro grams with colored dots, and a
- * calorie-share bar (protein/carbs 4 kcal per gram, fat 9). The bar renders
- * only when all three macros are estimated; partial data shows just the numbers.
- */
-function MacroPanel({ kcal, protein, fat, carbs }: {
-  kcal: number | null
-  protein: number | null
-  fat: number | null
-  carbs: number | null
-}) {
-  if (kcal == null && protein == null && fat == null && carbs == null) return null
-
-  const defs = [
-    { label: 'Białko', grams: protein, color: 'var(--sage)', kcalPerGram: 4 },
-    { label: 'Tłuszcze', grams: fat, color: 'var(--gold)', kcalPerGram: 9 },
-    { label: 'Węglowodany', grams: carbs, color: 'var(--accent)', kcalPerGram: 4 },
-  ].filter((d): d is typeof d & { grams: number } => d.grams != null)
-  const kcalTotal = defs.reduce((sum, d) => sum + d.grams * d.kcalPerGram, 0)
-
-  const value: CSSProperties = { fontFamily: "var(--serif)", fontWeight: 600, fontSize: 'clamp(21px, 4.5vw, 26px)', lineHeight: 1 }
-  const label: CSSProperties = { font: "600 10px var(--sans)", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)' }
-
-  return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px 13px', margin: '0 0 20px', maxWidth: 600 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: '14px 22px', marginBottom: 13 }}>
-        {kcal != null && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingRight: 22, borderRight: '1px solid var(--border)' }}>
-            <span style={{ ...value, color: 'var(--accent-deep)' }}>~{kcal}</span>
-            <span style={label}>kcal</span>
-          </div>
-        )}
-        {defs.map((d) => (
-          <div key={d.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ ...value, color: 'var(--text)' }}>{formatGrams(d.grams)}</span>
-            <span style={{ ...label, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ flex: '0 0 7px', width: 7, height: 7, borderRadius: '50%', background: d.color }} />
-              {d.label}
-            </span>
-          </div>
-        ))}
-      </div>
-      {defs.length === 3 && kcalTotal > 0 && (
-        <div style={{ display: 'flex', height: 5, borderRadius: 3, overflow: 'hidden', background: 'var(--border)' }}>
-          {defs.map((d) => (
-            <span key={d.label} style={{ width: `${((d.grams * d.kcalPerGram) / kcalTotal) * 100}%`, background: d.color, height: '100%' }} />
-          ))}
-        </div>
-      )}
-      <div style={{ font: "500 11px var(--sans)", color: 'var(--text-3)', marginTop: 9 }}>na porcję · wartości szacunkowe</div>
-    </div>
-  )
-}
-
-function PhotoControls({ recipeId }: { recipeId: string }) {
-  const upload = useUploadRecipeImage()
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  const pill: CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    border: 'none',
-    background: 'rgba(255,255,255,.92)',
-    color: 'var(--text)',
-    borderRadius: 8,
-    padding: '6px 11px',
-    font: "600 11.5px var(--sans)",
-    cursor: 'pointer',
+    return <div style={{ padding: isMobile ? 20 : '40px 44px', color: 'var(--text-3)' }}>Ładowanie…</div>
   }
 
   async function onPick(file: File | undefined) {
-    if (!file) return
+    if (!file || !r) return
     try {
-      await upload.mutateAsync({ id: recipeId, file })
+      await upload.mutateAsync({ id: r.id, file })
     } catch {
       alert('Nie udało się przesłać zdjęcia (JPG/PNG/WebP, maks. 5 MB).')
     }
   }
 
-  return (
-    <div style={{ position: 'absolute', right: 12, bottom: 12, display: 'flex', gap: 7 }}>
-      <input
-        ref={fileRef}
-        type="file"
-        accept={IMAGE_ACCEPT}
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          onPick(e.target.files?.[0])
-          e.target.value = ''
-        }}
-      />
-      <button onClick={() => fileRef.current?.click()} style={pill} disabled={upload.isPending}>
-        <CameraIcon /> {upload.isPending ? 'Przesyłanie…' : 'Dodaj zdjęcie'}
-      </button>
+  async function onDelete() {
+    if (r && confirm(`Usunąć „${r.title}”?`)) {
+      await del.mutateAsync(r.id)
+      nav('/')
+    }
+  }
+
+  async function onAddMissing() {
+    if (!r) return
+    await addMissing.mutateAsync(r.id)
+    nav('/shopping')
+  }
+
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept={IMAGE_ACCEPT}
+      style={{ display: 'none' }}
+      onChange={(e) => {
+        onPick(e.target.files?.[0])
+        e.target.value = ''
+      }}
+    />
+  )
+  const pickPhoto = () => fileRef.current?.click()
+  const photoLabel = upload.isPending ? 'Przesyłanie…' : 'Dodaj zdjęcie'
+  const canCook = r.steps.length > 0
+  const showAddMissing = canEdit && r.missing.length > 0
+  const eyebrow = [dishLine(r), r.usesAirFryer ? 'frytkownica' : ''].filter(Boolean).join(' · ')
+
+  const title = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 18 }}>
+      {eyebrow && <Eyebrow tone="accent">{eyebrow}</Eyebrow>}
+      <h1 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 32 : 44, lineHeight: isMobile ? 1.05 : 1.02, letterSpacing: '-0.025em', textWrap: 'balance' as never }}>
+        {r.title}
+      </h1>
+      {r.blurb && <p style={{ margin: 0, font: sans(15), lineHeight: 1.5, color: 'var(--text-2)', textWrap: 'pretty' as never }}>{r.blurb}</p>}
     </div>
+  )
+
+  const facts = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)' }}>
+        <Fact first value={r.time} label="minut" />
+        <Fact value={<ServingsStepper recipe={r} canEdit={canEdit} />} label={plural(r.selectedServings, 'porcja', 'porcje', 'porcji').replace(/^\d+ /, '')} />
+        <Fact value={r.kcal != null ? `~${r.kcal}` : '—'} label="kcal" />
+        <Fact value={<span style={{ font: sans(15, 500), lineHeight: '21.5px' }}>{r.difficulty}</span>} label="poziom" />
+      </div>
+      {r.selectedServings !== r.servings && (
+        <span style={{ font: sans(12.5, 500), color: 'var(--accent-text)' }}>
+          Ilości przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')} — przepis oryginalnie na {plural(r.servings, 'porcję', 'porcje', 'porcji')}.
+        </span>
+      )}
+      <MacroBar r={r} />
+    </div>
+  )
+
+  const actions = (canCook || showAddMissing) && (
+    <div style={{ display: 'flex', gap: 10 }}>
+      {isMobile && showAddMissing && (
+        <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={onAddMissing} disabled={addMissing.isPending}>
+          + {r.missing.length} do zakupów
+        </Button>
+      )}
+      {canCook && (
+        <Button size={isMobile ? 'xl' : 'lg'} style={{ flex: 1.4 }} onClick={() => setCookMode(true)}>
+          Gotuj krok po kroku
+        </Button>
+      )}
+      {!isMobile && showAddMissing && (
+        <Button variant="outline" size="lg" style={{ flex: 1 }} onClick={onAddMissing} disabled={addMissing.isPending}>
+          + {r.missing.length} do zakupów
+        </Button>
+      )}
+    </div>
+  )
+
+  const ingredients = (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <SectionHead title="Składniki" size={isMobile ? 21 : 22} meta={r.missing.length === 0 ? `masz wszystko · ${r.total}` : `masz ${r.have} z ${r.total}`} />
+      {r.ingredients.map((ing, i) => {
+        const detail = ingredientDetailText(ing.displayText, ing.quantity)
+        const followsAlternative = Boolean(ing.alternativeGroup && r.ingredients[i - 1]?.alternativeGroup === ing.alternativeGroup)
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: isMobile ? '11px 0' : '10px 0', borderBottom: '1px solid var(--border)', font: sans(15) }}>
+            <StatusDot status={ing.status === 'unknown' ? 'out' : ing.status} />
+            <span style={{ flex: 1, minWidth: 0 }}>
+              {followsAlternative && <span style={{ font: mono(11.5, 500), color: 'var(--text-3)', marginRight: 6 }}>lub</span>}
+              {ing.name}
+              {detail && <span style={{ display: 'block', marginTop: 2, font: sans(12.5), color: 'var(--text-3)' }}>{detail}</span>}
+            </span>
+            {ing.quantity && <span style={{ flex: '0 0 auto', font: mono(13), color: 'var(--text-2)', textAlign: 'right' }}>{ing.quantity}</span>}
+          </div>
+        )
+      })}
+      {r.missing.length > 0 && (
+        <span style={{ padding: '10px 0 0', font: sans(13), lineHeight: 1.45, color: 'var(--text-2)' }}>
+          Do kupienia: {r.missing.join(', ')}
+        </span>
+      )}
+    </div>
+  )
+
+  const steps = (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <SectionHead title="Przygotowanie" size={isMobile ? 21 : 22} />
+      {r.steps.map((step, i) => (
+        <div key={i} style={{ display: 'flex', gap: 16, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+          <span style={{ flex: '0 0 22px', fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 24, lineHeight: 1, color: 'var(--accent-text)' }}>{i + 1}</span>
+          <span style={{ font: sans(15), lineHeight: 1.5 }}>{step}</span>
+        </div>
+      ))}
+      {r.tip && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 18, padding: '14px 16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <Eyebrow tone="accent">Wskazówka</Eyebrow>
+          <span style={{ font: sans(14.5), lineHeight: 1.55 }}>{r.tip}</span>
+        </div>
+      )}
+    </div>
+  )
+
+  const cookLog = <CookLogSection recipeId={r.id} initialOpen={cookRequested && canEdit} canEdit={canEdit} />
+  const cook = cookMode && <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} servings={r.selectedServings} onClose={() => setCookMode(false)} />
+
+  if (isMobile) {
+    const roundBtn: CSSProperties = { width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--surface)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, cursor: 'pointer' }
+    return (
+      <div style={{ paddingBottom: actions ? `calc(${ACTION_BAR}px + env(safe-area-inset-bottom))` : 24 }}>
+        {fileInput}
+        <div style={{ position: 'relative', height: 320 }}>
+          <RecipeThumb r={r} full letterSize={110} style={{ position: 'absolute', inset: 0 }} />
+          <div style={{ position: 'absolute', top: 'calc(12px + env(safe-area-inset-top))', left: 16, right: 16, display: 'flex', justifyContent: 'space-between' }}>
+            <button type="button" aria-label="Wróć" onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))} style={roundBtn}>←</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {canEdit && (
+                <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={{ ...roundBtn, width: 'auto', padding: '0 16px', borderRadius: 999, font: sans(13, 600) }}>
+                  {upload.isPending ? '…' : 'Zdjęcie'}
+                </button>
+              )}
+              {canEdit && (
+                <button type="button" aria-label="Zapytaj Sous" onClick={() => requestChat()} style={{ ...roundBtn, color: 'var(--accent)' }}>✦</button>
+              )}
+              {canEdit && (
+                <button type="button" aria-label="Więcej" onClick={() => setMenuOpen(true)} style={{ ...roundBtn, letterSpacing: 1 }}>···</button>
+              )}
+            </div>
+          </div>
+          <span style={{ position: 'absolute', left: 16, bottom: 14, font: mono(10.5, 500), letterSpacing: '.1em', textTransform: 'uppercase', padding: '5px 8px', borderRadius: 5, background: 'var(--surface)' }}>
+            {sourceEyebrow(r)}
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '20px 20px 0' }}>
+          {title}
+          {facts}
+          <PhotoGallery recipeId={r.id} images={r.images} canEdit={canEdit} />
+          {ingredients}
+          {steps}
+          {cookLog}
+        </div>
+        {actions && (
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, padding: '12px 16px calc(12px + env(safe-area-inset-bottom))', borderTop: '1px solid var(--rule)', background: 'var(--bg)' }}>
+            {actions}
+          </div>
+        )}
+        <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Przepis">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <MenuRow onClick={() => { setMenuOpen(false); pickPhoto() }}>{photoLabel}</MenuRow>
+            <MenuRow onClick={() => { setMenuOpen(false); onDelete() }} danger>Usuń przepis</MenuRow>
+          </div>
+        </Sheet>
+        {cook}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '28px 44px 64px', maxWidth: 1240, margin: '0 auto' }}>
+      {fileInput}
+      <div style={{ display: 'flex', justifyContent: 'space-between', font: sans(14, 600), color: 'var(--text-2)' }}>
+        <button type="button" onClick={() => nav('/')} style={linkBtn}>← Wszystkie przepisy</button>
+        {canEdit && (
+          <span style={{ display: 'flex', gap: 20 }}>
+            <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={linkBtn}>{photoLabel}</button>
+            <button type="button" onClick={onDelete} style={linkBtn}>Usuń</button>
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 36, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ position: 'relative' }}>
+            <RecipeThumb r={r} full letterSize={110} style={{ height: 360, borderRadius: 16 }} />
+            <span style={{ position: 'absolute', left: 14, top: 14, font: mono(10.5, 500), letterSpacing: '.1em', textTransform: 'uppercase', padding: '5px 8px', borderRadius: 5, background: 'var(--surface)' }}>
+              {sourceEyebrow(r)}
+            </span>
+          </div>
+          <PhotoGallery recipeId={r.id} images={r.images} canEdit={canEdit} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {title}
+          {facts}
+          {actions}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.25fr)', gap: 36, alignItems: 'start' }}>
+        {ingredients}
+        {steps}
+      </div>
+      {cookLog}
+      {cook}
+    </div>
+  )
+}
+
+const linkBtn: CSSProperties = { border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: 'inherit', color: 'inherit' }
+
+function MenuRow({ children, onClick, danger }: { children: ReactNode; onClick: () => void; danger?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ height: 52, display: 'flex', alignItems: 'center', border: 0, borderBottom: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', font: sans(15.5, 500), color: danger ? 'var(--accent-text)' : 'var(--text)', textAlign: 'left', padding: 0 }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Fact({ value, label, first }: { value: ReactNode; label: string; first?: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: first ? '10px 0' : '10px 0 10px 12px', borderLeft: first ? 0 : '1px solid var(--border)', minWidth: 0 }}>
+      <span style={{ display: 'flex', alignItems: 'center', font: mono(18, 500) }}>{value}</span>
+      <span style={{ font: sans(11.5), color: 'var(--text-2)' }}>{label}</span>
+    </div>
+  )
+}
+
+/**
+ * Per-serving macros as a calorie-share bar (protein/carbs 4 kcal per gram,
+ * fat 9) with the grams underneath. The bar renders only when all three are
+ * estimated; partial data shows just the numbers.
+ */
+function MacroBar({ r }: { r: Recipe }) {
+  const isMobile = useIsMobile()
+  const defs = [
+    { key: 'B', grams: r.protein, color: 'var(--sage)', kcalPerGram: 4 },
+    { key: 'T', grams: r.fat, color: 'var(--gold)', kcalPerGram: 9 },
+    { key: 'W', grams: r.carbs, color: 'var(--accent)', kcalPerGram: 4 },
+  ].filter((d): d is typeof d & { grams: number } => d.grams != null)
+  if (defs.length === 0) return null
+  const total = defs.reduce((sum, d) => sum + d.grams * d.kcalPerGram, 0)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+      {defs.length === 3 && total > 0 && (
+        <div style={{ display: 'flex', height: 5, borderRadius: 3, overflow: 'hidden' }}>
+          {defs.map((d) => <span key={d.key} style={{ width: `${((d.grams * d.kcalPerGram) / total) * 100}%`, background: d.color }} />)}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 14, font: mono(12), color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+        {defs.map((d) => (
+          <span key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.color }} />
+            {d.key} {formatGrams(d.grams)}
+          </span>
+        ))}
+        <span style={{ marginLeft: 'auto' }}>{isMobile ? 'na porcję' : 'na porcję · szacunkowo'}</span>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Portion picker (1–8; recipes written for more keep their base reachable).
+ * The choice is saved on the recipe, so it survives navigation, and the server
+ * rescales ingredient amounts, missing/to-buy and cook deductions to it.
+ */
+function ServingsStepper({ recipe, canEdit }: { recipe: Recipe; canEdit: boolean }) {
+  const set = useSetRecipeServings()
+  const selected = recipe.selectedServings
+  const max = Math.max(8, recipe.servings)
+  if (!canEdit) return <>{selected}</>
+  const step = (disabled: boolean): CSSProperties => ({
+    border: 0,
+    background: 'transparent',
+    padding: 0,
+    font: mono(18, 500),
+    color: disabled ? 'var(--border-2)' : 'var(--text-3)',
+    cursor: disabled ? 'default' : 'pointer',
+  })
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <button type="button" title="Mniej porcji" disabled={selected <= 1 || set.isPending} onClick={() => set.mutate({ id: recipe.id, servings: selected - 1 })} style={step(selected <= 1 || set.isPending)}>−</button>
+      <span style={{ color: selected !== recipe.servings ? 'var(--accent-text)' : undefined }}>{selected}</span>
+      <button type="button" title="Więcej porcji" disabled={selected >= max || set.isPending} onClick={() => set.mutate({ id: recipe.id, servings: selected + 1 })} style={step(selected >= max || set.isPending)}>+</button>
+    </span>
   )
 }
 
@@ -293,10 +355,11 @@ function PhotoControls({ recipeId }: { recipeId: string }) {
 function PhotoGallery({ recipeId, images, canEdit }: { recipeId: string; images: RecipeImage[]; canEdit: boolean }) {
   const setDefault = useSetDefaultRecipeImage()
   const del = useDeleteRecipeImage()
-  if (images.length === 0) return null
+  // A lone photo is already the hero; editors still get its thumbnail to delete it.
+  if (images.length === 0 || (images.length === 1 && !canEdit)) return null
 
   return (
-    <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', marginTop: 11 }}>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       {images.map((img) => (
         <div key={img.id} style={{ position: 'relative' }}>
           <img
@@ -306,35 +369,26 @@ function PhotoGallery({ recipeId, images, canEdit }: { recipeId: string; images:
             onClick={() => canEdit && !img.isDefault && setDefault.mutate({ id: recipeId, imageId: img.id })}
             style={{
               display: 'block',
-              width: 86,
-              height: 62,
+              width: 72,
+              height: 54,
               objectFit: 'cover',
-              borderRadius: 9,
+              borderRadius: 8,
               cursor: canEdit && !img.isDefault ? 'pointer' : 'default',
-              border: img.isDefault ? '2px solid var(--accent)' : '2px solid var(--border)',
-              opacity: img.isDefault ? 1 : 0.82,
+              outline: img.isDefault ? '2px solid var(--accent)' : 'none',
+              outlineOffset: 2,
+              opacity: img.isDefault ? 1 : 0.8,
             }}
           />
-          {canEdit && <button
-            onClick={() => del.mutate({ id: recipeId, imageId: img.id })}
-            title="Usuń zdjęcie"
-            style={{
-              position: 'absolute',
-              top: -6,
-              right: -6,
-              width: 19,
-              height: 19,
-              borderRadius: '50%',
-              border: '1px solid var(--border)',
-              background: 'var(--card)',
-              color: 'var(--text-2)',
-              cursor: 'pointer',
-              font: "600 10px var(--sans)",
-              lineHeight: 1,
-            }}
-          >
-            ✕
-          </button>}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => confirm('Usunąć to zdjęcie?') && del.mutate({ id: recipeId, imageId: img.id })}
+              title="Usuń zdjęcie"
+              style={{ position: 'absolute', top: -7, right: -7, width: 20, height: 20, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', cursor: 'pointer', font: sans(10, 600), lineHeight: 1, padding: 0 }}
+            >
+              ✕
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -355,6 +409,15 @@ function parseAmount(s: string): number | null {
   if (!s.trim()) return null
   const n = Number(s.replace(',', '.'))
   return Number.isFinite(n) ? n : null
+}
+
+function Stars({ value }: { value: number }) {
+  return (
+    <span style={{ color: 'var(--gold)', fontSize: 14, letterSpacing: 2, flex: '0 0 auto' }}>
+      {'★'.repeat(value)}
+      <span style={{ color: 'var(--border)' }}>{'★'.repeat(5 - value)}</span>
+    </span>
+  )
 }
 
 function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: string; initialOpen?: boolean; canEdit: boolean }) {
@@ -401,52 +464,37 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
     setNote('')
   }
 
-  const starBtn = (active: boolean): CSSProperties => ({
-    border: 'none',
-    background: 'transparent',
-    cursor: 'pointer',
-    fontSize: 22,
-    lineHeight: 1,
-    padding: '0 2px',
-    color: active ? 'var(--gold)' : 'var(--border-2)',
-  })
-
   return (
-    <div style={{ marginTop: 34 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 13 }}>
-        <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 20, margin: 0 }}>Historia gotowania</h2>
-        <div style={{ flex: 1 }} />
-        {canEdit && !open && (
-          <button
-            onClick={() => setOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 15px', font: "600 13px var(--sans)", cursor: 'pointer' }}
-          >
-            Ugotowane!
-          </button>
-        )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 22 }}>Historia gotowania</span>
+          <span style={{ font: sans(13), color: 'var(--text-3)' }}>Oceny i notatki trafiają do cooklog.md — asystent uczy się z nich, co u Was działa.</span>
+        </div>
+        {canEdit && !open && <Button size="sm" variant="dark" onClick={() => setOpen(true)}>Ugotowane!</Button>}
       </div>
-      <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 14px', maxWidth: '62ch' }}>
-        Oceny i notatki trafiają do cooklog.md — asystent uczy się z nich, co u Was działa.
-      </p>
 
       {open && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 13, padding: '14px 16px', marginBottom: 14 }}>
-          <div style={{ font: "600 13px var(--sans)", color: 'var(--text)', marginBottom: 4 }}>Potwierdź ugotowanie</div>
-          <p style={{ fontSize: 12, color: 'var(--text-3)', margin: '0 0 10px' }}>
-            Domyślnie odejmiemy składniki zgodnie z przepisem. Stan pozostanie przybliżony, więc drobnych różnic nie trzeba poprawiać.
-          </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 18px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ font: sans(15, 600) }}>Potwierdź ugotowanie</span>
+            <span style={{ font: sans(13), lineHeight: 1.45, color: 'var(--text-2)' }}>
+              Domyślnie odejmiemy składniki zgodnie z przepisem. Stan pozostanie przybliżony, więc drobnych różnic nie trzeba poprawiać.
+            </span>
+          </div>
           {!proposal || !rows ? (
-            <div style={{ fontSize: 13, color: 'var(--text-3)', padding: '6px 0 12px' }}>Ładowanie…</div>
+            <span style={{ font: sans(13), color: 'var(--text-3)' }}>Ładowanie…</span>
           ) : (
-            <div style={{ marginBottom: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <button
+                type="button"
                 onClick={() => setShowDeductions((value) => !value)}
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-2)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', font: "500 12px var(--sans)", marginBottom: showDeductions ? 8 : 0 }}
+                style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)' }}
               >
                 {showDeductions ? 'Ukryj szczegóły' : `Zmieniliśmy składniki lub ilości · ${proposal.items.filter((item) => item.deductible).length} odjęć`}
               </button>
               {showDeductions && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {proposal.items.map((it) => (
                     <DeductionRowView
                       key={it.ingredientId}
@@ -474,11 +522,16 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
               )}
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <span style={{ font: "500 13px var(--sans)", color: 'var(--text-2)' }}>Jak wyszło?</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ font: sans(14), color: 'var(--text-2)' }}>Jak wyszło?</span>
             <div>
               {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} style={starBtn(rating !== null && n <= rating)} onClick={() => setRating(rating === n ? null : n)}>
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setRating(rating === n ? null : n)}
+                  style={{ border: 0, background: 'transparent', cursor: 'pointer', fontSize: 24, lineHeight: 1, padding: '0 2px', color: rating !== null && n <= rating ? 'var(--gold)' : 'var(--border)' }}
+                >
                   ★
                 </button>
               ))}
@@ -488,45 +541,26 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
             value={note}
             onChange={(e) => setNote(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && onSave()}
-            placeholder="Notatka — np. następnym razem mniej soli, dzieciaki zachwycone…"
+            placeholder="Notatka — np. następnym razem mniej soli"
             autoFocus
-            style={{ width: '100%', border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 9, padding: '8px 11px', font: "400 13.5px var(--sans)", color: 'var(--text)', marginBottom: 11 }}
+            style={{ ...inputStyle, background: 'var(--bg)' }}
           />
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={onSave}
-              style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 14px', font: "600 12.5px var(--sans)", cursor: 'pointer' }}
-            >
-              {add.isPending ? 'Zapisywanie…' : 'Zapisz'}
-            </button>
-            <button
-              onClick={() => setOpen(false)}
-              style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 9, padding: '7px 14px', font: "500 12.5px var(--sans)", cursor: 'pointer' }}
-            >
-              Anuluj
-            </button>
+            <Button onClick={onSave} disabled={add.isPending}>{add.isPending ? 'Zapisywanie…' : 'Zapisz'}</Button>
+            <Button variant="quiet" onClick={() => setOpen(false)}>Anuluj</Button>
           </div>
         </div>
       )}
 
       {entries && entries.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {entries.map((e) => (
-            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 2px', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ font: "500 12px var(--mono)", color: 'var(--text-3)', flex: '0 0 84px' }}>{e.cookedAt}</span>
-              {e.rating !== null && (
-                <span style={{ color: 'var(--gold)', fontSize: 13, flex: '0 0 auto', letterSpacing: 1 }}>
-                  {'★'.repeat(e.rating)}
-                  <span style={{ color: 'var(--border-2)' }}>{'★'.repeat(5 - e.rating)}</span>
-                </span>
-              )}
-              <span style={{ flex: 1, fontSize: 13.5, color: e.note ? 'var(--text)' : 'var(--text-3)' }}>{e.note || 'bez notatki'}</span>
+            <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ font: mono(12.5), color: 'var(--text-2)', flex: '0 0 90px' }}>{e.cookedAt}</span>
+              {e.rating !== null && <Stars value={e.rating} />}
+              <span style={{ flex: 1, font: sans(14.5), color: e.note ? 'var(--text)' : 'var(--text-3)' }}>{e.note || 'bez notatki'}</span>
               {canEdit && (
-                <button
-                  onClick={() => del.mutate(e.id)}
-                  title="Usuń wpis"
-                  style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 13 }}
-                >
+                <button type="button" onClick={() => del.mutate(e.id)} title="Usuń wpis" style={{ border: 0, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 13 }}>
                   ✕
                 </button>
               )}
@@ -534,7 +568,7 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
           ))}
         </div>
       ) : (
-        <div style={{ fontSize: 13.5, color: 'var(--text-3)' }}>Jeszcze nie gotowaliście z tego przepisu.</div>
+        <span style={{ font: sans(14), color: 'var(--text-3)' }}>Jeszcze nie gotowaliście z tego przepisu.</span>
       )}
     </div>
   )
@@ -553,116 +587,39 @@ function DeductionRowView({ item, row, onChange }: {
   const detail = ingredientDetailText(item.displayText, item.quantityText)
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px', borderBottom: '1px solid var(--border)', opacity: canDeduct ? 1 : 0.55 }}>
+    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border)', opacity: canDeduct ? 1 : 0.55 }}>
       <input
         type="checkbox"
         checked={checked}
         disabled={!canDeduct}
         onChange={(e) => onChange({ checked: e.target.checked, amount: row?.amount ?? '' })}
-        style={{ accentColor: 'var(--accent)', width: 15, height: 15, cursor: canDeduct ? 'pointer' : 'default' }}
+        style={{ accentColor: 'var(--sage)', width: 16, height: 16, cursor: canDeduct ? 'pointer' : 'default' }}
       />
-      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--text)' }}>
+      <span style={{ flex: 1, minWidth: 120, font: sans(14, 500) }}>
         {item.name}
         {detail
-          ? <span style={{ display: 'block', fontSize: 11, fontWeight: 400, color: 'var(--text-3)', marginTop: 2 }}>{detail}</span>
-          : item.quantityText && <span style={{ font: "500 11.5px var(--mono)", color: 'var(--text-3)', marginLeft: 7 }}>{item.quantityText}</span>}
+          ? <span style={{ display: 'block', font: sans(12), color: 'var(--text-3)', marginTop: 2 }}>{detail}</span>
+          : item.quantityText && <span style={{ font: mono(12), color: 'var(--text-3)', marginLeft: 7 }}>{item.quantityText}</span>}
       </span>
       {!canDeduct ? (
-        <span style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)', fontStyle: 'italic' }}>
-          {SKIP_REASON_PL[item.skipReason ?? ''] ?? 'pominięte'}
-        </span>
+        <span style={{ font: sans(12.5), color: 'var(--text-3)', fontStyle: 'italic' }}>{SKIP_REASON_PL[item.skipReason ?? ''] ?? 'pominięte'}</span>
       ) : (
-        <>
-          {item.skipReason && (
-            <span style={{ font: "500 11px var(--sans)", color: 'var(--gold)' }}>
-              {SKIP_REASON_PL[item.skipReason]}
-            </span>
-          )}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {item.skipReason && <span style={{ font: sans(12), color: 'var(--accent-text)' }}>{SKIP_REASON_PL[item.skipReason]}</span>}
           <input
             value={row?.amount ?? ''}
             disabled={!checked}
             onChange={(e) => onChange({ checked, amount: e.target.value })}
             inputMode="decimal"
             placeholder="0"
-            style={{ width: 62, textAlign: 'right', border: '1px solid var(--border)', background: checked ? 'var(--surface)' : 'transparent', borderRadius: 8, padding: '5px 8px', font: "500 12.5px var(--mono)", color: 'var(--text)' }}
+            style={{ width: 64, height: 34, textAlign: 'right', border: '1px solid var(--border)', background: checked ? 'var(--bg)' : 'transparent', borderRadius: 8, padding: '0 8px', font: mono(13), color: 'var(--text)' }}
           />
-          <span style={{ font: "500 12px var(--sans)", color: 'var(--text-2)', width: 30 }}>
-            {item.unit ? unitLabel[item.unit] : ''}
-          </span>
-          <span style={{ font: "500 11px var(--mono)", color: 'var(--text-3)', width: 108, textAlign: 'right' }}>
+          <span style={{ font: sans(12.5), color: 'var(--text-2)', width: 28 }}>{item.unit ? unitLabel[item.unit] : ''}</span>
+          <span style={{ font: mono(11.5), color: 'var(--text-3)', minWidth: 96, textAlign: 'right' }}>
             {item.pantryQuantity != null && item.unit ? `w domu: ${formatQty(item.pantryQuantity, item.unit)}` : ''}
           </span>
-        </>
+        </span>
       )}
     </div>
-  )
-}
-
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 13px', font: "500 13px var(--sans)", color: 'var(--text)' }}>
-      {children}
-    </div>
-  )
-}
-
-/**
- * Portion picker (1–8; recipes written for more keep their base reachable).
- * The choice is saved on the recipe, so it survives navigation, and the server
- * rescales ingredient amounts, missing/to-buy and cook deductions to it.
- */
-function ServingsPill({ recipeId, base, selected, canEdit }: {
-  recipeId: string
-  base: number
-  selected: number
-  canEdit: boolean
-}) {
-  const set = useSetRecipeServings()
-  const max = Math.max(8, base)
-
-  if (!canEdit) {
-    return (
-      <Pill>
-        <ServingsIcon size={15} color="var(--accent)" /> Porcje: {selected}
-      </Pill>
-    )
-  }
-
-  const stepBtn = (disabled: boolean): CSSProperties => ({
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    border: '1px solid var(--border)',
-    background: 'var(--card)',
-    color: disabled ? 'var(--border-2)' : 'var(--accent-deep)',
-    cursor: disabled ? 'default' : 'pointer',
-    font: "600 15px var(--sans)",
-    lineHeight: 1,
-    padding: 0,
-  })
-
-  return (
-    <Pill>
-      <ServingsIcon size={15} color="var(--accent)" /> Porcje:
-      <button
-        onClick={() => set.mutate({ id: recipeId, servings: selected - 1 })}
-        disabled={selected <= 1 || set.isPending}
-        title="Mniej porcji"
-        style={stepBtn(selected <= 1 || set.isPending)}
-      >
-        −
-      </button>
-      <span style={{ minWidth: 16, textAlign: 'center', font: "600 13.5px var(--mono)", color: selected !== base ? 'var(--accent-deep)' : 'var(--text)' }}>
-        {selected}
-      </span>
-      <button
-        onClick={() => set.mutate({ id: recipeId, servings: selected + 1 })}
-        disabled={selected >= max || set.isPending}
-        title="Więcej porcji"
-        style={stepBtn(selected >= max || set.isPending)}
-      >
-        +
-      </button>
-    </Pill>
   )
 }

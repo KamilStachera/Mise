@@ -32,6 +32,14 @@ const recipeInputShape = {
         '("Jajecznica; pieczywo; gruszka" ✗ → "Jajecznica z pieczywem i warzywami" ✓)',
     ),
   source: z.enum(['ai', 'web', 'manual']).describe('ai = kreacja AI, web = książka/strona, manual = własne'),
+  sourceName: z
+    .string()
+    .max(80)
+    .optional()
+    .describe(
+      'Skąd przepis: książka, strona, jadłospis (np. "Daily Dieta"); pokazywane nad tytułem. ' +
+        'Nie doklejaj do tytułu. Przy pełnej podmianie zachowaj wartość z odczytu.',
+    ),
   time: z.number().int().positive().describe('Czas przygotowania w minutach'),
   servings: z.number().int().positive().describe('Liczba porcji (domyślnie 2)'),
   difficulty: z.string().optional().describe('Łatwe / Średnie / Trudne'),
@@ -166,7 +174,7 @@ server.tool(
 
 server.tool(
   'update_recipe',
-  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola i zachowaj tint z odczytu; pominięte dishType/cuisine/usesAirFryer/kcal/protein/fat/carbs są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
+  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola i zachowaj tint z odczytu; pominięte dishType/cuisine/usesAirFryer/sourceName/kcal/protein/fat/carbs są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
   { id: z.string().uuid(), ...recipeInputShape },
   async ({ id, ...input }) => {
     await put(`/recipes/${id}`, input)

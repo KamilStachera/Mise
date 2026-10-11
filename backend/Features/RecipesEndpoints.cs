@@ -56,7 +56,7 @@ public static class RecipesEndpoints
                     Mapping.ImageUrl(r.ImagePath), toBuy,
                     Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
                     AirFryer.Uses(r), r.CreatedAt,
-                    r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams);
+                    r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams, r.SourceName);
             });
             return Results.Ok(list);
         });
@@ -95,7 +95,7 @@ public static class RecipesEndpoints
                 ingredients, steps, requirements.Count - missing.Count, requirements.Count, missing,
                 Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
                 AirFryer.Uses(r), GalleryDto(r),
-                r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams));
+                r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams, r.SourceName));
         });
 
         g.MapPost("/", async (RecipeInput input, MiseDbContext db, RecipeIngredientNormalizer ingredientNormalizer,
@@ -446,6 +446,9 @@ public static class RecipesEndpoints
     {
         recipe.Title = input.Title.Trim();
         recipe.Source = Mapping.ParseSource(input.Source);
+        var sourceName = input.SourceName?.Trim();
+        recipe.SourceName = string.IsNullOrEmpty(sourceName) ? null
+            : sourceName.Length > 80 ? sourceName[..80] : sourceName;
         recipe.DishType = dishType;
         recipe.Cuisine = cuisine;
         recipe.UsesAirFryer = input.UsesAirFryer;

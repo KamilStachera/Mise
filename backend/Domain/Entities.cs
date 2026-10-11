@@ -31,6 +31,12 @@ public class Recipe
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
     public RecipeSource Source { get; set; } = RecipeSource.Manual;
+    /// <summary>
+    /// Free-text origin label — a book, site or diet plan (e.g. "Daily Dieta").
+    /// Shown as the eyebrow on recipe cards; null = only the <see cref="Source"/>
+    /// bucket. Full-replace PUT clears it when omitted.
+    /// </summary>
+    public string? SourceName { get; set; }
     public int TimeMinutes { get; set; }
     public int Servings { get; set; } = 2;
     /// <summary>

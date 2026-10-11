@@ -168,6 +168,11 @@ public static class AgentDocs
         przygotowuje się we frytkownicy beztłuszczowej (ulubiony sprzęt użytkownika), inaczej
         `false`. Pominięte/`null` = aplikacja zgaduje z tekstu przepisu (mniej przewidywalne).
 
+        `sourceName` (tekst, maks. 80 znaków, opcjonalny) — skąd pochodzi przepis: książka,
+        strona, jadłospis (np. „Daily Dieta”). Aplikacja pokazuje go nad tytułem na kartach.
+        **Nie doklejaj go do tytułu** („Daily Dieta - Sernik” ✗ → `title`: „Sernik”,
+        `sourceName`: „Daily Dieta” ✓). Gdy źródła nie ma, pomiń pole.
+
         `kcal` (int), `protein`, `fat`, `carbs` (liczby, gramy) — szacunkowe wartości odżywcze
         **NA JEDNĄ PORCJĘ**, nie na całe danie. **Zawsze oszacuj je przy dodawaniu przepisu**
         (policz ze składników i liczby porcji; wystarczy rozsądne przybliżenie) — napędzają
@@ -183,6 +188,7 @@ public static class AgentDocs
         curl -X POST {API}/recipes -H "Content-Type: application/json" -d '{
           "title": "Szakszuka z fetą",
           "source": "web",
+          "sourceName": "Jadłonomia",
           "time": 30,
           "servings": 2,
           "difficulty": "Łatwe",
@@ -279,7 +285,7 @@ public static class AgentDocs
         - `GET /recipes/{id}/cook-proposal` — co odjąć ze spiżarni po ugotowaniu
           (na składnik: `pantryItemId`, `proposedAmount`, `deductible`, `skipReason`).
         - `PUT /recipes/{id}` — pełna podmiana (to samo body co POST). **Uwaga:** pominięcie
-          `dishType`/`cuisine`/`usesAirFryer`/`kcal`/`protein`/`fat`/`carbs` czyści te pola —
+          `dishType`/`cuisine`/`usesAirFryer`/`sourceName`/`kcal`/`protein`/`fat`/`carbs` czyści te pola —
           przy edycji starszego przepisu bez nich uzupełnij je (sklasyfikuj danie, oszacuj
           makro na porcję), zamiast pomijać.
         - `DELETE /recipes/{id}`.

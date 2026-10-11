@@ -28,6 +28,8 @@ export interface RecipeListItem {
   protein: number | null
   fat: number | null
   carbs: number | null
+  /** Free-text origin (book, site, diet plan) — the card eyebrow; null = just the source bucket. */
+  sourceName: string | null
 }
 
 export interface Ingredient {
@@ -73,6 +75,8 @@ export interface RecipeDetail {
   protein: number | null
   fat: number | null
   carbs: number | null
+  /** Free-text origin (book, site, diet plan) — the card eyebrow; null = just the source bucket. */
+  sourceName: string | null
 }
 
 export interface PantryItem {
@@ -193,6 +197,7 @@ export interface ChatMessage {
 export interface RecipeInput {
   title: string
   source: Source
+  sourceName?: string | null
   time: number
   servings: number
   difficulty?: string

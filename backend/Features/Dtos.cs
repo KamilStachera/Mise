@@ -7,7 +7,7 @@ namespace Mise.Api.Features;
 public record RecipeListItemDto(Guid Id, string Title, string Source, int Time, int Servings,
     string Difficulty, string Tint, string Blurb, string? ImageUrl, int ToBuyCount,
     string? DishType, string? Cuisine, bool UsesAirFryer, DateTimeOffset CreatedAt,
-    int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs);
+    int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs, string? SourceName);
 
 public record IngredientDto(string Name, string Quantity, string? DisplayText,
     string? AlternativeGroup, string Status);
@@ -23,7 +23,7 @@ public record RecipeDetailDto(Guid Id, string Title, string Source, int Time, in
     int Have, int Total, List<string> Missing,
     string? DishType, string? Cuisine, bool UsesAirFryer,
     List<RecipeImageDto> Images,
-    int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs);
+    int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs, string? SourceName);
 
 public record PantryItemDto(Guid Id, string Name, string Category, string Unit,
     decimal Quantity, decimal PlanningQuantity, string Confidence, DateTimeOffset? ReliabilityUpdatedAt,
@@ -94,11 +94,12 @@ public record QuestionnaireDto(List<QuestionnaireSectionDto> Sections, Dictionar
 public record IngredientInput(string Name, string? Quantity,
     decimal? AmountValue = null, string? AmountUnit = null, string? DisplayText = null,
     string? AlternativeGroup = null);
-/// <summary>Kcal/Protein/Fat/Carbs are estimates PER SERVING; PUT is full-replace, so omitting them clears the stored values.</summary>
+/// <summary>Kcal/Protein/Fat/Carbs are estimates PER SERVING; SourceName is a free-text origin label (max 80). PUT is full-replace, so omitting any of them clears the stored value.</summary>
 public record RecipeInput(string Title, string Source, int Time, int Servings, string? Difficulty,
     string? Tint, string? Blurb, string? Tip, List<IngredientInput> Ingredients, List<string> Steps,
     string? DishType = null, string? Cuisine = null, bool? UsesAirFryer = null,
-    int? Kcal = null, decimal? Protein = null, decimal? Fat = null, decimal? Carbs = null);
+    int? Kcal = null, decimal? Protein = null, decimal? Fat = null, decimal? Carbs = null,
+    string? SourceName = null);
 
 public record PantryItemInput(string Name, string Category, string Unit,
     decimal? Quantity = null, decimal? LowThreshold = null, List<string>? Aliases = null);

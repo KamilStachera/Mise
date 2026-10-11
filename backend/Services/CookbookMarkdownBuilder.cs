@@ -81,7 +81,7 @@ public sealed class CookbookMarkdownBuilder
             if (r.Cuisine is Cuisine c) meta.Add($"kuchnia {CuisineLabel(c)}");
             if (AirFryer.Uses(r)) meta.Add("frytkownica");
             if (r.KcalPerServing is int kcal) meta.Add($"~{kcal} kcal/porcja");
-            sb.AppendLine($"- {r.Title} — {string.Join(", ", meta)} ({SourceLabel(r.Source)}). Zobacz `recipes/`.");
+            sb.AppendLine($"- {r.Title} — {string.Join(", ", meta)} ({SourceLabel(r.Source)}{(r.SourceName is { } sn ? $": {sn}" : "")}). Zobacz `recipes/`.");
         }
 
         return sb.ToString().TrimEnd() + "\n";

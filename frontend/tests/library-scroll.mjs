@@ -42,23 +42,27 @@ try {
       throw error
     })
     assert.equal(await cards.first().textContent(), 'Przepis 299')
-    assert.ok(images.length > 0 && images.length <= 24)
-    assert.ok(images.every((url) => url.endsWith('/card-v1.webp')))
+    // Batch thumbnails (+ the four "Ostatnio dodane" rows on desktop) use the card
+    // variant; only the browse hero loads one original photo.
+    assert.ok(images.length > 0 && images.length <= 29)
+    assert.ok(images.filter((url) => !url.endsWith('/card-v1.webp')).length <= 1)
     await page.locator('main').evaluate((main) => { main.scrollTop = main.scrollHeight })
     await page.waitForFunction(() => document.querySelectorAll('main h3').length === 48)
 
     // Search must find recipes that have never been mounted, and reset the batch.
-    await page.getByPlaceholder('Szukaj przepisów…').fill('Przepis 000')
+    await page.getByPlaceholder('Szukaj po nazwie lub źródle').fill('Przepis 000')
     await page.waitForFunction(() => document.querySelectorAll('main h3').length === 1)
     assert.equal(await cards.first().textContent(), 'Przepis 000')
-    await page.getByPlaceholder('Szukaj przepisów…').fill('')
+    await page.getByPlaceholder('Szukaj po nazwie lub źródle').fill('')
     await page.waitForFunction(() => document.querySelectorAll('main h3').length === 24)
+    // Desktop: sort dropdown; phone: the sort chip opens the filter sheet.
     await page.getByRole('button', { name: 'Najnowsze', exact: true }).click()
     await page.getByRole('button', { name: 'Najszybsze', exact: true }).click()
+    if (mobile) await page.keyboard.press('Escape')
     assert.equal(await cards.first().textContent(), 'Przepis 000')
     assert.equal(await cards.count(), 24)
     // Global source count/filter remains accurate despite progressive rendering.
-    await page.getByRole('button', { name: /Moje własne/ }).click()
+    await page.getByRole('button', { name: mobile ? 'Moje' : /Moje własne/, exact: mobile }).click()
     assert.ok((await cards.allTextContents()).every((title) => Number(title.slice(-3)) % 2 === 0))
     for (let attempt = 0; await cards.count() < 150; attempt++) {
       assert.ok(attempt < 20, 'Scroll should reach every matching recipe')

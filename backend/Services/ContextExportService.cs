@@ -233,7 +233,9 @@ public sealed class ContextExportService
         sb.AppendLine();
         var header = new List<string>
         {
-            CookbookMarkdownBuilder.SourceLabel(r.Source),
+            r.SourceName is { } sourceName
+                ? $"{CookbookMarkdownBuilder.SourceLabel(r.Source)} ({sourceName})"
+                : CookbookMarkdownBuilder.SourceLabel(r.Source),
             $"{r.TimeMinutes} min",
             $"{r.Servings} porcje",
             r.Difficulty,

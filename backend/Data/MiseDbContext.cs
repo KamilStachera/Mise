@@ -33,6 +33,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.DishType).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.Cuisine).HasConversion<string>().HasMaxLength(24);
             e.Property(x => x.Title).HasMaxLength(300);
+            e.Property(x => x.SourceName).HasMaxLength(80);
             e.Property(x => x.Tint).HasMaxLength(16);
             e.HasMany(x => x.Ingredients).WithOne(i => i.Recipe!).HasForeignKey(i => i.RecipeId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Steps).WithOne(s => s.Recipe!).HasForeignKey(s => s.RecipeId).OnDelete(DeleteBehavior.Cascade);

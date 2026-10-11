@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { registerChatOpener } from './lib/chatBus'
 import { showToast } from './lib/toastBus'
 import { useIsMobile } from './lib/useIsMobile'
@@ -24,6 +24,9 @@ export default function App() {
   const isMobile = useIsMobile()
   const { canEdit } = useAuth()
   const [chatOpen, setChatOpen] = useState(false)
+  const { pathname } = useLocation()
+  // Recipe pages bring their own sticky action bar on phones (design screen 02).
+  const showTabs = isMobile && !pathname.startsWith('/recipe/')
 
   useEffect(() => registerChatOpener(() => setChatOpen(true)), [])
 
@@ -61,7 +64,7 @@ export default function App() {
           overscrollBehaviorY: 'contain',
           position: 'relative',
           // Clearance for the fixed bottom tab bar.
-          paddingBottom: isMobile ? `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))` : undefined,
+          paddingBottom: showTabs ? `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))` : undefined,
         }}
       >
         <Routes>
@@ -81,7 +84,7 @@ export default function App() {
       </main>
 
       {canEdit && chatOpen && <ChatSidebar fullscreen={isMobile} onClose={() => setChatOpen(false)} />}
-      {isMobile && <TabBar />}
+      {showTabs && <TabBar />}
       <PendingCookModal />
       <ToastHost />
     </div>
