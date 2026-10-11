@@ -1,34 +1,23 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useCreateRecipe, usePantry, useUploadRecipeImage } from '../api/hooks'
 import { LoginPrompt } from '../components/LoginPrompt'
 import type { Cuisine, DishType, RecipeInput, Source } from '../api/client'
-import { CUISINES, DISH_TYPES, cuisineLabel, dishTypeLabel } from '../lib/labels'
-import { BackIcon, PlusIcon, TrashIcon, CameraIcon } from '../components/icons'
+import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishTypeLabel, sourceLabel } from '../lib/labels'
 import { IMAGE_ACCEPT } from '../lib/images'
+import { useIsMobile } from '../lib/useIsMobile'
+import { TAB_BAR_HEIGHT } from '../components/TabBar'
+import { Button, Chip, Eyebrow, PageTitle, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
 type Ing = { name: string; quantity: string; displayText: string; alternativeGroup: string }
 
-const input: CSSProperties = {
-  width: '100%',
-  border: '1px solid var(--border)',
-  background: 'var(--card)',
-  borderRadius: 10,
-  padding: '10px 13px',
-  font: "400 14px var(--sans)",
-  color: 'var(--text)',
-}
-const label: CSSProperties = {
-  font: "600 11px var(--sans)",
-  letterSpacing: '.06em',
-  textTransform: 'uppercase',
-  color: 'var(--text-3)',
-  marginBottom: 6,
-  display: 'block',
-}
+const SOURCES: Source[] = ['ai', 'web', 'manual']
+const select: CSSProperties = { ...inputStyle, cursor: 'pointer' }
 
 export function AddRecipe() {
   const nav = useNavigate()
+  const isMobile = useIsMobile()
+  const pad = usePagePad()
   const { canEdit, isLoading: authLoading } = useAuth()
   const create = useCreateRecipe()
   const uploadImage = useUploadRecipeImage()
@@ -37,6 +26,7 @@ export function AddRecipe() {
   const [paste, setPaste] = useState('')
   const [title, setTitle] = useState('')
   const [source, setSource] = useState<Source>('ai')
+  const [sourceName, setSourceName] = useState('')
   const [time, setTime] = useState(30)
   const [servings, setServings] = useState(2)
   const [difficulty, setDifficulty] = useState('Łatwe')
@@ -77,6 +67,7 @@ export function AddRecipe() {
     const payload: RecipeInput = {
       title: title.trim() || 'Przepis bez nazwy',
       source,
+      sourceName: sourceName.trim() || undefined,
       time,
       servings,
       difficulty,
@@ -105,142 +96,121 @@ export function AddRecipe() {
     nav(`/recipe/${id}`)
   }
 
+  const setIng = (i: number, patch: Partial<Ing>) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+  const cols = (desktop: string) => (isMobile ? '1fr' : desktop)
+  const saveButtons = (
+    <div style={{ display: 'flex', gap: 10 }}>
+      <Button size={isMobile ? 'xl' : 'lg'} style={{ flex: isMobile ? 1.4 : undefined }} onClick={submit} disabled={create.isPending}>
+        {create.isPending ? 'Zapisywanie…' : 'Zapisz przepis'}
+      </Button>
+      <Button variant="quiet" size={isMobile ? 'xl' : 'lg'} style={{ flex: isMobile ? 1 : undefined }} onClick={() => nav('/')}>Anuluj</Button>
+    </div>
+  )
+
   return (
-    <div style={{ maxWidth: 780, margin: '0 auto', padding: '26px 42px 70px' }}>
-      <button onClick={() => nav('/')} style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: "500 13.5px var(--sans)", padding: '6px 0', marginBottom: 14 }}>
-        <BackIcon /> Wszystkie przepisy
+    <div style={{ ...pad, paddingBottom: isMobile ? 110 : 64, maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 28 }}>
+      <button type="button" onClick={() => nav('/')} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(14, 600), color: 'var(--text-2)' }}>
+        ← Wszystkie przepisy
       </button>
+      <PageTitle title="Dodaj przepis" size={isMobile ? 40 : undefined} />
 
-      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>Nowy przepis</div>
-      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 34, margin: '0 0 18px' }}>Dodaj przepis</h1>
-
-      {/* Wklej z AI */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, marginBottom: 26 }}>
-        <label style={label}>Wklej z AI / skądkolwiek</label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16, borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <Eyebrow>Wklej z AI / skądkolwiek</Eyebrow>
         <textarea
           value={paste}
           onChange={(e) => setPaste(e.target.value)}
-          placeholder={'Wklej przepis (np. z ChatGPT) i kliknij Przetwórz.\nNajlepiej działa z nagłówkami „Składniki" i „Przygotowanie".'}
-          style={{ ...input, minHeight: 120, resize: 'vertical', lineHeight: 1.5, fontFamily: "var(--mono)", fontSize: 12.5 }}
+          placeholder={'Wklej przepis (np. z ChatGPT) i kliknij Przetwórz.\nNajlepiej działa z nagłówkami „Składniki” i „Przygotowanie”.'}
+          style={{ ...inputStyle, height: 'auto', minHeight: 120, padding: '12px 14px', resize: 'vertical', lineHeight: 1.5, font: mono(12.5), background: 'var(--bg)' }}
         />
-        <button onClick={applyParsed} disabled={!paste.trim()} style={{ marginTop: 10, background: 'var(--text)', color: 'var(--surface)', border: 'none', borderRadius: 10, padding: '9px 16px', cursor: paste.trim() ? 'pointer' : 'not-allowed', font: "600 13px var(--sans)", opacity: paste.trim() ? 1 : 0.5 }}>
-          Przetwórz do formularza ↓
-        </button>
+        <Button variant="dark" size="sm" style={{ alignSelf: 'flex-start' }} onClick={applyParsed} disabled={!paste.trim()}>Przetwórz do formularza ↓</Button>
       </div>
 
-      {/* Formularz */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div>
-          <label style={label}>Tytuł</label>
-          <input style={input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. Chrupiące gnocchi z frytkownicy" />
+      <Section title="Podstawy">
+        <Field label="Tytuł">
+          <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. Chrupiące gnocchi z frytkownicy" />
+        </Field>
+        <Field label="Skąd przepis">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {SOURCES.map((s) => <Chip key={s} active={source === s} onClick={() => setSource(s)}>{sourceLabel[s]}</Chip>)}
+          </div>
+        </Field>
+        <Field label="Źródło (nazwa, opcjonalnie)" hint="Książka, strona albo jadłospis — pokazujemy je nad tytułem na kartach.">
+          <input style={inputStyle} value={sourceName} maxLength={80} onChange={(e) => setSourceName(e.target.value)} placeholder="np. Daily Dieta, Jadłonomia" />
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+          <Field label="Czas (min)">
+            <input style={{ ...inputStyle, font: mono(15) }} type="number" min={1} value={time} onChange={(e) => setTime(+e.target.value)} />
+          </Field>
+          <Field label="Porcje">
+            <input style={{ ...inputStyle, font: mono(15) }} type="number" min={1} value={servings} onChange={(e) => setServings(+e.target.value)} />
+          </Field>
+          <Field label="Trudność">
+            <select style={select} value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+              {DIFFICULTIES.map((d) => <option key={d}>{d}</option>)}
+            </select>
+          </Field>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 12 }}>
-          <div>
-            <label style={label}>Źródło</label>
-            <select style={input} value={source} onChange={(e) => setSource(e.target.value as Source)}>
-              <option value="ai">Od AI</option>
-              <option value="web">Sieć i książki</option>
-              <option value="manual">Moje własne</option>
-            </select>
-          </div>
-          <div>
-            <label style={label}>Czas (min)</label>
-            <input style={input} type="number" value={time} onChange={(e) => setTime(+e.target.value)} />
-          </div>
-          <div>
-            <label style={label}>Porcje</label>
-            <input style={input} type="number" value={servings} onChange={(e) => setServings(+e.target.value)} />
-          </div>
-          <div>
-            <label style={label}>Trudność</label>
-            <select style={input} value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-              <option>Łatwe</option>
-              <option>Średnie</option>
-              <option>Trudne</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-          <div>
-            <label style={label}>Rodzaj dania</label>
-            <select style={input} value={dishType} onChange={(e) => setDishType(e.target.value as DishType | '')}>
+        <div style={{ display: 'grid', gridTemplateColumns: cols('repeat(3, minmax(0, 1fr))'), gap: 12 }}>
+          <Field label="Rodzaj dania">
+            <select style={select} value={dishType} onChange={(e) => setDishType(e.target.value as DishType | '')}>
               <option value="">— brak —</option>
-              {DISH_TYPES.map((d) => (
-                <option key={d} value={d}>
-                  {dishTypeLabel[d]}
-                </option>
-              ))}
+              {DISH_TYPES.map((d) => <option key={d} value={d}>{dishTypeLabel[d]}</option>)}
             </select>
-          </div>
-          <div>
-            <label style={label}>Kuchnia</label>
-            <select style={input} value={cuisine} onChange={(e) => setCuisine(e.target.value as Cuisine | '')}>
+          </Field>
+          <Field label="Kuchnia">
+            <select style={select} value={cuisine} onChange={(e) => setCuisine(e.target.value as Cuisine | '')}>
               <option value="">— brak —</option>
-              {CUISINES.map((c) => (
-                <option key={c} value={c}>
-                  {cuisineLabel[c]}
-                </option>
-              ))}
+              {CUISINES.map((c) => <option key={c} value={c}>{cuisineLabel[c]}</option>)}
             </select>
-          </div>
-          <div>
-            <label style={label}>Frytkownica</label>
-            <select style={input} value={airFryer} onChange={(e) => setAirFryer(e.target.value as '' | 'yes' | 'no')}>
+          </Field>
+          <Field label="Frytkownica">
+            <select style={select} value={airFryer} onChange={(e) => setAirFryer(e.target.value as '' | 'yes' | 'no')}>
               <option value="">Auto (wykryj z tekstu)</option>
               <option value="yes">Tak</option>
               <option value="no">Nie</option>
             </select>
-          </div>
+          </Field>
         </div>
+        <Field label="Opis">
+          <textarea style={{ ...inputStyle, height: 'auto', minHeight: 72, padding: '12px 14px', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }} value={blurb} onChange={(e) => setBlurb(e.target.value)} />
+        </Field>
+      </Section>
 
-        <div>
-          <label style={label}>Opis</label>
-          <textarea style={{ ...input, minHeight: 60, resize: 'vertical', lineHeight: 1.5 }} value={blurb} onChange={(e) => setBlurb(e.target.value)} />
-        </div>
-
-        <div>
-          <label style={label}>Składniki</label>
-          <datalist id="pantry-ingredient-names">
-            {pantryNames.map((name) => <option key={name} value={name} />)}
-          </datalist>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {ings.map((ing, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, .8fr) 110px minmax(220px, 1.4fr) 100px 40px', gap: 8 }}>
-                <input list="pantry-ingredient-names" style={input} value={ing.name} placeholder="produkt w spiżarni" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />
-                <input style={input} value={ing.quantity} placeholder="ilość" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, quantity: e.target.value } : x)))} />
-                <input style={input} value={ing.displayText} placeholder="pełny zapis, np. 2 kromki chleba na zakwasie" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, displayText: e.target.value } : x)))} />
-                <input style={input} value={ing.alternativeGroup} placeholder="grupa LUB" title="Ta sama wartość łączy zamienniki, np. spód" onChange={(e) => setIngs((a) => a.map((x, j) => (j === i ? { ...x, alternativeGroup: e.target.value } : x)))} />
-                <RemoveBtn onClick={() => setIngs((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />
-              </div>
-            ))}
+      <Section title="Składniki">
+        <datalist id="pantry-ingredient-names">
+          {pantryNames.map((name) => <option key={name} value={name} />)}
+        </datalist>
+        {ings.map((ing, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr) 96px 44px' : 'minmax(150px,.8fr) 110px minmax(200px,1.4fr) 100px 44px', gap: 8, paddingBottom: isMobile ? 12 : 0, borderBottom: isMobile ? '1px solid var(--border)' : 0 }}>
+            <input list="pantry-ingredient-names" style={inputStyle} value={ing.name} placeholder="produkt w spiżarni" onChange={(e) => setIng(i, { name: e.target.value })} />
+            <input style={inputStyle} value={ing.quantity} placeholder="ilość" onChange={(e) => setIng(i, { quantity: e.target.value })} />
+            {isMobile && <RemoveBtn onClick={() => setIngs((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />}
+            <input style={{ ...inputStyle, gridColumn: isMobile ? '1 / 3' : undefined }} value={ing.displayText} placeholder="pełny zapis, np. 2 kromki chleba na zakwasie" onChange={(e) => setIng(i, { displayText: e.target.value })} />
+            <input style={inputStyle} value={ing.alternativeGroup} placeholder="grupa LUB" title="Ta sama wartość łączy zamienniki, np. spód" onChange={(e) => setIng(i, { alternativeGroup: e.target.value })} />
+            {!isMobile && <RemoveBtn onClick={() => setIngs((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />}
           </div>
-          <AddBtn label="Dodaj składnik" onClick={() => setIngs((a) => [...a, { name: '', quantity: '', displayText: '', alternativeGroup: '' }])} />
-        </div>
+        ))}
+        <AddBtn label="Dodaj składnik" onClick={() => setIngs((a) => [...a, { name: '', quantity: '', displayText: '', alternativeGroup: '' }])} />
+      </Section>
 
-        <div>
-          <label style={label}>Przygotowanie</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {steps.map((s, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                <div style={{ flex: '0 0 26px', height: 26, marginTop: 6, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--accent)', color: 'var(--accent-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "600 12px var(--serif)" }}>{i + 1}</div>
-                <textarea style={{ ...input, flex: 1, minHeight: 38, resize: 'vertical', lineHeight: 1.5 }} value={s} placeholder={`Krok ${i + 1}`} onChange={(e) => setSteps((a) => a.map((x, j) => (j === i ? e.target.value : x)))} />
-                <RemoveBtn onClick={() => setSteps((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />
-              </div>
-            ))}
+      <Section title="Przygotowanie">
+        {steps.map((s, i) => (
+          <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span style={{ flex: '0 0 22px', paddingTop: 10, fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 22, lineHeight: 1, color: 'var(--accent-text)' }}>{i + 1}</span>
+            <textarea style={{ ...inputStyle, height: 'auto', flex: 1, minHeight: 46, padding: '12px 14px', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }} value={s} placeholder={`Krok ${i + 1}`} onChange={(e) => setSteps((a) => a.map((x, j) => (j === i ? e.target.value : x)))} />
+            <RemoveBtn onClick={() => setSteps((a) => (a.length > 1 ? a.filter((_, j) => j !== i) : a))} />
           </div>
-          <AddBtn label="Dodaj krok" onClick={() => setSteps((a) => [...a, ''])} />
-        </div>
+        ))}
+        <AddBtn label="Dodaj krok" onClick={() => setSteps((a) => [...a, ''])} />
+      </Section>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'end' }}>
-          <div>
-            <label style={label}>Wskazówka (opcjonalnie)</label>
-            <input style={input} value={tip} onChange={(e) => setTip(e.target.value)} />
-          </div>
-          <div>
-            <label style={label}>Zdjęcie (opcjonalnie)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Section title="Na koniec">
+        <Field label="Wskazówka (opcjonalnie)">
+          <input style={inputStyle} value={tip} onChange={(e) => setTip(e.target.value)} />
+        </Field>
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <Field label="Zdjęcie (opcjonalnie)">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input
                 ref={photoRef}
                 type="file"
@@ -251,53 +221,63 @@ export function AddRecipe() {
                   e.target.value = ''
                 }}
               />
-              <button
-                onClick={() => photoRef.current?.click()}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, height: 42, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 10, padding: '0 13px', font: "500 13px var(--sans)", cursor: 'pointer' }}
-              >
-                <CameraIcon /> {photo ? 'Zmień' : 'Wybierz'}
-              </button>
+              <Button variant="quiet" onClick={() => photoRef.current?.click()}>{photo ? 'Zmień zdjęcie' : 'Wybierz zdjęcie'}</Button>
               {photoPreview && (
                 <>
-                  <img src={photoPreview} alt="" style={{ width: 42, height: 42, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)' }} />
-                  <button onClick={() => setPhoto(null)} title="Usuń zdjęcie" style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 13 }}>
-                    ✕
-                  </button>
+                  <img src={photoPreview} alt="" style={{ width: 46, height: 46, objectFit: 'cover', borderRadius: 10 }} />
+                  <button type="button" onClick={() => setPhoto(null)} title="Usuń zdjęcie" style={{ border: 0, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14 }}>✕</button>
                 </>
               )}
             </div>
-          </div>
-          <div>
-            <label style={label}>Kolor</label>
-            <input type="color" value={tint} onChange={(e) => setTint(e.target.value)} style={{ width: 52, height: 42, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--card)', cursor: 'pointer' }} />
-          </div>
+          </Field>
+          <Field label="Kolor karty (bez zdjęcia)">
+            <input type="color" value={tint} onChange={(e) => setTint(e.target.value)} style={{ width: 56, height: 46, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', cursor: 'pointer', padding: 4 }} />
+          </Field>
         </div>
+      </Section>
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-          <button onClick={submit} disabled={create.isPending} style={{ background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '12px 22px', cursor: 'pointer', font: "600 14px var(--sans)" }}>
-            {create.isPending ? 'Zapisywanie…' : 'Zapisz przepis'}
-          </button>
-          <button onClick={() => nav('/')} style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', borderRadius: 11, padding: '12px 22px', cursor: 'pointer', font: "500 14px var(--sans)" }}>
-            Anuluj
-          </button>
+      {isMobile ? (
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '10px 16px', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
+          {saveButtons}
         </div>
-      </div>
+      ) : (
+        saveButtons
+      )}
+    </div>
+  )
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 22, paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>{title}</span>
+      {children}
+    </div>
+  )
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+      <Eyebrow>{label}</Eyebrow>
+      {children}
+      {hint && <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>{hint}</span>}
     </div>
   )
 }
 
 function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, border: '1px dashed var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '8px 12px', cursor: 'pointer', font: "500 13px var(--sans)" }}>
-      <PlusIcon size={14} /> {label}
+    <button type="button" onClick={onClick} style={{ alignSelf: 'flex-start', height: 40, padding: '0 14px', border: '1px dashed var(--border-2)', borderRadius: 999, background: 'transparent', color: 'var(--text-2)', cursor: 'pointer', font: sans(13.5, 600) }}>
+      + {label}
     </button>
   )
 }
 
 function RemoveBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ flex: '0 0 40px', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-3)', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <TrashIcon />
+    <button type="button" onClick={onClick} title="Usuń" style={{ width: 44, height: 46, flex: '0 0 44px', border: '1px solid var(--border)', borderRadius: 12, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14 }}>
+      ✕
     </button>
   )
 }

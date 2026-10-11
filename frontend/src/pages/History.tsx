@@ -2,10 +2,11 @@ import { useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useCookLog, useRecipes, useUpdateCookLog } from '../api/hooks'
 import type { CookLogEntry, RecipeListItem } from '../api/client'
-import { gradient } from '../lib/colors'
 import { cuisineLabel, plural } from '../lib/labels'
-import { parseISODate } from '../lib/dates'
-import { HistoryIcon } from '../components/icons'
+import { mondayOf, parseISODate } from '../lib/dates'
+import { useIsMobile } from '../lib/useIsMobile'
+import { RecipeThumb } from '../components/RecipeThumb'
+import { Button, Eyebrow, PageTitle, Sheet, StatStrip, UnderlineTabs, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
 type Filter = 'all' | 'high'
 
@@ -19,52 +20,36 @@ type Enriched = {
 
 const HIGH_RATING = 4
 
-function mondayOf(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7))
-}
-
-/** The word without its number: pluralWord(3, 'wpis', …) → "wpisy". */
-function pluralWord(n: number, one: string, few: string, many: string): string {
-  return plural(n, one, few, many).replace(/^\S+ /, '')
-}
-
 function groupLabel(date: Date, now: Date): string {
   const diff = Math.round((mondayOf(now).getTime() - mondayOf(date).getTime()) / 86_400_000)
   if (diff <= 0) return 'W tym tygodniu'
   if (diff <= 7) return 'W zeszłym tygodniu'
   const month = date.toLocaleDateString('pl-PL', { month: 'long' })
-  const capped = month[0].toUpperCase() + month.slice(1)
-  return date.getFullYear() === now.getFullYear() ? capped : `${capped} ${date.getFullYear()}`
+  return date.getFullYear() === now.getFullYear() ? month : `${month} ${date.getFullYear()}`
 }
 
-const capStyle: CSSProperties = {
-  font: "700 11px var(--sans)",
-  letterSpacing: '.08em',
-  textTransform: 'uppercase',
-  color: 'var(--text-3)',
+function capitalize(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1) : s
 }
 
-function segBtn(on: boolean): CSSProperties {
-  return {
-    border: 'none',
-    borderRadius: 8,
-    padding: '7px 14px',
-    font: "600 12.5px var(--sans)",
-    cursor: 'pointer',
-    background: on ? 'var(--card)' : 'transparent',
-    color: on ? 'var(--accent-deep)' : 'var(--text-2)',
-    boxShadow: on ? '0 1px 4px rgba(80,60,30,.14)' : 'none',
-    transition: 'all .13s',
-    whiteSpace: 'nowrap',
-  }
+function Stars({ value, size = 14 }: { value: number; size?: number }) {
+  return (
+    <span style={{ color: 'var(--gold)', fontSize: size, letterSpacing: 2, whiteSpace: 'nowrap' }} title={`Ocena: ${value}/5`}>
+      {'★'.repeat(value)}
+      <span style={{ color: 'var(--border)' }}>{'★'.repeat(5 - value)}</span>
+    </span>
+  )
 }
 
 export function History() {
   const nav = useNavigate()
+  const isMobile = useIsMobile()
+  const pad = usePagePad()
   const { canEdit } = useAuth()
   const { data: entries = [], isLoading } = useCookLog(undefined, 500)
   const { data: recipes = [] } = useRecipes('all', '')
   const [filter, setFilter] = useState<Filter>('all')
+  const [editing, setEditing] = useState<Enriched | null>(null)
 
   const recipeById = useMemo(() => new Map(recipes.map((r) => [r.id, r])), [recipes])
 
@@ -143,9 +128,7 @@ export function History() {
     return out
   }, [filtered])
 
-  if (isLoading) {
-    return <div style={{ padding: 40, color: 'var(--text-3)', maxWidth: 720, margin: '0 auto' }}>Ładowanie…</div>
-  }
+  if (isLoading) return <div style={{ ...pad, color: 'var(--text-3)' }}>Ładowanie…</div>
 
   const total = entries.length
   const summary =
@@ -154,123 +137,69 @@ export function History() {
       : `Razem ${plural(total, 'ugotowany posiłek', 'ugotowane posiłki', 'ugotowanych posiłków')}.` +
         (stats.topDish && stats.topDish.count > 1 ? ` Najczęściej na stole: ${stats.topDish.title} (${stats.topDish.count}×).` : '')
 
+  const cuisine = stats.topCuisine ? capitalize(cuisineLabel[stats.topCuisine[0] as keyof typeof cuisineLabel]) : '—'
+  const statItems = [
+    { value: stats.thisMonth, label: isMobile ? 'w tym miesiącu' : `${plural(stats.thisMonth, 'posiłek', 'posiłki', 'posiłków').replace(/^\d+ /, '')} w tym miesiącu` },
+    { value: stats.streak > 0 ? stats.streak : '—', label: stats.streak > 0 ? `${plural(stats.streak, 'tydzień', 'tygodnie', 'tygodni').replace(/^\d+ /, '')} z rzędu` : isMobile ? 'seria' : 'brak serii' },
+    ...(isMobile ? [] : [{ value: stats.topDish?.title ?? '—', serif: true, label: stats.topDish ? `najczęściej · ${stats.topDish.count}×` : 'najczęściej' }]),
+    { value: cuisine, serif: true, label: isMobile ? 'ulubiona kuchnia' : `ulubiona kuchnia${stats.topCuisine ? ` · ${plural(stats.topCuisine[1], 'danie', 'dania', 'dań')}` : ''}` },
+  ]
+
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '38px 42px 60px' }}>
-      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
-        Dziennik kuchenny
-      </div>
-      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: '0 0 5px', color: 'var(--text)' }}>
-        Historia gotowania
-      </h1>
-      <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 22px' }}>{summary}</p>
+    <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 28 }}>
+      {isMobile && (
+        <button type="button" onClick={() => nav('/profile')} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(14, 600), color: 'var(--text-2)' }}>← Ja</button>
+      )}
+      <PageTitle title="Historia gotowania" size={isMobile ? 40 : undefined} sub={summary} />
 
       {total === 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, textAlign: 'center', padding: '52px 24px', border: '1.5px dashed var(--border-2)', borderRadius: 18, background: 'var(--surface)' }}>
-          <div style={{ width: 58, height: 58, borderRadius: 16, background: 'var(--card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-            <HistoryIcon size={27} style={{ color: 'var(--accent)' }} />
-          </div>
-          <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Historia jest jeszcze pusta</div>
-          <div style={{ fontSize: 13.5, color: 'var(--text-2)', maxWidth: '42ch' }}>
-            Ugotuj coś i kliknij „Ugotowane!” na stronie przepisu — każdy posiłek zapisze się tutaj.
-          </div>
-          <button
-            onClick={() => nav('/')}
-            style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
-          >
-            Przeglądaj przepisy
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, padding: '24px 0', borderTop: '1px solid var(--rule)' }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 26 }}>Historia jest jeszcze pusta</span>
+          <span style={{ font: sans(15), color: 'var(--text-2)', maxWidth: '46ch' }}>Ugotuj coś i kliknij „Ugotowane!” na stronie przepisu — każdy posiłek zapisze się tutaj.</span>
+          <Button variant="outline" onClick={() => nav('/')}>Przeglądaj przepisy</Button>
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 22 }}>
-            <StatTile cap="W tym miesiącu" value={String(stats.thisMonth)} sub={pluralWord(stats.thisMonth, 'posiłek', 'posiłki', 'posiłków')} />
-            <StatTile cap="Seria" value={stats.streak > 0 ? String(stats.streak) : '—'} sub={stats.streak > 0 ? `${pluralWord(stats.streak, 'tydzień', 'tygodnie', 'tygodni')} z rzędu` : 'brak serii'} />
-            <StatTile cap="Najczęściej" value={stats.topDish?.title ?? '—'} sub={stats.topDish ? `${stats.topDish.count}×` : ''} small />
-            <StatTile cap="Ulubiona kuchnia" value={stats.topCuisine ? capitalize(cuisineLabel[stats.topCuisine[0] as keyof typeof cuisineLabel]) : '—'} sub={stats.topCuisine ? plural(stats.topCuisine[1], 'danie', 'dania', 'dań') : ''} small />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 22 }}>
-            <div style={{ display: 'flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: 3 }}>
-              <button onClick={() => setFilter('all')} style={segBtn(filter === 'all')}>Wszystko</button>
-              <button onClick={() => setFilter('high')} style={segBtn(filter === 'high')}>★ Wysoko oceniane</button>
-            </div>
-            <div style={{ font: "500 12.5px var(--sans)", color: 'var(--text-3)' }}>
-              {filter === 'high'
-                ? plural(stats.highCount, 'wysoko oceniony', 'wysoko ocenione', 'wysoko ocenionych')
-                : `${plural(total, 'wpis', 'wpisy', 'wpisów')} · ${plural(stats.highCount, 'wysoko oceniony', 'wysoko ocenione', 'wysoko ocenionych')}`}
-            </div>
-          </div>
-
+          <StatStrip stacked items={statItems} />
+          <UnderlineTabs
+            rule={false}
+            style={{ borderBottom: '1px solid var(--border)' }}
+            value={filter}
+            onChange={setFilter}
+            items={[
+              { key: 'all', label: 'Wszystko', count: total },
+              { key: 'high', label: '★ Wysoko oceniane', count: stats.highCount },
+            ]}
+          />
           {filtered.length === 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', padding: '50px 24px', border: '1.5px dashed var(--border-2)', borderRadius: 18, background: 'var(--surface)' }}>
-              <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Brak wysoko ocenianych wpisów</div>
-              <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>Oceń posiłek na 4–5 ★ przy zapisywaniu, a znajdzie się w tym widoku.</div>
-              <button
-                onClick={() => setFilter('all')}
-                style={{ marginTop: 10, border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text)', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
-              >
-                Pokaż wszystko
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10, padding: '12px 0' }}>
+              <span style={{ fontFamily: 'var(--serif)', fontSize: 24 }}>Brak wysoko ocenianych wpisów</span>
+              <span style={{ font: sans(14.5), color: 'var(--text-2)' }}>Oceń posiłek na 4–5 ★ przy zapisywaniu, a znajdzie się w tym widoku.</span>
+              <Button variant="outline" onClick={() => setFilter('all')}>Pokaż wszystko</Button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 20 }}>
               {groups.map((grp) => (
-                <div key={grp.label}>
-                  <div style={{ ...capStyle, letterSpacing: '.1em', marginBottom: 10 }}>{grp.label}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                    {grp.items.map((x) => (
-                      <HistoryRow key={x.entry.id} item={x} canEdit={canEdit} />
-                    ))}
-                  </div>
+                <div key={grp.label} style={{ display: 'flex', flexDirection: 'column' }}>
+                  <Eyebrow style={{ paddingBottom: 8 }}>{grp.label}</Eyebrow>
+                  {grp.items.map((x, i) => (
+                    <HistoryRow key={x.entry.id} item={x} first={i === 0} canEdit={canEdit} onEdit={() => setEditing(x)} />
+                  ))}
                 </div>
               ))}
             </div>
           )}
         </>
       )}
+
+      <Sheet open={!!editing} onClose={() => setEditing(null)} title="Edytuj wpis">
+        {editing && <EditForm key={editing.entry.id} entry={editing.entry} hasRecipe={!!editing.recipe} onClose={() => setEditing(null)} />}
+      </Sheet>
     </div>
   )
 }
 
-function capitalize(s: string): string {
-  return s ? s[0].toUpperCase() + s.slice(1) : s
-}
-
-function StatTile({ cap, value, sub, small }: { cap: string; value: string; sub: string; small?: boolean }) {
-  return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 15, padding: '13px 15px', minWidth: 0 }}>
-      <div style={{ ...capStyle, marginBottom: 7 }}>{cap}</div>
-      <div
-        style={{
-          fontFamily: "var(--serif)",
-          fontWeight: 600,
-          fontSize: small ? 15.5 : 24,
-          lineHeight: 1.15,
-          color: 'var(--text)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: small ? 'nowrap' : undefined,
-          marginBottom: 2,
-        }}
-        title={small ? value : undefined}
-      >
-        {value}
-      </div>
-      <div style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)' }}>{sub}</div>
-    </div>
-  )
-}
-
-const editInputStyle: CSSProperties = {
-  border: '1px solid var(--border)',
-  background: 'var(--surface)',
-  borderRadius: 9,
-  padding: '7px 10px',
-  font: "400 13px var(--sans)",
-  color: 'var(--text)',
-}
-
-/** Fills the row while editing: date, dish name (free-text entries only), stars, note. */
+/** Date, dish name (free-text entries only), stars, note. */
 function EditForm({ entry, hasRecipe, onClose }: { entry: CookLogEntry; hasRecipe: boolean; onClose: () => void }) {
   const update = useUpdateCookLog()
   const [dishName, setDishName] = useState(entry.dishName)
@@ -294,23 +223,17 @@ function EditForm({ entry, hasRecipe, onClose }: { entry: CookLogEntry; hasRecip
   }
 
   return (
-    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }} onClick={(e) => e.stopPropagation()}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input type="date" value={cookedAt} onChange={(e) => setCookedAt(e.target.value)} style={editInputStyle} />
-        {!hasRecipe && (
-          <input
-            value={dishName}
-            onChange={(e) => setDishName(e.target.value)}
-            placeholder="Nazwa dania"
-            style={{ ...editInputStyle, flex: 1, minWidth: 140 }}
-          />
-        )}
-        <span style={{ display: 'inline-flex', gap: 1 }} title="Kliknij gwiazdkę; ta sama gwiazdka ponownie czyści ocenę">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {!hasRecipe && <input value={dishName} onChange={(e) => setDishName(e.target.value)} placeholder="Nazwa dania" style={inputStyle} />}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <input type="date" value={cookedAt} onChange={(e) => setCookedAt(e.target.value)} style={{ ...inputStyle, width: 170, font: mono(14) }} />
+        <span style={{ display: 'inline-flex' }} title="Kliknij gwiazdkę; ta sama gwiazdka ponownie czyści ocenę">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
+              type="button"
               onClick={() => setRating(rating === n ? null : n)}
-              style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0 1px', fontSize: 17, lineHeight: 1, color: rating !== null && n <= rating ? 'var(--gold)' : 'var(--border-2)' }}
+              style={{ border: 0, background: 'transparent', cursor: 'pointer', padding: '0 2px', fontSize: 24, lineHeight: 1, color: rating !== null && n <= rating ? 'var(--gold)' : 'var(--border)' }}
             >
               ★
             </button>
@@ -321,128 +244,82 @@ function EditForm({ entry, hasRecipe, onClose }: { entry: CookLogEntry; hasRecip
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Notatka — np. „następnym razem mniej soli”"
-        rows={2}
-        style={{ ...editInputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+        rows={3}
+        style={{ ...inputStyle, height: 'auto', padding: '12px 14px', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.45 }}
       />
       <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={save}
-          disabled={update.isPending}
-          style={{ border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 9, padding: '7px 14px', font: "600 12.5px var(--sans)", cursor: 'pointer', opacity: update.isPending ? 0.6 : 1 }}
-        >
-          {update.isPending ? 'Zapisywanie…' : 'Zapisz'}
-        </button>
-        <button
-          onClick={onClose}
-          style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text-2)', borderRadius: 9, padding: '7px 14px', font: "600 12.5px var(--sans)", cursor: 'pointer' }}
-        >
-          Anuluj
-        </button>
+        <Button onClick={save} disabled={update.isPending}>{update.isPending ? 'Zapisywanie…' : 'Zapisz'}</Button>
+        <Button variant="quiet" onClick={onClose}>Anuluj</Button>
       </div>
     </div>
   )
 }
 
-function HistoryRow({ item, canEdit }: { item: Enriched; canEdit: boolean }) {
+function HistoryRow({ item, first, canEdit, onEdit }: { item: Enriched; first: boolean; canEdit: boolean; onEdit: () => void }) {
   const nav = useNavigate()
+  const isMobile = useIsMobile()
   const { entry, recipe, occurrence, date } = item
-  const [editing, setEditing] = useState(false)
-  const clickable = !!recipe && !editing
-
+  const title = recipe?.title ?? entry.dishName
   const weekday = date.toLocaleDateString('pl-PL', { weekday: 'short' }).replace('.', '').toUpperCase()
-  const meta = recipe
-    ? [recipe.cuisine && `kuchnia ${cuisineLabel[recipe.cuisine]}`, `${recipe.time} min`].filter(Boolean).join(' · ')
-    : null
-
-  return (
-    <div
-      onClick={clickable ? () => nav(`/recipe/${recipe.id}`) : undefined}
-      onMouseEnter={(e) => clickable && (e.currentTarget.style.borderColor = 'var(--border-2)')}
-      onMouseLeave={(e) => clickable && (e.currentTarget.style.borderColor = 'var(--border)')}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-        borderRadius: 14,
-        padding: '13px 15px',
-        cursor: clickable ? 'pointer' : 'default',
-        transition: 'border-color .15s',
-      }}
-    >
-      <div style={{ flex: '0 0 44px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-        <span style={{ font: "600 10.5px var(--sans)", letterSpacing: '.06em', color: 'var(--text-3)' }}>{weekday}</span>
-        <span style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)', lineHeight: 1.1 }}>{date.getDate()}</span>
-      </div>
-
-      <div style={{ flex: '0 0 46px', width: 46, height: 46, borderRadius: 12, overflow: 'hidden', position: 'relative', background: gradient(recipe?.tint ?? '#b8a98c'), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {recipe?.imageUrl ? (
-          <img src={recipe.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <span style={{ fontFamily: "var(--serif)", fontSize: 22, fontWeight: 500, color: 'rgba(255,255,255,.92)' }}>
-            {(recipe?.title ?? entry.dishName)[0]}
-          </span>
-        )}
-      </div>
-
-      {editing ? (
-        <EditForm entry={entry} hasRecipe={!!recipe} onClose={() => setEditing(false)} />
-      ) : (
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 16.5, color: 'var(--text)', lineHeight: 1.2 }}>
-              {recipe?.title ?? entry.dishName}
-            </span>
-            {occurrence > 1 && (
-              <span style={{ font: "600 10.5px var(--sans)", color: 'var(--gold)', background: 'rgba(189,139,44,.12)', borderRadius: 7, padding: '2px 7px', whiteSpace: 'nowrap' }}>
-                {occurrence}. raz
-              </span>
-            )}
-          </div>
-          {meta && <div style={{ font: "500 12px var(--sans)", color: 'var(--text-3)', marginTop: 2 }}>{meta}</div>}
-          {entry.note && (
-            <div style={{ fontStyle: 'italic', fontSize: 13, lineHeight: 1.45, color: 'var(--text-2)', marginTop: 6 }}>„{entry.note}”</div>
-          )}
-        </div>
-      )}
-
-      {!editing && entry.rating !== null && (
-        <span style={{ color: 'var(--gold)', fontSize: 13, flex: '0 0 auto', letterSpacing: 1 }} title={`Ocena: ${entry.rating}/5`}>
-          {'★'.repeat(entry.rating)}
-          <span style={{ color: 'var(--border-2)' }}>{'★'.repeat(5 - entry.rating)}</span>
+  const meta = [recipe?.cuisine && `kuchnia ${cuisineLabel[recipe.cuisine]}`, recipe && `${recipe.time} min`, occurrence > 1 && `${occurrence}. raz`]
+    .filter(Boolean)
+    .join(' · ')
+  const open = recipe ? () => nav(`/recipe/${recipe.id}`) : undefined
+  const again = recipe && canEdit ? () => nav(`/recipe/${recipe.id}`, { state: { cook: true } }) : undefined
+  const thumb = <RecipeThumb r={{ imageUrl: recipe?.imageUrl ?? null, tint: recipe?.tint ?? '#b8a98c', title }} letterSize={24} style={{ width: isMobile ? 56 : 64, height: isMobile ? 56 : 64, borderRadius: isMobile ? 9 : 10 }} />
+  const dateCol = (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: isMobile ? 34 : 56, flex: 'none' }}>
+      <span style={{ font: mono(isMobile ? 10 : 10.5, 500), color: 'var(--text-3)' }}>{weekday}</span>
+      <span style={{ fontFamily: 'var(--serif)', fontSize: isMobile ? 24 : 28, lineHeight: 1 }}>{date.getDate()}</span>
+    </div>
+  )
+  const text = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 3 : 4, minWidth: 0, flex: 1 }}>
+      <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 17 : 20, lineHeight: 1.15 }}>{title}</span>
+      {(meta || (isMobile && entry.rating !== null)) && (
+        <span style={{ font: sans(isMobile ? 12.5 : 13), color: 'var(--text-3)' }}>
+          {meta}
+          {isMobile && entry.rating !== null && <>{meta && ' · '}<span style={{ color: 'var(--gold)' }}>{'★'.repeat(entry.rating)}</span></>}
         </span>
       )}
+      {entry.note && <span style={{ font: sans(13.5), fontStyle: 'italic', color: 'var(--text-2)', lineHeight: 1.4 }}>„{entry.note}”</span>}
+    </div>
+  )
+  const rowBase: CSSProperties = { padding: isMobile ? '12px 0' : '14px 0', borderTop: first && !isMobile ? '1px solid var(--rule)' : '1px solid var(--border)', cursor: open ? 'pointer' : 'default' }
 
-      {!editing && canEdit && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setEditing(true)
-          }}
-          title="Edytuj wpis — ocena, notatka, data"
-          style={{ flex: '0 0 auto', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '6px 11px', font: "600 12px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-deep)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-        >
-          Edytuj
-        </button>
-      )}
+  if (isMobile) {
+    return (
+      <div onClick={open} style={{ ...rowBase, display: 'flex', alignItems: 'center', gap: 14 }}>
+        {dateCol}
+        {thumb}
+        {text}
+        {canEdit && (
+          <button
+            type="button"
+            aria-label={again ? 'Ugotuj ponownie' : 'Edytuj'}
+            onClick={(e) => {
+              e.stopPropagation()
+              ;(again ?? onEdit)()
+            }}
+            style={{ width: 40, height: 40, flex: '0 0 40px', borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 16, color: 'var(--text)' }}
+          >
+            {again ? '↻' : '✎'}
+          </button>
+        )}
+      </div>
+    )
+  }
 
-      {clickable && canEdit && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            nav(`/recipe/${recipe.id}`, { state: { cook: true } })
-          }}
-          title="Otwórz przepis z panelem „Ugotowane!”"
-          style={{ flex: '0 0 auto', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '6px 11px', font: "600 12px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent-deep)'; e.currentTarget.style.borderColor = 'var(--border-2)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-        >
-          Ugotuj ponownie
-        </button>
-      )}
+  return (
+    <div onClick={open} style={{ ...rowBase, display: 'grid', gridTemplateColumns: '56px 64px minmax(0,1fr) 120px 260px', alignItems: 'center', gap: 20 }}>
+      {dateCol}
+      {thumb}
+      {text}
+      {entry.rating !== null ? <Stars value={entry.rating} /> : <span style={{ font: sans(13), color: 'var(--text-3)' }}>bez oceny</span>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }} onClick={(e) => e.stopPropagation()}>
+        {canEdit && <Button variant="quiet" size="sm" style={{ font: sans(13.5, 600) }} onClick={onEdit}>Edytuj</Button>}
+        {again && <Button variant="outline" size="sm" style={{ font: sans(13.5, 600) }} onClick={again}>Ugotuj ponownie</Button>}
+      </div>
     </div>
   )
 }

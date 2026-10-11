@@ -25,7 +25,7 @@ export function ConnectAgentCard() {
   }
 
   return (
-    <div style={{ ...card, marginTop: 16 }}>
+    <div style={card}>
       <div style={cap}>Połącz agenta (Codex / Claude Code)</div>
       <p style={{ fontSize: 13.5, color: 'var(--text-2)', margin: '0 0 14px', lineHeight: 1.55 }}>
         Agenci czytają folder <Code>context</Code>, a zapisują przez API pod <Code>{info.apiBase}</Code>.
@@ -91,10 +91,10 @@ function CopyBlock({ title, text, disabled }: { title: string; text: string; dis
           style={{
             font: "500 11.5px var(--sans)",
             color: copied ? 'var(--sage)' : 'var(--text-2)',
-            background: 'var(--surface)',
+            background: 'transparent',
             border: '1px solid var(--border)',
-            borderRadius: 7,
-            padding: '3px 10px',
+            borderRadius: 999,
+            padding: '4px 12px',
             cursor: disabled ? 'default' : 'pointer',
             opacity: disabled ? 0.5 : 1,
           }}
@@ -108,7 +108,7 @@ function CopyBlock({ title, text, disabled }: { title: string; text: string; dis
           padding: '10px 12px',
           background: 'var(--surface)',
           border: '1px solid var(--border)',
-          borderRadius: 9,
+          borderRadius: 10,
           font: "400 11.5px var(--mono)",
           lineHeight: 1.55,
           color: disabled ? 'var(--text-3)' : 'var(--text)',
@@ -125,28 +125,27 @@ function CopyBlock({ title, text, disabled }: { title: string; text: string; dis
 }
 
 function Code({ children }: { children: React.ReactNode }) {
-  return <code style={{ font: "500 12px var(--mono)", color: 'var(--accent-deep)' }}>{children}</code>
+  return <code style={{ font: "500 12px var(--mono)", color: 'var(--accent-text)' }}>{children}</code>
 }
 
 const card: CSSProperties = {
-  background: 'var(--card)',
-  border: '1px solid var(--border)',
-  borderRadius: 15,
-  padding: '19px 21px',
+  borderTop: '1px solid var(--rule)',
+  paddingTop: 14,
 }
 const cap: CSSProperties = {
-  font: "700 11px var(--sans)",
-  letterSpacing: '.08em',
+  font: '500 11px var(--mono)',
+  letterSpacing: '.1em',
   textTransform: 'uppercase',
   color: 'var(--text-3)',
   marginBottom: 11,
 }
 const input: CSSProperties = {
   width: '100%',
+  height: 44,
   border: '1px solid var(--border)',
   background: 'var(--surface)',
-  borderRadius: 9,
-  padding: '8px 11px',
-  font: "400 13px var(--mono)",
+  borderRadius: 12,
+  padding: '0 14px',
+  font: '400 13px var(--mono)',
   color: 'var(--text)',
 }
