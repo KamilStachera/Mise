@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth, useLogout, useShopping, useSupplies } from '../api/hooks'
 import { loginUrl } from '../api/client'
-import { RecipesIcon, DiceIcon, HistoryIcon, PlanIcon, PantryIcon, ShopIcon, FlashcardsIcon, ProfileIcon, ChatIcon, LoginIcon, LogoutIcon } from './icons'
+import { RecipesIcon, DiceIcon, HistoryIcon, PlanIcon, PantryIcon, ShopIcon, ProfileIcon, ChatIcon, LoginIcon, LogoutIcon } from './icons'
 
 function navStyle(active: boolean, mobile = false): CSSProperties {
   return {
@@ -44,7 +44,6 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
   const isPlan = pathname.startsWith('/plan')
   const isPantry = pathname.startsWith('/pantry')
   const isShopping = pathname.startsWith('/shopping')
-  const isPalabras = pathname.startsWith('/palabras')
   const isProfile = pathname.startsWith('/profile')
 
   // Both lists live behind this tab, so the badge counts everything still to buy.
@@ -115,10 +114,6 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
           <ShopIcon />
           <span>Zakupy</span>
           {badge}
-        </button>
-        <button onClick={() => nav('/palabras')} style={navStyle(isPalabras, true)}>
-          <FlashcardsIcon />
-          <span>Fiszki</span>
         </button>
         <button onClick={() => nav('/profile')} style={navStyle(isProfile || isHistory, true)}>
           <ProfileIcon />
@@ -192,10 +187,6 @@ export function NavRail({ chatOpen, onToggleChat, mobile = false }: {
         <ShopIcon />
         <span>Zakupy</span>
         {badge}
-      </button>
-      <button onClick={() => nav('/palabras')} style={navStyle(isPalabras)}>
-        <FlashcardsIcon />
-        <span>Fiszki</span>
       </button>
       <button onClick={() => nav('/profile')} style={navStyle(isProfile)}>
         <ProfileIcon />

@@ -48,33 +48,6 @@ help plan meals.
   used ingredients from the pantry (the app proposes the amounts).
 - A **dinner roulette** ("Losuj") that picks tonight's meal by your rules, and a
   **cooking history** ("Historia") with stats, streaks and repeat badges.
-- **Spanish flashcards** ("Fiszki") — a small spaced-repetition trainer (129 cards
-  in 6 decks including the custom-word deck, a pronunciation cheat sheet) that lives in the same
-  app so it doesn't need its own domain. Progress is kept in the browser only.
-  Under **Dźwięki → Strumień słów**, practice an endless shuffled stream of the
-  existing sound examples, vocabulary and custom words. Advance manually or select
-  a word in the text; reveal Polish pronunciation (with the existing sound rules),
-  translation, or both. Hint preferences are saved separately from flashcard
-  progress. Every entry is used before reshuffling; this is repeated practice,
-  not generated new vocabulary. Run `cd frontend && npm run test:spanish` for
-  desktop/mobile regression tests using installed Edge.
-  **Z zajęć** contains 79 distinct class words imported from `words_to_add`
-  (80 rows, with `correr` repeated). Lesson translations are kept alongside the
-  existing pronunciation hints. The `pague` card corrects the source's past-tense
-  gloss: "I paid" is `pagué`, as shown in the
-  [Larousse conjugation table](https://www.larousse.com/es/conjugacion/espanol/pagar/2126628).
-  Class cards have their own stable IDs, so existing deck membership and review
-  history stay intact. Select **Z zajęć** in **Talia** for flashcards or in the
-  stream's **Zestaw słów** selector for class-only reading. The combined stream
-  deduplicates words already present in the sound reference.
-  The sound reference includes 80 additional pronunciation examples for Polish
-  speakers (201 distinct entries in the stream before custom additions), including
-  gü, initial r, diphthongs and stressed vowel hiatus. Uppercase syllables mark
-  stress in the new Polish respellings; the on-screen key explains the approximations
-  and regional differences. Sound rules were checked against RAE guidance on
-  [g/gu/gü](https://www.rae.es/dpd/g), [r/rr](https://www.rae.es/dpd/r),
-  [h](https://www.rae.es/dpd/h), [stress](https://www.rae.es/dpd/tilde), and
-  [seseo](https://www.rae.es/buen-uso-espa%C3%B1ol/el-seseo-y-el-ceceo).
 - **Primary AI path:** an exported `./context` folder you open with **Codex**
   ("Sign in with ChatGPT") or **Claude Code** — covered by your existing
   subscription, no API key or extra cost. Agents read the folder and **write back

@@ -203,11 +203,3 @@ export const LogoutIcon = ({ size = 21, style }: P) => (
     <path d="M9 12h11M17 8.5 20.5 12 17 15.5" />
   </svg>
 )
-
-export const FlashcardsIcon = ({ size = 21, style }: P) => (
-  <svg {...base(size)} style={style}>
-    <rect x="7" y="7.5" width="13" height="12.5" rx="1.8" />
-    <path d="M4 15.5V5.8A1.8 1.8 0 0 1 5.8 4H16" />
-    <path d="M10.5 12h6M10.5 15.5h3.5" />
-  </svg>
-)
