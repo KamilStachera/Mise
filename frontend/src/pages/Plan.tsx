@@ -150,7 +150,7 @@ export function Plan() {
                 onClick={() => document.getElementById(`plan-day-${d}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 0', border: 0, borderRadius: 10, background: today ? 'var(--text)' : 'transparent', color: today ? 'var(--bg)' : 'var(--text)', cursor: 'pointer' }}
               >
-                <span style={{ font: mono(10.5, 500), color: today ? '#c9bca8' : 'var(--text-3)' }}>{WEEKDAY_SHORT[i].slice(0, 2).toUpperCase()}</span>
+                <span style={{ font: mono(10.5, 500), color: today ? 'var(--on-dark-muted)' : 'var(--text-3)' }}>{WEEKDAY_SHORT[i].slice(0, 2).toUpperCase()}</span>
                 <span style={{ font: mono(16, 500) }}>{parseISODate(d).getDate()}</span>
                 <span style={{ display: 'flex', gap: 2 }}>
                   {SLOTS.map((s) => {
@@ -225,16 +225,16 @@ export function Plan() {
       />
 
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '100px repeat(7, minmax(0, 1fr))', borderTop: '1px solid var(--rule)', minWidth: 760 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '88px repeat(7, minmax(0, 1fr))', borderTop: '1px solid var(--rule)', minWidth: 660 }}>
           <span />
           {days.map((d, i) => {
             const today = d === todayISO
             return (
               <div key={d} style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '14px 12px', borderLeft: today ? 0 : '1px solid var(--border)', background: today ? 'var(--text)' : undefined, color: today ? 'var(--bg)' : undefined }}>
                 <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 20 }}>
-                  {WEEKDAY_SHORT[i]} <span style={{ fontStyle: 'italic', color: today ? '#c9bca8' : 'var(--text-3)' }}>{parseISODate(d).getDate()}</span>
+                  {WEEKDAY_SHORT[i]} <span style={{ fontStyle: 'italic', color: today ? 'var(--on-dark-muted)' : 'var(--text-3)' }}>{parseISODate(d).getDate()}</span>
                 </span>
-                <span style={{ font: mono(11), color: today ? '#c9bca8' : 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title="Suma z zaplanowanych przepisów (na porcję)">
+                <span style={{ font: mono(11), color: today ? 'var(--on-dark-muted)' : 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title="Suma z zaplanowanych przepisów (na porcję)">
                   {macroLine(d)}
                 </span>
               </div>

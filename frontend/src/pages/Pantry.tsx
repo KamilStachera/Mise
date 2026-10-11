@@ -92,7 +92,7 @@ export function Pantry() {
       {visible.map((g) => (
         <div key={g.category} id={`pantry-${g.category}`} style={{ display: 'flex', flexDirection: 'column', scrollMarginTop: 16 }}>
           <SectionHead title={categoryLabel(g.category)} size={isMobile ? 20 : 22} meta={isMobile ? g.items.length : plural(g.items.length, 'produkt', 'produkty', 'produktów')} />
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', columnGap: 40 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fill, minmax(280px, 1fr))', columnGap: 40 }}>
             {g.items.map((it) => (
               <ItemRow
                 key={it.id}
@@ -206,7 +206,7 @@ function ItemRow({ item, canEdit, onList, onOpen, onShop }: {
     >
       <StatusDot status={item.status} />
       <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <span style={{ font: sans(15.5) }}>{item.name}</span>
+        <span style={{ font: sans(15.5), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.name}>{item.name}</span>
         {item.confidence === 'stale' && !out && <span style={{ font: sans(11.5), color: 'var(--accent-text)' }}>sprawdź przy zakupach</span>}
       </span>
       {out ? (

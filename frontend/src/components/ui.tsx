@@ -47,7 +47,7 @@ export function Eyebrow({ children, tone = 'muted', size = 11, style }: {
   size?: number
   style?: CSSProperties
 }) {
-  const color = { muted: 'var(--text-3)', accent: 'var(--accent-text)', light: '#c9bca8', ink: 'var(--text)' }[tone]
+  const color = { muted: 'var(--text-3)', accent: 'var(--accent-text)', light: 'var(--on-dark-muted)', ink: 'var(--text)' }[tone]
   return (
     <span style={{ font: mono(size, 500), letterSpacing: '.1em', textTransform: 'uppercase', color, ...style }}>{children}</span>
   )

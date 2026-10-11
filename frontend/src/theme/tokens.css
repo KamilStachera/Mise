@@ -7,6 +7,7 @@
   --border: #ddd3c3; /* thin rule between rows */
   --border-2: #c9bca8; /* dashed placeholders */
   --rule: #1d1813; /* strong 1px rule under headers / around strips */
+  --on-dark-muted: #c9bca8; /* muted text on ink (today column, dark tile) */
   --text: #1d1813;
   --text-2: #5e5448;
   --text-3: #7a6f61;

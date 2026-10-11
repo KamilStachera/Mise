@@ -134,7 +134,7 @@ export function FoodShoppingList() {
       ) : items.length === 0 ? (
         <div style={{ padding: '28px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span style={{ fontFamily: 'var(--serif)', fontSize: 24 }}>Lista jest pusta</span>
-          <span style={{ font: sans(14.5), color: 'var(--text-2)' }}>Dodaj coś ręcznie albo brakujące składniki z przepisu lub planu.</span>
+          {canEdit && <span style={{ font: sans(14.5), color: 'var(--text-2)' }}>Dodaj coś ręcznie albo brakujące składniki z przepisu lub planu.</span>}
         </div>
       ) : (
         <>

@@ -21,12 +21,18 @@ help plan meals.
   Playwright browser channel). Tests use 300 fixture recipes without a live API.
 - **Per-serving nutrition estimates** (kcal / protein / fat / carbs) on every
   recipe — agents estimate them when saving, the plan shows per-day totals.
-- A full-screen **cook mode** ("Tryb gotowania"): one step at a time in large
-  type, tappable countdown timers parsed from the step text, and a screen wake
-  lock so the display stays on at the stove.
-- **Phone-friendly**: below tablet width the nav becomes a bottom tab bar and the
-  shopping list gets store-sized tap targets; a minimal PWA manifest lets you
-  install it to your home screen (open `http://<host-ip>:8080` on the same LAN).
+- A full-screen dark **cook mode** ("Gotuj krok po kroku"): one step at a time in
+  large type, the ingredients that step mentions ("Potrzebne teraz"), a tickable
+  ingredient list, a timer pre-set from the step text (space starts it, arrows
+  change steps), and a screen wake lock so the display stays on at the stove.
+- **Desktop and phone layouts** from one design: on desktop a sidebar with full
+  page names (Historia and Profil kulinarny grouped under "Twoja kuchnia"); on
+  phones five tabs — Przepisy, Plan, Zakupy, Spiżarnia, Ja — with Losuj inside
+  Przepisy, Historia inside Ja, and each screen's main action pinned at the
+  bottom. A minimal PWA manifest lets you install it to your home screen (open
+  `http://<host-ip>:8080` on the same LAN).
+- Recipes can carry a free-text **source name** (a book, site or diet plan, e.g.
+  "Daily Dieta") shown above the title on cards and searchable in the library.
 - An **approximate quantity pantry** (grams / ml / pieces) that keeps a visible
   estimate plus a conservative planning amount. Receipt labels can be learned per
   store, cooking tolerates small deviations, and only shopping-relevant uncertainty
@@ -35,7 +41,8 @@ help plan meals.
   from recipes ("add what's missing"), from you, or from agents. Recipe-origin
   rows merge by canonical pantry item and sum compatible quantities; manual rows
   stay independent. Explicit ingredient alternatives create one "A or B" row and
-  are satisfied by any sufficiently stocked option.
+  are satisfied by any sufficiently stocked option. Each row shows which recipes
+  it is for, and the out-of-stock pantry items have a one-tap "+ do zakupów".
 - A second **household list** ("Dom") on the same screen, for the non-food half of
   the trip — toilet paper, dish soap, bin bags. Name-only rows, categories guessed
   from the name, and no connection to the pantry or the food list whatsoever. It
@@ -46,7 +53,8 @@ help plan meals.
 - A **weekly meal plan** and a **cook log** ("we made this — too salty") that
   agents read and write, closing the feedback loop. Logging a cook can deduct the
   used ingredients from the pantry (the app proposes the amounts).
-- A **dinner roulette** ("Losuj") that picks tonight's meal by your rules, and a
+- A **dinner roulette** ("Losuj") that picks tonight's meal by your rules (and can
+  drop the pick straight into the plan), and a
   **cooking history** ("Historia") with stats, streaks and repeat badges.
 - **Primary AI path:** an exported `./context` folder you open with **Codex**
   ("Sign in with ChatGPT") or **Claude Code** — covered by your existing
@@ -56,7 +64,8 @@ help plan meals.
 - An optional **MCP server** (`mcp/`) exposing the same operations as first-class
   agent tools.
 - **Optional in-app "Sous" chat** (off by default) if you'd rather wire up an
-  OpenAI key or a local Ollama model.
+  OpenAI key or a local Ollama model. It opens beside the content on desktop and
+  full-screen on phones; opened on a recipe page it answers about that recipe.
 
 Stack: ASP.NET Core (.NET 9, minimal APIs) + EF Core + PostgreSQL · React + Vite +
 TypeScript · all containerized with Docker Compose.
