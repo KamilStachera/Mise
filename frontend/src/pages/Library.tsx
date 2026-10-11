@@ -4,7 +4,7 @@ import { useAuth, useRecipes } from '../api/hooks'
 import type { Cuisine, DishType, RecipeListItem, Source } from '../api/client'
 import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishLine, dishTypeLabel, sourceEyebrow, sourceLabel } from '../lib/labels'
 import { FilterDropdown } from '../components/FilterDropdown'
-import { RecipeThumb } from '../components/RecipeThumb'
+import { RecipeThumb, StockNote } from '../components/RecipeThumb'
 import { Button, Chip, Eyebrow, PageTitle, SearchField, Sheet, UnderlineTabs, mono, sans, usePagePad } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
@@ -41,15 +41,6 @@ function inTimeBucket(time: number, bucket: TimeBucket | null): boolean {
   if (bucket === null) return true
   if (bucket === '60plus') return time > 60
   return time <= Number(bucket)
-}
-
-/** "masz wszystko" (sage) / "N do kupienia" (accent). */
-export function StockNote({ toBuy, short = false }: { toBuy: number; short?: boolean }) {
-  return toBuy === 0 ? (
-    <span style={{ color: 'var(--sage-text)', whiteSpace: 'nowrap' }}>● masz wszystko</span>
-  ) : (
-    <span style={{ color: 'var(--accent-text)', whiteSpace: 'nowrap' }}>{short ? `brakuje ${toBuy}` : `${toBuy} do kupienia`}</span>
-  )
 }
 
 /** Stable "today's pick" for the hero: a cookable recipe with a photo, else any photo, else the first. */

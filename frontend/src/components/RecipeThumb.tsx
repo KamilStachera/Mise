@@ -33,3 +33,12 @@ export function RecipeThumb({ r, style, full = false, letterSize = 40 }: {
     </div>
   )
 }
+
+/** "masz wszystko" (sage) / "N do kupienia" (accent). */
+export function StockNote({ toBuy, short = false }: { toBuy: number; short?: boolean }) {
+  return toBuy === 0 ? (
+    <span style={{ color: 'var(--sage-text)', whiteSpace: 'nowrap' }}>● masz wszystko</span>
+  ) : (
+    <span style={{ color: 'var(--accent-text)', whiteSpace: 'nowrap' }}>{short ? `brakuje ${toBuy}` : `${toBuy} do kupienia`}</span>
+  )
+}

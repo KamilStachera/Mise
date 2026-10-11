@@ -283,7 +283,7 @@ export function Toggle({ on, onChange, label, disabled }: { on: boolean; onChang
         width: label ? '100%' : undefined,
         padding: label ? '14px 0' : 0,
         border: 0,
-        borderBottom: label ? '1px solid var(--border)' : undefined,
+        borderBottom: label ? '1px solid var(--border)' : 0,
         background: 'transparent',
         cursor: disabled ? 'not-allowed' : 'pointer',
         font: sans(15),

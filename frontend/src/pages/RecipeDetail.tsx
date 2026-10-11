@@ -10,6 +10,7 @@ import { IMAGE_ACCEPT } from '../lib/images'
 import { requestChat } from '../lib/chatBus'
 import { CookMode } from '../components/CookMode'
 import { RecipeThumb } from '../components/RecipeThumb'
+import { AddToPlanSheet } from '../components/AddToPlanSheet'
 import { Button, Eyebrow, SectionHead, Sheet, StatusDot, inputStyle, mono, sans } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { ingredientDetailText } from '../lib/ingredients'
@@ -29,6 +30,7 @@ export function RecipeDetail() {
   const upload = useUploadRecipeImage()
   const fileRef = useRef<HTMLInputElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [planOpen, setPlanOpen] = useState(false)
 
   // "Ugotuj ponownie" (History) lands here with { cook: true } in router state.
   // Capture it before clearing — CookLogSection mounts only after the recipe
@@ -176,6 +178,7 @@ export function RecipeDetail() {
   )
 
   const cookLog = <CookLogSection recipeId={r.id} initialOpen={cookRequested && canEdit} canEdit={canEdit} />
+  const planSheet = canEdit && <AddToPlanSheet open={planOpen} onClose={() => setPlanOpen(false)} recipe={r} />
   const cook = cookMode && <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} servings={r.selectedServings} onClose={() => setCookMode(false)} />
 
   if (isMobile) {
@@ -220,10 +223,12 @@ export function RecipeDetail() {
         )}
         <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Przepis">
           <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <MenuRow onClick={() => { setMenuOpen(false); setPlanOpen(true) }}>Dodaj do planu</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); pickPhoto() }}>{photoLabel}</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); onDelete() }} danger>Usuń przepis</MenuRow>
           </div>
         </Sheet>
+        {planSheet}
         {cook}
       </div>
     )
@@ -236,6 +241,7 @@ export function RecipeDetail() {
         <button type="button" onClick={() => nav('/')} style={linkBtn}>← Wszystkie przepisy</button>
         {canEdit && (
           <span style={{ display: 'flex', gap: 20 }}>
+            <button type="button" onClick={() => setPlanOpen(true)} style={linkBtn}>Dodaj do planu</button>
             <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={linkBtn}>{photoLabel}</button>
             <button type="button" onClick={onDelete} style={linkBtn}>Usuń</button>
           </span>
@@ -262,6 +268,7 @@ export function RecipeDetail() {
         {steps}
       </div>
       {cookLog}
+      {planSheet}
       {cook}
     </div>
   )

@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useCookLog, useRecipes } from '../api/hooks'
 import type { RecipeListItem } from '../api/client'
-import { gradient } from '../lib/colors'
 import { daysAgo } from '../lib/dates'
-import { cuisineLabel, dishTypeLabel, recipeCountLabel, sourceBadge } from '../lib/labels'
+import { plural, recipeCountLabel } from '../lib/labels'
 import { requestChat } from '../lib/chatBus'
-import { ClockIcon, DiceIcon, ChevronRight } from '../components/icons'
+import { useIsMobile } from '../lib/useIsMobile'
+import { RecipeThumb, StockNote } from '../components/RecipeThumb'
+import { AddToPlanSheet } from '../components/AddToPlanSheet'
+import { TAB_BAR_HEIGHT } from '../components/TabBar'
+import { Button, Chip, Eyebrow, PageTitle, Toggle, mono, sans, usePagePad } from '../components/ui'
 
 type RndType = 'all' | 'main' | 'breakfast' | 'side'
 type RndTime = 'all' | '20' | '30'
@@ -26,6 +29,9 @@ const TIME_OPTIONS: { key: RndTime; label: string }[] = [
 
 const HISTORY_KEY = 'mise-random-history'
 const HISTORY_MAX = 4
+const RECENT_COOK_DAYS = 7
+/** Phone bottom button block (two 54px buttons + pool line). */
+const MOBILE_ACTIONS = 96
 
 function loadHistory(): string[] {
   try {
@@ -37,53 +43,10 @@ function loadHistory(): string[] {
   }
 }
 
-const ruleLabel: CSSProperties = {
-  font: "700 11px var(--sans)",
-  letterSpacing: '.08em',
-  textTransform: 'uppercase',
-  color: 'var(--text-3)',
-  flex: '0 0 62px',
-}
-
-function segBtn(on: boolean): CSSProperties {
-  return {
-    border: 'none',
-    borderRadius: 8,
-    padding: '7px 14px',
-    font: "600 12.5px var(--sans)",
-    cursor: 'pointer',
-    background: on ? 'var(--card)' : 'transparent',
-    color: on ? 'var(--accent-deep)' : 'var(--text-2)',
-    boxShadow: on ? '0 1px 4px rgba(80,60,30,.14)' : 'none',
-    transition: 'all .13s',
-    whiteSpace: 'nowrap',
-  }
-}
-
-function togglePill(on: boolean): CSSProperties {
-  return {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    border: '1px solid ' + (on ? 'rgba(110,122,82,.55)' : 'var(--border)'),
-    background: on ? 'rgba(110,122,82,.12)' : 'var(--surface)',
-    color: on ? 'var(--sage)' : 'var(--text-2)',
-    borderRadius: 20,
-    padding: '8px 14px',
-    font: "600 12.5px var(--sans)",
-    cursor: 'pointer',
-    transition: 'all .13s',
-  }
-}
-
-function toggleDot(on: boolean): CSSProperties {
-  return { width: 8, height: 8, borderRadius: '50%', background: on ? 'var(--sage)' : 'var(--border-2)', transition: 'background .13s' }
-}
-
-const RECENT_COOK_DAYS = 7
-
 export function Random() {
   const nav = useNavigate()
+  const isMobile = useIsMobile()
+  const pad = usePagePad()
   const { canEdit } = useAuth()
   const { data: recipes = [] } = useRecipes('all', '')
   const { data: cookLog = [] } = useCookLog()
@@ -95,12 +58,17 @@ export function Random() {
   const [spinning, setSpinning] = useState(false)
   const [pickId, setPickId] = useState<string | null>(null)
   const [empty, setEmpty] = useState(false)
-  const [flash, setFlash] = useState('')
+  const [flash, setFlash] = useState<RecipeListItem | null>(null)
   const [history, setHistory] = useState<string[]>(loadHistory)
+  const [planOpen, setPlanOpen] = useState(false)
   const spinTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history))
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history))
+    } catch {
+      /* storage blocked — history just won't persist */
+    }
   }, [history])
 
   useEffect(() => () => {
@@ -155,17 +123,17 @@ export function Random() {
     setSpinning(true)
     setPickId(null)
     setEmpty(false)
-    setFlash(pool[0].title)
+    setFlash(pool[0])
     spinTimer.current = setInterval(() => {
       i++
       if (i >= ticks) {
         if (spinTimer.current) clearInterval(spinTimer.current)
         setSpinning(false)
-        setFlash('')
+        setFlash(null)
         setPickId(winner.id)
         remember(winner.id)
       } else {
-        setFlash(pool[i % pool.length].title)
+        setFlash(pool[i % pool.length])
       }
     }, 110)
   }
@@ -184,11 +152,12 @@ export function Random() {
   }
 
   const pick = pickId !== null && !spinning ? recipes.find((r) => r.id === pickId) ?? null : null
-  const idle = !spinning && !pick && !empty
+  const shown = spinning ? flash : pick
   const historyView = history
     .filter((id) => id !== pickId)
     .map((id) => recipes.find((r) => r.id === id))
     .filter((r): r is RecipeListItem => !!r)
+    .slice(0, 3)
 
   const poolLabel =
     basePool.length === 0
@@ -197,221 +166,183 @@ export function Random() {
         ? 'Tylko jeden kandydat na dziś'
         : `${recipeCountLabel(basePool.length)} w puli`
 
-  return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: '38px 42px 60px' }}>
-      <div style={{ font: "600 11px var(--sans)", letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 7 }}>
-        Ruletka obiadowa
+  const askSous = canEdit && (
+    <span style={{ font: sans(14), color: 'var(--text-2)' }}>
+      <span style={{ color: 'var(--accent)' }}>✦</span> Nic nie pasuje?{' '}
+      <button
+        type="button"
+        onClick={() => requestChat('Zaskocz mnie — wymyśl coś nowego z tego, co mam w spiżarni')}
+        style={{ border: 0, borderBottom: '1px solid currentColor', background: 'transparent', padding: 0, cursor: 'pointer', font: sans(14, 600), color: 'var(--text)' }}
+      >
+        Poproś Sous o nowy pomysł
+      </button>
+    </span>
+  )
+
+  const rules = (
+    <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
+      <RuleRow label="Posiłek">
+        {TYPE_OPTIONS.map((o) => (
+          <Chip key={o.key} active={rndType === o.key} onClick={() => { setRndType(o.key); clearResult() }}>{o.label}</Chip>
+        ))}
+      </RuleRow>
+      <RuleRow label="Czas">
+        {TIME_OPTIONS.map((o) => (
+          <Chip key={o.key} active={rndTime === o.key} onClick={() => { setRndTime(o.key); clearResult() }}>{o.label}</Chip>
+        ))}
+      </RuleRow>
+      <Toggle label="Tylko to, co mam w spiżarni" on={pantryOnly} onChange={(v) => { setPantryOnly(v); clearResult() }} />
+      <Toggle label="Pomijaj ostatnie dania" on={skipRecent} onChange={setSkipRecent} />
+    </div>
+  )
+
+  const resultActions = pick && (
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <Button variant="dark" size="lg" onClick={() => nav(`/recipe/${pick.id}`)}>Gotuję to</Button>
+      <Button variant="outline" size="lg" onClick={spin}>Jeszcze raz</Button>
+      {canEdit && <Button variant="quiet" size="lg" onClick={() => setPlanOpen(true)}>Dodaj do planu</Button>}
+    </div>
+  )
+
+  const previous = historyView.length > 0 && (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <Eyebrow style={{ paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>Poprzednie losowania</Eyebrow>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: isMobile ? 0 : 20, paddingTop: isMobile ? 0 : 14 }}>
+        {historyView.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => nav(`/recipe/${r.id}`)}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, border: 0, borderBottom: isMobile ? '1px solid var(--border)' : 0, padding: isMobile ? '10px 0' : 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
+          >
+            <RecipeThumb r={r} letterSize={22} style={{ width: 52, height: 52, borderRadius: 9 }} />
+            <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 17, lineHeight: 1.15 }}>{r.title}</span>
+          </button>
+        ))}
       </div>
-      <h1 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 38, lineHeight: 1.05, margin: '0 0 5px', color: 'var(--text)' }}>
-        Losowy posiłek
-      </h1>
-      <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 24px' }}>
-        Ustaw zasady, zakręć i niech los zdecyduje, co dziś jecie.
-      </p>
+    </div>
+  )
 
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <span style={ruleLabel}>Posiłek</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '100%', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: 3 }}>
-            {TYPE_OPTIONS.map((o) => (
-              <button key={o.key} onClick={() => { setRndType(o.key); clearResult() }} style={segBtn(rndType === o.key)}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <span style={ruleLabel}>Czas</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', maxWidth: '100%', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 11, padding: 3 }}>
-            {TIME_OPTIONS.map((o) => (
-              <button key={o.key} onClick={() => { setRndTime(o.key); clearResult() }} style={segBtn(rndTime === o.key)}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <span style={ruleLabel}>Zasady</span>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={() => { setPantryOnly((v) => !v); clearResult() }} style={togglePill(pantryOnly)}>
-              <span style={toggleDot(pantryOnly)} />
-              Tylko to, co mam w spiżarni
-            </button>
-            <button
-              onClick={() => setSkipRecent((v) => !v)}
-              style={togglePill(skipRecent)}
-              title="Pomija ostatnie 4 losowania i wszystko, co według historii gotowaliście w ciągu 7 dni"
-            >
-              <span style={toggleDot(skipRecent)} />
-              Pomijaj ostatnie dania
-            </button>
-          </div>
+  // Result panel: idle placeholder / flashing titles / the pick / nothing fits.
+  const result = empty ? (
+    <Placeholder height={isMobile ? 220 : 420}>
+      <span style={{ fontFamily: 'var(--serif)', fontSize: 26 }}>Nic nie pasuje do tych zasad</span>
+      <span style={{ font: sans(14.5), color: 'var(--text-2)', maxWidth: '40ch' }}>Poluzuj limit czasu albo wyłącz zasadę spiżarni.</span>
+      <Button variant="outline" onClick={resetRules}>Zresetuj zasady</Button>
+    </Placeholder>
+  ) : shown ? (
+    isMobile ? (
+      <div style={{ display: 'flex', flexDirection: 'column', borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <RecipeThumb r={shown} full letterSize={64} style={{ height: 150 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 16px 16px' }}>
+          <Eyebrow tone="accent">{spinning ? 'Losuję…' : 'Los wybrał'}</Eyebrow>
+          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24, lineHeight: 1.1 }}>{shown.title}</span>
+          <Meta r={shown} />
         </div>
       </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 18 }}>
-        <div style={{ font: "500 13px var(--sans)", color: 'var(--text-3)' }}>{poolLabel}</div>
-        <button
-          onClick={spin}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 9,
-            border: 'none',
-            background: 'var(--accent)',
-            color: '#fff',
-            borderRadius: 13,
-            padding: '13px 26px',
-            font: "700 14.5px var(--sans)",
-            cursor: spinning ? 'default' : 'pointer',
-            boxShadow: '0 6px 18px rgba(160,66,32,.26)',
-            opacity: spinning ? 0.75 : 1,
-            transition: 'opacity .13s',
-          }}
-        >
-          <span style={{ display: 'flex', animation: spinning ? 'diceShake .4s ease infinite' : 'none' }}>
-            <DiceIcon size={17} />
-          </span>
-          {spinning ? 'Kręcę…' : pick ? 'Zakręć jeszcze raz' : 'Zakręć kołem'}
-        </button>
-      </div>
-
-      {idle && (
-        <DashedPanel>
-          <div style={{ width: 58, height: 58, borderRadius: 16, background: 'var(--card)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-            <DiceIcon size={27} color="var(--accent)" />
-          </div>
-          <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Los jeszcze nie przemówił</div>
-          <div style={{ fontSize: 13.5, color: 'var(--text-2)', maxWidth: '38ch' }}>
-            Jedno kręcenie, jeden obiad. Bez przewijania i bez wahania — taka umowa.
-          </div>
-        </DashedPanel>
-      )}
-
-      {spinning && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '70px 24px', border: '1.5px dashed var(--accent)', borderRadius: 18, background: 'var(--accent-soft)' }}>
-          <div style={{ fontFamily: "var(--serif)", fontSize: 24, fontWeight: 600, color: 'var(--accent-deep)', textAlign: 'center', lineHeight: 1.25 }}>
-            {flash}
-          </div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <RecipeThumb r={shown} full letterSize={120} style={{ height: 420, borderRadius: 16 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Eyebrow tone="accent">{spinning ? 'Losuję…' : 'Los wybrał'}</Eyebrow>
+          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 44, lineHeight: 1, letterSpacing: '-0.025em' }}>{shown.title}</span>
+          <Meta r={shown} size={13} />
         </div>
-      )}
+        {!spinning && resultActions}
+      </div>
+    )
+  ) : (
+    <Placeholder height={isMobile ? 220 : 420}>
+      <span style={{ fontFamily: 'var(--serif)', fontSize: 26 }}>Los jeszcze nie przemówił</span>
+      <span style={{ font: sans(14.5), color: 'var(--text-2)', maxWidth: '38ch' }}>Jedno kręcenie, jeden obiad. Bez przewijania i bez wahania — taka umowa.</span>
+    </Placeholder>
+  )
 
-      {pick && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 18, overflow: 'hidden', animation: 'fadeUp .35s ease' }}>
-          <div style={{ position: 'relative', height: 128, background: gradient(pick.tint), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {pick.imageUrl ? (
-              <img src={pick.imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+  const planSheet = pick && <AddToPlanSheet open={planOpen} onClose={() => setPlanOpen(false)} recipe={pick} />
+
+  if (isMobile) {
+    return (
+      <div style={{ ...pad, paddingBottom: MOBILE_ACTIONS + 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <button type="button" onClick={() => nav('/')} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(14, 600), color: 'var(--text-2)' }}>← Przepisy</button>
+        <PageTitle title="Co dziś jemy?" size={40} />
+        {rules}
+        {result}
+        {pick && canEdit && <Button variant="quiet" onClick={() => setPlanOpen(true)}>Dodaj do planu</Button>}
+        {askSous}
+        {previous}
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px 10px', background: 'var(--bg)' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {pick ? (
+              <>
+                <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={spin}>Jeszcze raz</Button>
+                <Button size="xl" style={{ flex: 1.4 }} onClick={() => nav(`/recipe/${pick.id}`)}>Gotuję to</Button>
+              </>
             ) : (
-              <span style={{ fontFamily: "var(--serif)", fontSize: 64, fontWeight: 500, color: 'rgba(255,255,255,.9)', lineHeight: 1 }}>
-                {pick.title[0]}
-              </span>
+              <Button size="xl" style={{ flex: 1 }} onClick={spin} disabled={spinning}>{spinning ? 'Kręcę…' : 'Zakręć kołem'}</Button>
             )}
-            <span style={{ position: 'absolute', top: 11, left: 11, font: "700 10px var(--sans)", letterSpacing: '.08em', padding: '4px 8px', borderRadius: 7, background: 'rgba(255,255,255,.92)', color: sourceBadge[pick.source].col }}>
-              {sourceBadge[pick.source].label}
-            </span>
           </div>
-          <div style={{ padding: '20px 24px 22px' }}>
-            <div style={{ font: "600 11px var(--sans)", letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 6 }}>
-              Dziś gotujesz
-            </div>
-            <h2 style={{ fontFamily: "var(--serif)", fontWeight: 600, fontSize: 26, lineHeight: 1.12, margin: '0 0 8px', color: 'var(--text)' }}>
-              {pick.title}
-            </h2>
-            {pick.blurb && <p style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--text-2)', margin: '0 0 14px' }}>{pick.blurb}</p>}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: "500 13px var(--sans)", color: 'var(--text-2)', marginBottom: 18, flexWrap: 'wrap' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <ClockIcon size={14} />
-                {pick.time} min
-              </span>
-              <span>
-                {[pick.dishType && dishTypeLabel[pick.dishType], pick.cuisine && `kuchnia ${cuisineLabel[pick.cuisine]}`, `porcje: ${pick.servings}`]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-              <span
-                style={{
-                  font: "600 11.5px var(--sans)",
-                  color: pick.toBuyCount === 0 ? 'var(--sage)' : 'var(--accent)',
-                  background: pick.toBuyCount === 0 ? 'rgba(110,122,82,.12)' : 'var(--accent-soft)',
-                  padding: '3px 9px',
-                  borderRadius: 7,
-                }}
-              >
-                {pick.toBuyCount === 0 ? 'Wszystko jest' : `${pick.toBuyCount} do kupienia`}
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => nav(`/recipe/${pick.id}`)}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 11, padding: '11px 20px', font: "600 13.5px var(--sans)", cursor: 'pointer' }}
-              >
-                Ugotuj to <ChevronRight />
-              </button>
-              <button
-                onClick={spin}
-                style={{ border: '1px solid var(--border-2)', background: 'transparent', color: 'var(--text)', borderRadius: 11, padding: '11px 18px', font: "600 13.5px var(--sans)", cursor: 'pointer' }}
-              >
-                Zakręć jeszcze raz
-              </button>
-            </div>
-          </div>
+          <span style={{ textAlign: 'center', font: mono(12), color: 'var(--text-3)' }}>{poolLabel}</span>
         </div>
-      )}
+        {planSheet}
+      </div>
+    )
+  }
 
-      {empty && (
-        <DashedPanel>
-          <div style={{ fontFamily: "var(--serif)", fontSize: 20, fontWeight: 600, color: 'var(--text)' }}>Nic nie pasuje do tych zasad</div>
-          <div style={{ fontSize: 13.5, color: 'var(--text-2)' }}>
-            Poluzuj limit czasu albo wyłącz zasadę spiżarni — albo poproś Sous o coś nowego.
-          </div>
-          <button
-            onClick={resetRules}
-            style={{ marginTop: 10, border: 'none', background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '9px 16px', font: "600 13px var(--sans)", cursor: 'pointer' }}
-          >
-            Zresetuj zasady
-          </button>
-        </DashedPanel>
-      )}
-
-      {canEdit && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
-          <button
-            onClick={() => requestChat('Zaskocz mnie — wymyśl coś nowego z tego, co mam w spiżarni')}
-            style={{ border: 'none', background: 'transparent', color: 'var(--text-2)', font: "500 13px var(--sans)", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 9 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-2)')}
-          >
-            <span style={{ color: 'var(--gold)' }}>✦</span>
-            Nic nie pasuje? Poproś Sous o nowy pomysł
-          </button>
+  return (
+    <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: '420px minmax(0, 1fr)', gap: 56, alignItems: 'start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+        <PageTitle title="Co dziś jemy?" sub="Ustaw zasady, zakręć i niech los zdecyduje, co dziś jecie." />
+        {rules}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Button size="xl" onClick={spin} disabled={spinning} style={{ height: 56, fontSize: 16 }}>
+            {spinning ? 'Kręcę…' : pick ? 'Zakręć jeszcze raz' : 'Zakręć kołem'}
+          </Button>
+          <span style={{ textAlign: 'center', font: mono(12), color: 'var(--text-3)' }}>{poolLabel}</span>
         </div>
-      )}
-
-      {historyView.length > 0 && (
-        <div style={{ marginTop: 22 }}>
-          <div style={{ font: "700 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 9 }}>
-            Poprzednie losowania
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {historyView.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => nav(`/recipe/${r.id}`)}
-                style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 20, padding: '7px 13px', font: "500 12.5px var(--sans)", cursor: 'pointer' }}
-              >
-                {r.title}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        {askSous}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {result}
+        {previous}
+      </div>
+      {planSheet}
     </div>
   )
 }
 
-function DashedPanel({ children }: { children: ReactNode }) {
+function RuleRow({ label, children }: { label: string; children: ReactNode }) {
+  const isMobile = useIsMobile()
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 9, textAlign: 'center', padding: '52px 24px', border: '1.5px dashed var(--border-2)', borderRadius: 18, background: 'var(--surface)' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'row' : 'column',
+        alignItems: isMobile ? 'center' : 'stretch',
+        gap: isMobile ? 12 : 10,
+        padding: isMobile ? '12px 0' : '16px 0',
+        borderBottom: '1px solid var(--border)',
+      }}
+    >
+      <span style={{ width: isMobile ? 58 : undefined, flex: isMobile ? '0 0 58px' : undefined, font: mono(11, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{label}</span>
+      <div className="no-scrollbar" style={{ display: 'flex', flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : undefined, gap: 6, minWidth: 0 }}>{children}</div>
+    </div>
+  )
+}
+
+function Meta({ r, size = 12 }: { r: RecipeListItem; size?: number }) {
+  return (
+    <span style={{ display: 'flex', flexWrap: 'wrap', gap: size > 12 ? 14 : 10, font: mono(size), color: 'var(--text-2)' }}>
+      <span>{r.time} min</span>
+      <span>{plural(r.servings, 'porcja', 'porcje', 'porcji')}</span>
+      {r.kcal != null && <span>~{r.kcal} kcal</span>}
+      <StockNote toBuy={r.toBuyCount} />
+    </span>
+  )
+}
+
+function Placeholder({ height, children }: { height: number; children: ReactNode }) {
+  return (
+    <div style={{ minHeight: height, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, textAlign: 'center', padding: 24, borderRadius: 16, border: '1px dashed var(--border-2)' }}>
       {children}
     </div>
   )

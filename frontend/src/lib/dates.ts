@@ -20,3 +20,23 @@ export function toISO(d: Date): string {
 export function todayIso(): string {
   return toISO(new Date())
 }
+
+/** Monday of the date's week (local). */
+export function mondayOf(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7))
+  return x
+}
+
+export function addDays(d: Date, n: number): Date {
+  const x = new Date(d)
+  x.setDate(x.getDate() + n)
+  return x
+}
+
+export const WEEKDAY_SHORT = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
+
+/** "14.09" */
+export function dayMonth(d: Date): string {
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`
+}
