@@ -13,12 +13,17 @@ public static class ShoppingEndpoints
 
         g.MapGet("/", async (MiseDbContext db) =>
         {
-            var items = await db.ShoppingItems.AsNoTracking().ToListAsync();
+            var items = await db.ShoppingItems.AsNoTracking().Include(s => s.Contributions).ToListAsync();
+            var recipesByKey = await ResolveContributionRecipesAsync(db, items);
             var dto = items
                 .OrderBy(s => s.Checked)
                 .ThenBy(s => s.Category)
                 .ThenBy(s => s.Name, Pl.Comparer)
-                .Select(Mapping.ToDto)
+                .Select(s => Mapping.ToDto(s, s.Contributions
+                    .Select(c => recipesByKey.GetValueOrDefault(c.SourceKey))
+                    .OfType<ShoppingRecipeRefDto>()
+                    .DistinctBy(r => r.Id)
+                    .ToList()))
                 .ToList();
             return Results.Ok(new ShoppingListDto(dto, dto.Count, dto.Count(d => d.Checked)));
         });
@@ -94,5 +99,42 @@ public static class ShoppingEndpoints
         });
 
         return api;
+    }
+
+    /// <summary>
+    /// Maps contribution keys (recipe:{id}, plan:{entryId}) to the recipe they stand
+    /// for. Keys of deleted recipes/entries are simply absent.
+    /// </summary>
+    private static async Task<Dictionary<string, ShoppingRecipeRefDto>> ResolveContributionRecipesAsync(
+        MiseDbContext db, List<ShoppingItem> items)
+    {
+        var keys = items.SelectMany(i => i.Contributions).Select(c => c.SourceKey).Distinct().ToList();
+        static Guid? IdOf(string key, string prefix) =>
+            key.StartsWith(prefix, StringComparison.Ordinal) && Guid.TryParse(key[prefix.Length..], out var id) ? id : null;
+
+        var planIds = keys.Select(k => IdOf(k, "plan:")).OfType<Guid>().ToList();
+        var planRecipe = planIds.Count == 0 ? new Dictionary<Guid, Guid>() : await db.PlanEntries.AsNoTracking()
+            .Where(e => planIds.Contains(e.Id) && e.RecipeId != null)
+            .ToDictionaryAsync(e => e.Id, e => e.RecipeId!.Value);
+
+        var recipeOfKey = new Dictionary<string, Guid>();
+        foreach (var key in keys)
+        {
+            if (IdOf(key, "recipe:") is Guid rid) recipeOfKey[key] = rid;
+            else if (IdOf(key, "plan:") is Guid pid && planRecipe.TryGetValue(pid, out var viaPlan)) recipeOfKey[key] = viaPlan;
+        }
+
+        var recipeIds = recipeOfKey.Values.Distinct().ToList();
+        var recipes = await db.Recipes.AsNoTracking()
+            .Where(r => recipeIds.Contains(r.Id))
+            .Select(r => new { r.Id, r.Title, r.ImagePath })
+            .ToDictionaryAsync(r => r.Id);
+        return recipeOfKey
+            .Where(kv => recipes.ContainsKey(kv.Value))
+            .ToDictionary(kv => kv.Key, kv =>
+            {
+                var r = recipes[kv.Value];
+                return new ShoppingRecipeRefDto(r.Id, r.Title, Mapping.ImageUrl(r.ImagePath));
+            });
     }
 }

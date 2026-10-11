@@ -24,7 +24,7 @@ export function PageTitle({ title, count, sub, right, size }: {
   const fs = size ?? (isMobile ? 44 : 64)
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 24, flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 12, minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 12, minWidth: isMobile ? 0 : 320, flex: isMobile ? undefined : '1 1 0' }}>
         <h1 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: fs, lineHeight: isMobile ? 1 : 0.95, letterSpacing: '-0.03em' }}>
           {title}
           {count != null && (

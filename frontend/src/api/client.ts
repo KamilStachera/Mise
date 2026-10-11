@@ -115,6 +115,13 @@ export interface ShoppingItem {
   origin: string
   quantity: number | null
   unit: Unit | null
+  /** Recipes this row is for (from recipe buttons or the plan); empty for manual rows. */
+  recipes: ShoppingRecipeRef[]
+}
+export interface ShoppingRecipeRef {
+  id: string
+  title: string
+  imageUrl: string | null
 }
 export interface ShoppingList {
   items: ShoppingItem[]

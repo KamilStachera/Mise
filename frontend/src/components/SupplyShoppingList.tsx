@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import {
   useAuth, useSupplies, useAddSupply, useCheckSupply, useDeleteSupply,
   useClearCheckedSupplies, useClearSupplies, useUpdateHotSupply, useForgetHotSupply,
@@ -6,24 +6,14 @@ import {
 } from '../api/hooks'
 import { supplyCategoryLabel } from '../lib/labels'
 import { supplyGroups, suppliesAsText } from '../lib/supplies'
-import { useIsMobile } from '../lib/useIsMobile'
-import { CheckIcon, PlusIcon } from './icons'
-
-const secondaryBtn: CSSProperties = {
-  border: '1px solid var(--border)',
-  background: 'var(--card)',
-  color: 'var(--text-2)',
-  borderRadius: 11,
-  padding: '10px 14px',
-  cursor: 'pointer',
-  font: "500 13px var(--sans)",
-  whiteSpace: 'nowrap',
-}
+import { showToast } from '../lib/toastBus'
+import { AddBar, CheckGroup, CheckRow, Progress, ShoppingFrame, useShoppingCounts, type ListAction } from './ShoppingFrame'
+import { Button, Chip, Eyebrow, Sheet, sans } from './ui'
 
 export function SupplyShoppingList() {
-  const isMobile = useIsMobile()
   const { canEdit } = useAuth()
   const { data, isLoading } = useSupplies()
+  const counts = useShoppingCounts()
   const add = useAddSupply()
   const check = useCheckSupply()
   const remove = useDeleteSupply()
@@ -32,7 +22,6 @@ export function SupplyShoppingList() {
   const updateHot = useUpdateHotSupply()
   const forgetHot = useForgetHotSupply()
   const [name, setName] = useState('')
-  const [copied, setCopied] = useState(false)
   const [managing, setManaging] = useState(false)
 
   const items = data?.items ?? []
@@ -40,7 +29,6 @@ export function SupplyShoppingList() {
   const groups = supplyGroups(items)
   const total = data?.total ?? 0
   const done = data?.checkedCount ?? 0
-  const doneLabel = done > 0 ? `Odhaczono ${done} z ${total}.` : `${total} do kupienia.`
 
   function submit() {
     if (!name.trim()) return
@@ -49,170 +37,85 @@ export function SupplyShoppingList() {
   }
 
   async function copyList() {
-    await navigator.clipboard.writeText(suppliesAsText(items))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1600)
+    try {
+      await navigator.clipboard.writeText(suppliesAsText(items))
+      showToast('Skopiowano listę do schowka.')
+    } catch {
+      showToast('Nie udało się skopiować listy.')
+    }
   }
 
-  return (
-    <>
-      <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 22px' }}>
-        Chemia, higiena, papier — nic wspólnego ze spiżarnią. {total > 0 && doneLabel}
-      </p>
+  const actions: ListAction[] = [
+    ...(items.some((s) => !s.checked) ? [{ label: 'Kopiuj listę', onClick: copyList }] : []),
+    ...(canEdit && done > 0 ? [{ label: 'Usuń odhaczone', onClick: () => clear.mutate() }] : []),
+    ...(canEdit ? [{ label: 'Zarządzaj częstymi', onClick: () => setManaging(true) }] : []),
+    ...(canEdit && total > 0
+      ? [{ label: 'Wyczyść listę', danger: true, onClick: () => { if (window.confirm(`Wyczyścić całą listę domową (pozycji: ${total})?`)) clearAll.mutate() } }]
+      : []),
+  ]
 
+  return (
+    <ShoppingFrame
+      counts={counts}
+      actions={actions}
+      hint="Chemia, higiena, papier — osobna lista, bez związku ze spiżarnią. Częste rzeczy podpowiadamy na podstawie tego, co dodajesz."
+      addBar={canEdit && <AddBar value={name} onChange={setName} onSubmit={submit} placeholder="Dodaj coś do domu…" />}
+    >
       {canEdit && hot.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ font: "600 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 9 }}>
-            Częste
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Eyebrow>Częste</Eyebrow>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {hot.map((h) => (
-              <button
-                key={h.id}
-                onClick={() => add.mutate({ name: h.name })}
-                title={`Dodaj: ${h.name}`}
-                style={{
-                  border: '1px solid ' + (h.pinned ? 'var(--accent)' : 'var(--border)'),
-                  background: 'var(--card)',
-                  color: h.pinned ? 'var(--accent-deep)' : 'var(--text-2)',
-                  borderRadius: 20,
-                  padding: isMobile ? '9px 14px' : '8px 14px',
-                  font: "500 13px var(--sans)",
-                  cursor: 'pointer',
-                  transition: 'all .14s',
-                }}
-              >
+              <Chip key={h.id} onClick={() => add.mutate({ name: h.name })} title={`Dodaj: ${h.name}`} style={h.pinned ? { borderColor: 'var(--rule)' } : undefined}>
                 {h.pinned && '📌 '}+ {h.name}
-              </button>
+              </Chip>
             ))}
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {canEdit && (
-          <>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submit()}
-              placeholder="Dodaj coś do domu…"
-              style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px var(--sans)", color: 'var(--text)' }}
-            />
-            <button
-              onClick={submit}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px var(--sans)" }}
-            >
-              <PlusIcon />
-            </button>
-          </>
-        )}
-        {items.some((s) => !s.checked) && (
-          <button onClick={copyList} style={{ ...secondaryBtn, color: copied ? 'var(--sage)' : 'var(--text-2)' }}>
-            {copied ? '✓ Skopiowano' : 'Kopiuj listę'}
-          </button>
-        )}
-        {canEdit && done > 0 && (
-          <button onClick={() => clear.mutate()} style={secondaryBtn}>
-            Usuń odhaczone
-          </button>
-        )}
-        {canEdit && total > 0 && (
-          <button
-            onClick={() => {
-              if (window.confirm(`Wyczyścić całą listę domową (pozycji: ${total})?`)) clearAll.mutate()
-            }}
-            style={{ ...secondaryBtn, color: 'var(--accent)' }}
-          >
-            Wyczyść listę
-          </button>
-        )}
-      </div>
-
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40 }}>Ładowanie…</div>
+        <span style={{ color: 'var(--text-3)' }}>Ładowanie…</span>
       ) : items.length === 0 ? (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 36, textAlign: 'center', color: 'var(--text-3)' }}>
-          Lista jest pusta. Dopisz coś ręcznie albo stuknij w częstą rzecz powyżej.
+        <div style={{ padding: '28px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 24 }}>Lista jest pusta</span>
+          <span style={{ font: sans(14.5), color: 'var(--text-2)' }}>Dopisz coś ręcznie albo stuknij w częstą rzecz powyżej.</span>
         </div>
       ) : (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-          {groups.map((group) => (
-            <div key={group.key}>
-              <div style={{ padding: isMobile ? '11px 14px 8px' : '10px 17px 7px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', font: "650 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: group.key === 'checked' ? 'var(--text-3)' : 'var(--sage)' }}>
-                {group.label}
-              </div>
-              {group.items.map((s) => (
-                <div
-                  key={s.id}
-                  onClick={() => canEdit && check.mutate(s.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 13, padding: isMobile ? '15px 14px' : '14px 17px', borderBottom: '1px solid var(--border)', cursor: canEdit ? 'pointer' : 'default' }}
-                >
-                  <span
-                    style={{
-                      flex: `0 0 ${isMobile ? 26 : 22}px`,
-                      width: isMobile ? 26 : 22,
-                      height: isMobile ? 26 : 22,
-                      borderRadius: 8,
-                      border: '2px solid ' + (s.checked ? 'var(--sage)' : 'var(--border-2)'),
-                      background: s.checked ? 'var(--sage)' : 'transparent',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all .12s',
-                    }}
-                  >
-                    {s.checked && <CheckIcon />}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0, font: `600 ${isMobile ? 16 : 14.5}px var(--sans)`, color: s.checked ? 'var(--text-3)' : 'var(--text)', textDecoration: s.checked ? 'line-through' : 'none' }}>
-                    {s.name}
-                  </div>
-                  {!isMobile && s.checked && (
-                    <span style={{ font: "500 11px var(--sans)", color: 'var(--text-3)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 7, padding: '3px 9px' }}>
-                      {supplyCategoryLabel[s.category]}
-                    </span>
-                  )}
-                  {canEdit && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        remove.mutate(s.id)
-                      }}
-                      title="Usuń z listy"
-                      style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px var(--sans)", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+        <>
+          <Progress done={done} total={total} />
+          {groups.map((g) => {
+            const isChecked = g.key === 'checked'
+            return (
+              <CheckGroup key={g.key} thin={isChecked} label={isChecked ? `W koszyku · ${g.items.length}` : g.label}>
+                {g.items.map((s, i) => (
+                  <CheckRow
+                    key={s.id}
+                    checked={s.checked}
+                    name={s.name}
+                    onToggle={canEdit ? () => check.mutate(s.id) : undefined}
+                    onRemove={canEdit && !s.checked ? () => remove.mutate(s.id) : undefined}
+                    last={isChecked && i === g.items.length - 1}
+                  />
+                ))}
+              </CheckGroup>
+            )
+          })}
+        </>
       )}
 
-      {canEdit && (
-        <div style={{ marginTop: 18 }}>
-          <button
-            onClick={() => setManaging((v) => !v)}
-            style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', padding: 0 }}
-          >
-            {managing ? '− ' : '+ '}Zarządzaj częstymi
-          </button>
-          {managing && <HotManager onUpdate={updateHot.mutate} onForget={forgetHot.mutate} />}
-        </div>
-      )}
-    </>
+      <Sheet open={managing} onClose={() => setManaging(false)} title="Częste rzeczy" width={560}>
+        <HotManager onUpdate={updateHot.mutate} onForget={forgetHot.mutate} />
+      </Sheet>
+    </ShoppingFrame>
   )
 }
 
 /**
- * Pin / hide / forget the learned tallies. Kept behind a toggle so the chip row above
- * stays a one-tap affordance rather than a settings screen. It lists every entry, not
- * just the visible chips — otherwise there is no way to unhide something, or to pin
- * something currently ranked below the cap.
+ * Pin / hide / forget the learned tallies. Lives in a sheet so the chip row stays a
+ * one-tap affordance rather than a settings screen. It lists every entry, not just the
+ * visible chips — otherwise there is no way to unhide something, or to pin something
+ * currently ranked below the cap.
  */
 function HotManager({ onUpdate, onForget }: {
   onUpdate: (args: { id: string; pinned?: boolean; hidden?: boolean }) => void
@@ -220,40 +123,31 @@ function HotManager({ onUpdate, onForget }: {
 }) {
   const { data, isLoading } = useAllHotSupplies(true)
 
-  if (isLoading) return <div style={{ color: 'var(--text-3)', padding: 14 }}>Ładowanie…</div>
+  if (isLoading) return <span style={{ color: 'var(--text-3)' }}>Ładowanie…</span>
 
   return (
-    <div style={{ marginTop: 10, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
       {(data ?? []).map((h) => (
-        <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid var(--border)', opacity: h.hidden ? 0.55 : 1 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ font: "600 13.5px var(--sans)", color: 'var(--text)' }}>{h.name}</div>
-            <div style={{ font: "500 11px var(--sans)", color: 'var(--text-3)' }}>
+        <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', borderBottom: '1px solid var(--border)', opacity: h.hidden ? 0.55 : 1 }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ font: sans(14.5, 600) }}>{h.name}</span>
+            <span style={{ font: sans(12), color: 'var(--text-3)' }}>
               {supplyCategoryLabel[h.category]} · dodane {h.count}×{h.hidden && ' · ukryte'}
-            </div>
+            </span>
           </div>
-          <button
-            onClick={() => onUpdate({ id: h.id, pinned: !h.pinned })}
-            title={h.pinned ? 'Odepnij' : 'Przypnij na stałe'}
-            style={{ border: '1px solid ' + (h.pinned ? 'var(--accent)' : 'var(--border)'), background: 'var(--card)', color: h.pinned ? 'var(--accent-deep)' : 'var(--text-2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', font: "500 12px var(--sans)", whiteSpace: 'nowrap' }}
-          >
-            {h.pinned ? '📌 Przypięte' : 'Przypnij'}
-          </button>
-          <button
-            onClick={() => onUpdate({ id: h.id, hidden: !h.hidden })}
-            title={h.hidden ? 'Podpowiadaj znowu' : 'Nie podpowiadaj tego'}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', font: "500 12px var(--sans)", whiteSpace: 'nowrap' }}
-          >
+          <Button size="sm" variant={h.pinned ? 'dark' : 'quiet'} style={{ height: 32, font: sans(12.5, 600) }} onClick={() => onUpdate({ id: h.id, pinned: !h.pinned })}>
+            {h.pinned ? 'Przypięte' : 'Przypnij'}
+          </Button>
+          <Button size="sm" variant="quiet" style={{ height: 32, font: sans(12.5, 600) }} onClick={() => onUpdate({ id: h.id, hidden: !h.hidden })}>
             {h.hidden ? 'Pokaż' : 'Ukryj'}
-          </button>
+          </Button>
           <button
-            onClick={() => {
-              if (window.confirm(`Zapomnieć „${h.name}" i jego statystyki?`)) onForget(h.id)
-            }}
+            type="button"
             title="Zapomnij razem ze statystykami"
-            style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px var(--sans)", padding: '2px 6px', borderRadius: 7, lineHeight: 1 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
+            onClick={() => {
+              if (window.confirm(`Zapomnieć „${h.name}” i jego statystyki?`)) onForget(h.id)
+            }}
+            style={{ border: 0, background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}
           >
             ✕
           </button>

@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth, useShopping, useCheckShopping, useClearChecked, useClearShopping, useAddShopping, useDeleteShopping } from '../api/hooks'
-import { categoryLabel, formatQty } from '../lib/labels'
+import type { ShoppingItem, ShoppingRecipeRef } from '../api/client'
+import { formatQty } from '../lib/labels'
 import { alphabeticalShoppingGroups, lidlShoppingGroups, shoppingListAsText, type ShoppingLayout } from '../lib/shoppingAisles'
-import { useIsMobile } from '../lib/useIsMobile'
-import { CheckIcon, PlusIcon } from './icons'
+import { showToast } from '../lib/toastBus'
+import { AddBar, CheckGroup, CheckRow, Progress, ShoppingFrame, useShoppingCounts, type ListAction } from './ShoppingFrame'
+import { RecipeThumb } from './RecipeThumb'
+import { mono, sans } from './ui'
 
 const LAYOUT_STORAGE_KEY = 'pichci.shopping.layout'
 
@@ -15,29 +19,53 @@ function savedLayout(): ShoppingLayout {
   }
 }
 
+/** Second line under a row: the recipes it is for, else the free-text reason. */
+function rowSub(s: ShoppingItem): string | null {
+  if (s.recipes.length > 0) return s.recipes.map((r) => r.title).join(', ')
+  return s.reason?.replace(/^Do:\s*/, '') || null
+}
+
 export function FoodShoppingList() {
-  const isMobile = useIsMobile()
+  const nav = useNavigate()
   const { canEdit } = useAuth()
   const { data, isLoading } = useShopping()
+  const counts = useShoppingCounts()
   const check = useCheckShopping()
   const clear = useClearChecked()
   const clearAll = useClearShopping()
   const add = useAddShopping()
   const remove = useDeleteShopping()
   const [name, setName] = useState('')
-  const [copied, setCopied] = useState(false)
   const [layout, setLayout] = useState<ShoppingLayout>(savedLayout)
 
   const items = data?.items ?? []
-  const groups = layout === 'lidl' ? lidlShoppingGroups(items) : alphabeticalShoppingGroups(items)
   const total = data?.total ?? 0
   const done = data?.checkedCount ?? 0
-  const doneLabel = done > 0 ? `Odhaczono ${done} z ${total}.` : `${total} do kupienia.`
+  const unchecked = items.filter((s) => !s.checked)
+  const checked = items.filter((s) => s.checked)
+  const groups = layout === 'lidl' ? lidlShoppingGroups(unchecked) : alphabeticalShoppingGroups(unchecked)
+
+  // "Dla przepisów": which recipes the open rows serve, with how many rows each.
+  const forRecipes = useMemo(() => {
+    const map = new Map<string, { recipe: ShoppingRecipeRef; count: number }>()
+    for (const s of unchecked)
+      for (const r of s.recipes) map.set(r.id, { recipe: r, count: (map.get(r.id)?.count ?? 0) + 1 })
+    return [...map.values()].sort((a, b) => b.count - a.count)
+  }, [unchecked])
+
+  function submit() {
+    if (!name.trim()) return
+    add.mutate({ name: name.trim() })
+    setName('')
+  }
 
   async function copyList() {
-    await navigator.clipboard.writeText(shoppingListAsText(items, layout))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1600)
+    try {
+      await navigator.clipboard.writeText(shoppingListAsText(items, layout))
+      showToast('Skopiowano listę do schowka.')
+    } catch {
+      showToast('Nie udało się skopiować listy.')
+    }
   }
 
   function changeLayout(next: ShoppingLayout) {
@@ -49,158 +77,100 @@ export function FoodShoppingList() {
     }
   }
 
+  const actions: ListAction[] = [
+    ...(unchecked.length > 0 ? [{ label: 'Kopiuj listę', onClick: copyList }] : []),
+    ...(canEdit && done > 0 ? [{ label: 'Usuń odhaczone', onClick: () => clear.mutate() }] : []),
+    ...(canEdit && total > 0
+      ? [{ label: 'Wyczyść listę', danger: true, onClick: () => { if (window.confirm(`Wyczyścić całą listę zakupów (pozycji: ${total})?`)) clearAll.mutate() } }]
+      : []),
+  ]
+
+  const aside = forRecipes.length > 0 && (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 20, paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>Dla przepisów</span>
+      {forRecipes.map(({ recipe, count }) => (
+        <button
+          key={recipe.id}
+          type="button"
+          onClick={() => nav(`/recipe/${recipe.id}`)}
+          style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', border: 0, borderBottom: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
+        >
+          {recipe.imageUrl ? (
+            <RecipeThumb r={{ imageUrl: recipe.imageUrl, tint: '#c9bca8', title: recipe.title }} style={{ width: 48, height: 48, borderRadius: 8 }} />
+          ) : (
+            <span style={{ width: 48, height: 48, flex: '0 0 48px', borderRadius: 8, background: 'repeating-linear-gradient(135deg,#e6dac7 0 8px,#ece2d2 8px 16px)' }} />
+          )}
+          <span style={{ flex: 1, minWidth: 0, font: sans(15, 500) }}>{recipe.title}</span>
+          <span style={{ font: mono(12), color: 'var(--text-2)' }}>{count} poz.</span>
+        </button>
+      ))}
+    </div>
+  )
+
+  const layoutSelect = items.length > 0 && (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+      Układ:
+      <select
+        value={layout}
+        onChange={(e) => changeLayout(e.target.value as ShoppingLayout)}
+        style={{ border: 0, background: 'transparent', font: mono(12), color: 'var(--text-2)', cursor: 'pointer', padding: 0 }}
+      >
+        <option value="alphabetical">alfabetycznie</option>
+        <option value="lidl">alejki Lidl</option>
+      </select>
+    </label>
+  )
+
   return (
-    <>
-      <p style={{ fontSize: 14.5, color: 'var(--text-2)', margin: '0 0 22px' }}>
-        Dodawaj ręcznie, z przepisów albo przez asystenta. {total > 0 && doneLabel}
-      </p>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {canEdit && (
-          <>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && name.trim()) {
-                  add.mutate({ name: name.trim() })
-                  setName('')
-                }
-              }}
-              placeholder="Dodaj coś do kupienia…"
-              style={{ flex: 1, border: '1px solid var(--border)', background: 'var(--card)', borderRadius: 11, padding: '10px 14px', font: "400 14px var(--sans)", color: 'var(--text)' }}
-            />
-            <button
-              onClick={() => {
-                if (name.trim()) {
-                  add.mutate({ name: name.trim() })
-                  setName('')
-                }
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "600 13.5px var(--sans)" }}
-            >
-              <PlusIcon />
-            </button>
-          </>
-        )}
-        {items.some((s) => !s.checked) && (
-          <button
-            onClick={copyList}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: copied ? 'var(--sage)' : 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px var(--sans)", whiteSpace: 'nowrap' }}
-          >
-            {copied ? '✓ Skopiowano' : 'Kopiuj listę'}
-          </button>
-        )}
-        {canEdit && done > 0 && (
-          <button
-            onClick={() => clear.mutate()}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px var(--sans)", whiteSpace: 'nowrap' }}
-          >
-            Usuń odhaczone
-          </button>
-        )}
-        {canEdit && total > 0 && (
-          <button
-            onClick={() => {
-              if (window.confirm(`Wyczyścić całą listę zakupów (pozycji: ${total})?`)) clearAll.mutate()
-            }}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--accent)', borderRadius: 11, padding: '10px 14px', cursor: 'pointer', font: "500 13px var(--sans)", whiteSpace: 'nowrap' }}
-          >
-            Wyczyść listę
-          </button>
-        )}
-      </div>
-
-      {items.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '-4px 0 12px' }}>
-          <label htmlFor="shopping-layout" style={{ font: "600 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-            Układ listy
-          </label>
-          <select
-            id="shopping-layout"
-            value={layout}
-            onChange={(event) => changeLayout(event.target.value as ShoppingLayout)}
-            style={{ border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-2)', borderRadius: 9, padding: '7px 10px', font: "500 12.5px var(--sans)", cursor: 'pointer' }}
-          >
-            <option value="alphabetical">Alfabetycznie</option>
-            <option value="lidl">Alejki Lidl (orientacyjnie)</option>
-          </select>
-        </div>
-      )}
-
+    <ShoppingFrame
+      counts={counts}
+      actions={actions}
+      aside={aside}
+      hint="Dodawaj ręcznie, z przepisów albo przez asystenta."
+      addBar={canEdit && <AddBar value={name} onChange={setName} onSubmit={submit} placeholder="Dodaj coś do kupienia…" />}
+    >
       {isLoading ? (
-        <div style={{ color: 'var(--text-3)', padding: 40 }}>Ładowanie…</div>
+        <span style={{ color: 'var(--text-3)' }}>Ładowanie…</span>
       ) : items.length === 0 ? (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: 36, textAlign: 'center', color: 'var(--text-3)' }}>
-          Lista jest pusta. Dodaj coś ręcznie albo z brakujących składników przepisu.
+        <div style={{ padding: '28px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 24 }}>Lista jest pusta</span>
+          <span style={{ font: sans(14.5), color: 'var(--text-2)' }}>Dodaj coś ręcznie albo brakujące składniki z przepisu lub planu.</span>
         </div>
       ) : (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden' }}>
-          {groups.map((group) => (
-            <div key={group.key}>
-              {group.label && (
-                <div style={{ padding: isMobile ? '11px 14px 8px' : '10px 17px 7px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', font: "650 11px var(--sans)", letterSpacing: '.08em', textTransform: 'uppercase', color: group.key === 'checked' ? 'var(--text-3)' : 'var(--sage)' }}>
-                  {group.label}
-                </div>
-              )}
-              {group.items.map((s) => (
-            <div
-              key={s.id}
-              onClick={() => canEdit && check.mutate(s.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 13, padding: isMobile ? '15px 14px' : '14px 17px', borderBottom: '1px solid var(--border)', cursor: canEdit ? 'pointer' : 'default' }}
-            >
-              <span
-                style={{
-                  flex: `0 0 ${isMobile ? 26 : 22}px`,
-                  width: isMobile ? 26 : 22,
-                  height: isMobile ? 26 : 22,
-                  borderRadius: 8,
-                  border: '2px solid ' + (s.checked ? 'var(--sage)' : 'var(--border-2)'),
-                  background: s.checked ? 'var(--sage)' : 'transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all .12s',
-                }}
-              >
-                {s.checked && <CheckIcon />}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: `600 ${isMobile ? 16 : 14.5}px var(--sans)`, color: s.checked ? 'var(--text-3)' : 'var(--text)', textDecoration: s.checked ? 'line-through' : 'none' }}>
-                  {s.name}
-                  {s.quantity != null && s.unit && (
-                    <span style={{ font: "500 12.5px var(--mono)", color: 'var(--text-2)', marginLeft: 8 }}>
-                      {formatQty(s.quantity, s.unit)}
-                    </span>
-                  )}
-                </div>
-                <div style={{ font: "500 11.5px var(--sans)", color: 'var(--text-3)' }}>{s.reason}</div>
-              </div>
-              {!isMobile && (
-                <span style={{ font: "500 11px var(--sans)", color: 'var(--text-3)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 7, padding: '3px 9px' }}>
-                  {categoryLabel(s.category)}
-                </span>
-              )}
-              {canEdit && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    remove.mutate(s.id)
-                  }}
-                  title="Usuń z listy"
-                  style={{ border: 'none', background: 'transparent', color: 'var(--text-3)', cursor: 'pointer', font: "600 15px var(--sans)", padding: isMobile ? '10px 12px' : '2px 6px', borderRadius: 7, lineHeight: 1 }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-3)')}
-                >
-                  ✕
-                </button>
-              )}
-                </div>
+        <>
+          <Progress done={done} total={total} right={layoutSelect} />
+          {groups.map((g) => (
+            <CheckGroup key={g.key} label={g.label?.replace(/^\d+\.\s*/, '') ?? 'Do kupienia'}>
+              {g.items.map((s) => (
+                <CheckRow
+                  key={s.id}
+                  checked={false}
+                  name={s.name}
+                  sub={rowSub(s)}
+                  qty={s.quantity != null && s.unit ? formatQty(s.quantity, s.unit) : null}
+                  onToggle={canEdit ? () => check.mutate(s.id) : undefined}
+                  onRemove={canEdit ? () => remove.mutate(s.id) : undefined}
+                />
               ))}
-            </div>
+            </CheckGroup>
           ))}
-        </div>
+          {checked.length > 0 && (
+            <CheckGroup thin label={`W koszyku · ${checked.length}`}>
+              {checked.map((s, i) => (
+                <CheckRow
+                  key={s.id}
+                  checked
+                  name={s.name}
+                  sub={rowSub(s)}
+                  qty={s.quantity != null && s.unit ? formatQty(s.quantity, s.unit) : null}
+                  onToggle={canEdit ? () => check.mutate(s.id) : undefined}
+                  last={i === checked.length - 1}
+                />
+              ))}
+            </CheckGroup>
+          )}
+        </>
       )}
-    </>
+    </ShoppingFrame>
   )
 }

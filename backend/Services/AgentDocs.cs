@@ -437,7 +437,8 @@ public static class AgentDocs
         pozycji spiżarni; wpisy ręczne i odhaczone pozostają osobne. Po paragonie
         odhaczaj/usuwaj kupione pozycje.
 
-        - `GET /shopping` — lista (z `id` do check/delete).
+        - `GET /shopping` — lista (z `id` do check/delete); `recipes` przy pozycji to przepisy
+          (`id`, `title`, `imageUrl`), dla których trafiła na listę — z przepisu lub planu.
         - `POST /shopping` — `{ "name": "Guanciale", "category": "Fridge", "quantity": 100, "unit": "g", "reason": "Do: Carbonara" }`
           (`quantity`/`unit`/`reason` opcjonalne).
         - `PATCH /shopping/{id}/check` — body `{ "checked": true|false }` ustawia stan

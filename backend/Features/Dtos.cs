@@ -40,8 +40,11 @@ public record PantryAdjustResultDto(List<PantryItemDto> Updated, List<UnmatchedI
 public record ReceiptNameMappingDto(Guid Id, string Merchant, string RawName,
     Guid PantryItemId, string PantryItemName, DateTimeOffset UpdatedAt);
 
+/// <summary>Recipes is resolved from the row's contributions (recipe buttons and plan entries); empty for manual rows.</summary>
 public record ShoppingItemDto(Guid Id, string Name, string Category, string Reason, bool Checked,
-    string Origin, decimal? Quantity, string? Unit);
+    string Origin, decimal? Quantity, string? Unit, List<ShoppingRecipeRefDto> Recipes);
+/// <summary>A recipe a shopping row is for; ImageUrl is its default photo (null = none).</summary>
+public record ShoppingRecipeRefDto(Guid Id, string Title, string? ImageUrl);
 public record ShoppingListDto(List<ShoppingItemDto> Items, int Total, int CheckedCount);
 public record ShoppingAddResultDto(int Added, int Updated);
 public record ShoppingPreviewItemDto(string Key, Guid? PantryItemId, string Name,
@@ -196,9 +199,11 @@ public static class Mapping
         p.LowThreshold, StatusString(StatusOf(p)),
         p.Aliases.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList());
 
-    public static ShoppingItemDto ToDto(ShoppingItem s) => new(s.Id, s.Name, s.Category, s.Reason,
-        s.Checked, s.Origin.ToString().ToLowerInvariant(), s.Quantity,
-        s.Unit is PantryUnit u ? UnitString(u) : null);
+    public static ShoppingItemDto ToDto(ShoppingItem s) => ToDto(s, new());
+
+    public static ShoppingItemDto ToDto(ShoppingItem s, List<ShoppingRecipeRefDto> recipes) => new(s.Id, s.Name,
+        s.Category, s.Reason, s.Checked, s.Origin.ToString().ToLowerInvariant(), s.Quantity,
+        s.Unit is PantryUnit u ? UnitString(u) : null, recipes);
 
     public static string SupplyCategoryString(SupplyCategory c) => c.ToString().ToLowerInvariant();
 
