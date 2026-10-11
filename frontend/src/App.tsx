@@ -9,6 +9,7 @@ import { TabBar, TAB_BAR_HEIGHT } from './components/TabBar'
 import { ChatSidebar } from './components/ChatSidebar'
 import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
+import { UpdatePill } from './components/UpdatePill'
 import { Library } from './pages/Library'
 import { RecipeDetail } from './pages/RecipeDetail'
 import { Pantry } from './pages/Pantry'
@@ -87,6 +88,7 @@ export default function App() {
       {showTabs && <TabBar />}
       <PendingCookModal />
       <ToastHost />
+      <UpdatePill />
     </div>
   )
 }
