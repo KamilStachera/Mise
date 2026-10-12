@@ -132,9 +132,37 @@ export const slotLabel: Record<Slot, string> = {
   breakfast: 'Śniadanie',
   lunch: 'Obiad',
   dinner: 'Kolacja',
+  snack: 'Przekąski',
 }
 
+/** "Dodaj do Przekąsek" — slot names in the genitive for action buttons. */
+export const slotTo: Record<Slot, string> = {
+  breakfast: 'do Śniadania',
+  lunch: 'do Obiadu',
+  dinner: 'do Kolacji',
+  snack: 'do Przekąsek',
+}
+
+/** Meals you plan and cook. */
 export const SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner']
+/** The diary day: meals plus Przekąski. */
+export const DIARY_SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner', 'snack']
+
+/** Sensible slot for "now" — a fridge portion eaten at 13:00 is lunch. */
+export function slotForNow(d = new Date()): Slot {
+  const h = d.getHours()
+  return h < 11 ? 'breakfast' : h < 17 ? 'lunch' : 'dinner'
+}
+
+/** "1 265" — spaced thousands like the design (pl-PL's toLocaleString leaves 4-digit numbers ungrouped). */
+export function formatKcal(n: number): string {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+/** ×1,5 — portion multiplier in Polish decimal notation. */
+export function formatPortion(p: number): string {
+  return `×${String(Math.round(p * 100) / 100).replace('.', ',')}`
+}
 
 export const DAY_NAMES_PL = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela']
 

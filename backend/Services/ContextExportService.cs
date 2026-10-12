@@ -131,8 +131,11 @@ public sealed class ContextExportService
             .ToListAsync(ct);
         var planFrom = StartOfWeek(DateOnly.FromDateTime(DateTime.Today));
         var planTo = planFrom.AddDays(14);
+        // Meals only: snacks and typed food are the private diary, not the plan.
         var plan = await _db.PlanEntries.AsNoTracking()
+            .Include(e => e.Cook)
             .Where(e => e.Date >= planFrom && e.Date < planTo)
+            .Where(e => e.Slot != MealSlot.Snack && (e.RecipeId != null || e.Kcal == null))
             .OrderBy(e => e.Date)
             .ToListAsync(ct);
 
@@ -346,8 +349,11 @@ public sealed class ContextExportService
                     var what = e.RecipeId is Guid rid && titleById.TryGetValue(rid, out var t)
                         ? $"{t} (zapisany przepis)"
                         : e.Title;
+                    var pot = e.Cook is null ? ""
+                        : e.IsLeftover ? $" — resztki z {e.Cook.Date:dd.MM}"
+                        : $" — gotowane na kilka dni (porcje: {e.Cook.Portions})";
                     var note = string.IsNullOrWhiteSpace(e.Note) ? "" : $" — {e.Note.Trim()}";
-                    sb.AppendLine($"- {dayName} {date:dd.MM}, {slot}: {what}{note}");
+                    sb.AppendLine($"- {dayName} {date:dd.MM}, {slot}: {what}{pot}{note}");
                 }
             }
         }
@@ -358,6 +364,7 @@ public sealed class ContextExportService
     {
         MealSlot.Breakfast => "śniadanie",
         MealSlot.Dinner => "kolacja",
+        MealSlot.Snack => "przekąska",
         _ => "obiad",
     };
 

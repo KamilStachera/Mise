@@ -17,6 +17,7 @@ import { Shopping } from './pages/Shopping'
 import { Profile } from './pages/Profile'
 import { AddRecipe } from './pages/AddRecipe'
 import { Plan } from './pages/Plan'
+import { Goal } from './pages/Goal'
 import { Questionnaire } from './pages/Questionnaire'
 import { Random } from './pages/Random'
 import { History } from './pages/History'
@@ -74,11 +75,16 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/recipe/:id" element={<RecipeDetail />} />
           <Route path="/plan" element={<Plan />} />
+          <Route path="/plan/dzien" element={<Plan />} />
+          <Route path="/plan/tydzien" element={<Plan />} />
+          <Route path="/plan/postepy" element={<Plan />} />
+          <Route path="/plan/aktywnosc" element={<Plan />} />
           <Route path="/pantry" element={<Pantry />} />
           <Route path="/shopping" element={<Shopping />} />
           <Route path="/shopping/dom" element={<Shopping />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/ankieta" element={<Questionnaire />} />
+          <Route path="/profile/cel" element={<Goal />} />
           <Route path="/add" element={<AddRecipe />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

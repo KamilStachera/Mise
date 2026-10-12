@@ -91,6 +91,23 @@ Frontend dev loop: `docker compose up db api` then `cd frontend && npm run dev`
   `Pl.Comparer`); seeded staples carry `AddCount = 0` so they sort last and get
   displaced by real use. Both lists share the `/shopping` route
   (`pages/Shopping.tsx` is a shell; `/shopping/dom` selects the household tab).
+- **The plan is also the food diary.** `PlanEntry` is one calendar item, several per
+  slot (no unique (Date, Slot) any more; `snack` slot added). Planned → eaten is
+  `EatenAt`; eating a recipe entry **snapshots** its kcal/macros (totals, not per
+  portion) — never recompute eaten history from the recipe. A `Cook` is one pot spread
+  over days: the cook-day entry plus `IsLeftover` entries; shopping counts only the cook
+  day, scaled to `Cook.Portions` (`PlanShoppingService.NeedsShopping`). Rules live in
+  `Services/DiaryService.cs` / `BodyService.cs`. `/api/diary` and `/api/body` are
+  private even for reads; anonymous `GET /plan` hides snacks, typed food and eaten
+  state (`Mapping.PublicView`). Spec + design: `docs/weight-loss/`.
+- **Band/scale sync = `POST /api/hc/{token}`** (HC Webhook app on her phone →
+  Health Connect data). It is the one write that bypasses `ApiAccessMiddleware`; the
+  endpoint checks the URL token (`HealthSync`, rotatable). Raw energy intervals are
+  upserted on (Kind, Start, End) — the app re-sends updated records. Band workouts
+  take their kcal from Active samples inside their window (never add them twice);
+  manual workouts add their own. A manual weigh-in beats the scale; the scale keeps
+  the day's earliest reading. Days are Polish days: the api container runs
+  `TZ=Europe/Warsaw` (docker-compose) — `DateTime.Today` depends on it.
 - **Shopping list is fully decoupled from the pantry.** Nothing appears or
   disappears automatically; rows come from recipe add-missing, manual entry, or
   agents. There is no sync-from-pantry code — don't reintroduce it.

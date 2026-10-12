@@ -1,14 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
+  type BodyInput,
+  type CookAssignment,
+  type CookInput,
   type CookLogInput,
   type CookLogUpdateInput,
+  type DiaryEntryInput,
   type PantryItemInput,
   type PantryConfirmation,
   type PlanEntryInput,
+  type PlanEntryPatch,
   type Preferences,
   type RecipeInput,
+  type Slot,
   type SupplyCategory,
+  type WorkoutInput,
 } from './client'
 
 // Session state; the react-query cache is the shared auth state (no context needed).
@@ -389,7 +396,169 @@ export function useDeletePlanEntry() {
       qc.invalidateQueries({ queryKey: ['plan'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
       qc.invalidateQueries({ queryKey: ['pendingCook'] })
+      // deleting a cook day drops its whole pot
+      qc.invalidateQueries({ queryKey: ['fridge'] })
+      qc.invalidateQueries({ queryKey: ['cook'] })
     },
+  })
+}
+
+// ---- diary (private: never fetched anonymously — /diary would 401) ----
+
+export function useFridge(today: string) {
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['fridge', today], queryFn: () => api.fridge(today), enabled: canEdit })
+}
+
+export function useCook(id: string | null) {
+  return useQuery({ queryKey: ['cook', id], queryFn: () => api.cook(id!), enabled: !!id })
+}
+
+export function useFoodFavorites(enabled: boolean) {
+  return useQuery({ queryKey: ['foodFavorites'], queryFn: api.foodFavorites, enabled })
+}
+
+// ---- body / budget / progress (private like the diary) ----
+
+export function useBody() {
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['body'], queryFn: api.body, enabled: canEdit })
+}
+
+export function useBudget(start: string, days = 7) {
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['budget', start, days], queryFn: () => api.budget(start, days), enabled: canEdit })
+}
+
+export function useProgress(days: number) {
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['progress', days], queryFn: () => api.progress(days), enabled: canEdit })
+}
+
+export function useActivity(days = 7) {
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['activity', days], queryFn: () => api.activity(days), enabled: canEdit })
+}
+
+export function useHealthConnection(enabled: boolean) {
+  return useQuery({ queryKey: ['healthConnection'], queryFn: api.healthConnection, enabled })
+}
+
+export function useRotateHealthConnection() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.rotateHealthConnection,
+    onSuccess: (data) => {
+      qc.setQueryData(['healthConnection'], data)
+      qc.invalidateQueries({ queryKey: ['activity'] })
+    },
+  })
+}
+
+/** Workouts move the day's budget, so budget and progress refresh too. */
+function useActivityInvalidation() {
+  const qc = useQueryClient()
+  return () => {
+    qc.invalidateQueries({ queryKey: ['activity'] })
+    qc.invalidateQueries({ queryKey: ['budget'] })
+    qc.invalidateQueries({ queryKey: ['progress'] })
+  }
+}
+
+export function useAddWorkout() {
+  const onSuccess = useActivityInvalidation()
+  return useMutation({ mutationFn: (input: WorkoutInput) => api.addWorkout(input), onSuccess })
+}
+
+export function useDeleteWorkout() {
+  const onSuccess = useActivityInvalidation()
+  return useMutation({ mutationFn: (id: string) => api.deleteWorkout(id), onSuccess })
+}
+
+function useBodyInvalidation() {
+  const qc = useQueryClient()
+  return () => {
+    qc.invalidateQueries({ queryKey: ['body'] })
+    qc.invalidateQueries({ queryKey: ['budget'] })
+    qc.invalidateQueries({ queryKey: ['progress'] })
+  }
+}
+
+export function useSaveBody() {
+  const onSuccess = useBodyInvalidation()
+  return useMutation({ mutationFn: (input: BodyInput) => api.saveBody(input), onSuccess })
+}
+
+export function useSetWeight() {
+  const onSuccess = useBodyInvalidation()
+  return useMutation({ mutationFn: ({ date, kg }: { date: string; kg: number }) => api.setWeight(date, kg), onSuccess })
+}
+
+export function useDeleteWeight() {
+  const onSuccess = useBodyInvalidation()
+  return useMutation({ mutationFn: (date: string) => api.deleteWeight(date), onSuccess })
+}
+
+/** Everything a diary write can touch: the calendar, pots, chips, the cook reminder, progress. */
+function useDiaryInvalidation() {
+  const qc = useQueryClient()
+  return () => {
+    qc.invalidateQueries({ queryKey: ['progress'] })
+    qc.invalidateQueries({ queryKey: ['plan'] })
+    qc.invalidateQueries({ queryKey: ['fridge'] })
+    qc.invalidateQueries({ queryKey: ['cook'] })
+    qc.invalidateQueries({ queryKey: ['foodFavorites'] })
+    qc.invalidateQueries({ queryKey: ['pendingCook'] })
+    qc.invalidateQueries({ queryKey: ['cookbook'] })
+  }
+}
+
+export function useAddDiaryEntry() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({ mutationFn: (input: DiaryEntryInput) => api.addDiaryEntry(input), onSuccess })
+}
+
+export function usePatchPlanEntry() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: PlanEntryPatch }) => api.patchPlanEntry(id, patch),
+    onSuccess,
+  })
+}
+
+export function useCreateCook() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({ mutationFn: (input: CookInput) => api.createCook(input), onSuccess })
+}
+
+export function useUpdateCook() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: ({ id, portions, assignments }: { id: string; portions: number; assignments: CookAssignment[] }) =>
+      api.updateCook(id, portions, assignments),
+    onSuccess,
+  })
+}
+
+export function useEatFromCook() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: ({ id, date, slot }: { id: string; date: string; slot: Slot }) => api.eatFromCook(id, date, slot),
+    onSuccess,
+  })
+}
+
+export function useDiscardCook() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({ mutationFn: (id: string) => api.discardCook(id), onSuccess })
+}
+
+export function useLogFavorite() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: ({ id, date, slot, grams }: { id: string; date: string; slot: Slot; grams?: number }) =>
+      api.logFavorite(id, date, slot, grams),
+    onSuccess,
   })
 }
 

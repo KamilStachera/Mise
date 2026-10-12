@@ -530,6 +530,26 @@ server.tool(
 )
 
 server.tool(
+  'plan_cook_for_days',
+  'Zaplanuj jeden garnek na kilka dni: dzień gotowania + resztki (każde przypisanie = 1 porcja). ' +
+    'Zakupy liczą tylko dzień gotowania, przeskalowany do całego garnka. Używaj zamiast kilku set_plan_entry z tym samym przepisem.',
+  {
+    recipeId: z.string().uuid(),
+    portions: z.number().int().min(1).max(12).describe('porcje w garnku (≥ 1 + liczba przypisań)'),
+    firstDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('dzień gotowania, YYYY-MM-DD'),
+    firstSlot: z.enum(['breakfast', 'lunch', 'dinner']),
+    assignments: z
+      .array(z.object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        slot: z.enum(['breakfast', 'lunch', 'dinner']),
+      }))
+      .optional()
+      .describe('kolejne dni z resztkami'),
+  },
+  async (input) => text(await post('/diary/cooks', input)),
+)
+
+server.tool(
   'preview_plan_shopping',
   'Porównaj potrzeby planu z przybliżonym i konserwatywnym stanem spiżarni. ' +
     'needsConfirmation=true tylko wtedy, gdy szybka korekta może zmienić zakupy.',

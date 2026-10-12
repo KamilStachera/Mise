@@ -40,3 +40,23 @@ export const WEEKDAY_SHORT = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
 export function dayMonth(d: Date): string {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`
 }
+
+export const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
+
+/** "14 paź" — the design's day label next to serif day names. */
+export function dayShortMonth(d: Date): string {
+  return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`
+}
+
+/** "17:10" — local clock time of an ISO instant. */
+export function hhmm(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** When a sync happened: „12:40”, „wczoraj 21:10” or „10 paź 08:00”. */
+export function syncLabel(iso: string): string {
+  const d = new Date(iso)
+  const days = daysAgo(toISO(d))
+  return days === 0 ? hhmm(iso) : days === 1 ? `wczoraj ${hhmm(iso)}` : `${dayShortMonth(d)} ${hhmm(iso)}`
+}

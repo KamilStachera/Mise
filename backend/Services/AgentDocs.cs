@@ -156,7 +156,7 @@ public static class AgentDocs
         | `cuisine` (przepis) | `polish` · `italian` · `french` · `spanish` · `greek` · `mediterranean` · `middleeastern` · `indian` · `thai` · `vietnamese` · `chinese` · `japanese` · `korean` · `mexican` · `american` · `other` |
         | `category` (spiżarnia) | `produce` — warzywa i owoce · `fridge` — lodówka · `pantry` — spiżarnia · `spices` — przyprawy |
         | `unit` (spiżarnia/składniki) | `g` — gramy · `ml` — mililitry · `szt` — sztuki |
-        | `slot` (plan) | `breakfast` · `lunch` · `dinner` |
+        | `slot` (plan) | `breakfast` · `lunch` · `dinner` · `snack` (przekąski — dziennik, prywatne) |
 
         Status spiżarni (`in` — jest · `low` — mało · `out` — brak) jest **wyliczany z ilości**
         (0 → `out`, poniżej progu → `low`) — nie da się go ustawić wprost; ustawia się ilości.
@@ -383,13 +383,26 @@ public static class AgentDocs
         }'
         ```
         Zamiast `recipeId` można podać `"title"` (danie bez zapisanego przepisu).
-        Ponowny zapis na tę samą datę i slot nadpisuje wpis.
+        Ponowny zapis na tę samą datę i slot nadpisuje pierwszy zaplanowany posiłek w tym
+        slocie; zjedzone wpisy, resztki i gotowanie na kilka dni zostają nietknięte.
+        Slot może mieścić kilka wpisów (np. resztki obok świeżego dania).
+
+        ### Gotowanie na kilka dni (garnek)
+        `POST /diary/cooks` — `{ "recipeId": "<guid>", "portions": 4, "firstDate": "2026-07-06",
+        "firstSlot": "dinner", "assignments": [{ "date": "2026-07-07", "slot": "lunch" }] }`.
+        Pierwszy dzień to dzień gotowania; każde przypisanie to jedna porcja resztek
+        (`isLeftover: true`). Zakupy liczą tylko dzień gotowania, przeskalowany do całego
+        garnka — resztek nie kupuje się drugi raz. Planując to samo danie na kilka dni,
+        używaj tego zamiast kilku osobnych `PUT /plan/entry`.
 
         ### Pozostałe
         - `GET /plan?start=YYYY-MM-DD&days=14` — wpisy (domyślnie od poniedziałku bieżącego
           tygodnia). Każdy wpis ma `cooked` — czy istnieje pasujący wpis w historii
-          gotowania (ten sam przepis/nazwa, ±1 dzień).
-        - `DELETE /plan/entry/{id}`.
+          gotowania (ten sam przepis/nazwa, ±1 dzień) — oraz `portions`, `kcal` (suma dla
+          wpisu), `cookId`/`isLeftover` dla garnków.
+        - `DELETE /plan/entry/{id}` — usunięcie dnia gotowania usuwa też zaplanowane resztki.
+        - Dziennik jedzenia (slot `snack`, zjedzone wpisy, `/diary/*`), cel i waga (`/body/*`)
+          oraz aktywność z opaski (`/activity/*`) są prywatne i nie trafiają do `plan.md`.
         - `GET /plan/shopping-preview?start=YYYY-MM-DD&days=7` — porównuje szacunek z
           ilością konserwatywną i oznacza `needsConfirmation` tylko gdy zmienia wynik zakupów.
         - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7,

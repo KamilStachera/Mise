@@ -2,10 +2,18 @@
 // showToast(), the single <ToastHost/> in App registers the consumer.
 // A toast fired before the host mounts is held until it does.
 
-let consumer: ((message: string) => void) | null = null
-let pending: string | null = null
+/** Optional inline action, e.g. „Cofnij” after a one-tap diary log. */
+export interface ToastAction {
+  label: string
+  run: () => void
+}
 
-export function registerToastConsumer(fn: (message: string) => void): () => void {
+type Toast = { message: string; action?: ToastAction }
+
+let consumer: ((toast: Toast) => void) | null = null
+let pending: Toast | null = null
+
+export function registerToastConsumer(fn: (toast: Toast) => void): () => void {
   consumer = fn
   if (pending !== null) {
     const p = pending
@@ -17,7 +25,8 @@ export function registerToastConsumer(fn: (message: string) => void): () => void
   }
 }
 
-export function showToast(message: string): void {
-  if (consumer) consumer(message)
-  else pending = message
+export function showToast(message: string, action?: ToastAction): void {
+  const toast = { message, action }
+  if (consumer) consumer(toast)
+  else pending = toast
 }

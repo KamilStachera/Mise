@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { registerToastConsumer } from '../lib/toastBus'
+import { registerToastConsumer, type ToastAction } from '../lib/toastBus'
 import { useIsMobile } from '../lib/useIsMobile'
 
 /** Single global toast, bottom-center, auto-dismissing. Mounted once in App. */
 export function ToastHost() {
   const isMobile = useIsMobile()
-  const [message, setMessage] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; action?: ToastAction } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
-    const unregister = registerToastConsumer((msg) => {
-      setMessage(msg)
+    const unregister = registerToastConsumer((t) => {
+      setToast(t)
       clearTimeout(timer.current)
-      timer.current = setTimeout(() => setMessage(null), 4500)
+      timer.current = setTimeout(() => setToast(null), t.action ? 6000 : 4500)
     })
     return () => {
       unregister()
@@ -20,12 +20,12 @@ export function ToastHost() {
     }
   }, [])
 
-  if (!message) return null
+  if (!toast) return null
 
   return (
     <div
       role="status"
-      onClick={() => setMessage(null)}
+      onClick={() => setToast(null)}
       style={{
         position: 'fixed',
         // Phones: clear the tab bar plus a pinned action/add bar above it.
@@ -34,6 +34,9 @@ export function ToastHost() {
         transform: 'translateX(-50%)',
         zIndex: 1000,
         maxWidth: 'min(92vw, 440px)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
         padding: '11px 18px',
         borderRadius: 12,
         background: 'var(--text)',
@@ -43,7 +46,20 @@ export function ToastHost() {
         cursor: 'pointer',
       }}
     >
-      {message}
+      <span>{toast.message}</span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            toast.action!.run()
+            setToast(null)
+          }}
+          style={{ border: 0, background: 'transparent', padding: 0, color: 'var(--accent-warm)', font: "600 13.5px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          {toast.action.label}
+        </button>
+      )}
     </div>
   )
 }

@@ -64,6 +64,16 @@ public static partial class RecipeScaling
         };
     }
 
+    /// <summary>The recipe scaled to an explicit portion count (a pot's size), ignoring SelectedServings.</summary>
+    public static Recipe ScaledTo(Recipe r, int servings) => Scaled(new Recipe
+    {
+        Id = r.Id,
+        Title = r.Title,
+        Servings = r.Servings,
+        SelectedServings = servings,
+        Ingredients = r.Ingredients,
+    });
+
     /// <summary>Multiply before dividing — 3 szt at 3→2 servings must come out exactly 2.</summary>
     private static decimal Scale(decimal value, int selected, int servings) =>
         Math.Round(value * selected / servings, 2);

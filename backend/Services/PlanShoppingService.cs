@@ -21,6 +21,7 @@ public static class PlanShoppingService
         var entries = await db.PlanEntries.AsNoTracking()
             .Include(e => e.Recipe)!
                 .ThenInclude(r => r!.Ingredients)
+            .Include(e => e.Cook)
             .AsSplitQuery()
             .Where(e => e.Date >= from && e.Date < to && e.RecipeId != null)
             .ToListAsync();
@@ -34,24 +35,41 @@ public static class PlanShoppingService
             .ToListAsync();
 
         var sources = entries
-            .Where(e => e.Recipe is not null && !IsCooked(e, logs))
+            .Where(e => e.Recipe is not null && NeedsShopping(e) && !IsCooked(e, logs))
             .Select(e => new ShoppingRecipeSource(
-                $"plan:{e.Id}", e.Recipe!.Title, RecipeScaling.Scaled(e.Recipe)))
+                $"plan:{e.Id}", e.Recipe!.Title,
+                e.Cook is { } cook ? RecipeScaling.ScaledTo(e.Recipe, cook.Portions) : RecipeScaling.Scaled(e.Recipe)))
             .ToList();
         var scopeKeys = entries.Select(e => $"plan:{e.Id}").ToList();
         return new PlanShoppingSelection(sources, scopeKeys);
     }
 
     /// <summary>
+    /// Leftovers are never bought (the cook day already buys the whole pot) and neither is
+    /// anything already eaten — she evidently had it.
+    /// </summary>
+    public static bool NeedsShopping(PlanEntry e) => !e.IsLeftover && e.EatenAt is null;
+
+    /// <summary>
     /// A cook-log entry with the same recipe (or dish name, case-insensitive)
-    /// within +/-1 day marks a plan entry as cooked.
+    /// within +/-1 day marks a plan entry as cooked. Leftovers are matched on their
+    /// pot's cook day (needs <see cref="PlanEntry.Cook"/> loaded).
     /// </summary>
     public static bool IsCooked(PlanEntry entry, IReadOnlyCollection<CookLogEntry> logs)
     {
         var title = entry.Recipe?.Title ?? entry.Title;
+        var date = entry.IsLeftover && entry.Cook is not null ? entry.Cook.Date : entry.Date;
         return logs.Any(log =>
-            Math.Abs(log.CookedAt.DayNumber - entry.Date.DayNumber) <= 1
+            Math.Abs(log.CookedAt.DayNumber - date.DayNumber) <= 1
             && ((entry.RecipeId is not null && log.RecipeId == entry.RecipeId)
                 || string.Equals(log.DishName, title, StringComparison.OrdinalIgnoreCase)));
     }
+
+    /// <summary>
+    /// Whether an entry is something you cook (and so belongs in the "did you log it?"
+    /// reminder): saved recipes on their cook day, or typed meals without kcal. Leftovers,
+    /// snacks and typed food with kcal are diary logs, not cooking.
+    /// </summary>
+    public static bool IsCookable(PlanEntry e) =>
+        e.RecipeId is not null ? !e.IsLeftover : e.Slot != MealSlot.Snack && e.Kcal is null;
 }

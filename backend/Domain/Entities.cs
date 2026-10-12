@@ -24,7 +24,8 @@ public enum PantryUnit { G, Ml, Szt }
 
 public enum ShoppingOrigin { Recipe, Manual }
 
-public enum MealSlot { Breakfast, Lunch, Dinner }
+/// <summary>Snack ("Przekąski") is diary-only: small bites and sweets, private like the rest of the diary.</summary>
+public enum MealSlot { Breakfast, Lunch, Dinner, Snack }
 
 public class Recipe
 {
@@ -323,7 +324,11 @@ public class CookLogEntry
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-/// <summary>One meal on the weekly plan; unique per (Date, Slot) so writes are upserts.</summary>
+/// <summary>
+/// One item on the calendar: a planned meal or something eaten (the diary). A slot can
+/// hold several entries. Planned → eaten is <see cref="EatenAt"/>; nutrition rules live in
+/// <c>DiaryService</c>.
+/// </summary>
 public class PlanEntry
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -337,13 +342,189 @@ public class PlanEntry
     public string Title { get; set; } = "";
     public string Note { get; set; } = "";
 
+    /// <summary>Portions of the recipe this entry stands for (×0,5 / ×1 / ×1,5…). 1 for products.</summary>
+    public decimal Portions { get; set; } = 1;
+    /// <summary>Grams eaten, for products logged per 100 g; display only — <see cref="Kcal"/> is already the total.</summary>
+    public decimal? Grams { get; set; }
+
+    /// <summary>
+    /// Nutrition TOTALS for this entry (not per portion). Recipe entries: null while
+    /// planned (computed live from the recipe × <see cref="Portions"/>), a snapshot once
+    /// eaten so later recipe edits never rewrite past days. Non-recipe entries: the values
+    /// she typed (or a favourite's), null = unknown ("brak kcal").
+    /// </summary>
+    public int? Kcal { get; set; }
+    public decimal? Protein { get; set; }
+    public decimal? Fat { get; set; }
+    public decimal? Carbs { get; set; }
+
+    /// <summary>Null = planned; set = eaten.</summary>
+    public DateTimeOffset? EatenAt { get; set; }
+
+    /// <summary>The pot this portion comes from (cook day or leftover); null for ordinary entries.</summary>
+    public Guid? CookId { get; set; }
+    public Cook? Cook { get; set; }
+    /// <summary>
+    /// A later portion of <see cref="Cook"/> ("resztki"). Leftovers are never bought: shopping
+    /// only counts the cook-day entry, scaled to the whole pot.
+    /// </summary>
+    public bool IsLeftover { get; set; }
+
     /// <summary>
     /// True once the user waved off the "mark as cooked" reminder for this entry
     /// (meal skipped / eaten out); such entries never reappear in /plan/pending-cook.
     /// </summary>
     public bool CookReminderDismissed { get; set; }
 
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// One pot cooked for several days ("Gotuję na kilka dni"). Its portions are spread over
+/// plan entries (<see cref="PlanEntry.CookId"/>): the cook-day entry plus leftovers. What
+/// is neither assigned nor discarded sits "W lodówce".
+/// </summary>
+public class Cook
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid? RecipeId { get; set; }
+    public Recipe? Recipe { get; set; }
+    /// <summary>Recipe title snapshot (survives recipe deletion).</summary>
+    public string Title { get; set; } = "";
+    /// <summary>Day the pot is cooked — the date of its cook-day entry.</summary>
+    public DateOnly Date { get; set; }
+    /// <summary>Portions in the pot; also the shopping scale for the cook-day entry.</summary>
+    public int Portions { get; set; } = 2;
+    /// <summary>Portions thrown away ("wyrzucone"); they leave the fridge without being eaten.</summary>
+    public int DiscardedPortions { get; set; }
+    public List<PlanEntry> Entries { get; set; } = new();
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// A snack she logs often (Kinder Bueno 245 kcal) — the "Ulubione" chips in Szybki wpis.
+/// Same tally idea as <see cref="SupplyFavorite"/>: ranked pinned → decayed count.
+/// Nutrition is per portion, or per 100 g when <see cref="Per100g"/>.
+/// </summary>
+public class FoodFavorite
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>Identity key — IngredientMatcher.Normalize of the name. Unique.</summary>
+    public string NormalizedName { get; set; } = "";
+    public string Name { get; set; } = "";
+    public int Kcal { get; set; }
+    public decimal? Protein { get; set; }
+    public decimal? Fat { get; set; }
+    public decimal? Carbs { get; set; }
+    public bool Per100g { get; set; }
+    /// <summary>Grams used last time (per-100 g favourites log this amount on a chip tap).</summary>
+    public decimal? LastGrams { get; set; }
+    /// <summary>EAN from a barcode scan; lets a re-scan skip the Open Food Facts lookup.</summary>
+    public string? Barcode { get; set; }
+    public int AddCount { get; set; }
+    public DateTimeOffset? LastAddedAt { get; set; }
+    public bool Pinned { get; set; }
+    public bool Hidden { get; set; }
+}
+
+public enum BodySex { Female, Male }
+
+/// <summary>Everyday activity outside workouts — the TDEE multiplier (1.2 / 1.375 / 1.55 / 1.725).</summary>
+public enum ActivityLevel { Sedentary, Light, Moderate, High }
+
+/// <summary>
+/// Singleton row (Id = 1): "Twój cel". The daily kcal target is derived (Mifflin-St Jeor →
+/// TDEE → minus the pace deficit, see <c>BodyService</c>) unless <see cref="TargetKcalOverride"/>
+/// is set. Current weight is not stored here — it is the latest <see cref="WeightEntry"/>.
+/// Private like the diary.
+/// </summary>
+public class BodyProfile
+{
+    public int Id { get; set; } = 1;
+    public BodySex Sex { get; set; } = BodySex.Female;
+    public int BirthYear { get; set; }
+    public int HeightCm { get; set; }
+    public decimal GoalWeightKg { get; set; }
+    public ActivityLevel ActivityLevel { get; set; } = ActivityLevel.Light;
+    /// <summary>Planned loss per week (0.25 / 0.5 / 0.75); 7700 kcal ≈ 1 kg.</summary>
+    public decimal PaceKgPerWeek { get; set; } = 0.5m;
+    /// <summary>Hand-set daily target; null = computed.</summary>
+    public int? TargetKcalOverride { get; set; }
+    /// <summary>Hand-set protein goal in grams; null = 1.6 g per kg of current weight.</summary>
+    public int? ProteinTargetOverride { get; set; }
+    /// <summary>Share of band-recorded active kcal added to the day's budget (0 / 50 / 100).</summary>
+    public int ActivityAddBackPercent { get; set; } = 50;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public enum MeasurementSource { Manual, HealthConnect }
+
+/// <summary>
+/// One weigh-in per day. A manual entry always wins; from the scale (Health Connect) the
+/// day's earliest measurement is kept — the morning weight, not the after-dinner one.
+/// </summary>
+public class WeightEntry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public DateOnly Date { get; set; }
+    public decimal Kg { get; set; }
+    public MeasurementSource Source { get; set; } = MeasurementSource.Manual;
+    /// <summary>When the scale measured it (Health Connect); null for manual entries.</summary>
+    public DateTimeOffset? MeasuredAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public enum EnergyKind { Active, Total }
+
+/// <summary>
+/// One raw Health Connect energy interval as the band app wrote it. Re-sent records are
+/// upserted on (Kind, Start, End). A day's active kcal is the sum of its Active samples; when
+/// the band only writes Total, active ≈ total − BMR (see <c>ActivityService</c>).
+/// </summary>
+public class EnergySample
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public EnergyKind Kind { get; set; }
+    public DateTimeOffset Start { get; set; }
+    public DateTimeOffset End { get; set; }
+    /// <summary>Local (Europe/Warsaw) day of <see cref="Start"/>.</summary>
+    public DateOnly Date { get; set; }
+    public decimal Kcal { get; set; }
+    public DateTimeOffset ReceivedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// A training session. From the band (Health Connect) its kcal is derived from the Active
+/// samples inside its window, so it is never counted twice; a manual one carries its own
+/// <see cref="Kcal"/>, which adds to the day.
+/// </summary>
+public class Workout
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public DateOnly Date { get; set; }
+    public DateTimeOffset? StartedAt { get; set; }
+    public int Minutes { get; set; }
+    /// <summary>Manual: the kcal she entered. Health Connect: null (computed from samples).</summary>
+    public int? Kcal { get; set; }
+    /// <summary>Polish label (Trening siłowy, Spacer…).</summary>
+    public string Type { get; set; } = "";
+    public MeasurementSource Source { get; set; } = MeasurementSource.Manual;
+    /// <summary>Health Connect identity: start|end instants. Unique when set.</summary>
+    public string? ExternalKey { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// Singleton (Id = 1): the band/scale sync. <see cref="Token"/> is the secret in the webhook
+/// URL the phone's HC Webhook app posts to (<c>/api/hc/{token}</c>) — rotate it to cut a phone off.
+/// </summary>
+public class HealthSync
+{
+    public int Id { get; set; } = 1;
+    public string Token { get; set; } = "";
+    public DateTimeOffset? LastSyncAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>

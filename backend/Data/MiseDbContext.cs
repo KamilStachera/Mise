@@ -22,6 +22,13 @@ public class MiseDbContext : DbContext
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<CookLogEntry> CookLog => Set<CookLogEntry>();
     public DbSet<PlanEntry> PlanEntries => Set<PlanEntry>();
+    public DbSet<Cook> Cooks => Set<Cook>();
+    public DbSet<FoodFavorite> FoodFavorites => Set<FoodFavorite>();
+    public DbSet<BodyProfile> BodyProfiles => Set<BodyProfile>();
+    public DbSet<WeightEntry> WeightEntries => Set<WeightEntry>();
+    public DbSet<EnergySample> EnergySamples => Set<EnergySample>();
+    public DbSet<Workout> Workouts => Set<Workout>();
+    public DbSet<HealthSync> HealthSyncs => Set<HealthSync>();
     public DbSet<ProfileAnswer> ProfileAnswers => Set<ProfileAnswer>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -139,8 +146,75 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Slot).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.Title).HasMaxLength(300);
+            e.Property(x => x.Portions).HasPrecision(6, 2);
+            e.Property(x => x.Grams).HasPrecision(8, 1);
+            e.Property(x => x.Protein).HasPrecision(7, 1);
+            e.Property(x => x.Fat).HasPrecision(7, 1);
+            e.Property(x => x.Carbs).HasPrecision(7, 1);
             e.HasOne(x => x.Recipe).WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.SetNull);
-            e.HasIndex(x => new { x.Date, x.Slot }).IsUnique();
+            e.HasOne(x => x.Cook).WithMany(c => c.Entries).HasForeignKey(x => x.CookId).OnDelete(DeleteBehavior.SetNull);
+            // Several entries per slot now (snacks, a leftover next to a fresh meal) — not unique.
+            e.HasIndex(x => new { x.Date, x.Slot });
+            e.HasIndex(x => x.CookId);
+        });
+
+        b.Entity<Cook>(e =>
+        {
+            e.Property(x => x.Title).HasMaxLength(300);
+            e.HasOne(x => x.Recipe).WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.Date);
+        });
+
+        b.Entity<BodyProfile>(e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Sex).HasConversion<string>().HasMaxLength(8);
+            e.Property(x => x.ActivityLevel).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.GoalWeightKg).HasPrecision(5, 1);
+            e.Property(x => x.PaceKgPerWeek).HasPrecision(4, 2);
+        });
+
+        b.Entity<WeightEntry>(e =>
+        {
+            e.Property(x => x.Kg).HasPrecision(5, 2);
+            e.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
+            e.HasIndex(x => x.Date).IsUnique();
+        });
+
+        b.Entity<EnergySample>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(8);
+            e.Property(x => x.Kcal).HasPrecision(8, 2);
+            e.HasIndex(x => new { x.Kind, x.Start, x.End }).IsUnique();
+            e.HasIndex(x => x.Date);
+        });
+
+        b.Entity<Workout>(e =>
+        {
+            e.Property(x => x.Type).HasMaxLength(60);
+            e.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.ExternalKey).HasMaxLength(100);
+            e.HasIndex(x => x.ExternalKey).IsUnique();
+            e.HasIndex(x => x.Date);
+        });
+
+        b.Entity<HealthSync>(e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Token).HasMaxLength(64);
+        });
+
+        b.Entity<FoodFavorite>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.NormalizedName).HasMaxLength(200);
+            e.Property(x => x.Barcode).HasMaxLength(32);
+            e.Property(x => x.Protein).HasPrecision(7, 1);
+            e.Property(x => x.Fat).HasPrecision(7, 1);
+            e.Property(x => x.Carbs).HasPrecision(7, 1);
+            e.Property(x => x.LastGrams).HasPrecision(8, 1);
+            e.HasIndex(x => x.NormalizedName).IsUnique();
+            e.HasIndex(x => x.Barcode);
         });
 
         b.Entity<ProfileAnswer>(e =>

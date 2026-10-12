@@ -7,10 +7,13 @@ namespace Mise.Api.Services;
 /// </summary>
 public sealed class ApiAccessMiddleware(RequestDelegate next)
 {
-    /// <summary>Reads that stay privileged: chat is personal, context/status+connect leak host paths, swagger advertises the write surface.</summary>
+    /// <summary>Reads that stay privileged: chat and the food diary are personal, context/status+connect leak host paths, swagger advertises the write surface.</summary>
     private static readonly PathString[] PrivatePrefixes =
     [
         new("/api/chat"),
+        new("/api/diary"),
+        new("/api/body"),
+        new("/api/activity"),
         new("/api/context/status"),
         new("/api/context/connect"),
         new("/api/swagger"),
@@ -19,9 +22,12 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext ctx, AccessControl access)
     {
         var path = ctx.Request.Path;
+        // /api/hc/{token}: the phone's HC Webhook posts band/scale data; the endpoint itself
+        // checks the secret token in the URL (an app on a phone can't do a Google login).
         if (!path.StartsWithSegments("/api")
             || path.StartsWithSegments("/api/auth")
-            || path.Equals("/api/health"))
+            || path.Equals("/api/health")
+            || (path.StartsWithSegments("/api/hc") && HttpMethods.IsPost(ctx.Request.Method)))
         {
             await next(ctx);
             return;

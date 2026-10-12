@@ -19,7 +19,12 @@
   --accent-soft-text: #8f3a1f;
   --sage: oklch(0.55 0.09 135); /* "jest" / have everything / checked */
   --sage-text: oklch(0.5 0.1 135);
-  --gold: oklch(0.7 0.13 75); /* "mało" / stars */
+  --gold: oklch(0.7 0.13 75); /* "mało" / stars / over budget */
+  --gold-text: oklch(0.5 0.11 75); /* over-budget label, „brak kcal” */
+  --gold-soft: #f3e8cf; /* stale band-sync block */
+  /* planned kcal in meters (on ink use the --hatch-on-dark variant) */
+  --hatch: repeating-linear-gradient(-45deg, #1d1813 0 1px, transparent 1px 4px);
+  --hatch-on-dark: repeating-linear-gradient(-45deg, #f5f0e6 0 1px, transparent 1px 4px);
 
   --serif: "Newsreader", Georgia, serif;
   --sans: "Schibsted Grotesk", system-ui, sans-serif;

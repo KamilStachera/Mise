@@ -22,6 +22,52 @@ namespace Mise.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Mise.Api.Domain.BodyProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ActivityAddBackPercent")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActivityLevel")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("BirthYear")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("GoalWeightKg")
+                        .HasPrecision(5, 1)
+                        .HasColumnType("numeric(5,1)");
+
+                    b.Property<int>("HeightCm")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("PaceKgPerWeek")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("numeric(4,2)");
+
+                    b.Property<int?>("ProteinTargetOverride")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Sex")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int?>("TargetKcalOverride")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BodyProfiles");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.ChatMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -52,6 +98,41 @@ namespace Mise.Api.Data.Migrations
                     b.HasIndex("SessionId", "CreatedAt");
 
                     b.ToTable("ChatMessages");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.Cook", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("DiscardedPortions")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Portions")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("RecipeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("RecipeId");
+
+                    b.ToTable("Cooks");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.CookLogEntry", b =>
@@ -90,6 +171,43 @@ namespace Mise.Api.Data.Migrations
                     b.ToTable("CookLog");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.EnergySample", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("End")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Kcal")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("numeric(8,2)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("Start")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("Kind", "Start", "End")
+                        .IsUnique();
+
+                    b.ToTable("EnergySamples");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.EquipmentItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -114,6 +232,91 @@ namespace Mise.Api.Data.Migrations
                     b.HasIndex("PreferencesId");
 
                     b.ToTable("EquipmentItems");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.FoodFavorite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AddCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal?>("Carbs")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<decimal?>("Fat")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<bool>("Hidden")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kcal")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastAddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("LastGrams")
+                        .HasPrecision(8, 1)
+                        .HasColumnType("numeric(8,1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("Per100g")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Pinned")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("Protein")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Barcode");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("FoodFavorites");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.HealthSync", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastSyncAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HealthSyncs");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.PantryItem", b =>
@@ -171,15 +374,50 @@ namespace Mise.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("Carbs")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<Guid?>("CookId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("CookReminderDismissed")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<DateTimeOffset?>("EatenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("Fat")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<decimal?>("Grams")
+                        .HasPrecision(8, 1)
+                        .HasColumnType("numeric(8,1)");
+
+                    b.Property<bool>("IsLeftover")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("Kcal")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<decimal>("Portions")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<decimal?>("Protein")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
 
                     b.Property<Guid?>("RecipeId")
                         .HasColumnType("uuid");
@@ -199,10 +437,11 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CookId");
+
                     b.HasIndex("RecipeId");
 
-                    b.HasIndex("Date", "Slot")
-                        .IsUnique();
+                    b.HasIndex("Date", "Slot");
 
                     b.ToTable("PlanEntries");
                 });
@@ -658,6 +897,93 @@ namespace Mise.Api.Data.Migrations
                     b.ToTable("SupplyItems");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.WeightEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Kg")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)");
+
+                    b.Property<DateTimeOffset?>("MeasuredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date")
+                        .IsUnique();
+
+                    b.ToTable("WeightEntries");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.Workout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExternalKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("Kcal")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Minutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("ExternalKey")
+                        .IsUnique();
+
+                    b.ToTable("Workouts");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.Cook", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Recipe", "Recipe")
+                        .WithMany()
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Recipe");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.CookLogEntry", b =>
                 {
                     b.HasOne("Mise.Api.Domain.Recipe", "Recipe")
@@ -681,10 +1007,17 @@ namespace Mise.Api.Data.Migrations
 
             modelBuilder.Entity("Mise.Api.Domain.PlanEntry", b =>
                 {
+                    b.HasOne("Mise.Api.Domain.Cook", "Cook")
+                        .WithMany("Entries")
+                        .HasForeignKey("CookId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Mise.Api.Domain.Recipe", "Recipe")
                         .WithMany()
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Cook");
 
                     b.Navigation("Recipe");
                 });
@@ -749,6 +1082,11 @@ namespace Mise.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("ShoppingItem");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.Cook", b =>
+                {
+                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.Preferences", b =>

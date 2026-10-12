@@ -1,24 +1,38 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, usePantry, usePlan, usePlanAddMissing, usePlanShoppingPreview, useRecipes, useSetPlanEntry, useDeletePlanEntry } from '../api/hooks'
-import type { PantryConfirmation, PantryItem, PlanEntry, RecipeListItem, ShoppingPreviewItem, Slot } from '../api/client'
-import { formatGrams, formatQty, slotLabel, SLOTS, DAY_NAMES_PL } from '../lib/labels'
-import { WEEKDAY_SHORT, addDays, dayMonth, mondayOf, parseISODate, toISO } from '../lib/dates'
-import { useIsMobile } from '../lib/useIsMobile'
-import { RecipeThumb } from '../components/RecipeThumb'
-import { TAB_BAR_HEIGHT } from '../components/TabBar'
-import { Button, Eyebrow, PageTitle, Segmented, Sheet, inputStyle, mono, sans, usePagePad } from '../components/ui'
+import { useAuth, useBudget, usePantry, usePlan, usePlanAddMissing, usePlanShoppingPreview, useRecipes } from '../../api/hooks'
+import type { PantryConfirmation, PantryItem, PlanEntry, ShoppingPreviewItem, Slot } from '../../api/client'
+import { DAY_NAMES_PL, DIARY_SLOTS, SLOTS, formatKcal, formatQty, slotLabel } from '../../lib/labels'
+import { MONTHS_SHORT, WEEKDAY_SHORT, addDays, dayShortMonth, mondayOf, parseISODate, toISO } from '../../lib/dates'
+import { useIsMobile } from '../../lib/useIsMobile'
+import { CookMark, WeekDayBar, cookLetters, dayTotals, entryTitle, leftoverLabel, type DayTotals } from '../../components/diary/parts'
+import { useDiarySheets } from '../../components/diary/useDiarySheets'
+import { TAB_BAR_HEIGHT } from '../../components/TabBar'
+import { Button, Eyebrow, PageTitle, Sheet, inputStyle, mono, sans, usePagePad } from '../../components/ui'
 
-const MONTHS_SHORT = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
+/** „1 265 / 1 805” when there is a budget; otherwise eaten, or the planned estimate. */
+function dayLabel(t: DayTotals, budget: number | null): string {
+  if (t.eaten === 0 && t.planned === 0) return budget != null ? `— / ${formatKcal(budget)}` : '—'
+  const eaten = t.eaten > 0 ? formatKcal(t.eaten) : ''
+  const planned = t.planned > 0 ? `${eaten ? ' + ' : '~'}${formatKcal(t.planned)}` : ''
+  return `${eaten}${planned}${budget != null ? ` / ${formatKcal(budget)}` : ' kcal'}`
+}
 
-type CellRef = { date: string; slot: Slot }
-
-export function Plan() {
+/**
+ * Plan → Tydzień (P7, D2): the week grid with Przekąski, several items per cell, pots
+ * (letter marks + the W LODÓWCE row) and each day against the budget. Anonymous visitors see
+ * meals only — the API already strips the private diary.
+ */
+export function WeekView({ weekStart, onWeek, onDay, switcher }: {
+  weekStart: Date
+  onWeek: (d: Date) => void
+  onDay: (iso: string) => void
+  switcher: ReactNode
+}) {
   const { canEdit } = useAuth()
   const nav = useNavigate()
   const isMobile = useIsMobile()
   const pad = usePagePad()
-  const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()))
   const startISO = toISO(weekStart)
   const todayISO = toISO(new Date())
   const { data: plan } = usePlan(startISO)
@@ -26,50 +40,53 @@ export function Plan() {
   const addMissing = usePlanAddMissing()
   const previewShopping = usePlanShoppingPreview()
   const { data: pantryGroups = [] } = usePantry()
-  const [editing, setEditing] = useState<CellRef | null>(null)
   const [shopMsg, setShopMsg] = useState<string | null>(null)
   const [reviewItems, setReviewItems] = useState<ShoppingPreviewItem[] | null>(null)
+  const { openAdd, openEntry, sheets } = useDiarySheets()
+  const { data: budgetRange } = useBudget(startISO)
+  // Anonymous visitors get no budget: the API is private and the hook stays idle.
+  const budgetOf = (date: string) => budgetRange?.days.find((b) => b.date === date)?.budget ?? null
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => toISO(addDays(weekStart, i))), [weekStart])
   const recipeById = useMemo(() => new Map((recipes ?? []).map((r) => [r.id, r])), [recipes])
-  const entryAt = (date: string, slot: Slot): PlanEntry | undefined =>
-    plan?.entries.find((e) => e.date === date && e.slot === slot)
-  const planned = (plan?.entries ?? []).filter((e) => days.includes(e.date)).length
+  const entries = useMemo(() => (plan?.entries ?? []).filter((e) => days.includes(e.date)), [plan, days])
+  const letters = useMemo(() => cookLetters(entries), [entries])
+  const slots = canEdit ? DIARY_SLOTS : SLOTS
+  const at = (date: string, slot: Slot) => entries.filter((e) => e.date === date && e.slot === slot)
+  const totalsOf = (date: string) => dayTotals(entries.filter((e) => e.date === date))
+  const mealsPlanned = entries.filter((e) => e.slot !== 'snack').length
 
-  // Per-day macro sums (one serving per entry) — only entries whose linked
-  // recipe has a kcal estimate count; days with no data show nothing.
-  const macrosByDay = useMemo(() => {
-    const sums = new Map<string, { kcal: number; protein: number }>()
-    for (const e of plan?.entries ?? []) {
-      const r = e.recipeId ? recipeById.get(e.recipeId) : undefined
-      if (!r || r.kcal == null) continue
-      const day = sums.get(e.date) ?? { kcal: 0, protein: 0 }
-      day.kcal += r.kcal
-      day.protein += r.protein ?? 0
-      sums.set(e.date, day)
-    }
-    return sums
-  }, [plan, recipeById])
-
-  const macroLine = (date: string) => {
-    const m = macrosByDay.get(date)
-    if (!m) return '—'
-    return `~${m.kcal} kcal${m.protein > 0 ? ` · B ${formatGrams(m.protein)}` : ''}`
-  }
+  // Pots visible this week: from the cook day (or the week's first portion) to the last portion.
+  const pots = useMemo(() => {
+    const byCook = new Map<string, PlanEntry[]>()
+    for (const e of entries) if (e.cookId) byCook.set(e.cookId, [...(byCook.get(e.cookId) ?? []), e])
+    return [...byCook.entries()].map(([cookId, list]) => {
+      const sorted = list.sort((a, b) => a.date.localeCompare(b.date))
+      const used = list.reduce((s, e) => s + e.portions, 0)
+      return {
+        cookId,
+        letter: letters.get(cookId) ?? '?',
+        title: entryTitle(sorted[0]),
+        portions: sorted[0].cookPortions ?? 0,
+        from: Math.max(0, days.indexOf(sorted[0].date)),
+        to: days.indexOf(sorted[sorted.length - 1].date),
+        left: Math.max(0, Math.floor((sorted[0].cookPortions ?? 0) - used)),
+      }
+    })
+  }, [entries, letters, days])
 
   function goWeek(next: Date) {
-    setWeekStart(next)
-    setEditing(null)
+    onWeek(next)
     setReviewItems(null)
     setShopMsg(null)
   }
 
-  function onCell(ref: CellRef) {
-    if (canEdit) setEditing(ref)
-    else {
-      const recipeId = entryAt(ref.date, ref.slot)?.recipeId
-      if (recipeId) nav(`/recipe/${recipeId}`)
-    }
+  function onCell(date: string, slot: Slot, list: PlanEntry[]) {
+    if (canEdit) {
+      if (list.length === 1) openEntry(list[0])
+      else if (list.length === 0) openAdd(date, slot)
+      else onDay(date)
+    } else if (list[0]?.recipeId) nav(`/recipe/${list[0].recipeId}`)
   }
 
   async function onAddMissing() {
@@ -98,49 +115,36 @@ export function Plan() {
   const busy = addMissing.isPending || previewShopping.isPending
   const first = parseISODate(days[0])
   const last = parseISODate(days[6])
+  const leftoverNote = 'Resztki nie trafiają na listę zakupów. Składniki kupujesz raz, na dzień gotowania.'
 
-  const sheets = (
-    <>
-      <Sheet
-        open={!!editing}
-        onClose={() => setEditing(null)}
-        title={editing ? `${slotLabel[editing.slot]} · ${WEEKDAY_SHORT[days.indexOf(editing.date)] ?? ''} ${dayMonth(parseISODate(editing.date))}` : ''}
-        width={560}
-      >
-        {editing && (
-          <CellEditor key={`${editing.date}|${editing.slot}`} cell={editing} entry={entryAt(editing.date, editing.slot)} onClose={() => setEditing(null)} />
-        )}
-      </Sheet>
-      <Sheet open={!!reviewItems} onClose={() => setReviewItems(null)} title="Krótki przegląd" width={620}>
-        {reviewItems && (
-          <ShoppingReview
-            items={reviewItems}
-            pantry={pantryGroups.flatMap((group) => group.items)}
-            pending={addMissing.isPending}
-            onCancel={() => setReviewItems(null)}
-            onCommit={commitShopping}
-          />
-        )}
-      </Sheet>
-    </>
+  const reviewSheet = (
+    <Sheet open={!!reviewItems} onClose={() => setReviewItems(null)} title="Krótki przegląd" width={620}>
+      {reviewItems && (
+        <ShoppingReview
+          items={reviewItems}
+          pantry={pantryGroups.flatMap((group) => group.items)}
+          pending={addMissing.isPending}
+          onCancel={() => setReviewItems(null)}
+          onCommit={commitShopping}
+        />
+      )}
+    </Sheet>
   )
 
   if (isMobile) {
     return (
-      <div style={{ ...pad, paddingBottom: canEdit ? 96 : 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <PageTitle
-          title="Plan"
-          right={
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, font: sans(14, 600) }}>
-              <button type="button" aria-label="Poprzedni tydzień" onClick={() => goWeek(addDays(weekStart, -7))} style={arrowBtn}>‹</button>
-              <button type="button" onClick={() => goWeek(mondayOf(new Date()))} style={{ ...arrowBtn, width: 'auto' }} title="Ten tydzień">
-                {first.getDate()}–{last.getDate()} {MONTHS_SHORT[last.getMonth()]}
-              </button>
-              <button type="button" aria-label="Następny tydzień" onClick={() => goWeek(addDays(weekStart, 7))} style={arrowBtn}>›</button>
-            </span>
-          }
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)', padding: '10px 0' }}>
+      <div style={{ ...pad, paddingBottom: canEdit ? 150 : 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <PageTitle title="Plan" right={switcher} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', font: mono(13, 500) }}>
+          <button type="button" onClick={() => goWeek(mondayOf(new Date()))} style={{ ...arrowBtn, width: 'auto', font: mono(13, 500) }} title="Ten tydzień">
+            {first.getDate()}–{last.getDate()} {MONTHS_SHORT[last.getMonth()]}
+          </button>
+          <span>
+            <button type="button" aria-label="Poprzedni tydzień" onClick={() => goWeek(addDays(weekStart, -7))} style={arrowBtn}>‹</button>
+            <button type="button" aria-label="Następny tydzień" onClick={() => goWeek(addDays(weekStart, 7))} style={arrowBtn}>›</button>
+          </span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)', padding: '10px 0' }}>
           {days.map((d, i) => {
             const today = d === todayISO
             return (
@@ -148,75 +152,95 @@ export function Plan() {
                 key={d}
                 type="button"
                 onClick={() => document.getElementById(`plan-day-${d}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 0', border: 0, borderRadius: 10, background: today ? 'var(--text)' : 'transparent', color: today ? 'var(--bg)' : 'var(--text)', cursor: 'pointer' }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 5, padding: '6px 4px', border: 0, borderRadius: 10, background: today ? 'var(--text)' : 'transparent', color: today ? 'var(--bg)' : 'var(--text)', cursor: 'pointer' }}
               >
                 <span style={{ font: mono(10.5, 500), color: today ? 'var(--on-dark-muted)' : 'var(--text-3)' }}>{WEEKDAY_SHORT[i].slice(0, 2).toUpperCase()}</span>
                 <span style={{ font: mono(16, 500) }}>{parseISODate(d).getDate()}</span>
-                <span style={{ display: 'flex', gap: 2 }}>
-                  {SLOTS.map((s) => {
-                    const has = !!entryAt(d, s)
-                    const ink = today ? 'var(--bg)' : 'var(--text)'
-                    return <span key={s} style={{ width: 5, height: 5, borderRadius: '50%', boxSizing: 'border-box', background: has ? ink : 'transparent', border: has ? 0 : `1px solid ${ink}` }} />
-                  })}
-                </span>
+                <WeekDayBar totals={totalsOf(d)} budget={budgetOf(d)} onDark={today} />
               </button>
             )
           })}
         </div>
-        {days.map((d, i) => (
-          <div key={d} id={`plan-day-${d}`} style={{ display: 'flex', flexDirection: 'column', scrollMarginTop: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '8px 0 6px', borderTop: i === 0 ? 0 : '1px solid var(--rule)' }}>
-              <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 22 }}>
-                {DAY_NAMES_PL[i]} <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>{dayMonth(parseISODate(d))}</span>
-              </span>
-              <span style={{ font: mono(12), color: 'var(--text-2)' }}>{macrosByDay.has(d) ? macroLine(d) : ''}</span>
+        {days.map((d, i) => {
+          const t = totalsOf(d)
+          return (
+            <div key={d} id={`plan-day-${d}`} style={{ display: 'flex', flexDirection: 'column', scrollMarginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => canEdit && onDay(d)}
+                style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, padding: '8px 0 6px', border: 0, background: 'transparent', cursor: canEdit ? 'pointer' : 'default', textAlign: 'left', color: 'var(--text)' }}
+              >
+                <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24 }}>
+                  {DAY_NAMES_PL[i]} <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>{dayShortMonth(parseISODate(d))}</span>
+                </span>
+                <span style={{ font: mono(12), color: 'var(--text-2)' }}>{t.eaten + t.planned > 0 || budgetOf(d) != null ? dayLabel(t, budgetOf(d)) : ''}</span>
+              </button>
+              {slots.map((s) => {
+                const list = at(d, s)
+                const joined = s === 'snack' && list.length > 1
+                const rows: PlanEntry[][] = list.length === 0 ? [[]] : joined ? [list] : list.map((e) => [e])
+                return rows.map((row, ri) => (
+                  <button
+                    key={`${s}-${ri}`}
+                    type="button"
+                    onClick={() => (joined ? (canEdit ? onDay(d) : undefined) : onCell(d, s, row))}
+                    style={{ display: 'grid', gridTemplateColumns: '78px minmax(0, 1fr) auto', alignItems: row.length ? 'start' : 'center', gap: 10, padding: row.length || !canEdit ? '11px 0' : '7px 0', border: 0, borderTop: '1px solid var(--border)', background: 'transparent', cursor: canEdit || row[0]?.recipeId ? 'pointer' : 'default', textAlign: 'left', color: 'var(--text)' }}
+                  >
+                    <span style={{ font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', paddingTop: row.length ? 3 : 0 }}>{ri === 0 ? slotLabel[s] : ''}</span>
+                    {row.length > 0 ? (
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, font: sans(15), color: row.every((e) => e.eaten || !canEdit) ? 'var(--text)' : 'var(--text-2)' }}>
+                          {row.length === 1 && row[0].cookId && <CookMark letter={letters.get(row[0].cookId) ?? '?'} filled={!row[0].isLeftover} />}
+                          {row.map(entryTitle).join(' · ')}
+                          {row.length === 1 && row[0].cooked && <span title="Ugotowane — jest wpis w historii" style={{ color: 'var(--sage)', fontWeight: 600 }}>✓</span>}
+                        </span>
+                        {row.length === 1 && row[0].cookId && (
+                          <span style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 13.5, color: 'var(--text-2)' }}>
+                            {row[0].isLeftover ? leftoverLabel(row[0]) : `gotuję ${row[0].cookPortions} porcje`}
+                          </span>
+                        )}
+                      </span>
+                    ) : canEdit ? (
+                      <span style={{ height: 34, border: '1px dashed var(--border-2)', borderRadius: 9, display: 'flex', alignItems: 'center', padding: '0 12px', font: sans(14, 500), color: 'var(--text-2)' }}>+ Dodaj</span>
+                    ) : (
+                      <span style={{ color: 'var(--text-3)' }}>—</span>
+                    )}
+                    <span style={{ font: mono(12.5, 500), color: row.every((e) => e.eaten) ? 'var(--text)' : 'var(--text-3)', paddingTop: 2 }}>
+                      {kcalText(dayTotals(row))}
+                    </span>
+                  </button>
+                ))
+              })}
             </div>
-            {SLOTS.map((s) => {
-              const e = entryAt(d, s)
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => onCell({ date: d, slot: s })}
-                  style={{ display: 'flex', alignItems: e || !canEdit ? 'flex-start' : 'center', gap: 12, padding: e || !canEdit ? '11px 0' : '8px 0', border: 0, borderTop: '1px solid var(--border)', background: 'transparent', cursor: canEdit || e?.recipeId ? 'pointer' : 'default', textAlign: 'left', color: 'var(--text)' }}
-                >
-                  <span style={{ width: 74, flex: '0 0 74px', font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', paddingTop: e ? 3 : 0 }}>{slotLabel[s]}</span>
-                  {e ? (
-                    <EntryText entry={e} recipe={e.recipeId ? recipeById.get(e.recipeId) : undefined} size={15} />
-                  ) : canEdit ? (
-                    <span style={{ flex: 1, height: 34, border: '1px dashed var(--border-2)', borderRadius: 9, display: 'flex', alignItems: 'center', padding: '0 12px', font: sans(14, 500), color: 'var(--text-2)' }}>+ Dodaj</span>
-                  ) : (
-                    <span style={{ color: 'var(--text-3)' }}>—</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        ))}
-        {shopMsg && <span style={{ font: sans(14), color: 'var(--text-2)' }}>{shopMsg}</span>}
+          )
+        })}
+        <span style={{ font: sans(13.5), lineHeight: 1.5, color: 'var(--text-2)' }}>{shopMsg ?? leftoverNote}</span>
         {canEdit && (
-          <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '10px 16px', background: 'var(--bg)' }}>
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
             <Button size="xl" style={{ width: '100%' }} onClick={onAddMissing} disabled={busy}>
               {busy ? 'Sprawdzam…' : 'Dodaj brakujące składniki do zakupów'}
             </Button>
           </div>
         )}
+        {reviewSheet}
         {sheets}
       </div>
     )
   }
 
+  const gridCols = '96px repeat(7, minmax(0, 1fr))'
   return (
     <div style={{ ...pad, maxWidth: 1400, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
       <PageTitle
         title="Plan"
         sub={
           <>
-            Tydzień {dayMonth(first)} – {dayMonth(last)}. Plan trafia do <span style={{ font: mono(13.5) }}>plan.md</span> w folderze context — asystent może go czytać i uzupełniać przez API.
+            {first.getDate()}–{dayShortMonth(last)}. {canEdit ? 'Kropka pełna = zjedzone, przerywana = plan. Literą oznaczone jedno gotowanie i jego resztki.' : 'Plan tygodnia.'}
           </>
         }
         right={
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {switcher}
             <Button variant="quiet" size="sm" onClick={() => goWeek(addDays(weekStart, -7))}>‹ Poprzedni</Button>
             <Button variant="dark" size="sm" onClick={() => goWeek(mondayOf(new Date()))}>Dziś</Button>
             <Button variant="quiet" size="sm" onClick={() => goWeek(addDays(weekStart, 7))}>Następny ›</Button>
@@ -225,88 +249,135 @@ export function Plan() {
       />
 
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '88px repeat(7, minmax(0, 1fr))', borderTop: '1px solid var(--rule)', minWidth: 660 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: gridCols, borderTop: '1px solid var(--rule)', minWidth: 760 }}>
           <span />
           {days.map((d, i) => {
             const today = d === todayISO
+            const t = totalsOf(d)
             return (
-              <div key={d} style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '14px 12px', borderLeft: today ? 0 : '1px solid var(--border)', background: today ? 'var(--text)' : undefined, color: today ? 'var(--bg)' : undefined }}>
+              <button
+                key={d}
+                type="button"
+                onClick={() => canEdit && onDay(d)}
+                style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 12px', border: 0, borderLeft: today ? 0 : '1px solid var(--border)', background: today ? 'var(--text)' : 'transparent', color: today ? 'var(--bg)' : 'var(--text)', cursor: canEdit ? 'pointer' : 'default', textAlign: 'left', minWidth: 0 }}
+              >
                 <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 20 }}>
                   {WEEKDAY_SHORT[i]} <span style={{ fontStyle: 'italic', color: today ? 'var(--on-dark-muted)' : 'var(--text-3)' }}>{parseISODate(d).getDate()}</span>
                 </span>
-                <span style={{ font: mono(11), color: today ? 'var(--on-dark-muted)' : 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title="Suma z zaplanowanych przepisów (na porcję)">
-                  {macroLine(d)}
+                <WeekDayBar totals={t} budget={budgetOf(d)} onDark={today} />
+                <span style={{ font: mono(11), color: today ? 'var(--on-dark-muted)' : 'var(--text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {dayLabel(t, budgetOf(d))}
                 </span>
-              </div>
+              </button>
             )
           })}
 
-          {SLOTS.map((s, row) => {
+          {slots.map((s, row) => {
             const top = row === 0 ? '1px solid var(--rule)' : '1px solid var(--border)'
-            const bottom = row === SLOTS.length - 1 ? '1px solid var(--rule)' : undefined
             return [
-              <span key={s} style={{ padding: '16px 0', borderTop: top, borderBottom: bottom, font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+              <span key={s} style={{ padding: '16px 0', borderTop: top, font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
                 {slotLabel[s]}
               </span>,
               ...days.map((d) => {
-                const e = entryAt(d, s)
+                const list = at(d, s)
                 const today = d === todayISO
                 const cell: CSSProperties = {
                   display: 'flex',
-                  minHeight: 118,
-                  padding: e ? '14px 12px' : 10,
-                  border: 0,
+                  flexDirection: 'column',
+                  gap: 10,
+                  minHeight: s === 'snack' ? 92 : 104,
+                  padding: list.length ? '12px 12px' : 10,
                   borderTop: top,
-                  borderBottom: bottom ?? 0,
                   borderLeft: today ? 0 : '1px solid var(--border)',
                   background: today ? 'var(--surface)' : 'transparent',
-                  textAlign: 'left',
-                  cursor: canEdit || e?.recipeId ? 'pointer' : 'default',
-                  color: 'var(--text)',
                   minWidth: 0,
                 }
                 return (
-                  <button key={`${s}-${d}`} type="button" onClick={() => onCell({ date: d, slot: s })} style={cell}>
-                    {e ? (
-                      <EntryText entry={e} recipe={e.recipeId ? recipeById.get(e.recipeId) : undefined} size={14.5} />
-                    ) : canEdit ? (
-                      <span style={{ flex: 1, border: '1px dashed var(--border-2)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-3)' }}>+</span>
-                    ) : null}
-                  </button>
+                  <div key={`${s}-${d}`} style={cell}>
+                    {list.map((e) => (
+                      <button
+                        key={e.id}
+                        type="button"
+                        onClick={() => onCell(d, s, [e])}
+                        style={{ display: 'grid', gridTemplateColumns: canEdit ? '10px minmax(0, 1fr)' : 'minmax(0, 1fr)', gap: 7, padding: 0, border: 0, background: 'transparent', cursor: canEdit || e.recipeId ? 'pointer' : 'default', textAlign: 'left', color: 'var(--text)' }}
+                      >
+                        {canEdit && (
+                          <span style={{ width: 7, height: 7, marginTop: 6, borderRadius: '50%', boxSizing: 'border-box', background: e.eaten ? 'var(--sage)' : 'transparent', border: e.eaten ? 0 : '1px dashed var(--text-3)' }} />
+                        )}
+                        <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                          {recipeById.get(e.recipeId ?? '')?.sourceName && !canEdit && <Eyebrow size={10}>{recipeById.get(e.recipeId!)!.sourceName}</Eyebrow>}
+                          <span style={{ font: sans(14.5), lineHeight: 1.35, color: e.eaten || !canEdit ? 'var(--text)' : 'var(--text-2)' }}>
+                            {entryTitle(e)}
+                            {e.cooked && <span title="Ugotowane — jest wpis w historii" style={{ marginLeft: 6, color: 'var(--sage)', fontWeight: 600 }}>✓</span>}
+                          </span>
+                          {e.cookId && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <CookMark letter={letters.get(e.cookId) ?? '?'} filled={!e.isLeftover} />
+                              <span style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 13.5, color: 'var(--text-2)' }}>
+                                {e.isLeftover ? 'resztki' : `gotuję ×${e.cookPortions}`}
+                              </span>
+                            </span>
+                          )}
+                          {e.kcalMissing ? (
+                            <span style={{ font: mono(10.5, 500), color: 'var(--gold-text)' }}>brak kcal</span>
+                          ) : (
+                            e.kcal != null && <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{e.eaten ? '' : '~'}{formatKcal(e.kcal)}</span>
+                          )}
+                        </span>
+                      </button>
+                    ))}
+                    {list.length === 0 && canEdit && (
+                      <button type="button" onClick={() => openAdd(d, s)} aria-label={`Dodaj: ${slotLabel[s]}`} style={{ flex: 1, minHeight: 64, border: '1px dashed var(--border-2)', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 18, color: 'var(--text-3)' }}>+</button>
+                    )}
+                  </div>
                 )
               }),
             ]
           })}
+
+          {canEdit && pots.length > 0 && (
+            <>
+              <span style={{ padding: '14px 0', borderTop: '1px solid var(--rule)', font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', gridRow: `span ${pots.length}` }}>
+                W lodówce
+              </span>
+              {pots.map((p, i) => (
+                <div key={p.cookId} style={{ gridColumn: `${p.from + 2} / ${p.to + 3}`, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderTop: i === 0 ? '1px solid var(--rule)' : 0, minWidth: 0 }}>
+                  <CookMark letter={p.letter} filled />
+                  <span style={{ font: mono(11.5, 500), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title} · {p.portions} porcje</span>
+                  <span style={{ flex: 1, minWidth: 16, height: 1.5, background: 'var(--text)' }} />
+                  <span style={{ font: mono(11.5), color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{p.left > 0 ? `zostaje ${p.left}` : 'bez reszty'}</span>
+                  <CookMark letter={p.letter} filled={false} />
+                </div>
+              ))}
+            </>
+          )}
+          <span style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--rule)' }} />
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
-        <span style={{ font: sans(14.5), color: 'var(--text-2)' }}>{shopMsg ?? `${planned} z 21 posiłków zaplanowanych`}</span>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 4, font: sans(14.5), color: 'var(--text-2)' }}>
+          <span>{shopMsg ?? `${mealsPlanned} z 21 posiłków zaplanowanych`}</span>
+          {pots.length > 0 && <span style={{ font: sans(13.5), color: 'var(--text-3)' }}>{leftoverNote}</span>}
+        </span>
         {canEdit && (
           <Button size="lg" onClick={onAddMissing} disabled={busy}>
             {busy ? 'Sprawdzam…' : 'Dodaj brakujące składniki z tego tygodnia do zakupów'}
           </Button>
         )}
       </div>
+      {reviewSheet}
       {sheets}
     </div>
   )
 }
 
-const arrowBtn: CSSProperties = { width: 32, height: 36, border: 0, background: 'transparent', cursor: 'pointer', font: sans(14, 600), color: 'var(--text)' }
-
-function EntryText({ entry, recipe, size }: { entry: PlanEntry; recipe?: RecipeListItem; size: number }) {
-  return (
-    <span style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0, font: sans(size), lineHeight: 1.4 }}>
-      {recipe?.sourceName && <Eyebrow size={10}>{recipe.sourceName}</Eyebrow>}
-      <span>
-        {entry.recipeTitle ?? entry.title}
-        {entry.cooked && <span title="Ugotowane — jest wpis w historii" style={{ marginLeft: 6, color: 'var(--sage)', fontWeight: 600 }}>✓</span>}
-      </span>
-      {entry.note && <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>{entry.note}</span>}
-    </span>
-  )
+function kcalText(t: DayTotals): string {
+  if (t.eaten + t.planned === 0) return ''
+  return t.planned > 0 && t.eaten === 0 ? `~${formatKcal(t.planned)}` : formatKcal(t.eaten + t.planned)
 }
+
+const arrowBtn: CSSProperties = { width: 32, height: 36, border: 0, background: 'transparent', cursor: 'pointer', font: sans(16, 600), color: 'var(--text)' }
 
 function ShoppingReview({ items, pantry, pending, onCancel, onCommit }: {
   items: ShoppingPreviewItem[]
@@ -378,90 +449,6 @@ function ShoppingReview({ items, pantry, pending, onCancel, onCommit }: {
           {pending ? 'Dodaję…' : 'Przelicz i dodaj do zakupów'}
         </Button>
         <Button variant="quiet" onClick={onCancel}>Anuluj</Button>
-      </div>
-    </div>
-  )
-}
-
-function CellEditor({ cell, entry, onClose }: { cell: CellRef; entry?: PlanEntry; onClose: () => void }) {
-  const nav = useNavigate()
-  const setEntry = useSetPlanEntry()
-  const delEntry = useDeletePlanEntry()
-  const [mode, setMode] = useState<'recipe' | 'text'>(entry && !entry.recipeId ? 'text' : 'recipe')
-  const [recipeId, setRecipeId] = useState<string | null>(entry?.recipeId ?? null)
-  const [filter, setFilter] = useState('')
-  const [title, setTitle] = useState(entry?.recipeId ? '' : (entry?.title ?? ''))
-  const [note, setNote] = useState(entry?.note ?? '')
-  const { data: recipes } = useRecipes('all', '')
-
-  const q = filter.trim().toLowerCase()
-  const selected = (recipes ?? []).find((r) => r.id === recipeId)
-  const matches = (recipes ?? [])
-    .filter((r) => r.id !== recipeId && (!q || r.title.toLowerCase().includes(q)))
-    .slice(0, selected ? 5 : 6)
-  const canSave = mode === 'recipe' ? !!recipeId : title.trim().length > 0
-
-  async function onSave() {
-    await setEntry.mutateAsync({
-      date: cell.date,
-      slot: cell.slot,
-      recipeId: mode === 'recipe' ? recipeId : null,
-      title: mode === 'text' ? title.trim() : '',
-      note: note.trim(),
-    })
-    onClose()
-  }
-
-  async function onDelete() {
-    if (entry) await delEntry.mutateAsync(entry.id)
-    onClose()
-  }
-
-  const recipeRow = (r: RecipeListItem, on: boolean) => (
-    <button
-      key={r.id}
-      type="button"
-      onClick={() => setRecipeId(on ? null : r.id)}
-      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px', margin: '0 -10px', border: 0, borderRadius: 10, background: on ? 'var(--seg-bg)' : 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
-    >
-      <RecipeThumb r={r} letterSize={18} style={{ width: 40, height: 40, borderRadius: 8 }} />
-      <span style={{ flex: 1, minWidth: 0, font: sans(14.5, on ? 600 : 400) }}>{r.title}</span>
-      <span style={{ font: mono(12), color: 'var(--text-3)' }}>{on ? '✓' : `${r.time} min`}</span>
-    </button>
-  )
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <Segmented
-        value={mode}
-        onChange={setMode}
-        items={[
-          { key: 'recipe', label: 'Zapisany przepis' },
-          { key: 'text', label: 'Własne danie' },
-        ]}
-      />
-      {mode === 'recipe' ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <input style={inputStyle} value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Szukaj przepisu…" autoFocus />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {selected && recipeRow(selected, true)}
-            {matches.map((r) => recipeRow(r, false))}
-            {matches.length === 0 && !selected && <span style={{ font: sans(13.5), color: 'var(--text-3)', padding: '8px 0' }}>Brak pasujących przepisów.</span>}
-          </div>
-        </div>
-      ) : (
-        <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. Pizza na mieście, resztki z wczoraj…" autoFocus />
-      )}
-      <input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notatka (np. podwójna porcja, lunch na jutro)…" />
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button disabled={!canSave || setEntry.isPending} onClick={onSave}>{setEntry.isPending ? 'Zapisywanie…' : 'Zapisz'}</Button>
-        {entry?.recipeId && <Button variant="quiet" onClick={() => nav(`/recipe/${entry.recipeId}`)}>Otwórz przepis</Button>}
-        <span style={{ flex: 1 }} />
-        {entry && (
-          <Button variant="text" style={{ color: 'var(--accent-text)' }} onClick={onDelete}>
-            {delEntry.isPending ? 'Usuwanie…' : 'Usuń wpis'}
-          </Button>
-        )}
       </div>
     </div>
   )

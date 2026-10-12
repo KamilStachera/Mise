@@ -78,10 +78,56 @@ public record PreferencesDto(string HouseholdSummary, string HouseholdDetail, st
 public record CookLogEntryDto(Guid Id, Guid? RecipeId, string DishName, int? Rating, string Note, DateOnly CookedAt);
 public record CookLogResultDto(CookLogEntryDto Entry, List<CookDeductedDto> Deducted);
 
-/// <summary>Cooked = a matching cook-log entry exists (same recipe/dish, ±1 day) — see PlanEndpoints.IsCooked.</summary>
+/// <summary>
+/// One calendar item. Cooked = a matching cook-log entry exists (same recipe/dish, ±1 day;
+/// leftovers inherit their cook day's). Kcal/Protein/Fat/Carbs are TOTALS for this entry —
+/// the eaten snapshot, the typed values, or the live recipe estimate × Portions while
+/// planned; KcalMissing = no estimate to count. CookDate/CookPortions describe the pot for
+/// cook-day and leftover entries.
+/// </summary>
 public record PlanEntryDto(Guid Id, DateOnly Date, string Slot, Guid? RecipeId, string? RecipeTitle,
-    string Title, string Note, bool Cooked = false);
+    string Title, string Note, bool Cooked, decimal Portions, decimal? Grams,
+    int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs, bool KcalMissing, bool Eaten,
+    Guid? CookId, bool IsLeftover, DateOnly? CookDate, int? CookPortions);
 public record PlanRangeDto(DateOnly Start, int Days, List<PlanEntryDto> Entries);
+
+/// <summary>A pot with portions left: neither assigned to a plan entry nor discarded.</summary>
+public record FridgeItemDto(Guid CookId, Guid? RecipeId, string Title, DateOnly Date, int Portions,
+    int Remaining, int? KcalPerPortion);
+public record CookDto(Guid Id, Guid? RecipeId, string Title, DateOnly Date, int Portions,
+    int DiscardedPortions, int Remaining, int? KcalPerPortion, List<PlanEntryDto> Entries);
+/// <summary>"Twój cel". Configured=false → nothing set up yet (all other fields are defaults). Target = override ?? computed.</summary>
+public record BodyDto(bool Configured, string Sex, int BirthYear, int HeightCm, decimal GoalKg, string ActivityLevel,
+    decimal PaceKg, int? TargetOverride, int? ProteinOverride, int AddBackPercent, decimal? CurrentKg,
+    int? Bmr, int? Tdee, int? ComputedTarget, int? Target, int? ProteinTarget);
+/// <summary>Budget = Target + AddBackPercent % of the day's band-recorded active kcal.</summary>
+public record DayBudgetDto(DateOnly Date, int Target, int ActiveKcal, int Bonus, int Budget);
+/// <summary>Target null = no profile yet; Days is then empty.</summary>
+public record BudgetRangeDto(int? Target, int? ProteinTarget, int AddBackPercent, List<DayBudgetDto> Days);
+public record WeightPointDto(DateOnly Date, decimal Kg, decimal Trend, string Source);
+/// <summary>Complete days this week with something eaten (today only when it is the sole one).</summary>
+public record WeekSummaryDto(DateOnly From, DateOnly To, int DaysLogged, int AvgEaten, int AvgBudget, int Deficit, decimal EstLossKg);
+/// <summary>Trend = 7-day trailing mean; WeeklyChange compares it with a week ago; EtaWeeks only while losing.</summary>
+public record ProgressDto(bool Configured, decimal? GoalKg, decimal? CurrentKg, decimal? TrendKg, decimal? WeeklyChange,
+    decimal? SinceStart, int? EtaWeeks, List<WeightPointDto> Weights, WeekSummaryDto? Week, int Streak);
+
+/// <summary>Kcal: manual = as entered; band = Active samples inside the session (null when none synced yet).</summary>
+public record WorkoutDto(Guid Id, DateOnly Date, DateTimeOffset? StartedAt, int Minutes, int? Kcal, string Type, string Source);
+/// <summary>ActiveKcal = band + manual workouts; Bonus = the share added to that day's budget.</summary>
+public record ActivityDayDto(DateOnly Date, int ActiveKcal, int Bonus, List<WorkoutDto> Workouts);
+/// <summary>State: none (never synced) / connected / stale (nothing for 24 h). Days newest first.</summary>
+public record ActivityDto(string State, DateTimeOffset? LastSyncAt, int AddBackPercent, List<ActivityDayDto> Days);
+/// <summary>Token is the secret path segment of the webhook URL: POST /api/hc/{token}.</summary>
+public record HealthConnectionDto(string Token, string State, DateTimeOffset? LastSyncAt);
+/// <summary>OFF product, or a product remembered under this barcode. Nutrition per 100 g; Found=false → type it in.</summary>
+public record BarcodeProductDto(string Barcode, bool Found, string Source, string? Name, string? Brand,
+    int? KcalPer100g, decimal? Protein, decimal? Fat, decimal? Carbs, decimal? ServingGrams, string? ServingLabel,
+    decimal? LastGrams);
+
+/// <summary>Kcal is per portion, or per 100 g when Per100g; ChipKcal = what one chip tap logs.</summary>
+public record FoodFavoriteDto(Guid Id, string Name, int Kcal, decimal? Protein, decimal? Fat,
+    decimal? Carbs, bool Per100g, decimal? LastGrams, string? Barcode, int ChipKcal, int Count,
+    bool Pinned, bool Hidden);
 
 public record PantryBulkResultDto(int Updated, List<PantryItemDto> Results,
     List<UnmatchedItemDto> NotInCatalog);
@@ -129,7 +175,40 @@ public record CookLogInput(Guid? RecipeId, string? DishName, int? Rating, string
     DateOnly? CookedAt, List<CookDeductionInput>? Deductions = null);
 /// <summary>Rating/Note are full-replace (omitted = cleared); DishName/CookedAt keep the stored value when omitted.</summary>
 public record CookLogUpdateInput(string? DishName, int? Rating, string? Note, DateOnly? CookedAt);
+/// <summary>Upsert onto the slot's first planned meal (not a leftover); creates one when there is none.</summary>
 public record PlanEntryInput(DateOnly Date, string Slot, Guid? RecipeId, string? Title, string? Note);
+/// <summary>
+/// A new calendar entry — always added, never replaces. Recipe entries take Portions;
+/// anything else is typed: Kcal etc. are TOTALS (the UI multiplies per-100 g values by Grams).
+/// Favorite = also remember it as an "Ulubione" chip (with these values, per portion).
+/// </summary>
+public record DiaryEntryInput(DateOnly Date, string Slot, Guid? RecipeId = null, string? Title = null,
+    string? Note = null, decimal? Portions = null, decimal? Grams = null, int? Kcal = null,
+    decimal? Protein = null, decimal? Fat = null, decimal? Carbs = null, bool Eaten = false,
+    FoodFavoriteInput? Favorite = null);
+/// <summary>Partial update: only present fields change. Eaten false→true snapshots recipe nutrition.</summary>
+public record PlanEntryPatch(DateOnly? Date = null, string? Slot = null, decimal? Portions = null,
+    decimal? Grams = null, int? Kcal = null, decimal? Protein = null, decimal? Fat = null,
+    decimal? Carbs = null, bool? Eaten = null, string? Note = null, string? Title = null);
+/// <summary>Assignments after the cook day, each one portion; the cook day itself is FirstDate/FirstSlot.</summary>
+public record CookInput(Guid RecipeId, int Portions, DateOnly FirstDate, string FirstSlot,
+    List<CookAssignmentInput>? Assignments = null, Guid? FromEntryId = null);
+public record CookAssignmentInput(DateOnly Date, string Slot);
+/// <summary>Replaces the planned leftovers (eaten ones stay) and the pot size.</summary>
+public record CookUpdateInput(int Portions, List<CookAssignmentInput>? Assignments = null);
+public record CookEatInput(DateOnly Date, string Slot);
+/// <summary>Per portion, or per 100 g when Per100g (LastGrams = the usual amount).</summary>
+public record FoodFavoriteInput(string Name, int Kcal, decimal? Protein = null, decimal? Fat = null,
+    decimal? Carbs = null, bool Per100g = false, decimal? LastGrams = null, string? Barcode = null);
+public record FoodFavoriteLogInput(DateOnly Date, string Slot, decimal? Grams = null);
+/// <summary>Both null = no change.</summary>
+public record FoodFavoriteFlagsInput(bool? Pinned = null, bool? Hidden = null);
+/// <summary>Full replace. CurrentKg (optional) records today's weigh-in at the same time.</summary>
+public record BodyInput(string Sex, int BirthYear, int HeightCm, decimal GoalKg, string ActivityLevel, decimal PaceKg,
+    int? TargetOverride = null, int? ProteinOverride = null, int AddBackPercent = 50, decimal? CurrentKg = null);
+public record WeightInput(decimal Kg);
+/// <summary>Time = "HH:mm" local, optional.</summary>
+public record WorkoutInput(DateOnly Date, string Type, int Minutes, int Kcal, string? Time = null);
 public record PlanRangeInput(DateOnly? Start, int? Days);
 public record PlanShoppingConfirmation(Guid PantryItemId, decimal Quantity);
 public record PlanAddMissingInput(DateOnly? Start, int? Days,
@@ -236,10 +315,52 @@ public static class Mapping
     {
         "breakfast" => MealSlot.Breakfast,
         "dinner" => MealSlot.Dinner,
+        "snack" => MealSlot.Snack,
         _ => MealSlot.Lunch,
     };
 
     public static string SlotString(MealSlot s) => s.ToString().ToLowerInvariant();
+
+    /// <summary>Strict slot parse for diary writes — unlike <see cref="ParseSlot"/>, unknown values are an error.</summary>
+    public static MealSlot? TryParseSlot(string? s) => (s ?? "").Trim().ToLowerInvariant() switch
+    {
+        "breakfast" => MealSlot.Breakfast,
+        "lunch" => MealSlot.Lunch,
+        "dinner" => MealSlot.Dinner,
+        "snack" => MealSlot.Snack,
+        _ => null,
+    };
+
+    /// <summary>Needs Recipe and Cook loaded.</summary>
+    public static PlanEntryDto ToDto(PlanEntry e, bool cooked)
+    {
+        var n = DiaryService.Nutrition(e);
+        return new(e.Id, e.Date, SlotString(e.Slot), e.RecipeId, e.Recipe?.Title, e.Title, e.Note,
+            cooked, e.Portions, e.Grams, n.Kcal, n.Protein, n.Fat, n.Carbs, n.Missing, e.EatenAt is not null,
+            e.CookId, e.IsLeftover, e.Cook?.Date, e.Cook?.Portions);
+    }
+
+    /// <summary>Anonymous view of the plan: meals only — eaten state and typed nutrition are private.</summary>
+    public static PlanEntryDto PublicView(PlanEntryDto d) => d with
+    {
+        Eaten = false,
+        Grams = null,
+    };
+
+    public static FridgeItemDto ToFridgeDto(Cook c) =>
+        new(c.Id, c.RecipeId, c.Recipe?.Title ?? c.Title, c.Date, c.Portions, DiaryService.Remaining(c),
+            c.Recipe?.KcalPerServing);
+
+    /// <summary>Needs Entries (with Recipe) and Recipe loaded.</summary>
+    public static CookDto ToDto(Cook c) =>
+        new(c.Id, c.RecipeId, c.Recipe?.Title ?? c.Title, c.Date, c.Portions, c.DiscardedPortions,
+            DiaryService.Remaining(c), c.Recipe?.KcalPerServing,
+            c.Entries.OrderBy(e => e.Date).ThenBy(e => e.Slot)
+                .Select(e => ToDto(e, cooked: false)).ToList());
+
+    public static FoodFavoriteDto ToDto(FoodFavorite f) =>
+        new(f.Id, f.Name, f.Kcal, f.Protein, f.Fat, f.Carbs, f.Per100g, f.LastGrams, f.Barcode,
+            DiaryService.ChipKcal(f), f.AddCount, f.Pinned, f.Hidden);
 
     public static string? DishTypeString(DishType? d) => d?.ToString().ToLowerInvariant();
 

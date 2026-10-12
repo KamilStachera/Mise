@@ -139,11 +139,15 @@ public class SupplyService
     }
 
     /// <summary>Add count, halved roughly every <see cref="DecayDays"/> since the last add.</summary>
-    public static double ScoreOf(SupplyFavorite f, DateTimeOffset now)
+    public static double ScoreOf(SupplyFavorite f, DateTimeOffset now) =>
+        DecayedScore(f.AddCount, f.LastAddedAt, now, DecayDays);
+
+    /// <summary>Shared with the snack favourites: a count halved every <paramref name="decayDays"/> since the last use.</summary>
+    public static double DecayedScore(int count, DateTimeOffset? lastAddedAt, DateTimeOffset now, double decayDays)
     {
-        if (f.AddCount <= 0) return 0;
-        if (f.LastAddedAt is not DateTimeOffset last) return f.AddCount;
+        if (count <= 0) return 0;
+        if (lastAddedAt is not DateTimeOffset last) return count;
         var days = Math.Max(0, (now - last).TotalDays);
-        return f.AddCount / (1 + days / DecayDays);
+        return count / (1 + days / decayDays);
     }
 }

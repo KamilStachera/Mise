@@ -54,6 +54,15 @@ help plan meals.
 - A **weekly meal plan** and a **cook log** ("we made this — too salty") that
   agents read and write, closing the feedback loop. Logging a cook can deduct the
   used ingredients from the pantry (the app proposes the amounts).
+- A private **food diary** on the plan (Plan → Dzień / Tydzień / Postępy): cook one
+  pot for several days (leftovers are bought once and show up "W lodówce"), log
+  sweets and snacks with one-tap favourites, and see the day against a calorie +
+  protein budget computed from **Twój cel** (Mifflin-St Jeor). Weigh-ins draw a 7-day
+  trend. Packaged food can be **scanned** (phone camera → Open Food Facts). A
+  Xiaomi band and scale sync through **Health Connect + the HC Webhook app** (setup
+  steps and the private URL are on Plan → Aktywność); half of the burned kcal is
+  added to the day's budget. Diary, goal, weight and activity need a login even to
+  read. Design and roadmap: `docs/weight-loss/`.
 - A **dinner roulette** ("Losuj") that picks tonight's meal by your rules (and can
   drop the pick straight into the plan), and a
   **cooking history** ("Historia") with stats, streaks and repeat badges.

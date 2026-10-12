@@ -40,6 +40,8 @@ services:
       MISE_API_KEY: ${MISE_API_KEY:-}
       Auth__DevBypass: ${AUTH_DEV_BYPASS:-false}
       KeysDir: /data/keys
+      # "Today" for the plan/diary and the day a band sample belongs to are Polish days.
+      TZ: Europe/Warsaw
     volumes:
       # Shared with the host so you can open it with Codex / Claude Code.
       - ./context:/context

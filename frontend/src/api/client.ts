@@ -263,7 +263,7 @@ export interface CookLogResult {
   deducted: { pantryItemId: string; name: string; deducted: number; newQuantity: number; status: Status }[]
 }
 
-export type Slot = 'breakfast' | 'lunch' | 'dinner'
+export type Slot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export interface PlanEntry {
   id: string
   date: string // YYYY-MM-DD
@@ -272,8 +272,245 @@ export interface PlanEntry {
   recipeTitle: string | null
   title: string
   note: string
-  /** A matching cook-log entry exists (same recipe/dish, ±1 day). */
+  /** A matching cook-log entry exists (same recipe/dish, ±1 day; leftovers use their cook day). */
   cooked: boolean
+  /** Portions of the recipe (×0,5…); 1 for products. */
+  portions: number
+  /** Grams eaten, for products logged per 100 g. */
+  grams: number | null
+  /** Nutrition TOTALS for this entry (eaten snapshot, typed values, or live estimate × portions). */
+  kcal: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+  /** Nothing to count — "brak kcal". */
+  kcalMissing: boolean
+  /** Always false for anonymous visitors (the diary is private). */
+  eaten: boolean
+  /** The pot this entry belongs to (cook day or leftover). */
+  cookId: string | null
+  isLeftover: boolean
+  cookDate: string | null
+  cookPortions: number | null
+}
+/** A pot with portions left in the fridge. */
+export interface FridgeItem {
+  cookId: string
+  recipeId: string | null
+  title: string
+  date: string
+  portions: number
+  remaining: number
+  kcalPerPortion: number | null
+}
+export interface Cook {
+  id: string
+  recipeId: string | null
+  title: string
+  date: string
+  portions: number
+  discardedPortions: number
+  remaining: number
+  kcalPerPortion: number | null
+  entries: PlanEntry[]
+}
+export interface CookAssignment {
+  date: string
+  slot: Slot
+}
+export interface CookInput {
+  recipeId: string
+  portions: number
+  firstDate: string
+  firstSlot: Slot
+  assignments: CookAssignment[]
+  /** Turn this existing planned entry into the cook day. */
+  fromEntryId?: string
+}
+/** kcal is per portion, or per 100 g when per100g; chipKcal = what one tap logs. */
+export interface FoodFavorite {
+  id: string
+  name: string
+  kcal: number
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+  per100g: boolean
+  lastGrams: number | null
+  barcode: string | null
+  chipKcal: number
+  count: number
+  pinned: boolean
+  hidden: boolean
+}
+export interface FoodFavoriteInput {
+  name: string
+  kcal: number
+  protein?: number | null
+  fat?: number | null
+  carbs?: number | null
+  per100g?: boolean
+  lastGrams?: number | null
+  barcode?: string | null
+}
+/** Always adds. Typed nutrition (kcal…) is the entry TOTAL. */
+export interface DiaryEntryInput {
+  date: string
+  slot: Slot
+  recipeId?: string | null
+  title?: string
+  note?: string
+  portions?: number
+  grams?: number | null
+  kcal?: number | null
+  protein?: number | null
+  fat?: number | null
+  carbs?: number | null
+  eaten?: boolean
+  favorite?: FoodFavoriteInput
+}
+export type BodySex = 'female' | 'male'
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'high'
+/** „Twój cel”. configured=false → not set up yet. target = override ?? computed. */
+export interface Body {
+  configured: boolean
+  sex: BodySex
+  birthYear: number
+  heightCm: number
+  goalKg: number
+  activityLevel: ActivityLevel
+  paceKg: number
+  targetOverride: number | null
+  proteinOverride: number | null
+  addBackPercent: number
+  currentKg: number | null
+  bmr: number | null
+  tdee: number | null
+  computedTarget: number | null
+  target: number | null
+  proteinTarget: number | null
+}
+export interface BodyInput {
+  sex: BodySex
+  birthYear: number
+  heightCm: number
+  goalKg: number
+  activityLevel: ActivityLevel
+  paceKg: number
+  targetOverride?: number | null
+  proteinOverride?: number | null
+  addBackPercent: number
+  currentKg?: number | null
+}
+export interface DayBudget {
+  date: string
+  target: number
+  activeKcal: number
+  bonus: number
+  budget: number
+}
+/** target null = no profile yet (days empty). */
+export interface BudgetRange {
+  target: number | null
+  proteinTarget: number | null
+  addBackPercent: number
+  days: DayBudget[]
+}
+export interface WeightPoint {
+  date: string
+  kg: number
+  trend: number
+  source: 'manual' | 'healthconnect'
+}
+export interface WeekSummary {
+  from: string
+  to: string
+  daysLogged: number
+  avgEaten: number
+  avgBudget: number
+  deficit: number
+  estLossKg: number
+}
+export interface Progress {
+  configured: boolean
+  goalKg: number | null
+  currentKg: number | null
+  trendKg: number | null
+  weeklyChange: number | null
+  sinceStart: number | null
+  etaWeeks: number | null
+  weights: WeightPoint[]
+  week: WeekSummary | null
+  streak: number
+}
+
+/** Scanned product. Nutrition per 100 g. source: 'favorite' = remembered by her, 'openfoodfacts', 'none'. */
+export interface BarcodeProduct {
+  barcode: string
+  found: boolean
+  source: 'favorite' | 'openfoodfacts' | 'none'
+  name: string | null
+  brand: string | null
+  kcalPer100g: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+  servingGrams: number | null
+  servingLabel: string | null
+  lastGrams: number | null
+}
+
+export type SyncState = 'none' | 'connected' | 'stale'
+export interface Workout {
+  id: string
+  date: string
+  startedAt: string | null
+  minutes: number
+  /** Band workouts: derived from the band's active kcal in that window; null until synced. */
+  kcal: number | null
+  type: string
+  source: 'band' | 'manual'
+}
+export interface ActivityDay {
+  date: string
+  activeKcal: number
+  bonus: number
+  workouts: Workout[]
+}
+/** days newest first. */
+export interface Activity {
+  state: SyncState
+  lastSyncAt: string | null
+  addBackPercent: number
+  days: ActivityDay[]
+}
+export interface HealthConnection {
+  token: string
+  state: SyncState
+  lastSyncAt: string | null
+}
+export interface WorkoutInput {
+  date: string
+  type: string
+  minutes: number
+  kcal: number
+  /** "HH:mm" */
+  time?: string
+}
+
+/** Only present fields change. */
+export interface PlanEntryPatch {
+  date?: string
+  slot?: Slot
+  portions?: number
+  grams?: number | null
+  kcal?: number
+  protein?: number
+  fat?: number
+  carbs?: number
+  eaten?: boolean
+  note?: string
+  title?: string
 }
 export interface PlanRange {
   start: string
@@ -478,6 +715,38 @@ export const api = {
     http<{ added: number; updated: number }>(`/plan/add-missing-to-shopping`, {
       method: 'POST', body: JSON.stringify({ start, days, confirmations }),
     }),
+  addDiaryEntry: (input: DiaryEntryInput) =>
+    http<PlanEntry>(`/plan/entries`, { method: 'POST', body: JSON.stringify(input) }),
+  patchPlanEntry: (id: string, input: PlanEntryPatch) =>
+    http<PlanEntry>(`/plan/entry/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+
+  fridge: (today: string) => http<FridgeItem[]>(`/diary/fridge?today=${today}`),
+  cook: (id: string) => http<Cook>(`/diary/cooks/${id}`),
+  createCook: (input: CookInput) =>
+    http<Cook>(`/diary/cooks`, { method: 'POST', body: JSON.stringify(input) }),
+  updateCook: (id: string, portions: number, assignments: CookAssignment[]) =>
+    http<Cook>(`/diary/cooks/${id}`, { method: 'PUT', body: JSON.stringify({ portions, assignments }) }),
+  eatFromCook: (id: string, date: string, slot: Slot) =>
+    http<PlanEntry>(`/diary/cooks/${id}/eat`, { method: 'POST', body: JSON.stringify({ date, slot }) }),
+  discardCook: (id: string) => http<void>(`/diary/cooks/${id}/discard`, { method: 'POST' }),
+  foodFavorites: () => http<FoodFavorite[]>(`/diary/favorites`),
+  logFavorite: (id: string, date: string, slot: Slot, grams?: number) =>
+    http<PlanEntry>(`/diary/favorites/${id}/log`, { method: 'POST', body: JSON.stringify({ date, slot, grams }) }),
+  barcode: (code: string) => http<BarcodeProduct>(`/diary/barcode/${encodeURIComponent(code)}`),
+  activity: (days: number) => http<Activity>(`/activity?days=${days}`),
+  healthConnection: () => http<HealthConnection>(`/activity/connection`),
+  rotateHealthConnection: () => http<HealthConnection>(`/activity/connection/rotate`, { method: 'POST' }),
+  addWorkout: (input: WorkoutInput) => http<Workout>(`/activity/workouts`, { method: 'POST', body: JSON.stringify(input) }),
+  deleteWorkout: (id: string) => http<void>(`/activity/workouts/${id}`, { method: 'DELETE' }),
+  body: () => http<Body>(`/body`),
+  saveBody: (input: BodyInput) => http<Body>(`/body`, { method: 'PUT', body: JSON.stringify(input) }),
+  budget: (start: string, days: number) => http<BudgetRange>(`/body/budget?start=${start}&days=${days}`),
+  progress: (days: number) => http<Progress>(`/body/progress?days=${days}`),
+  setWeight: (date: string, kg: number) =>
+    http<{ date: string; kg: number }>(`/body/weights/${date}`, { method: 'PUT', body: JSON.stringify({ kg }) }),
+  deleteWeight: (date: string) => http<void>(`/body/weights/${date}`, { method: 'DELETE' }),
+  setFavoriteFlags: (id: string, flags: { pinned?: boolean; hidden?: boolean }) =>
+    http<FoodFavorite>(`/diary/favorites/${id}`, { method: 'PATCH', body: JSON.stringify(flags) }),
 
   cookbook: () => http<{ markdown: string }>(`/context/cookbook`),
   contextStatus: () => http<{ path: string; hostPath: string | null }>(`/context/status`),
