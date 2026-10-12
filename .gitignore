@@ -41,3 +41,6 @@ npm-debug.log*
 
 # --- Generated recipe image batches (local only) ---
 output/
+
+# --- Design handoff bundles (unpacked reference lives in docs/) ---
+/*.zip
