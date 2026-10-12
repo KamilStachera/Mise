@@ -233,6 +233,9 @@ One-time setup:
 3. In `.env`: set `TUNNEL_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
    `AUTH_ALLOWED_EMAILS` (comma-separated), a long random `MISE_API_KEY`,
    `PUBLIC_API_BASE=https://<your-domain>/api` — and **`AUTH_DEV_BYPASS=false`**.
+   For two food diaries (each with their own goal, weight and band) add
+   `DIARY_PEOPLE=Name:google-email,Name:google-email`. The first person keeps the
+   existing diary, so keep the order stable.
 4. Start with the profile: `docker compose --profile public up -d --build`.
    On a shared/VPS host also set `WEB_BIND=127.0.0.1:8080` in `.env` so nginx
    isn't reachable directly — only through the tunnel.

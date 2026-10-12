@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
   type BodyInput,
+  type CateringInput,
   type CookAssignment,
   type CookInput,
   type CookLogInput,
@@ -17,12 +18,27 @@ import {
   type SupplyCategory,
   type WorkoutInput,
 } from './client'
+import { pickPerson, usePickedPerson } from './person'
 
 // Session state; the react-query cache is the shared auth state (no context needed).
 // staleTime: Infinity — refreshed only by explicit invalidation (logout, 401 backstop).
 export function useAuth() {
   const query = useQuery({ queryKey: ['auth'], queryFn: api.authMe, staleTime: Infinity })
   return { ...query, canEdit: query.data?.authenticated === true }
+}
+
+/**
+ * Whose diary the private screens show: the switcher pick when it is one of `people`, else the
+ * caller's own. `id` goes into every private query key so a switch never shows cached data of
+ * the other person; the X-Person header itself is set by pickPerson.
+ */
+export function usePerson() {
+  const { data } = useAuth()
+  const picked = usePickedPerson()
+  const people = data?.people ?? []
+  const own = data?.personId ?? 1
+  const id = picked != null && people.some((p) => p.id === picked) ? picked : own
+  return { id, own, people, person: people.find((p) => p.id === id) ?? null, pick: pickPerson }
 }
 
 export function useLogout() {
@@ -78,7 +94,8 @@ export function useCookLog(recipeId?: string, limit?: number) {
 }
 
 export function usePlan(start?: string) {
-  return useQuery({ queryKey: ['plan', start ?? 'current'], queryFn: () => api.plan(start) })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['plan', id, start ?? 'current'], queryFn: () => api.plan(start) })
 }
 
 /** Past plan entries never logged as cooked — drives the login reminder modal. */
@@ -399,6 +416,7 @@ export function useDeletePlanEntry() {
       // deleting a cook day drops its whole pot
       qc.invalidateQueries({ queryKey: ['fridge'] })
       qc.invalidateQueries({ queryKey: ['cook'] })
+      qc.invalidateQueries({ queryKey: ['progress'] })
     },
   })
 }
@@ -407,7 +425,8 @@ export function useDeletePlanEntry() {
 
 export function useFridge(today: string) {
   const { canEdit } = useAuth()
-  return useQuery({ queryKey: ['fridge', today], queryFn: () => api.fridge(today), enabled: canEdit })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['fridge', id, today], queryFn: () => api.fridge(today), enabled: canEdit })
 }
 
 export function useCook(id: string | null) {
@@ -415,41 +434,62 @@ export function useCook(id: string | null) {
 }
 
 export function useFoodFavorites(enabled: boolean) {
-  return useQuery({ queryKey: ['foodFavorites'], queryFn: api.foodFavorites, enabled })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['foodFavorites', id], queryFn: api.foodFavorites, enabled })
 }
 
 // ---- body / budget / progress (private like the diary) ----
 
 export function useBody() {
   const { canEdit } = useAuth()
-  return useQuery({ queryKey: ['body'], queryFn: api.body, enabled: canEdit })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['body', id], queryFn: api.body, enabled: canEdit })
+}
+
+/**
+ * Grammatical gender for diary copy („Zjadłaś” / „Zjadłeś”), from the shown person's goal.
+ * Feminine until a goal is set — the diary started as hers.
+ */
+export function useFeminine() {
+  const { data } = useBody()
+  return !data?.configured || data.sex === 'female'
+}
+
+export function useCatering() {
+  const { canEdit } = useAuth()
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['catering', id], queryFn: api.catering, enabled: canEdit })
 }
 
 export function useBudget(start: string, days = 7) {
   const { canEdit } = useAuth()
-  return useQuery({ queryKey: ['budget', start, days], queryFn: () => api.budget(start, days), enabled: canEdit })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['budget', id, start, days], queryFn: () => api.budget(start, days), enabled: canEdit })
 }
 
 export function useProgress(days: number) {
   const { canEdit } = useAuth()
-  return useQuery({ queryKey: ['progress', days], queryFn: () => api.progress(days), enabled: canEdit })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['progress', id, days], queryFn: () => api.progress(days), enabled: canEdit })
 }
 
 export function useActivity(days = 7) {
   const { canEdit } = useAuth()
-  return useQuery({ queryKey: ['activity', days], queryFn: () => api.activity(days), enabled: canEdit })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['activity', id, days], queryFn: () => api.activity(days), enabled: canEdit })
 }
 
 export function useHealthConnection(enabled: boolean) {
-  return useQuery({ queryKey: ['healthConnection'], queryFn: api.healthConnection, enabled })
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['healthConnection', id], queryFn: api.healthConnection, enabled })
 }
 
 export function useRotateHealthConnection() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: api.rotateHealthConnection,
-    onSuccess: (data) => {
-      qc.setQueryData(['healthConnection'], data)
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['healthConnection'] })
       qc.invalidateQueries({ queryKey: ['activity'] })
     },
   })
@@ -497,6 +537,25 @@ export function useSetWeight() {
 export function useDeleteWeight() {
   const onSuccess = useBodyInvalidation()
   return useMutation({ mutationFn: (date: string) => api.deleteWeight(date), onSuccess })
+}
+
+/** Saving catering can write today's box, so the diary refreshes too. */
+export function useSaveCatering() {
+  const qc = useQueryClient()
+  const diary = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: (input: CateringInput) => api.saveCatering(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catering'] })
+      qc.invalidateQueries({ queryKey: ['budget'] })
+      diary()
+    },
+  })
+}
+
+export function useLogCatering() {
+  const onSuccess = useDiaryInvalidation()
+  return useMutation({ mutationFn: (date: string) => api.logCatering(date), onSuccess })
 }
 
 /** Everything a diary write can touch: the calendar, pots, chips, the cook reminder, progress. */

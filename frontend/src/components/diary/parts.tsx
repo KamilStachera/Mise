@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { PlanEntry, RecipeListItem } from '../../api/client'
+import { useFeminine } from '../../api/hooks'
 import { formatGrams, formatKcal, formatPortion } from '../../lib/labels'
 import { useIsMobile } from '../../lib/useIsMobile'
 import { RecipeThumb } from '../RecipeThumb'
@@ -150,6 +151,7 @@ export function BudgetMeter({ totals, target, activityBonus = 0, proteinTarget, 
   footer?: ReactNode
 }) {
   const isMobile = useIsMobile()
+  const ate = useFeminine() ? 'Zjadłaś' : 'Zjadłeś'
   const budget = target == null ? null : target + activityBonus
   const approx = totals.missing ? '~' : ''
   const plannedApprox = '~'
@@ -159,7 +161,7 @@ export function BudgetMeter({ totals, target, activityBonus = 0, proteinTarget, 
     eyebrow = 'W planie'
     big = `${plannedApprox}${formatKcal(totals.planned + totals.eaten)}`
   } else if (budget == null) {
-    eyebrow = 'Zjadłaś'
+    eyebrow = ate
     big = `${approx}${formatKcal(totals.eaten)}`
   } else if (totals.eaten > budget) {
     eyebrow = <span style={{ color: 'var(--gold-text)' }}>Ponad budżet</span>
@@ -170,7 +172,7 @@ export function BudgetMeter({ totals, target, activityBonus = 0, proteinTarget, 
   }
 
   const rows: [string, string][] = []
-  if (mode === 'day' && (budget != null || totals.planned > 0)) rows.push(['zjadłaś', `${approx}${formatKcal(totals.eaten)}`])
+  if (mode === 'day' && (budget != null || totals.planned > 0)) rows.push([ate.toLowerCase(), `${approx}${formatKcal(totals.eaten)}`])
   if (totals.planned > 0 && (mode === 'day' || totals.eaten > 0)) rows.push(['w planie', `~${formatKcal(totals.planned)}`])
   if (budget != null) rows.push(['budżet', formatKcal(budget)])
 

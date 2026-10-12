@@ -18,18 +18,18 @@ public static class ActivityEndpoints
         {
             if (await activity.AuthorizeAsync(token) is not { } sync) return Results.NotFound();
             var r = await activity.IngestAsync(sync, payload);
-            return Results.Ok(new { ok = true, energy = r.Energy, workouts = r.Workouts, weights = r.Weights });
+            return Results.Ok(new { ok = true, energy = r.Energy, workouts = r.Workouts, weights = r.Weights, weightsIgnored = r.WeightsIgnored });
         }).WithTags("Activity");
 
         var g = api.MapGroup("/activity").WithTags("Activity");
 
-        g.MapGet("/", async (int? days, MiseDbContext db, ActivityService activity, BodyService body) =>
+        g.MapGet("/", async (int? days, ActivityService activity, BodyService body) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             var count = Math.Clamp(days ?? 7, 1, 60);
             var (bmr, addBack) = await BmrAndAddBackAsync(body, today);
             var list = await activity.DaysAsync(today.AddDays(-count + 1), today, bmr);
-            var sync = await db.HealthSyncs.AsNoTracking().FirstOrDefaultAsync(s => s.Id == 1);
+            var sync = await activity.CurrentSyncAsync();
             return Results.Ok(new ActivityDto(
                 StateString(ActivityService.State(sync, DateTimeOffset.UtcNow)), sync?.LastSyncAt, addBack,
                 list.OrderByDescending(d => d.Date).Select(d => new ActivityDayDto(d.Date, d.ActiveKcal,
@@ -50,7 +50,7 @@ public static class ActivityEndpoints
             return Results.Ok(new HealthConnectionDto(sync.Token, StateString(SyncState.None), null));
         });
 
-        g.MapPost("/workouts", async (WorkoutInput input, MiseDbContext db) =>
+        g.MapPost("/workouts", async (WorkoutInput input, MiseDbContext db, PersonScope person) =>
         {
             if (string.IsNullOrWhiteSpace(input.Type)) return Results.BadRequest(new { error = "Podaj rodzaj treningu." });
             if (input.Minutes is < 1 or > 600) return Results.BadRequest(new { error = "Czas od 1 do 600 minut." });
@@ -63,6 +63,7 @@ public static class ActivityEndpoints
             }
             var w = new Workout
             {
+                PersonId = person.Id,
                 Date = input.Date,
                 StartedAt = started,
                 Minutes = input.Minutes,

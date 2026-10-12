@@ -403,6 +403,13 @@ public static class AgentDocs
         - `DELETE /plan/entry/{id}` — usunięcie dnia gotowania usuwa też zaplanowane resztki.
         - Dziennik jedzenia (slot `snack`, zjedzone wpisy, `/diary/*`), cel i waga (`/body/*`)
           oraz aktywność z opaski (`/activity/*`) są prywatne i nie trafiają do `plan.md`.
+        - Dziennik, cel, waga, aktywność i plan są osobne dla każdej osoby w domu.
+          Domyślnie działasz na osobie 1 (ta, która gotuje); nagłówek `X-Person: <id>`
+          wybiera inną (lista osób: `GET /auth/me` → `people`). Zakupy są wspólne.
+        - Catering (dieta pudełkowa): `GET/PUT /body/catering` — `{ "enabled": true,
+          "kcal": 1996, "protein": 145, "fat": 77, "carbs": 180, "weekdays": 31,
+          "startDate": "YYYY-MM-DD" }` (`weekdays`: bit 0 = poniedziałek … bit 6 = niedziela).
+          W dni dostawy wpis „Catering” (`isCatering: true`) dopisuje się sam jako zjedzony.
         - `GET /plan/shopping-preview?start=YYYY-MM-DD&days=7` — porównuje szacunek z
           ilością konserwatywną i oznacza `needsConfirmation` tylko gdy zmienia wynik zakupów.
         - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7,

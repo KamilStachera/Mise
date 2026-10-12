@@ -88,7 +88,7 @@ public record CookLogResultDto(CookLogEntryDto Entry, List<CookDeductedDto> Dedu
 public record PlanEntryDto(Guid Id, DateOnly Date, string Slot, Guid? RecipeId, string? RecipeTitle,
     string Title, string Note, bool Cooked, decimal Portions, decimal? Grams,
     int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs, bool KcalMissing, bool Eaten,
-    Guid? CookId, bool IsLeftover, DateOnly? CookDate, int? CookPortions);
+    Guid? CookId, bool IsLeftover, DateOnly? CookDate, int? CookPortions, bool IsCatering = false);
 public record PlanRangeDto(DateOnly Start, int Days, List<PlanEntryDto> Entries);
 
 /// <summary>A pot with portions left: neither assigned to a plan entry nor discarded.</summary>
@@ -119,6 +119,9 @@ public record ActivityDayDto(DateOnly Date, int ActiveKcal, int Bonus, List<Work
 public record ActivityDto(string State, DateTimeOffset? LastSyncAt, int AddBackPercent, List<ActivityDayDto> Days);
 /// <summary>Token is the secret path segment of the webhook URL: POST /api/hc/{token}.</summary>
 public record HealthConnectionDto(string Token, string State, DateTimeOffset? LastSyncAt);
+/// <summary>Configured=false → never set up (other fields are defaults). Weekdays: bit 0 = Monday … bit 6 = Sunday.</summary>
+public record CateringDto(bool Configured, bool Enabled, int Kcal, decimal? Protein, decimal? Fat, decimal? Carbs,
+    int Weekdays, DateOnly? StartDate);
 /// <summary>OFF product, or a product remembered under this barcode. Nutrition per 100 g; Found=false → type it in.</summary>
 public record BarcodeProductDto(string Barcode, bool Found, string Source, string? Name, string? Brand,
     int? KcalPer100g, decimal? Protein, decimal? Fat, decimal? Carbs, decimal? ServingGrams, string? ServingLabel,
@@ -132,8 +135,13 @@ public record FoodFavoriteDto(Guid Id, string Name, int Kcal, decimal? Protein, 
 public record PantryBulkResultDto(int Updated, List<PantryItemDto> Results,
     List<UnmatchedItemDto> NotInCatalog);
 
-/// <summary>Session state for the frontend; `Authenticated: false` = anonymous read-only mode.</summary>
-public record AuthMeDto(bool Authenticated, string? Email, string? Name, string? Picture);
+/// <summary>
+/// Session state for the frontend; `Authenticated: false` = anonymous read-only mode. PersonId = the
+/// caller's own diary; People = everyone with a diary (empty for anonymous visitors).
+/// </summary>
+public record AuthMeDto(bool Authenticated, string? Email, string? Name, string? Picture,
+    int? PersonId = null, List<PersonDto>? People = null);
+public record PersonDto(int Id, string Name);
 
 public record QuestionDto(string Key, string Label, string Type, string[]? Options, string? Placeholder);
 public record QuestionnaireSectionDto(string Key, string Title, List<QuestionDto> Questions);
@@ -207,6 +215,10 @@ public record FoodFavoriteFlagsInput(bool? Pinned = null, bool? Hidden = null);
 public record BodyInput(string Sex, int BirthYear, int HeightCm, decimal GoalKg, string ActivityLevel, decimal PaceKg,
     int? TargetOverride = null, int? ProteinOverride = null, int AddBackPercent = 50, decimal? CurrentKg = null);
 public record WeightInput(decimal Kg);
+/// <summary>Full replace; StartDate defaults to today.</summary>
+public record CateringInput(bool Enabled, int Kcal, decimal? Protein = null, decimal? Fat = null, decimal? Carbs = null,
+    int Weekdays = 0b0011111, DateOnly? StartDate = null);
+public record CateringLogInput(DateOnly Date);
 /// <summary>Time = "HH:mm" local, optional.</summary>
 public record WorkoutInput(DateOnly Date, string Type, int Minutes, int Kcal, string? Time = null);
 public record PlanRangeInput(DateOnly? Start, int? Days);
@@ -337,7 +349,7 @@ public static class Mapping
         var n = DiaryService.Nutrition(e);
         return new(e.Id, e.Date, SlotString(e.Slot), e.RecipeId, e.Recipe?.Title, e.Title, e.Note,
             cooked, e.Portions, e.Grams, n.Kcal, n.Protein, n.Fat, n.Carbs, n.Missing, e.EatenAt is not null,
-            e.CookId, e.IsLeftover, e.Cook?.Date, e.Cook?.Portions);
+            e.CookId, e.IsLeftover, e.Cook?.Date, e.Cook?.Portions, e.IsCatering);
     }
 
     /// <summary>Anonymous view of the plan: meals only — eaten state and typed nutrition are private.</summary>

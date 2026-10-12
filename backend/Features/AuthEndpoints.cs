@@ -30,16 +30,17 @@ public static class AuthEndpoints
         });
 
         // Always 200 — the frontend derives read-only mode from `authenticated`.
-        g.MapGet("/me", (HttpContext ctx, AccessControl access) =>
+        g.MapGet("/me", (HttpContext ctx, AccessControl access, People people) =>
         {
+            var everyone = people.All.Select(p => new PersonDto(p.Id, p.Name)).ToList();
             if (access.DevBypass)
-                return Results.Ok(new AuthMeDto(true, "dev@localhost", "Dev", null));
+                return Results.Ok(new AuthMeDto(true, "dev@localhost", "Dev", null, people.Own(ctx), everyone));
 
             var user = ctx.User;
             var email = user.FindFirstValue(ClaimTypes.Email);
             if (user.Identity?.IsAuthenticated == true && access.IsAllowedEmail(email))
                 return Results.Ok(new AuthMeDto(true, email,
-                    user.FindFirstValue(ClaimTypes.Name), user.FindFirstValue("picture")));
+                    user.FindFirstValue(ClaimTypes.Name), user.FindFirstValue("picture"), people.Own(ctx), everyone));
 
             return Results.Ok(new AuthMeDto(false, null, null, null));
         });

@@ -1,7 +1,7 @@
 import { useMemo, useRef, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginUrl, type FridgeItem, type PlanEntry, type Slot } from '../../api/client'
-import { useActivity, useAuth, useBudget, useDiscardCook, useEatFromCook, useFridge, usePatchPlanEntry, usePlan, useProgress, useRecipes } from '../../api/hooks'
+import { useActivity, useAuth, useBudget, useCatering, useDeletePlanEntry, useDiscardCook, useEatFromCook, useFeminine, useFridge, useLogCatering, usePatchPlanEntry, usePlan, useProgress, useRecipes } from '../../api/hooks'
 import { BudgetMeter, CookMark, DiaryItem, PortionDots, SourceTag, WeekDayBar, cookLetters, dayTotals, entryTitle } from '../../components/diary/parts'
 import { useDiarySheets } from '../../components/diary/useDiarySheets'
 import { RecipeThumb } from '../../components/RecipeThumb'
@@ -46,12 +46,18 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
   const { data: activity } = useActivity(7)
   const dayBudget = budget?.days.find((b) => b.date === day)
   const { openAdd, openEntry, sheets } = useDiarySheets()
+  const { data: catering } = useCatering()
+  const logCatering = useLogCatering()
+  const deleteEntry = useDeletePlanEntry()
+  const feminine = useFeminine()
   const touchX = useRef<number | null>(null)
 
   const recipeById = useMemo(() => new Map((recipes ?? []).map((r) => [r.id, r])), [recipes])
   const weekEntries = useMemo(() => (plan?.entries ?? []).filter((e) => e.date >= weekStart && e.date < toISO(addDays(parseISODate(weekStart), 7))), [plan, weekStart])
   const letters = useMemo(() => cookLetters(weekEntries), [weekEntries])
   const entries = weekEntries.filter((e) => e.date === day)
+  const meals = entries.filter((e) => !e.isCatering)
+  const boxes = entries.filter((e) => e.isCatering)
   const totals = dayTotals(entries)
   const future = day > today
   const prev = toISO(addDays(date, -1))
@@ -122,11 +128,11 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
         <SlotBlock
           key={s}
           slot={s}
-          entries={entries.filter((e) => e.slot === s)}
+          entries={meals.filter((e) => e.slot === s)}
           onAdd={() => openAdd(day, s)}
           canEdit={canEdit}
         >
-          {entries.filter((e) => e.slot === s).map((e) => (
+          {meals.filter((e) => e.slot === s).map((e) => (
             <DiaryItem
               key={e.id}
               entry={e}
@@ -141,6 +147,51 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
         </SlotBlock>
       ))}
     </div>
+  )
+
+  // Catering: one eaten box entry per delivery day, written by the server. Unticking it means
+  // „dziś bez cateringu” (the entry goes; the server never brings it back).
+  const cateringOn = catering?.configured === true && catering.enabled
+  const delivers = cateringOn && catering.startDate != null && day >= catering.startDate
+    && (catering.weekdays & (1 << ((date.getDay() + 6) % 7))) !== 0
+  const cateringBlock = (boxes.length > 0 || cateringOn) && (
+    <section style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0 8px', borderTop: '1px solid var(--rule)' }}>
+        <Eyebrow tone="ink">Catering</Eyebrow>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {boxes.length > 0 && <span style={{ font: mono(12.5), color: 'var(--text-2)' }}>{formatKcal(dayTotals(boxes).eaten)} kcal</span>}
+          {canEdit && (
+            <button type="button" onClick={() => nav('/profile/cel#catering')} style={{ border: 0, background: 'transparent', padding: 0, font: sans(13.5, 600), color: 'var(--text-2)', cursor: 'pointer' }}>
+              Ustawienia
+            </button>
+          )}
+        </span>
+      </div>
+      {boxes.map((e) => (
+        <DiaryItem
+          key={e.id}
+          entry={e}
+          canEdit={canEdit}
+          busy={deleteEntry.isPending}
+          onToggleEaten={() => { if (confirm('Dziś bez cateringu?')) deleteEntry.mutate(e.id) }}
+          onOpen={() => openEntry(e)}
+        />
+      ))}
+      {boxes.length === 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+          <span style={{ font: sans(14.5), color: 'var(--text-3)' }}>
+            {future
+              ? delivers ? `Dostawa — ${formatKcal(catering!.kcal)} kcal doliczy się sama.` : 'Bez dostawy tego dnia.'
+              : 'Bez cateringu tego dnia.'}
+          </span>
+          {canEdit && !future && cateringOn && (
+            <Button variant="outline" size="sm" disabled={logCatering.isPending} onClick={() => logCatering.mutate(day)}>
+              + Catering
+            </Button>
+          )}
+        </div>
+      )}
+    </section>
   )
 
   const actDay = activity?.days.find((a) => a.date === day)
@@ -211,6 +262,7 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
           <PageTitle title="Plan" right={switcher} />
           {dayNav}
           {meter}
+          {cateringBlock}
           {slots}
           {fridgeBlock}
           {activityBlock}
@@ -223,7 +275,7 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
         <>
           <PageTitle
             title="Plan"
-            sub={`${dayName(date)} ${dayShortMonth(date)}. ${future ? `W planie ~${formatKcal(totals.planned)} kcal.` : `Zjadłaś ${formatKcal(totals.eaten)} kcal.`}`}
+            sub={`${dayName(date)} ${dayShortMonth(date)}. ${future ? `W planie ~${formatKcal(totals.planned)} kcal.` : `${feminine ? 'Zjadłaś' : 'Zjadłeś'} ${formatKcal(totals.eaten)} kcal.`}`}
             right={
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {switcher}
@@ -236,6 +288,7 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
           <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 48, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 28, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
               {meter}
+              {cateringBlock}
               {slots}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
@@ -322,7 +375,7 @@ export function PrivateDiary({ switcher }: { switcher: ReactNode }) {
         <Eyebrow tone="accent">Prywatne</Eyebrow>
         <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 30, lineHeight: 1.15 }}>Dziennik jest prywatny — zaloguj się</span>
         <p style={{ margin: 0, font: sans(15), lineHeight: 1.5, color: 'var(--text-2)' }}>
-          Co zjedzone, ile kcal i resztki w lodówce widzi tylko właścicielka. Plan tygodnia i przepisy są dostępne dla wszystkich.
+          Co zjedzone, ile kcal i resztki w lodówce widać tylko po zalogowaniu. Plan tygodnia i przepisy są dostępne dla wszystkich.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 6 }}>
           <Button variant="outline" onClick={() => { window.location.href = loginUrl('/plan/dzien') }}>Zaloguj się</Button>

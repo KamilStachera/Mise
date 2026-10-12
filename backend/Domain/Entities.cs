@@ -332,6 +332,11 @@ public class CookLogEntry
 public class PlanEntry
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>
+    /// Whose calendar/diary this is (<see cref="Person"/>). Defaults to person 1 — agents and
+    /// the household meal plan act for her; shopping ignores the owner.
+    /// </summary>
+    public int PersonId { get; set; } = Person.DefaultId;
     public DateOnly Date { get; set; }
     public MealSlot Slot { get; set; } = MealSlot.Lunch;
 
@@ -371,6 +376,12 @@ public class PlanEntry
     public bool IsLeftover { get; set; }
 
     /// <summary>
+    /// The day's catering box, written by <c>CateringService</c> as an eaten snapshot of
+    /// <see cref="Catering"/>. Never recreated once deleted (see <see cref="Catering.MaterializedThrough"/>).
+    /// </summary>
+    public bool IsCatering { get; set; }
+
+    /// <summary>
     /// True once the user waved off the "mark as cooked" reminder for this entry
     /// (meal skipped / eaten out); such entries never reappear in /plan/pending-cook.
     /// </summary>
@@ -388,6 +399,8 @@ public class PlanEntry
 public class Cook
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>Whose fridge the pot sits in ("W lodówce" is per person).</summary>
+    public int PersonId { get; set; } = Person.DefaultId;
     public Guid? RecipeId { get; set; }
     public Recipe? Recipe { get; set; }
     /// <summary>Recipe title snapshot (survives recipe deletion).</summary>
@@ -410,7 +423,8 @@ public class Cook
 public class FoodFavorite
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    /// <summary>Identity key — IngredientMatcher.Normalize of the name. Unique.</summary>
+    public int PersonId { get; set; } = Person.DefaultId;
+    /// <summary>Identity key — IngredientMatcher.Normalize of the name. Unique per person.</summary>
     public string NormalizedName { get; set; } = "";
     public string Name { get; set; } = "";
     public int Kcal { get; set; }
@@ -434,14 +448,14 @@ public enum BodySex { Female, Male }
 public enum ActivityLevel { Sedentary, Light, Moderate, High }
 
 /// <summary>
-/// Singleton row (Id = 1): "Twój cel". The daily kcal target is derived (Mifflin-St Jeor →
+/// One row per person (key = <see cref="PersonId"/>): "Twój cel". The daily kcal target is derived (Mifflin-St Jeor →
 /// TDEE → minus the pace deficit, see <c>BodyService</c>) unless <see cref="TargetKcalOverride"/>
 /// is set. Current weight is not stored here — it is the latest <see cref="WeightEntry"/>.
 /// Private like the diary.
 /// </summary>
 public class BodyProfile
 {
-    public int Id { get; set; } = 1;
+    public int PersonId { get; set; } = Person.DefaultId;
     public BodySex Sex { get; set; } = BodySex.Female;
     public int BirthYear { get; set; }
     public int HeightCm { get; set; }
@@ -461,12 +475,13 @@ public class BodyProfile
 public enum MeasurementSource { Manual, HealthConnect }
 
 /// <summary>
-/// One weigh-in per day. A manual entry always wins; from the scale (Health Connect) the
-/// day's earliest measurement is kept — the morning weight, not the after-dinner one.
+/// One weigh-in per person per day. A manual entry always wins; from the scale (Health Connect)
+/// the day's earliest measurement is kept — the morning weight, not the after-dinner one.
 /// </summary>
 public class WeightEntry
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; } = Person.DefaultId;
     public DateOnly Date { get; set; }
     public decimal Kg { get; set; }
     public MeasurementSource Source { get; set; } = MeasurementSource.Manual;
@@ -479,12 +494,13 @@ public enum EnergyKind { Active, Total }
 
 /// <summary>
 /// One raw Health Connect energy interval as the band app wrote it. Re-sent records are
-/// upserted on (Kind, Start, End). A day's active kcal is the sum of its Active samples; when
-/// the band only writes Total, active ≈ total − BMR (see <c>ActivityService</c>).
+/// upserted on (PersonId, Kind, Start, End). A day's active kcal is the sum of its Active samples;
+/// when the band only writes Total, active ≈ total − BMR (see <c>ActivityService</c>).
 /// </summary>
 public class EnergySample
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; } = Person.DefaultId;
     public EnergyKind Kind { get; set; }
     public DateTimeOffset Start { get; set; }
     public DateTimeOffset End { get; set; }
@@ -502,6 +518,7 @@ public class EnergySample
 public class Workout
 {
     public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; } = Person.DefaultId;
     public DateOnly Date { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public int Minutes { get; set; }
@@ -510,21 +527,59 @@ public class Workout
     /// <summary>Polish label (Trening siłowy, Spacer…).</summary>
     public string Type { get; set; } = "";
     public MeasurementSource Source { get; set; } = MeasurementSource.Manual;
-    /// <summary>Health Connect identity: start|end instants. Unique when set.</summary>
+    /// <summary>Health Connect identity: start|end instants. Unique per person when set.</summary>
     public string? ExternalKey { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>
-/// Singleton (Id = 1): the band/scale sync. <see cref="Token"/> is the secret in the webhook
-/// URL the phone's HC Webhook app posts to (<c>/api/hc/{token}</c>) — rotate it to cut a phone off.
+/// One per person: the band/scale sync of their phone. <see cref="Token"/> is the secret in the
+/// webhook URL the phone's HC Webhook app posts to (<c>/api/hc/{token}</c>) and also says whose
+/// data it is. Rotate it to cut a phone off.
 /// </summary>
 public class HealthSync
 {
-    public int Id { get; set; } = 1;
+    public int PersonId { get; set; } = Person.DefaultId;
     public string Token { get; set; } = "";
     public DateTimeOffset? LastSyncAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// Someone with their own food diary, goal, weight and band. The cookbook, pantry and
+/// shopping stay household-wide. Rows mirror the <c>Diary:People</c> config (order = Id,
+/// synced on boot by <c>DbInitializer</c>); person 1 owns everything from before people existed.
+/// </summary>
+public class Person
+{
+    public const int DefaultId = 1;
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    /// <summary>Google account that lands on this person's diary; null = reachable only via the switcher.</summary>
+    public string? Email { get; set; }
+}
+
+/// <summary>
+/// Diet catering ("dieta pudełkowa"): the average day of boxes, counted as eaten on the
+/// delivery weekdays. <c>CateringService</c> writes one eaten <see cref="PlanEntry"/> per
+/// delivery day up to today and advances <see cref="MaterializedThrough"/>, so a deleted day
+/// stays deleted and editing the numbers never rewrites past days.
+/// </summary>
+public class Catering
+{
+    public int PersonId { get; set; }
+    public bool Enabled { get; set; } = true;
+    public int Kcal { get; set; }
+    public decimal? Protein { get; set; }
+    public decimal? Fat { get; set; }
+    public decimal? Carbs { get; set; }
+    /// <summary>Delivery days as a bitmask, bit 0 = Monday … bit 6 = Sunday. Default Mon–Fri.</summary>
+    public int Weekdays { get; set; } = 0b0011111;
+    /// <summary>First day the boxes count.</summary>
+    public DateOnly StartDate { get; set; }
+    /// <summary>Days up to here are done (written, or skipped on purpose); null = nothing yet.</summary>
+    public DateOnly? MaterializedThrough { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>

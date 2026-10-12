@@ -17,9 +17,13 @@ public sealed class DiaryException(string message, int status = StatusCodes.Stat
 /// The food diary on top of the plan: planned/eaten entries, nutrition snapshots, pots
 /// spread over several days (<see cref="Cook"/>) and the snack favourites. Every rule that
 /// is not plain CRUD lives here because tests only reach Services/ (no WebApplicationFactory).
+/// New entries, the fridge and the favourites belong to the request's <see cref="PersonScope"/>;
+/// by-id operations work on anyone's rows (the two of them may edit each other's diary).
 /// </summary>
-public class DiaryService(MiseDbContext db)
+public class DiaryService(MiseDbContext db, PersonScope? person = null)
 {
+    private readonly int pid = (person ?? PersonScope.Default).Id;
+
     public const int MaxPotPortions = 12;
     public const decimal MaxEntryPortions = 10;
     /// <summary>How many favourite chips Szybki wpis shows.</summary>
@@ -105,6 +109,7 @@ public class DiaryService(MiseDbContext db)
 
         var entry = new PlanEntry
         {
+            PersonId = pid,
             Date = date,
             Slot = slot,
             RecipeId = recipe?.Id,
@@ -183,11 +188,14 @@ public class DiaryService(MiseDbContext db)
         }
         else
         {
-            cookDay = new PlanEntry { Date = firstDate, Slot = firstSlot, RecipeId = recipe.Id, Recipe = recipe };
+            cookDay = new PlanEntry { PersonId = pid, Date = firstDate, Slot = firstSlot, RecipeId = recipe.Id, Recipe = recipe };
             db.PlanEntries.Add(cookDay);
         }
 
-        var cook = new Cook { RecipeId = recipe.Id, Title = recipe.Title, Date = cookDay.Date, Portions = portions };
+        var cook = new Cook
+        {
+            PersonId = cookDay.PersonId, RecipeId = recipe.Id, Title = recipe.Title, Date = cookDay.Date, Portions = portions,
+        };
         db.Cooks.Add(cook);
         cookDay.Cook = cook;
         cookDay.IsLeftover = false;
@@ -227,6 +235,7 @@ public class DiaryService(MiseDbContext db)
         if (Remaining(cook) < 1) throw new DiaryException("W lodówce nie zostało już porcji.", StatusCodes.Status409Conflict);
         var entry = new PlanEntry
         {
+            PersonId = pid,
             Date = date,
             Slot = slot,
             RecipeId = cook.RecipeId,
@@ -258,7 +267,7 @@ public class DiaryService(MiseDbContext db)
         var cooks = await db.Cooks.AsNoTracking()
             .Include(c => c.Entries)
             .Include(c => c.Recipe)
-            .Where(c => c.Date >= from && c.Date <= today)
+            .Where(c => c.PersonId == pid && c.Date >= from && c.Date <= today)
             .OrderByDescending(c => c.Date)
             .ToListAsync(ct);
         return cooks.Where(c => Remaining(c) > 0).ToList();
@@ -283,6 +292,7 @@ public class DiaryService(MiseDbContext db)
         {
             var leftover = new PlanEntry
             {
+                PersonId = cook.PersonId,
                 Date = date,
                 Slot = slot,
                 RecipeId = recipe?.Id,
@@ -311,10 +321,10 @@ public class DiaryService(MiseDbContext db)
         var trimmed = name.Trim();
         var key = Key(trimmed);
         if (key.Length == 0) throw new DiaryException("Podaj nazwę.");
-        var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.NormalizedName == key, ct);
+        var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.PersonId == pid && x.NormalizedName == key, ct);
         if (f is null)
         {
-            f = new FoodFavorite { NormalizedName = key };
+            f = new FoodFavorite { PersonId = pid, NormalizedName = key };
             db.FoodFavorites.Add(f);
         }
         (f.Name, f.Kcal, f.Protein, f.Fat, f.Carbs, f.Per100g) = (trimmed, kcal, protein, fat, carbs, per100g);
@@ -331,7 +341,7 @@ public class DiaryService(MiseDbContext db)
     {
         var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new DiaryException("Nie ma takiego ulubionego.", StatusCodes.Status404NotFound);
-        var entry = new PlanEntry { Date = date, Slot = slot, Title = f.Name };
+        var entry = new PlanEntry { PersonId = pid, Date = date, Slot = slot, Title = f.Name };
         if (f.Per100g)
         {
             var g = grams is > 0 ? grams.Value : f.LastGrams ?? 100;
@@ -363,7 +373,7 @@ public class DiaryService(MiseDbContext db)
     public async Task<List<FoodFavorite>> FavoritesAsync(bool includeHidden, int? cap, CancellationToken ct = default)
     {
         var all = await db.FoodFavorites.AsNoTracking()
-            .Where(f => includeHidden || !f.Hidden).ToListAsync(ct);
+            .Where(f => f.PersonId == pid && (includeHidden || !f.Hidden)).ToListAsync(ct);
         var now = DateTimeOffset.UtcNow;
         var ranked = all
             .OrderByDescending(f => f.Pinned)

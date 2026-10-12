@@ -39,6 +39,8 @@ services:
       Auth__AllowedEmails: ${AUTH_ALLOWED_EMAILS:-}
       MISE_API_KEY: ${MISE_API_KEY:-}
       Auth__DevBypass: ${AUTH_DEV_BYPASS:-false}
+      # Who keeps a food diary (Name:email,…; first = person 1). Empty = one person.
+      Diary__People: ${DIARY_PEOPLE:-}
       KeysDir: /data/keys
       # "Today" for the plan/diary and the day a band sample belongs to are Polish days.
       TZ: Europe/Warsaw

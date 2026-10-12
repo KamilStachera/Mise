@@ -1,5 +1,6 @@
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/hooks'
+import { PersonSwitch } from '../components/diary/PersonSwitch'
 import { Segmented } from '../components/ui'
 import { mondayOf, parseISODate, toISO } from '../lib/dates'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -39,16 +40,19 @@ export function Plan() {
   const go = (v: View, iso: string) => nav(`/plan/${v}${iso === toISO(new Date()) ? '' : `?d=${iso}`}`, { replace: v === view })
 
   const switcher = (
-    <Segmented
-      value={view === 'aktywnosc' ? 'dzien' : view}
-      onChange={(v) => go(v, day)}
-      style={{ width: isMobile ? 230 : 300 }}
-      items={[
-        { key: 'dzien', label: 'Dzień' },
-        { key: 'tydzien', label: 'Tydzień' },
-        { key: 'postepy', label: 'Postępy' },
-      ]}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+      <PersonSwitch />
+      <Segmented
+        value={view === 'aktywnosc' ? 'dzien' : view}
+        onChange={(v) => go(v, day)}
+        style={{ width: isMobile ? 230 : 300 }}
+        items={[
+          { key: 'dzien', label: 'Dzień' },
+          { key: 'tydzien', label: 'Tydzień' },
+          { key: 'postepy', label: 'Postępy' },
+        ]}
+      />
+    </div>
   )
 
   if (view === 'postepy') return <ProgressView switcher={switcher} />

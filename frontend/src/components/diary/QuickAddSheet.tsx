@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { api, type BarcodeProduct, type RecipeListItem, type Slot } from '../../api/client'
-import { useAddDiaryEntry, useDeletePlanEntry, useFoodFavorites, useLogFavorite } from '../../api/hooks'
+import { useAddDiaryEntry, useCatering, useDeletePlanEntry, useFeminine, useFoodFavorites, useLogCatering, useLogFavorite, usePlan } from '../../api/hooks'
+import { mondayOf, parseISODate, toISO } from '../../lib/dates'
 import { DIARY_SLOTS, formatKcal, slotLabel, slotTo } from '../../lib/labels'
 import { showToast } from '../../lib/toastBus'
 import { Button, Chip, Eyebrow, Segmented, Sheet, Toggle, inputStyle, mono, sans } from '../ui'
@@ -34,6 +35,13 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
   const logFavorite = useLogFavorite()
   const add = useAddDiaryEntry()
   const del = useDeletePlanEntry()
+  const feminine = useFeminine()
+  // Catering chip: a box on a day without delivery (or one removed by mistake), never twice a day.
+  const { data: catering } = useCatering()
+  const { data: week } = usePlan(toISO(mondayOf(parseISODate(date))))
+  const logCatering = useLogCatering()
+  const showCatering = catering?.configured === true && catering.enabled
+    && !(week?.entries ?? []).some((e) => e.date === date && e.isCatering)
 
   const [name, setName] = useState('')
   const [kcal, setKcal] = useState('')
@@ -70,6 +78,12 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
     const entry = await logFavorite.mutateAsync({ id, date, slot })
     onClose()
     showToast(`${label} · ${chipKcal} kcal ${slotTo[slot]}`, { label: 'Cofnij', run: () => del.mutate(entry.id) })
+  }
+
+  async function onCatering() {
+    const entry = await logCatering.mutateAsync(date)
+    onClose()
+    showToast(`Catering · ${formatKcal(entry.kcal ?? 0)} kcal`, { label: 'Cofnij', run: () => del.mutate(entry.id) })
   }
 
   async function onAddTyped() {
@@ -169,11 +183,17 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
           </>
         ) : (
           <>
-            {(favorites?.length ?? 0) > 0 && (
+            {((favorites?.length ?? 0) > 0 || showCatering) && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <Eyebrow>Ulubione · jedno dotknięcie</Eyebrow>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {favorites!.map((f) => (
+                  {showCatering && (
+                    <Chip onClick={busy || logCatering.isPending ? undefined : onCatering} style={{ padding: '10px 14px', font: sans(15, 500) }}>
+                      Catering
+                      <span style={{ font: mono(12.5), color: 'var(--text-3)' }}>{catering!.kcal}</span>
+                    </Chip>
+                  )}
+                  {(favorites ?? []).map((f) => (
                     <Chip key={f.id} onClick={busy ? undefined : () => onChip(f.id, f.name, f.chipKcal)} style={{ padding: '10px 14px', font: sans(15, 500) }}>
                       {f.name}
                       <span style={{ font: mono(12.5), color: 'var(--text-3)' }}>{f.chipKcal}</span>
@@ -188,7 +208,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 14, borderTop: '1px solid var(--rule)' }}>
-              <Eyebrow>Albo wpisz sama</Eyebrow>
+              <Eyebrow>Albo wpisz {feminine ? 'sama' : 'sam'}</Eyebrow>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <span style={label}>Nazwa</span>
                 <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="np. pączek z różą" />

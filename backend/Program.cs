@@ -20,9 +20,15 @@ builder.Services.AddScoped<IngredientMatcher>();
 builder.Services.AddScoped<RecipeIngredientNormalizer>();
 builder.Services.AddScoped<ShoppingService>();
 builder.Services.AddScoped<SupplyService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<People>();
+// Whose diary a request acts for (X-Person switcher → own Google email → person 1).
+builder.Services.AddScoped(sp => sp.GetRequiredService<People>().Resolve(
+    sp.GetRequiredService<IHttpContextAccessor>().HttpContext, sp.GetRequiredService<AccessControl>()));
 builder.Services.AddScoped<DiaryService>();
 builder.Services.AddScoped<BodyService>();
 builder.Services.AddScoped<ActivityService>();
+builder.Services.AddScoped<CateringService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<OpenFoodFacts>();
 builder.Services.AddScoped<StockReliability>();

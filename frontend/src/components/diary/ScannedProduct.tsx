@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import type { BarcodeProduct, Slot } from '../../api/client'
-import { useAddDiaryEntry } from '../../api/hooks'
+import { useAddDiaryEntry, useFeminine } from '../../api/hooks'
 import { formatKcal, slotTo } from '../../lib/labels'
 import { showToast } from '../../lib/toastBus'
 import { Button, Eyebrow, inputStyle, mono, sans } from '../ui'
@@ -54,6 +54,7 @@ export function ScannedProduct({ product, date, slot, onRescan, onDone }: {
     onDone()
   }
 
+  const feminine = useFeminine()
   const label: CSSProperties = { font: mono(11, 500), letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-3)' }
   const chips = serving ? [[`1 porcja`, serving], [`2 porcje`, serving * 2]] as const : []
 
@@ -61,7 +62,7 @@ export function ScannedProduct({ product, date, slot, onRescan, onDone }: {
     <>
       {chips.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={label}>Ile zjadłaś</span>
+          <span style={label}>{feminine ? 'Ile zjadłaś' : 'Ile zjadłeś'}</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {chips.map(([l, v]) => (
               <PortionChip key={l} on={num(grams) === Math.round(v * 10) / 10} onClick={() => setGrams(dec(v))}>

@@ -292,6 +292,8 @@ export interface PlanEntry {
   isLeftover: boolean
   cookDate: string | null
   cookPortions: number | null
+  /** The day's catering box (counted as eaten automatically on delivery days). */
+  isCatering: boolean
 }
 /** A pot with portions left in the fridge. */
 export interface FridgeItem {
@@ -484,6 +486,26 @@ export interface Activity {
   addBackPercent: number
   days: ActivityDay[]
 }
+/** Diet catering: the average box day. weekdays = bitmask, bit 0 = Monday … bit 6 = Sunday. */
+export interface Catering {
+  configured: boolean
+  enabled: boolean
+  kcal: number
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+  weekdays: number
+  startDate: string | null
+}
+export interface CateringInput {
+  enabled: boolean
+  kcal: number
+  protein?: number | null
+  fat?: number | null
+  carbs?: number | null
+  weekdays: number
+  startDate?: string
+}
 export interface HealthConnection {
   token: string
   state: SyncState
@@ -580,11 +602,19 @@ export interface ConnectInfo {
   }
 }
 
+export interface Person {
+  id: number
+  name: string
+}
 export interface AuthMe {
   authenticated: boolean
   email: string | null
   name: string | null
   picture: string | null
+  /** The caller's own diary. */
+  personId: number | null
+  /** Everyone with a diary; empty for anonymous visitors. */
+  people: Person[] | null
 }
 
 // ---- fetch helpers ----
@@ -599,11 +629,16 @@ export class ApiError extends Error {
   }
 }
 
+/** Whose diary the private endpoints act for (the Plan switcher); null = the caller's own. */
+let personHeader: number | null = null
+export function setPersonHeader(id: number | null) {
+  personHeader = id
+}
+
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  })
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (personHeader != null) headers['X-Person'] = String(personHeader)
+  const res = await fetch(BASE + path, { headers, ...init })
   if (!res.ok) throw new ApiError(res.status, res.statusText)
   if (res.status === 204) return undefined as T
   const text = await res.text()
@@ -745,6 +780,11 @@ export const api = {
   setWeight: (date: string, kg: number) =>
     http<{ date: string; kg: number }>(`/body/weights/${date}`, { method: 'PUT', body: JSON.stringify({ kg }) }),
   deleteWeight: (date: string) => http<void>(`/body/weights/${date}`, { method: 'DELETE' }),
+  catering: () => http<Catering>(`/body/catering`),
+  saveCatering: (input: CateringInput) =>
+    http<Catering>(`/body/catering`, { method: 'PUT', body: JSON.stringify(input) }),
+  logCatering: (date: string) =>
+    http<PlanEntry>(`/body/catering/log`, { method: 'POST', body: JSON.stringify({ date }) }),
   setFavoriteFlags: (id: string, flags: { pinned?: boolean; hidden?: boolean }) =>
     http<FoodFavorite>(`/diary/favorites/${id}`, { method: 'PATCH', body: JSON.stringify(flags) }),
 

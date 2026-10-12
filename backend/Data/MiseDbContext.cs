@@ -29,6 +29,8 @@ public class MiseDbContext : DbContext
     public DbSet<EnergySample> EnergySamples => Set<EnergySample>();
     public DbSet<Workout> Workouts => Set<Workout>();
     public DbSet<HealthSync> HealthSyncs => Set<HealthSync>();
+    public DbSet<Person> People => Set<Person>();
+    public DbSet<Catering> Caterings => Set<Catering>();
     public DbSet<ProfileAnswer> ProfileAnswers => Set<ProfileAnswer>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -156,6 +158,8 @@ public class MiseDbContext : DbContext
             // Several entries per slot now (snacks, a leftover next to a fresh meal) — not unique.
             e.HasIndex(x => new { x.Date, x.Slot });
             e.HasIndex(x => x.CookId);
+            e.HasIndex(x => new { x.PersonId, x.Date });
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<Cook>(e =>
@@ -163,11 +167,31 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Title).HasMaxLength(300);
             e.HasOne(x => x.Recipe).WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => x.Date);
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<Person>(e =>
+        {
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.Name).HasMaxLength(60);
+            e.Property(x => x.Email).HasMaxLength(200);
+        });
+
+        b.Entity<Catering>(e =>
+        {
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            e.Property(x => x.Protein).HasPrecision(7, 1);
+            e.Property(x => x.Fat).HasPrecision(7, 1);
+            e.Property(x => x.Carbs).HasPrecision(7, 1);
+            e.HasOne<Person>().WithOne().HasForeignKey<Catering>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<BodyProfile>(e =>
         {
-            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            e.HasOne<Person>().WithOne().HasForeignKey<BodyProfile>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.Sex).HasConversion<string>().HasMaxLength(8);
             e.Property(x => x.ActivityLevel).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.GoalWeightKg).HasPrecision(5, 1);
@@ -178,15 +202,17 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Kg).HasPrecision(5, 2);
             e.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
-            e.HasIndex(x => x.Date).IsUnique();
+            e.HasIndex(x => new { x.PersonId, x.Date }).IsUnique();
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<EnergySample>(e =>
         {
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(8);
             e.Property(x => x.Kcal).HasPrecision(8, 2);
-            e.HasIndex(x => new { x.Kind, x.Start, x.End }).IsUnique();
-            e.HasIndex(x => x.Date);
+            e.HasIndex(x => new { x.PersonId, x.Kind, x.Start, x.End }).IsUnique();
+            e.HasIndex(x => new { x.PersonId, x.Date });
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<Workout>(e =>
@@ -194,14 +220,17 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Type).HasMaxLength(60);
             e.Property(x => x.Source).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.ExternalKey).HasMaxLength(100);
-            e.HasIndex(x => x.ExternalKey).IsUnique();
-            e.HasIndex(x => x.Date);
+            e.HasIndex(x => new { x.PersonId, x.ExternalKey }).IsUnique();
+            e.HasIndex(x => new { x.PersonId, x.Date });
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<HealthSync>(e =>
         {
-            e.Property(x => x.Id).ValueGeneratedNever();
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
             e.Property(x => x.Token).HasMaxLength(64);
+            e.HasOne<Person>().WithOne().HasForeignKey<HealthSync>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<FoodFavorite>(e =>
@@ -213,8 +242,9 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Fat).HasPrecision(7, 1);
             e.Property(x => x.Carbs).HasPrecision(7, 1);
             e.Property(x => x.LastGrams).HasPrecision(8, 1);
-            e.HasIndex(x => x.NormalizedName).IsUnique();
+            e.HasIndex(x => new { x.PersonId, x.NormalizedName }).IsUnique();
             e.HasIndex(x => x.Barcode);
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<ProfileAnswer>(e =>

@@ -24,7 +24,7 @@ namespace Mise.Api.Data.Migrations
 
             modelBuilder.Entity("Mise.Api.Domain.BodyProfile", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("PersonId")
                         .HasColumnType("integer");
 
                     b.Property<int>("ActivityAddBackPercent")
@@ -63,9 +63,49 @@ namespace Mise.Api.Data.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("PersonId");
 
                     b.ToTable("BodyProfiles");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.Catering", b =>
+                {
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Carbs")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("Fat")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<int>("Kcal")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("MaterializedThrough")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("Protein")
+                        .HasPrecision(7, 1)
+                        .HasColumnType("numeric(7,1)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Weekdays")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PersonId");
+
+                    b.ToTable("Caterings");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.ChatMessage", b =>
@@ -115,6 +155,9 @@ namespace Mise.Api.Data.Migrations
                     b.Property<int>("DiscardedPortions")
                         .HasColumnType("integer");
 
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("Portions")
                         .HasColumnType("integer");
 
@@ -129,6 +172,8 @@ namespace Mise.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Date");
+
+                    b.HasIndex("PersonId");
 
                     b.HasIndex("RecipeId");
 
@@ -192,6 +237,9 @@ namespace Mise.Api.Data.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)");
 
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("ReceivedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -200,9 +248,9 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Date");
+                    b.HasIndex("PersonId", "Date");
 
-                    b.HasIndex("Kind", "Start", "End")
+                    b.HasIndex("PersonId", "Kind", "Start", "End")
                         .IsUnique();
 
                     b.ToTable("EnergySamples");
@@ -281,6 +329,9 @@ namespace Mise.Api.Data.Migrations
                     b.Property<bool>("Per100g")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Pinned")
                         .HasColumnType("boolean");
 
@@ -292,7 +343,7 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasIndex("Barcode");
 
-                    b.HasIndex("NormalizedName")
+                    b.HasIndex("PersonId", "NormalizedName")
                         .IsUnique();
 
                     b.ToTable("FoodFavorites");
@@ -300,7 +351,7 @@ namespace Mise.Api.Data.Migrations
 
             modelBuilder.Entity("Mise.Api.Domain.HealthSync", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("PersonId")
                         .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -314,7 +365,7 @@ namespace Mise.Api.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.HasKey("Id");
+                    b.HasKey("PersonId");
 
                     b.ToTable("HealthSyncs");
                 });
@@ -368,6 +419,25 @@ namespace Mise.Api.Data.Migrations
                     b.ToTable("PantryItems");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.Person", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("People");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.PlanEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -401,6 +471,9 @@ namespace Mise.Api.Data.Migrations
                         .HasPrecision(8, 1)
                         .HasColumnType("numeric(8,1)");
 
+                    b.Property<bool>("IsCatering")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsLeftover")
                         .HasColumnType("boolean");
 
@@ -410,6 +483,9 @@ namespace Mise.Api.Data.Migrations
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("Portions")
                         .HasPrecision(6, 2)
@@ -442,6 +518,8 @@ namespace Mise.Api.Data.Migrations
                     b.HasIndex("RecipeId");
 
                     b.HasIndex("Date", "Slot");
+
+                    b.HasIndex("PersonId", "Date");
 
                     b.ToTable("PlanEntries");
                 });
@@ -916,6 +994,9 @@ namespace Mise.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("MeasuredAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -923,7 +1004,7 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Date")
+                    b.HasIndex("PersonId", "Date")
                         .IsUnique();
 
                     b.ToTable("WeightEntries");
@@ -951,6 +1032,9 @@ namespace Mise.Api.Data.Migrations
                     b.Property<int>("Minutes")
                         .HasColumnType("integer");
 
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -966,16 +1050,40 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Date");
+                    b.HasIndex("PersonId", "Date");
 
-                    b.HasIndex("ExternalKey")
+                    b.HasIndex("PersonId", "ExternalKey")
                         .IsUnique();
 
                     b.ToTable("Workouts");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.BodyProfile", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithOne()
+                        .HasForeignKey("Mise.Api.Domain.BodyProfile", "PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.Catering", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithOne()
+                        .HasForeignKey("Mise.Api.Domain.Catering", "PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.Cook", b =>
                 {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Mise.Api.Domain.Recipe", "Recipe")
                         .WithMany()
                         .HasForeignKey("RecipeId")
@@ -994,6 +1102,15 @@ namespace Mise.Api.Data.Migrations
                     b.Navigation("Recipe");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.EnergySample", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.EquipmentItem", b =>
                 {
                     b.HasOne("Mise.Api.Domain.Preferences", "Preferences")
@@ -1005,12 +1122,36 @@ namespace Mise.Api.Data.Migrations
                     b.Navigation("Preferences");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.FoodFavorite", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.HealthSync", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithOne()
+                        .HasForeignKey("Mise.Api.Domain.HealthSync", "PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.PlanEntry", b =>
                 {
                     b.HasOne("Mise.Api.Domain.Cook", "Cook")
                         .WithMany("Entries")
                         .HasForeignKey("CookId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("Mise.Api.Domain.Recipe", "Recipe")
                         .WithMany()
@@ -1082,6 +1223,24 @@ namespace Mise.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("ShoppingItem");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.WeightEntry", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.Workout", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.Cook", b =>

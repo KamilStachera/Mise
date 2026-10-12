@@ -25,6 +25,7 @@ public static class DbInitializer
             }
         }
 
+        await scope.ServiceProvider.GetRequiredService<People>().SyncAsync(db, ct);
         await SeedData.EnsureSeededAsync(db, ct);
         await RelinkAndBackfillAsync(db, scope.ServiceProvider.GetRequiredService<IngredientMatcher>(), ct);
 

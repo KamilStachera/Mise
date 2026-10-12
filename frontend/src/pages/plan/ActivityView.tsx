@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { SyncState, Workout } from '../../api/client'
 import { useActivity, useAuth, useBody, useDeleteWorkout, useHealthConnection, useRotateHealthConnection } from '../../api/hooks'
 import { SourceTag } from '../../components/diary/parts'
+import { PersonSwitch } from '../../components/diary/PersonSwitch'
 import { WorkoutSheet } from '../../components/diary/WorkoutSheet'
 import { TAB_BAR_HEIGHT } from '../../components/TabBar'
 import { Button, Eyebrow, PageTitle, StatStrip, mono, sans, usePagePad } from '../../components/ui'
@@ -84,7 +85,12 @@ export function ActivityView() {
       {back}
       <PageTitle
         title="Aktywność"
-        right={!isMobile && <Button onClick={() => setSheet(true)}>+ Dodaj trening</Button>}
+        right={
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            <PersonSwitch />
+            {!isMobile && <Button onClick={() => setSheet(true)}>+ Dodaj trening</Button>}
+          </div>
+        }
       />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
         {connection}
@@ -193,7 +199,7 @@ function Setup() {
           </span>
         </div>
       ))}
-      <Eyebrow style={{ paddingTop: 8 }}>Twój adres</Eyebrow>
+      <Eyebrow style={{ paddingTop: 8 }}>Adres dla tego telefonu</Eyebrow>
       <div style={{ display: 'flex', gap: 8, paddingTop: 8 }}>
         <span style={{ flex: 1, minWidth: 0, height: 50, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', font: mono(13), overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }} title={url}>
           {short}
@@ -201,7 +207,7 @@ function Setup() {
         <Button variant="dark" disabled={!conn} onClick={copy}>Kopiuj</Button>
       </div>
       <span style={{ font: sans(13), lineHeight: 1.5, color: 'var(--text-3)', paddingTop: 10 }}>
-        Adres działa jak hasło — nie udostępniaj go.{' '}
+        Każda osoba ma własny adres — wklej go w HC Webhook na swoim telefonie. Działa jak hasło, nie udostępniaj go.{' '}
         <button
           type="button"
           onClick={() => { if (confirm('Wygenerować nowy adres? Stary przestanie działać — trzeba będzie wkleić nowy w HC Webhook.')) rotate.mutate() }}

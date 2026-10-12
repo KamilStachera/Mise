@@ -78,11 +78,13 @@ public static class DiaryEndpoints
 
         // Scanned barcode: a product she already logged under this code wins (her own values,
         // her usual grams), otherwise Open Food Facts. Found=false → the UI asks for the label.
-        g.MapGet("/barcode/{code}", async (string code, MiseDbContext db, OpenFoodFacts off) =>
+        g.MapGet("/barcode/{code}", async (string code, MiseDbContext db, OpenFoodFacts off, PersonScope person) =>
         {
             code = code.Trim();
             if (!OpenFoodFacts.IsBarcode(code)) return Results.BadRequest(new { error = "Kod kreskowy to 8–14 cyfr." });
-            var mine = await db.FoodFavorites.AsNoTracking().FirstOrDefaultAsync(f => f.Barcode == code && f.Per100g);
+            // Own product first, then the other person's — the label is the same for both.
+            var mine = await db.FoodFavorites.AsNoTracking().Where(f => f.Barcode == code && f.Per100g)
+                .OrderByDescending(f => f.PersonId == person.Id).FirstOrDefaultAsync();
             if (mine is not null)
                 return Results.Ok(new BarcodeProductDto(code, true, "favorite", mine.Name, null, mine.Kcal, mine.Protein,
                     mine.Fat, mine.Carbs, null, null, mine.LastGrams));

@@ -16,10 +16,12 @@ public readonly record struct DayIntake(DateOnly Date, int Eaten, int Budget, bo
 /// <summary>
 /// "Twój cel" maths and the progress summary: BMR → TDEE → daily target, the weight trend,
 /// the week's deficit and the logging streak. Pure functions where possible so tests can
-/// reach them without a database.
+/// reach them without a database. Everything reads and writes the request's <see cref="PersonScope"/>.
 /// </summary>
-public class BodyService(MiseDbContext db)
+public class BodyService(MiseDbContext db, PersonScope? person = null)
 {
+    public int PersonId { get; } = (person ?? PersonScope.Default).Id;
+
     /// <summary>≈ 7700 kcal of deficit per kg of body fat — the usual rule of thumb.</summary>
     public const int KcalPerKg = 7700;
     /// <summary>Never suggest less than this; below it a diet needs a doctor, not an app.</summary>
@@ -82,10 +84,13 @@ public class BodyService(MiseDbContext db)
     }
 
     public Task<BodyProfile?> ProfileAsync(CancellationToken ct = default) =>
-        db.BodyProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == 1, ct);
+        db.BodyProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.PersonId == PersonId, ct);
+
+    /// <summary>The person's weigh-ins (tracked); filter further as needed.</summary>
+    public IQueryable<WeightEntry> Weights() => db.WeightEntries.Where(w => w.PersonId == PersonId);
 
     public Task<WeightEntry?> LatestWeightAsync(DateOnly? onOrBefore = null, CancellationToken ct = default) =>
-        db.WeightEntries.AsNoTracking()
+        Weights().AsNoTracking()
             .Where(w => onOrBefore == null || w.Date <= onOrBefore)
             .OrderByDescending(w => w.Date)
             .FirstOrDefaultAsync(ct);
@@ -94,10 +99,10 @@ public class BodyService(MiseDbContext db)
     public async Task<WeightEntry> SetWeightAsync(DateOnly date, decimal kg, MeasurementSource source, CancellationToken ct = default)
     {
         if (kg is < 25 or > 350) throw new DiaryException("Waga poza zakresem.");
-        var entry = await db.WeightEntries.FirstOrDefaultAsync(w => w.Date == date, ct);
+        var entry = await Weights().FirstOrDefaultAsync(w => w.Date == date, ct);
         if (entry is null)
         {
-            entry = new WeightEntry { Date = date };
+            entry = new WeightEntry { PersonId = PersonId, Date = date };
             db.WeightEntries.Add(entry);
         }
         entry.Kg = Math.Round(kg, 2);
@@ -117,7 +122,7 @@ public class BodyService(MiseDbContext db)
     {
         var eaten = await db.PlanEntries.AsNoTracking()
             .Include(e => e.Recipe)
-            .Where(e => e.Date >= from && e.Date <= to && e.EatenAt != null)
+            .Where(e => e.PersonId == PersonId && e.Date >= from && e.Date <= to && e.EatenAt != null)
             .ToListAsync(ct);
         var byDay = eaten.GroupBy(e => e.Date)
             .ToDictionary(g => g.Key, g => g.Sum(e => DiaryService.Nutrition(e).Kcal ?? 0));
@@ -135,7 +140,7 @@ public class BodyService(MiseDbContext db)
     {
         var from = today.AddDays(-lookback);
         var days = await db.PlanEntries.AsNoTracking()
-            .Where(e => e.Date >= from && e.Date <= today && e.EatenAt != null)
+            .Where(e => e.PersonId == PersonId && e.Date >= from && e.Date <= today && e.EatenAt != null)
             .Select(e => e.Date).Distinct().ToListAsync(ct);
         return days.ToHashSet();
     }

@@ -100,13 +100,25 @@ Frontend dev loop: `docker compose up db api` then `cd frontend && npm run dev`
   `Services/DiaryService.cs` / `BodyService.cs`. `/api/diary` and `/api/body` are
   private even for reads; anonymous `GET /plan` hides snacks, typed food and eaten
   state (`Mapping.PublicView`). Spec + design: `docs/weight-loss/`.
+- **The diary is per person; the household isn't.** `Person` rows mirror `DIARY_PEOPLE`
+  (`Name:email,…`, order = id; person 1 owns all pre-people data). `PersonScope` (resolved
+  in `Services/People.cs`: `X-Person` header for privileged callers → own Google email →
+  person 1) scopes `PlanEntry`, `Cook`, `FoodFavorite`, body profile, weights, energy,
+  workouts, `HealthSync` and `Catering`. Agents/MCP and anonymous visitors act as person 1.
+  Shopping, pending-cook and the plan.md export stay household-wide — don't scope them.
+  Frontend: private query keys carry `usePerson().id`; the header comes from `api/person.ts`.
+- **Catering is materialized, not virtual.** `CateringService.EnsureAsync` (run by
+  `GET /plan`, `/body/budget`, `/body/progress`) writes one eaten `IsCatering` entry per
+  delivery day up to today and advances `MaterializedThrough` — a deleted day never comes
+  back and new numbers never rewrite past days.
 - **Band/scale sync = `POST /api/hc/{token}`** (HC Webhook app on her phone →
   Health Connect data). It is the one write that bypasses `ApiAccessMiddleware`; the
   endpoint checks the URL token (`HealthSync`, rotatable). Raw energy intervals are
   upserted on (Kind, Start, End) — the app re-sends updated records. Band workouts
   take their kcal from Active samples inside their window (never add them twice);
   manual workouts add their own. A manual weigh-in beats the scale; the scale keeps
-  the day's earliest reading. Days are Polish days: the api container runs
+  the day's earliest reading; a reading >5 kg off the person's last month is the other
+  person on the shared scale and is dropped. Each person has their own token. Days are Polish days: the api container runs
   `TZ=Europe/Warsaw` (docker-compose) — `DateTime.Today` depends on it.
 - **Shopping list is fully decoupled from the pantry.** Nothing appears or
   disappears automatically; rows come from recipe add-missing, manual entry, or

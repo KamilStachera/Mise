@@ -11,18 +11,23 @@ public static class PlanEndpoints
     {
         var g = api.MapGroup("/plan").WithTags("Plan");
 
+        // One person's calendar (X-Person / own login; anonymous = person 1, the household cook).
         // Anonymous visitors get the meal plan only: snacks, typed food and eaten state are
         // the private diary (see Mapping.PublicView).
-        g.MapGet("/", async (DateOnly? start, int? days, MiseDbContext db, HttpContext ctx, AccessControl access) =>
+        g.MapGet("/", async (DateOnly? start, int? days, MiseDbContext db, HttpContext ctx, AccessControl access,
+            PersonScope person, CateringService catering) =>
         {
-            var from = start ?? StartOfWeek(DateOnly.FromDateTime(DateTime.Today));
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var from = start ?? StartOfWeek(today);
             var count = Math.Clamp(days ?? 14, 1, 60);
             var to = from.AddDays(count);
+            var privileged = access.IsPrivileged(ctx);
+            if (privileged) await catering.EnsureAsync(today);
 
             var entries = await db.PlanEntries.AsNoTracking()
                 .Include(e => e.Recipe)
                 .Include(e => e.Cook)
-                .Where(e => e.Date >= from && e.Date < to)
+                .Where(e => e.PersonId == person.Id && e.Date >= from && e.Date < to)
                 .OrderBy(e => e.Date).ThenBy(e => e.Slot).ThenBy(e => e.CreatedAt)
                 .ToListAsync();
             // Leftovers are matched on their pot's cook day, which can sit before the range.
@@ -30,7 +35,6 @@ public static class PlanEndpoints
                 .Where(c => c.CookedAt >= from.AddDays(-(DiaryService.FridgeDays + 1)) && c.CookedAt <= to.AddDays(1))
                 .ToListAsync();
 
-            var privileged = access.IsPrivileged(ctx);
             var dtos = entries
                 .Where(e => privileged || (e.Slot != MealSlot.Snack && (e.RecipeId is not null || e.Kcal is null)))
                 .Select(e => Mapping.ToDto(e, cooked: PlanShoppingService.IsCooked(e, logs)))
@@ -41,7 +45,7 @@ public static class PlanEndpoints
 
         // Upsert onto the slot's first plain planned meal so agents can write idempotently;
         // eaten food, leftovers and pots in the same slot are left alone.
-        g.MapPut("/entry", async (PlanEntryInput input, MiseDbContext db, ContextExportService export) =>
+        g.MapPut("/entry", async (PlanEntryInput input, MiseDbContext db, PersonScope person, ContextExportService export) =>
         {
             var slot = Mapping.ParseSlot(input.Slot);
             var title = input.Title?.Trim() ?? "";
@@ -55,12 +59,13 @@ public static class PlanEndpoints
                 return Results.BadRequest(new { error = "Podaj recipeId albo title." });
 
             var entry = await db.PlanEntries
-                .Where(e => e.Date == input.Date && e.Slot == slot && e.EatenAt == null && e.CookId == null)
+                .Where(e => e.PersonId == person.Id && e.Date == input.Date && e.Slot == slot && e.EatenAt == null
+                    && e.CookId == null && !e.IsCatering)
                 .OrderBy(e => e.CreatedAt)
                 .FirstOrDefaultAsync();
             if (entry is null)
             {
-                entry = new PlanEntry { Date = input.Date, Slot = slot };
+                entry = new PlanEntry { PersonId = person.Id, Date = input.Date, Slot = slot };
                 db.PlanEntries.Add(entry);
             }
             entry.RecipeId = recipe?.Id;

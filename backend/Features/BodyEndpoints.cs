@@ -33,10 +33,10 @@ public static class BodyEndpoints
             if (!Enum.TryParse<BodySex>(input.Sex, true, out var sex) || !Enum.TryParse<ActivityLevel>(input.ActivityLevel, true, out var level))
                 return Results.BadRequest(new { error = "Nieznana płeć albo poziom aktywności." });
 
-            var p = await db.BodyProfiles.FirstOrDefaultAsync(x => x.Id == 1);
+            var p = await db.BodyProfiles.FirstOrDefaultAsync(x => x.PersonId == body.PersonId);
             if (p is null)
             {
-                p = new BodyProfile();
+                p = new BodyProfile { PersonId = body.PersonId };
                 db.BodyProfiles.Add(p);
             }
             p.Sex = sex;
@@ -60,9 +60,10 @@ public static class BodyEndpoints
 
         // Per-day budgets for the calendar: the fixed target plus the add-back share of that
         // day's active kcal (band + manual workouts).
-        g.MapGet("/budget", async (DateOnly? start, int? days, BodyService body, ActivityService activity) =>
+        g.MapGet("/budget", async (DateOnly? start, int? days, BodyService body, ActivityService activity, CateringService catering) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
+            await catering.EnsureAsync(today);
             var from = start ?? PlanEndpoints.StartOfWeek(today);
             var count = Math.Clamp(days ?? 7, 1, 60);
             var profile = await body.ProfileAsync();
@@ -80,19 +81,20 @@ public static class BodyEndpoints
             return Results.Ok(new BudgetRangeDto(t.Target, t.Protein, profile.ActivityAddBackPercent, list));
         });
 
-        g.MapGet("/progress", async (int? days, MiseDbContext db, BodyService body, ActivityService activity) =>
+        g.MapGet("/progress", async (int? days, BodyService body, ActivityService activity, CateringService catering) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
+            await catering.EnsureAsync(today);
             var span = Math.Clamp(days ?? 84, 7, 730);
             var profile = await body.ProfileAsync();
             // Trend for the first visible point needs the week before it.
-            var weights = await db.WeightEntries.AsNoTracking()
+            var weights = await body.Weights().AsNoTracking()
                 .Where(w => w.Date > today.AddDays(-span - BodyService.TrendDays))
                 .OrderBy(w => w.Date).ToListAsync();
             var trend = BodyService.Trend(weights);
             var visible = trend.Where(p => p.Date > today.AddDays(-span)).ToList();
             var sourceByDate = weights.ToDictionary(w => w.Date, w => w.Source);
-            var first = await db.WeightEntries.AsNoTracking().OrderBy(w => w.Date).FirstOrDefaultAsync();
+            var first = await body.Weights().AsNoTracking().OrderBy(w => w.Date).FirstOrDefaultAsync();
 
             decimal? trendNow = trend.Count > 0 ? trend[^1].Trend : null;
             var weekAgo = trend.Where(p => p.Date <= today.AddDays(-7)).Select(p => (decimal?)p.Trend).LastOrDefault();
@@ -137,17 +139,50 @@ public static class BodyEndpoints
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
         });
 
-        g.MapDelete("/weights/{date}", async (DateOnly date, MiseDbContext db) =>
+        g.MapDelete("/weights/{date}", async (DateOnly date, MiseDbContext db, BodyService body) =>
         {
-            var w = await db.WeightEntries.FirstOrDefaultAsync(x => x.Date == date);
+            var w = await body.Weights().FirstOrDefaultAsync(x => x.Date == date);
             if (w is null) return Results.NotFound();
             db.WeightEntries.Remove(w);
             await db.SaveChangesAsync();
             return Results.NoContent();
         });
 
+        // Diet catering: the average box day, counted as eaten on delivery days (CateringService).
+        g.MapGet("/catering", async (CateringService catering) =>
+            Results.Ok(ToDto(await catering.GetAsync())));
+
+        g.MapPut("/catering", async (CateringInput input, CateringService catering, ContextExportService export) =>
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            try
+            {
+                var c = await catering.SaveAsync(input.Enabled, input.Kcal, input.Protein, input.Fat, input.Carbs,
+                    input.Weekdays, input.StartDate ?? today, today);
+                await export.ExportAsync();
+                return Results.Ok(ToDto(c));
+            }
+            catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
+        });
+
+        // A box on a day without delivery (weekend order), or one deleted by mistake.
+        g.MapPost("/catering/log", async (CateringLogInput input, CateringService catering, ContextExportService export) =>
+        {
+            try
+            {
+                var entry = await catering.LogAsync(input.Date);
+                await export.ExportAsync();
+                return Results.Ok(Mapping.ToDto(entry, cooked: false));
+            }
+            catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
+        });
+
         return api;
     }
+
+    private static CateringDto ToDto(Catering? c) => c is null
+        ? new CateringDto(false, false, 0, null, null, null, 0b0011111, null)
+        : new CateringDto(true, c.Enabled, c.Kcal, c.Protein, c.Fat, c.Carbs, c.Weekdays, c.StartDate);
 
     private static BodyDto ToDto(BodyProfile? p, decimal? currentKg, DateOnly today)
     {

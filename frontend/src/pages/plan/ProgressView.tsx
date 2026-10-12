@@ -79,7 +79,7 @@ export function ProgressView({ switcher }: { switcher: ReactNode }) {
           </div>
         )) : (
           <p style={{ margin: '12px 0 0', font: sans(14), color: 'var(--text-2)' }}>
-            {body?.configured ? 'Zaznacz, co zjadłaś — bilans tygodnia policzy się sam.' : 'Ustaw cel, żeby zobaczyć bilans tygodnia.'}
+            {body?.configured ? `Zaznacz, co ${body.sex === 'male' ? 'zjadłeś' : 'zjadłaś'} — bilans tygodnia policzy się sam.` : 'Ustaw cel, żeby zobaczyć bilans tygodnia.'}
           </p>
         )}
       </div>
