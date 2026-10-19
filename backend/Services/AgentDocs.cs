@@ -285,6 +285,8 @@ public static class AgentDocs
           składników w odpowiedzi są już przeskalowane** do tego wyboru (`servings` pozostaje
           bazową liczbą porcji z przepisu; pliki w `context/recipes/` zawsze pokazują ilości
           bazowe). `kcal`/makro zawsze na jedną porcję — razem to `kcal × selectedServings`.
+          `?base=true` zwraca ilości jak w przepisie (bez skalowania) — **użyj go zawsze
+          przed `PUT`**, inaczej zapiszesz przeskalowane ilości jako bazowe.
         - `PUT /recipes/{id}/servings` — body `{ "servings": 4 }` (1–8): zapisz wybór
           porcji. Skaluje ilości wszędzie, gdzie się liczą (szczegóły, do kupienia,
           cook-proposal, zapotrzebowanie na liście zakupów). `1` przywraca domyślną
@@ -295,7 +297,13 @@ public static class AgentDocs
         - `PUT /recipes/{id}` — pełna podmiana (to samo body co POST). **Uwaga:** pominięcie
           `dishType`/`cuisine`/`usesAirFryer`/`sourceName`/`kcal`/`protein`/`fat`/`carbs` czyści te pola —
           przy edycji starszego przepisu bez nich uzupełnij je (sklasyfikuj danie, oszacuj
-          makro na porcję), zamiast pomijać.
+          makro na porcję), zamiast pomijać. Treść ingrediencji bierz z
+          `GET /recipes/{id}?base=true`.
+        - `PATCH /recipes/{id}/nutrition` — body `{ "kcal": 450, "protein": 30, "fat": 15,
+          "carbs": 40, "servings": 2 }`: zmienia **tylko** wartości odżywcze (na jedną porcję,
+          komplet czterech) i opcjonalnie `servings` (na ile porcji wychodzą ilości z przepisu).
+          Składniki, kroki i reszta pól zostają. Bezpieczna droga do poprawiania kalorii —
+          zamiast pełnego `PUT`.
         - `DELETE /recipes/{id}`.
         - `POST /recipes/{id}/add-missing-to-shopping` — dopisz brakujące składniki do zakupów.
           Ponowienie dla tego samego przepisu jest idempotentne; odpowiedź ma

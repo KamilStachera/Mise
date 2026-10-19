@@ -168,6 +168,8 @@ public record PantryAdjustInput(List<PantryAdjustItem> Items, string? Merchant =
 
 /// <summary>Portion choice for the recipe screen; equal to the base Servings clears the scaling.</summary>
 public record RecipeServingsInput(int Servings);
+/// <summary>PATCH /recipes/{id}/nutrition — per ONE portion; Servings (optional) = base portions the amounts make.</summary>
+public record RecipeNutritionInput(int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs, int? Servings = null);
 
 public record ShoppingItemInput(string Name, string? Category,
     decimal? Quantity = null, string? Unit = null, string? Reason = null);

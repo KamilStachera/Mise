@@ -68,7 +68,10 @@ public static class RecipesEndpoints
             return Results.Ok(list);
         });
 
-        g.MapGet("/{id:guid}", async (Guid id, MiseDbContext db) =>
+        // ?base=true serves the amounts as written (for agents about to PUT the recipe
+        // back); the default serves them scaled to the saved portion choice.
+        g.MapGet("/{id:guid}", async (Guid id, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "base")] bool? asWritten,
+            MiseDbContext db) =>
         {
             var r = await db.Recipes.AsNoTracking()
                 .Include(x => x.Ingredients)
@@ -82,7 +85,7 @@ public static class RecipesEndpoints
                 .ToDictionaryAsync(p => p.Id);
 
             // Amounts (display + structured) are served at the saved portion scaling.
-            var scaledIngredients = RecipeScaling.ScaledIngredients(r);
+            var scaledIngredients = asWritten == true ? r.Ingredients : RecipeScaling.ScaledIngredients(r);
             var ingredients = scaledIngredients.OrderBy(i => i.Order)
                 .Select(i => new IngredientDto(i.Name, i.Quantity, i.DisplayText,
                     i.AlternativeGroup,
@@ -96,7 +99,7 @@ public static class RecipesEndpoints
             var steps = r.Steps.OrderBy(s => s.Order).Select(s => s.Text).ToList();
 
             return Results.Ok(new RecipeDetailDto(r.Id, r.Title, Mapping.SourceString(r.Source),
-                r.TimeMinutes, r.Servings, RecipeScaling.EffectiveServings(r),
+                r.TimeMinutes, r.Servings, asWritten == true ? r.Servings : RecipeScaling.EffectiveServings(r),
                 r.Difficulty, r.Tint, r.Blurb,
                 Mapping.ImageUrl(r.ImagePath), r.Tip,
                 ingredients, steps, requirements.Count - missing.Count, requirements.Count, missing,
@@ -356,6 +359,39 @@ public static class RecipesEndpoints
             {
                 servings = recipe.Servings,
                 selectedServings = RecipeScaling.EffectiveServings(recipe),
+            });
+        });
+
+        // Nutrition-only edit: sets kcal + all three macros (per ONE portion) and, when given,
+        // the base portion count the recipe's amounts make. Ingredients, steps and every other
+        // field stay untouched — the safe path for bulk fixes instead of a full-replace PUT.
+        g.MapPatch("/{id:guid}/nutrition", async (Guid id, RecipeNutritionInput input, MiseDbContext db,
+            ContextExportService export) =>
+        {
+            if (input.Kcal is not > 0 || input.Protein is not >= 0 || input.Fat is not >= 0 || input.Carbs is not >= 0)
+                return Results.BadRequest(new { error = "Podaj komplet: kcal > 0 oraz protein, fat, carbs ≥ 0 (na jedną porcję)." });
+            if (input.Servings is < 1 or > 200)
+                return Results.BadRequest(new { error = "servings musi być od 1 do 200." });
+
+            var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == id);
+            if (recipe is null) return Results.NotFound();
+
+            recipe.KcalPerServing = input.Kcal;
+            recipe.ProteinGrams = input.Protein;
+            recipe.FatGrams = input.Fat;
+            recipe.CarbGrams = input.Carbs;
+            if (input.Servings is int servings) recipe.Servings = servings;
+            recipe.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+            await export.ExportAsync();
+            return Results.Ok(new
+            {
+                id = recipe.Id,
+                servings = recipe.Servings,
+                kcal = recipe.KcalPerServing,
+                protein = recipe.ProteinGrams,
+                fat = recipe.FatGrams,
+                carbs = recipe.CarbGrams,
             });
         });
 

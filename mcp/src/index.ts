@@ -151,9 +151,28 @@ server.tool(
   'get_recipe',
   'Pobierz pełny przepis (składniki ze statusem jest/brak, kroki). Ilości składników są ' +
     'przeskalowane do zapisanego wyboru porcji (selectedServings, domyślnie 1); servings to bazowa liczba ' +
-    'porcji. kcal/makro zawsze na jedną porcję.',
-  { id: z.string().uuid() },
-  async ({ id }) => text(await get(`/recipes/${id}`)),
+    'porcji. kcal/makro zawsze na jedną porcję. base=true zwraca ilości jak w przepisie — użyj przed update_recipe.',
+  {
+    id: z.string().uuid(),
+    base: z.boolean().optional().describe('true = ilości bazowe (bez skalowania); zawsze przed update_recipe'),
+  },
+  async ({ id, base }) => text(await get(`/recipes/${id}${base ? '?base=true' : ''}`)),
+)
+
+server.tool(
+  'set_recipe_nutrition',
+  'Popraw tylko wartości odżywcze przepisu: kcal, protein, fat, carbs NA JEDNĄ PORCJĘ (komplet ' +
+    'czterech) i opcjonalnie servings — na ile porcji wychodzą ilości z przepisu. Składniki, kroki i ' +
+    'pozostałe pola zostają bez zmian — bezpieczniejsze niż update_recipe przy poprawianiu kalorii.',
+  {
+    id: z.string().uuid().describe('Id przepisu'),
+    kcal: z.number().int().positive().describe('kcal na jedną porcję'),
+    protein: z.number().min(0).describe('Białko w gramach na jedną porcję'),
+    fat: z.number().min(0).describe('Tłuszcz w gramach na jedną porcję'),
+    carbs: z.number().min(0).describe('Węglowodany w gramach na jedną porcję'),
+    servings: z.number().int().min(1).max(200).optional().describe('Bazowa liczba porcji (tylko gdy obecna jest błędna)'),
+  },
+  async ({ id, ...input }) => text(await patch(`/recipes/${id}/nutrition`, input)),
 )
 
 server.tool(
@@ -177,7 +196,7 @@ server.tool(
 
 server.tool(
   'update_recipe',
-  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola i zachowaj tint z odczytu; pominięte dishType/cuisine/usesAirFryer/sourceName/kcal/protein/fat/carbs są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
+  'Podmień istniejący przepis (pełna podmiana — podaj wszystkie pola i zachowaj tint z odczytu; składniki czytaj przez get_recipe z base=true, inaczej zapiszesz przeskalowane ilości; do samych kalorii użyj set_recipe_nutrition; pominięte dishType/cuisine/usesAirFryer/sourceName/kcal/protein/fat/carbs są czyszczone, więc przy edycji starszego przepisu uzupełnij je).',
   { id: z.string().uuid(), ...recipeInputShape },
   async ({ id, ...input }) => {
     await put(`/recipes/${id}`, input)
