@@ -68,6 +68,38 @@ public class ShoppingServiceTests
     }
 
     [Fact]
+    public async Task SecondSourceJoiningAnExistingRow_InALaterRequest_IsSaved()
+    {
+        // Each request gets a fresh context: the row is loaded from the database,
+        // so the new contribution must be inserted, not updated (the 18 Oct 500s).
+        var name = Guid.NewGuid().ToString();
+        var rice = Pantry("Ryż", PantryUnit.G, 0);
+        await using (var db = NewDb(name))
+        {
+            db.PantryItems.Add(rice);
+            await db.SaveChangesAsync();
+            await Add(db, Source("plan:monday", "Risotto", Ingredient("Ryż", rice, 100, PantryUnit.G)));
+        }
+
+        await using (var db = NewDb(name))
+        {
+            var result = await new ShoppingService().AddMissingForRecipesAsync(db, new[]
+            {
+                Source("plan:monday", "Risotto", Ingredient("Ryż", rice, 100, PantryUnit.G)),
+                Source("plan:friday", "Bowl", Ingredient("Ryż", rice, 150, PantryUnit.G)),
+            });
+            Assert.Equal(new ShoppingAddResult(0, 1), result);
+        }
+
+        await using (var db = NewDb(name))
+        {
+            var row = await db.ShoppingItems.Include(x => x.Contributions).SingleAsync();
+            Assert.Equal(250, row.Quantity);
+            Assert.Equal(2, row.Contributions.Count);
+        }
+    }
+
+    [Fact]
     public async Task DistinctPlanEntriesForSameRecipe_CountTwiceAndAnnotateReason()
     {
         await using var db = NewDb();
@@ -321,10 +353,10 @@ public class ShoppingServiceTests
         Assert.Equal("Marchew lub Cukinia", Mapping.RequirementName(group));
     }
 
-    private static MiseDbContext NewDb()
+    private static MiseDbContext NewDb(string? name = null)
     {
         var options = new DbContextOptionsBuilder<MiseDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(name ?? Guid.NewGuid().ToString())
             .Options;
         return new MiseDbContext(options);
     }

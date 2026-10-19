@@ -100,6 +100,7 @@ public class PlanShoppingServiceTests
         var recipe = new Recipe
         {
             Title = "Curry",
+            Servings = 1,
             Ingredients = new List<RecipeIngredient>
             {
                 new()
@@ -145,6 +146,40 @@ public class PlanShoppingServiceTests
         Assert.Equal(200, row.Quantity);
         var contribution = Assert.Single(row.Contributions);
         Assert.Equal($"plan:{upcomingEntry.Id}", contribution.SourceKey);
+    }
+
+    [Fact]
+    public async Task PlanEntry_BuysItsOwnPortions_PotBuysTheWholePot()
+    {
+        await using var db = NewDb();
+        var start = new DateOnly(2026, 7, 20);
+        // Written for 4; the user's saved choice must not leak into the plan.
+        var recipe = new Recipe
+        {
+            Title = "Gulasz",
+            Servings = 4,
+            SelectedServings = 3,
+            Ingredients = new List<RecipeIngredient>
+            {
+                new() { Name = "Wołowina", Quantity = "800 g", AmountValue = 800, AmountUnit = PantryUnit.G },
+            },
+        };
+        var single = new PlanEntry { Date = start, RecipeId = recipe.Id, Recipe = recipe, Portions = 1 };
+        var doubled = new PlanEntry { Date = start.AddDays(1), RecipeId = recipe.Id, Recipe = recipe, Portions = 1.5m };
+        var cook = new Cook { RecipeId = recipe.Id, Date = start.AddDays(2), Portions = 6 };
+        var potDay = new PlanEntry { Date = start.AddDays(2), RecipeId = recipe.Id, Recipe = recipe, Cook = cook, Portions = 1 };
+        db.Recipes.Add(recipe);
+        db.Cooks.Add(cook);
+        db.PlanEntries.AddRange(single, doubled, potDay);
+        await db.SaveChangesAsync();
+
+        var selection = await PlanShoppingService.LoadAsync(db, start, 7);
+
+        decimal Amount(PlanEntry e) => selection.Sources
+            .Single(s => s.Key == $"plan:{e.Id}").Recipe.Ingredients.Single().AmountValue!.Value;
+        Assert.Equal(200, Amount(single));
+        Assert.Equal(300, Amount(doubled));
+        Assert.Equal(1200, Amount(potDay));
     }
 
     private static MiseDbContext NewDb() => new(new DbContextOptionsBuilder<MiseDbContext>()

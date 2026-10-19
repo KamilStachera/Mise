@@ -56,7 +56,7 @@ const recipeInputShape = {
     .positive()
     .optional()
     .describe(
-      'Szacunkowe kcal NA PORCJĘ — zawsze oszacuj (ze składników / liczby porcji). ' +
+      'Szacunkowe kcal NA JEDNĄ PORCJĘ (jedna osoba; całe danie ÷ servings) — zawsze oszacuj. ' +
         'Zawsze komplet: kcal+protein+fat+carbs, nigdy samo kcal — gdy źródło podaje ' +
         'tylko kalorie, resztę policz ze składników',
     ),
@@ -150,7 +150,8 @@ server.tool(
 server.tool(
   'get_recipe',
   'Pobierz pełny przepis (składniki ze statusem jest/brak, kroki). Ilości składników są ' +
-    'przeskalowane do zapisanego wyboru porcji (selectedServings); servings to bazowa liczba porcji.',
+    'przeskalowane do zapisanego wyboru porcji (selectedServings, domyślnie 1); servings to bazowa liczba ' +
+    'porcji. kcal/makro zawsze na jedną porcję.',
   { id: z.string().uuid() },
   async ({ id }) => text(await get(`/recipes/${id}`)),
 )
@@ -159,7 +160,7 @@ server.tool(
   'set_recipe_servings',
   'Zapisz wybór liczby porcji dla przepisu (1–8). Skaluje ilości składników wszędzie, gdzie się ' +
     'liczą: szczegóły przepisu, do kupienia, cook-proposal i zapotrzebowanie na liście zakupów. ' +
-    'Wartość równa bazowej liczbie porcji przywraca przepis jak w oryginale.',
+    'Wartość 1 przywraca domyślną jedną porcję (jedna osoba).',
   {
     id: z.string().uuid().describe('Id przepisu'),
     servings: z.number().int().min(1).describe('Wybrana liczba porcji (1–8)'),

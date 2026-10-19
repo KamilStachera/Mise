@@ -12,10 +12,16 @@ const queryClient = new QueryClient({
   // Backstop for expired sessions: write UI is hidden when anonymous, but a
   // mutation can still 401 mid-session — surface it and refresh the auth state.
   mutationCache: new MutationCache({
-    onError: (error) => {
+    // Every other failure gets a toast too, so a save never fails silently (the
+    // plan's "do zakupów" button 500'd for days with no sign on the phone).
+    onError: (error, _vars, _ctx, mutation) => {
       if (error instanceof ApiError && error.status === 401) {
         showToast('Zaloguj się, aby wprowadzać zmiany.')
         queryClient.invalidateQueries({ queryKey: ['auth'] })
+      } else if (!mutation.meta?.ownErrors) {
+        showToast(error instanceof ApiError && error.status >= 500
+          ? 'Coś poszło nie tak po stronie serwera — nic nie zapisano. Spróbuj ponownie.'
+          : 'Nie udało się zapisać. Sprawdź połączenie i spróbuj ponownie.')
       }
     },
   }),

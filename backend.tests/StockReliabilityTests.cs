@@ -69,7 +69,8 @@ public class StockReliabilityTests
     public async Task ShoppingPreviewAsksOnlyWhenUncertaintyChangesPurchase()
     {
         await using var db = NewDb();
-        var rice = Item(PantryCategory.Pantry, 250, 100, Now);
+        // PreviewAsync reads the real clock, so the observation must be fresh too.
+        var rice = Item(PantryCategory.Pantry, 250, 100, DateTimeOffset.UtcNow);
         rice.Name = "Ryż";
         rice.Unit = PantryUnit.G;
         db.PantryItems.Add(rice);

@@ -259,7 +259,7 @@ public sealed class ShoppingService
                 var first = sourceRequirements[0];
                 var sourceUnit = SafeUnit(sourceRequirements);
                 var contribution = TakeStaleContribution(staleContributions, first.Source.Key, row.Id)
-                    ?? new ShoppingContribution();
+                    ?? NewContribution(db);
                 contribution.SourceKey = first.Source.Key;
                 contribution.SourceLabel = first.Source.Label;
                 contribution.RequiredQuantity = sourceUnit is PantryUnit
@@ -309,7 +309,7 @@ public sealed class ShoppingService
                 var first = sourceRequirements[0];
                 var (requiredQuantity, unit) = SafeAlternativeAmount(sourceRequirements);
                 var contribution = TakeStaleContribution(staleContributions, first.Source.Key, row.Id)
-                    ?? new ShoppingContribution();
+                    ?? NewContribution(db);
                 contribution.SourceKey = first.Source.Key;
                 contribution.SourceLabel = first.Source.Label;
                 contribution.RequiredQuantity = requiredQuantity;
@@ -318,6 +318,18 @@ public sealed class ShoppingService
             }
             affected.Add(row);
         }
+    }
+
+    /// <summary>
+    /// Tracks a new contribution as Added up front. Left to navigation fix-up, EF sees
+    /// its client-generated Guid on an already-loaded row, assumes it exists and
+    /// issues an UPDATE that hits no row (DbUpdateConcurrencyException).
+    /// </summary>
+    private static ShoppingContribution NewContribution(MiseDbContext db)
+    {
+        var contribution = new ShoppingContribution();
+        db.ShoppingContributions.Add(contribution);
+        return contribution;
     }
 
     private static ShoppingContribution? TakeStaleContribution(

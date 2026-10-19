@@ -8,9 +8,15 @@ import { RecipeThumb, StockNote } from '../components/RecipeThumb'
 import { Button, Chip, Eyebrow, PageTitle, SearchField, Sheet, UnderlineTabs, mono, sans, usePagePad } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
+import { useSessionState } from '../lib/useSessionState'
 import { todayIso } from '../lib/dates'
 
 const EMPTY_RECIPES: RecipeListItem[] = []
+
+/** sessionStorage prefix for the list's filters and loaded batch. */
+const KEY = 'pichci-recipes:'
+const isString = (v: unknown) => typeof v === 'string'
+const oneOf = (...allowed: unknown[]) => (v: unknown) => allowed.includes(v)
 
 type Filter = 'all' | Source
 type TimeBucket = '15' | '30' | '60' | '60plus'
@@ -79,16 +85,17 @@ export function Library() {
   const pad = usePagePad()
   const { canEdit } = useAuth()
   const { data: recipes = EMPTY_RECIPES, isLoading, isError, refetch } = useRecipes('all', '')
-  const [filter, setFilter] = useState<Filter>('all')
-  const [query, setQuery] = useState('')
-  const [dish, setDish] = useState<DishType | 'all'>('all')
-  const [cuisine, setCuisine] = useState<Cuisine | 'all'>('all')
-  const [origin, setOrigin] = useState<string | null>(null)
-  const [timeBucket, setTimeBucket] = useState<TimeBucket | null>(null)
-  const [difficulty, setDifficulty] = useState<string>('all')
-  const [stock, setStock] = useState<Stock>('any')
-  const [airFryerOnly, setAirFryerOnly] = useState(false)
-  const [sort, setSort] = useState<SortMode>('newest')
+  // Filters live in sessionStorage so opening a recipe and coming back keeps them.
+  const [filter, setFilter] = useSessionState<Filter>(`${KEY}source`, 'all', oneOf('all', 'ai', 'web', 'manual'))
+  const [query, setQuery] = useSessionState(`${KEY}query`, '', isString)
+  const [dish, setDish] = useSessionState<DishType | 'all'>(`${KEY}dish`, 'all', oneOf('all', ...DISH_TYPES))
+  const [cuisine, setCuisine] = useSessionState<Cuisine | 'all'>(`${KEY}cuisine`, 'all', oneOf('all', ...CUISINES))
+  const [origin, setOrigin] = useSessionState<string | null>(`${KEY}origin`, null, (v) => v === null || isString(v))
+  const [timeBucket, setTimeBucket] = useSessionState<TimeBucket | null>(`${KEY}time`, null, oneOf(null, ...TIME_BUCKETS.map((b) => b.key)))
+  const [difficulty, setDifficulty] = useSessionState(`${KEY}difficulty`, 'all', oneOf('all', ...DIFFICULTIES))
+  const [stock, setStock] = useSessionState<Stock>(`${KEY}stock`, 'any', oneOf(...STOCK_OPTIONS.map((o) => o.key)))
+  const [airFryerOnly, setAirFryerOnly] = useSessionState(`${KEY}airFryer`, false, (v) => typeof v === 'boolean')
+  const [sort, setSort] = useSessionState<SortMode>(`${KEY}sort`, 'newest', oneOf(...SORT_OPTIONS.map((o) => o.key)))
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [filterSheet, setFilterSheet] = useState(false)
 
@@ -139,7 +146,8 @@ export function Library() {
     return filtered
   }, [recipes, filter, dish, cuisine, origin, timeBucket, difficulty, stock, airFryerOnly, query, sort])
 
-  const { visibleItems, sentinel, hasMore, loadMore } = useInfiniteScroll(view)
+  const resetKey = JSON.stringify([filter, query.trim(), dish, cuisine, origin, timeBucket, difficulty, stock, airFryerOnly, sort])
+  const { visibleItems, sentinel, hasMore, loadMore } = useInfiniteScroll(view, resetKey, `${KEY}page`)
 
   const toolbarCount =
     Number(dish !== 'all') + Number(cuisine !== 'all') + Number(origin !== null) + Number(timeBucket !== null) +

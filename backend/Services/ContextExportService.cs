@@ -78,9 +78,14 @@ public sealed class ContextExportService
         if (r is null) return null;
         var md = BuildRecipeMarkdown(r);
         return RecipeScaling.IsScaled(r)
-            ? md + $"\nUżytkownik ma ustawione {RecipeScaling.EffectiveServings(r)} porcje (przepis bazowy: {r.Servings}).\n"
+            ? md + $"\nEkran przepisu pokazuje ilości na {PortionsPl(RecipeScaling.EffectiveServings(r))} (przepis bazowy: {PortionsPl(r.Servings)}).\n"
             : md;
     }
+
+    private static string PortionsPl(int n) =>
+        n == 1 ? "1 porcję"
+        : n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14 ? $"{n} porcje"
+        : $"{n} porcji";
 
     // Serialize writers: exports now fire on every data mutation, and two overlapping
     // exports would race on the same files.

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { registerChatOpener } from './lib/chatBus'
 import { showToast } from './lib/toastBus'
 import { useIsMobile } from './lib/useIsMobile'
+import { useScrollMemory } from './lib/useScrollMemory'
 import { useAuth } from './api/hooks'
 import { Sidebar } from './components/Sidebar'
 import { TabBar, TAB_BAR_HEIGHT } from './components/TabBar'
@@ -29,6 +30,8 @@ export default function App() {
   const { pathname } = useLocation()
   // Recipe pages bring their own sticky action bar on phones (design screen 02).
   const showTabs = isMobile && !pathname.startsWith('/recipe/')
+  const mainRef = useRef<HTMLElement>(null)
+  useScrollMemory(mainRef)
 
   useEffect(() => registerChatOpener(() => setChatOpen(true)), [])
 
@@ -58,6 +61,7 @@ export default function App() {
       {!isMobile && <Sidebar chatOpen={chatOpen} onToggleChat={() => setChatOpen((v) => !v)} />}
 
       <main
+        ref={mainRef}
         style={{
           flex: 1,
           minWidth: 0,

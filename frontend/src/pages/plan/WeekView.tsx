@@ -2,9 +2,10 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useBudget, usePantry, usePlan, usePlanAddMissing, usePlanShoppingPreview, useRecipes } from '../../api/hooks'
 import type { PantryConfirmation, PantryItem, PlanEntry, ShoppingPreviewItem, Slot } from '../../api/client'
-import { DAY_NAMES_PL, DIARY_SLOTS, SLOTS, formatKcal, formatQty, slotLabel } from '../../lib/labels'
+import { DAY_NAMES_PL, DIARY_SLOTS, SLOTS, formatKcal, formatQty, slotLabel, unitLabel } from '../../lib/labels'
 import { MONTHS_SHORT, WEEKDAY_SHORT, addDays, dayShortMonth, mondayOf, parseISODate, toISO } from '../../lib/dates'
 import { useIsMobile } from '../../lib/useIsMobile'
+import { showToast } from '../../lib/toastBus'
 import { CookMark, WeekDayBar, cookLetters, dayTotals, entryTitle, leftoverLabel, type DayTotals } from '../../components/diary/parts'
 import { useDiarySheets } from '../../components/diary/useDiarySheets'
 import { TAB_BAR_HEIGHT } from '../../components/TabBar'
@@ -89,26 +90,39 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
     } else if (list[0]?.recipeId) nav(`/recipe/${list[0].recipeId}`)
   }
 
+  // Failures surface as the global mutation toast; here they only stop the flow.
   async function onAddMissing() {
     setShopMsg(null)
-    const preview = await previewShopping.mutateAsync({ start: startISO, days: 7 })
-    const uncertain = preview.items.filter((item) => item.needsConfirmation)
-    if (uncertain.length > 0) {
-      setReviewItems(uncertain)
-      return
+    try {
+      const preview = await previewShopping.mutateAsync({ start: startISO, days: 7 })
+      const uncertain = preview.items.filter((item) => item.needsConfirmation)
+      if (uncertain.length > 0) {
+        setReviewItems(uncertain)
+        return
+      }
+      await commitShopping([])
+    } catch {
+      /* toast already shown */
     }
-    await commitShopping([])
   }
 
   async function commitShopping(confirmations: PantryConfirmation[]) {
-    const r = await addMissing.mutateAsync({ start: startISO, days: 7, confirmations })
+    let r
+    try {
+      r = await addMissing.mutateAsync({ start: startISO, days: 7, confirmations })
+    } catch {
+      return // toast already shown; the review stays open for another try
+    }
     const parts = [
       r.added > 0 ? `dodano ${r.added}` : '',
       r.updated > 0 ? `zaktualizowano ${r.updated}` : '',
     ].filter(Boolean)
-    setShopMsg(parts.length > 0
-      ? `Gotowe: ${parts.join(', ')} pozycji na liście zakupów.`
-      : 'Wszystko z tego tygodnia już masz (lub jest na liście).')
+    const msg = parts.length > 0
+      ? `Gotowe: ${parts.join(', ')} ${parts.length === 1 && r.added + r.updated === 1 ? 'pozycję' : 'pozycji'} na liście zakupów.`
+      : 'Wszystko z tego tygodnia już masz (lub jest na liście).'
+    setShopMsg(msg)
+    // On a phone the message line sits far below the fold — the toast is what she sees.
+    showToast(msg, parts.length > 0 ? { label: 'Pokaż listę', run: () => nav('/shopping') } : undefined)
     setReviewItems(null)
   }
 
@@ -118,7 +132,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
   const leftoverNote = 'Resztki nie trafiają na listę zakupów. Składniki kupujesz raz, na dzień gotowania.'
 
   const reviewSheet = (
-    <Sheet open={!!reviewItems} onClose={() => setReviewItems(null)} title="Krótki przegląd" width={620}>
+    <Sheet open={!!reviewItems} onClose={() => setReviewItems(null)} title="Sprawdź, co masz w domu" width={620}>
       {reviewItems && (
         <ShoppingReview
           items={reviewItems}
@@ -379,6 +393,23 @@ function kcalText(t: DayTotals): string {
 
 const arrowBtn: CSSProperties = { width: 32, height: 36, border: 0, background: 'transparent', cursor: 'pointer', font: sans(16, 600), color: 'var(--text)' }
 
+type Answer = { kind: 'have' | 'none' | 'other'; draft: string }
+
+/** The quantity an answer confirms; null = no (valid) answer yet. */
+function answeredQuantity(item: PantryItem, a: Answer | undefined): number | null {
+  if (!a) return null
+  if (a.kind === 'have') return item.quantity
+  if (a.kind === 'none') return 0
+  const value = Number(a.draft.replace(',', '.'))
+  return a.draft.trim() !== '' && Number.isFinite(value) && value >= 0 ? value : null
+}
+
+/**
+ * "Sprawdź, co masz w domu" — asked before adding the week to the list, only for pantry
+ * items whose stock is uncertain (not checked for a while, or partly used by cooking)
+ * AND where that uncertainty changes what gets bought. Each answer also corrects the
+ * pantry (the API confirms it as checked stock); skipping one buys the safe amount.
+ */
 function ShoppingReview({ items, pantry, pending, onCancel, onCommit }: {
   items: ShoppingPreviewItem[]
   pantry: PantryItem[]
@@ -386,69 +417,133 @@ function ShoppingReview({ items, pantry, pending, onCancel, onCommit }: {
   onCancel: () => void
   onCommit: (confirmations: PantryConfirmation[]) => Promise<void>
 }) {
+  const isMobile = useIsMobile()
   const byId = new Map(pantry.map((item) => [item.id, item]))
-  const reviewable = items.flatMap((item) => item.pantryItemId
-    ? [byId.get(item.pantryItemId)].filter(Boolean) as PantryItem[]
-    : (item.alternativePantryItemIds ?? []).map((id) => byId.get(id)).filter(Boolean) as PantryItem[])
-    .filter((item, index, all) => all.findIndex((x) => x.id === item.id) === index)
-  const [drafts, setDrafts] = useState<Record<string, string>>(() => Object.fromEntries(
-    reviewable.map((item) => [item.id, String(item.quantity).replace('.', ',')]),
-  ))
-  const [confirmed, setConfirmed] = useState<Record<string, number>>({})
+  const optionsOf = (preview: ShoppingPreviewItem) =>
+    (preview.pantryItemId ? [preview.pantryItemId] : preview.alternativePantryItemIds ?? [])
+      .map((id) => byId.get(id))
+      .filter((p): p is PantryItem => !!p)
+  const [answers, setAnswers] = useState<Record<string, Answer>>({})
+  const answer = (id: string, a: Answer) => setAnswers((current) => ({ ...current, [id]: a }))
 
-  const setValue = (item: PantryItem, value: number) => {
-    setDrafts((current) => ({ ...current, [item.id]: String(value).replace('.', ',') }))
-    setConfirmed((current) => ({ ...current, [item.id]: value }))
-  }
-  const acceptCustom = (item: PantryItem) => {
-    const value = Number((drafts[item.id] ?? '').replace(',', '.'))
-    if (Number.isFinite(value) && value >= 0) setConfirmed((current) => ({ ...current, [item.id]: value }))
+  const confirmations = Object.entries(answers).flatMap(([pantryItemId, a]) => {
+    const item = byId.get(pantryItemId)
+    const quantity = item ? answeredQuantity(item, a) : null
+    return quantity == null ? [] : [{ pantryItemId, quantity }]
+  })
+  const answered = new Set(confirmations.map((c) => c.pantryItemId))
+  const askedCount = new Set(items.flatMap((i) => optionsOf(i).map((o) => o.id))).size
+
+  /** What this product adds to the list, given the answers so far. */
+  function outcome(preview: ShoppingPreviewItem, options: PantryItem[]): string {
+    const known = options.map((o) => answeredQuantity(o, answers[o.id]))
+    if (options.length === 1 && preview.requiredQuantity != null && preview.unit) {
+      const stock = known[0]
+      const buy = stock != null
+        ? Math.max(0, preview.requiredQuantity - stock)
+        : preview.suggestedPurchase ?? preview.requiredQuantity
+      const what = buy > 0 ? `kupimy ${formatQty(buy, preview.unit)}` : 'nic nie kupujemy'
+      return stock != null ? `→ ${what}` : `Bez odpowiedzi ${what} (na zapas).`
+    }
+    if (known.some((q) => q != null && q > 0)) return '→ nic nie kupujemy'
+    if (known.length > 0 && known.every((q) => q === 0)) return '→ dopiszemy do listy'
+    return 'Bez odpowiedzi dopiszemy do listy (na zapas).'
   }
 
-  const small: CSSProperties = { height: 34, padding: '0 12px', font: sans(13, 600) }
+  const choice = (on: boolean): CSSProperties => ({
+    flex: 1,
+    minWidth: 0,
+    height: 40,
+    padding: '0 8px',
+    borderRadius: 10,
+    border: on ? '1px solid var(--text)' : '1px solid var(--border)',
+    background: on ? 'var(--text)' : 'transparent',
+    color: on ? 'var(--bg)' : 'var(--text)',
+    font: sans(13.5, 600),
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <span style={{ font: sans(14), lineHeight: 1.5, color: 'var(--text-2)' }}>
-        Pytamy tylko o składniki, dla których niepewność zmienia listę. Możesz nic nie zaznaczać — wtedy policzymy zakupy bezpiecznie.
+        Te produkty są w spiżarni, ale nie wiemy na pewno, ile ich zostało — dawno ich nie sprawdzaliście
+        albo część poszła na gotowanie. Zajrzyj do szafki: kupimy tylko tyle, ile brakuje.
+        Pominięte kupimy na zapas.{' '}
+        <b style={{ fontWeight: 600, color: 'var(--text)' }}>Odpowiedzi poprawią też stan spiżarni.</b>
       </span>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {items.map((preview) => {
-          const options = preview.pantryItemId
-            ? [byId.get(preview.pantryItemId)].filter(Boolean) as PantryItem[]
-            : (preview.alternativePantryItemIds ?? []).map((id) => byId.get(id)).filter(Boolean) as PantryItem[]
+          const options = optionsOf(preview)
+          const need = preview.requiredQuantity != null && preview.unit ? formatQty(preview.requiredQuantity, preview.unit) : null
+          const settled = options.some((o) => answered.has(o.id))
           return (
-            <div key={preview.key} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0', borderTop: '1px solid var(--border)' }}>
-              <span style={{ font: sans(15, 600) }}>{preview.name}</span>
-              <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>
-                {preview.requiredQuantity != null && preview.unit ? `potrzeba ${formatQty(preview.requiredQuantity, preview.unit)}` : 'sprawdź, czy któryś zamiennik jest w domu'}
-                {' · '}{preview.sources.join(', ')}
-              </span>
-              {preview.unit && preview.estimatedQuantity != null && preview.planningQuantity != null && (
-                <span style={{ font: mono(12), color: 'var(--text-2)' }}>
-                  szacunek ~{formatQty(preview.estimatedQuantity, preview.unit)} · bezpiecznie {formatQty(preview.planningQuantity, preview.unit)}
-                  {preview.suggestedPurchase != null && ` · bez korekty kupimy ${formatQty(preview.suggestedPurchase, preview.unit)}`}
+            <div key={preview.key} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 0', borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+                  <span style={{ font: sans(16, 600), minWidth: 0 }}>{preview.name}</span>
+                  {need && <span style={{ flex: 'none', font: mono(12.5), color: 'var(--text-2)' }}>potrzeba {need}</span>}
                 </span>
-              )}
-              {options.map((item) => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ minWidth: 140, font: sans(13.5) }}>{item.name}: ~{formatQty(item.quantity, item.unit)}</span>
-                  <Button size="sm" variant={confirmed[item.id] === item.quantity ? 'dark' : 'quiet'} style={small} onClick={() => setValue(item, item.quantity)}>Zgadza się</Button>
-                  <Button size="sm" variant={confirmed[item.id] === 0 ? 'dark' : 'quiet'} style={small} onClick={() => setValue(item, 0)}>Brak</Button>
-                  <input value={drafts[item.id] ?? ''} onChange={(e) => setDrafts((current) => ({ ...current, [item.id]: e.target.value }))} inputMode="decimal" style={{ ...inputStyle, width: 72, height: 34, padding: '0 8px', font: mono(13) }} />
-                  <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>{item.unit}</span>
-                  <Button size="sm" variant="quiet" style={small} onClick={() => acceptCustom(item)}>Mam inaczej</Button>
-                </div>
-              ))}
+                <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>
+                  {options.length > 1 ? 'Wystarczy jedno z nich · ' : ''}do: {preview.sources.join(', ')}
+                </span>
+              </div>
+              {options.map((item) => {
+                const a = answers[item.id]
+                return (
+                  <div key={item.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <span style={{ font: sans(14) }}>
+                      {options.length > 1 && <b style={{ fontWeight: 600 }}>{item.name}: </b>}
+                      w spiżarni zapisane ~{formatQty(item.quantity, item.unit)}. Ile masz?
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button type="button" style={choice(a?.kind === 'have')} onClick={() => answer(item.id, { kind: 'have', draft: '' })}>
+                        Tyle mam
+                      </button>
+                      <button type="button" style={choice(a?.kind === 'none')} onClick={() => answer(item.id, { kind: 'none', draft: '' })}>
+                        Nie mam
+                      </button>
+                      <button type="button" style={choice(a?.kind === 'other')} onClick={() => answer(item.id, { kind: 'other', draft: a?.draft ?? '' })}>
+                        Inna ilość
+                      </button>
+                    </div>
+                    {a?.kind === 'other' && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(14), color: 'var(--text-2)' }}>
+                        Mam
+                        <input
+                          autoFocus
+                          value={a.draft}
+                          onChange={(e) => answer(item.id, { kind: 'other', draft: e.target.value })}
+                          inputMode="decimal"
+                          placeholder="0"
+                          style={{ ...inputStyle, width: 96, height: 40, padding: '0 10px', font: mono(14), textAlign: 'right' }}
+                        />
+                        {unitLabel[item.unit]}
+                      </label>
+                    )}
+                  </div>
+                )
+              })}
+              <span style={{ font: sans(13, settled ? 600 : 400), color: settled ? 'var(--text)' : 'var(--text-3)' }}>
+                {outcome(preview, options)}
+              </span>
             </div>
           )
         })}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <Button disabled={pending} onClick={() => onCommit(Object.entries(confirmed).map(([pantryItemId, quantity]) => ({ pantryItemId, quantity })))}>
-          {pending ? 'Dodaję…' : 'Przelicz i dodaj do zakupów'}
-        </Button>
-        <Button variant="quiet" onClick={onCancel}>Anuluj</Button>
+      {/* Pinned to the sheet's bottom edge: the negative offsets cancel the Sheet's own padding. */}
+      <div style={{ position: 'sticky', bottom: isMobile ? 'calc(-20px - env(safe-area-inset-bottom))' : -26, display: 'flex', flexDirection: 'column', gap: 8, margin: isMobile ? '0 -20px' : '0 -26px', padding: isMobile ? '12px 20px calc(20px + env(safe-area-inset-bottom))' : '12px 26px 26px', background: 'var(--bg)', borderTop: '1px solid var(--rule)' }}>
+        <span style={{ font: mono(12), color: 'var(--text-3)' }}>
+          Odpowiedzi: {answered.size} z {askedCount} · możesz pominąć
+        </span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button size={isMobile ? 'xl' : 'lg'} style={{ flex: 1 }} disabled={pending} onClick={() => onCommit(confirmations)}>
+            {pending ? 'Dodaję…' : 'Dodaj do zakupów'}
+          </Button>
+          <Button size={isMobile ? 'xl' : 'lg'} variant="quiet" onClick={onCancel}>Anuluj</Button>
+        </div>
       </div>
     </div>
   )

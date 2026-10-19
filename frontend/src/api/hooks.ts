@@ -13,6 +13,7 @@ import {
   type PlanEntryInput,
   type PlanEntryPatch,
   type Preferences,
+  type RecipeDetail,
   type RecipeInput,
   type Slot,
   type SupplyCategory,
@@ -137,10 +138,14 @@ export function useCookProposal(recipeId: string | undefined, enabled: boolean) 
 // ---- mutations ----
 // The shopping list is independent of the pantry, so pantry mutations do not
 // invalidate it; recipe queries embed have/missing, cookbook.md a pantry snapshot.
-function usePantryMutation<TArgs>(mutationFn: (args: TArgs) => Promise<unknown>) {
+/** Mutations whose call site shows its own failure message; the global "nie udało się" toast skips them. */
+const OWN_ERRORS = { ownErrors: true }
+
+function usePantryMutation<TArgs>(mutationFn: (args: TArgs) => Promise<unknown>, meta?: typeof OWN_ERRORS) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn,
+    meta,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pantry'] })
       qc.invalidateQueries({ queryKey: ['recipes'] })
@@ -162,7 +167,7 @@ export function useUpdatePantry() {
 }
 
 export function useAddPantry() {
-  return usePantryMutation((input: PantryItemInput) => api.addPantry(input))
+  return usePantryMutation((input: PantryItemInput) => api.addPantry(input), OWN_ERRORS)
 }
 
 export function useDeletePantry() {
@@ -262,6 +267,11 @@ export function useSetRecipeServings() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, servings }: { id: string; servings: number }) => api.setRecipeServings(id, servings),
+    // The count and kcal follow the tap at once; scaled amounts arrive with the refetch.
+    onMutate: ({ id, servings }) => {
+      qc.setQueryData<RecipeDetail>(['recipe', id], (old) => (old ? { ...old, selectedServings: servings } : old))
+    },
+    onError: (_e, { id }) => qc.invalidateQueries({ queryKey: ['recipe', id] }),
     onSuccess: () => {
       // Scaling changes ingredient amounts, missing/to-buy and deduction proposals.
       qc.invalidateQueries({ queryKey: ['recipe'] })
@@ -297,6 +307,7 @@ export function useUploadRecipeImage() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, file }: { id: string; file: File }) => api.uploadRecipeImage(id, file),
+    meta: OWN_ERRORS,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['recipes'] })
       qc.invalidateQueries({ queryKey: ['recipe'] })

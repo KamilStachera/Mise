@@ -46,6 +46,9 @@ export function RecipeDetail() {
     return <div style={{ padding: isMobile ? 20 : '40px 44px', color: 'var(--text-3)' }}>Ładowanie…</div>
   }
 
+  // Back returns to the list as it was left (filters, scroll); a deep link has no app history.
+  const goBack = () => (location.key !== 'default' ? nav(-1) : nav('/'))
+
   async function onPick(file: File | undefined) {
     if (!file || !r) return
     try {
@@ -64,7 +67,11 @@ export function RecipeDetail() {
 
   async function onAddMissing() {
     if (!r) return
-    await addMissing.mutateAsync(r.id)
+    try {
+      await addMissing.mutateAsync(r.id)
+    } catch {
+      return // the global mutation toast says what went wrong
+    }
     nav('/shopping')
   }
 
@@ -101,12 +108,12 @@ export function RecipeDetail() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)' }}>
         <Fact first value={r.time} label="minut" />
         <Fact value={<ServingsStepper recipe={r} canEdit={canEdit} />} label={plural(r.selectedServings, 'porcja', 'porcje', 'porcji').replace(/^\d+ /, '')} />
-        <Fact value={r.kcal != null ? `~${r.kcal}` : '—'} label="kcal" />
+        <Fact value={r.kcal != null ? `~${Math.round(r.kcal * r.selectedServings)}` : '—'} label="kcal" />
         <Fact value={<span style={{ font: sans(15, 500), lineHeight: '21.5px' }}>{r.difficulty}</span>} label="poziom" />
       </div>
       {r.selectedServings !== r.servings && (
         <span style={{ font: sans(12.5, 500), color: 'var(--accent-text)' }}>
-          Ilości przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')} — przepis oryginalnie na {plural(r.servings, 'porcję', 'porcje', 'porcji')}.
+          Przepis oryginalnie na {plural(r.servings, 'porcję', 'porcje', 'porcji')} — ilości i kcal przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')}.
         </span>
       )}
       <MacroBar r={r} />
@@ -189,7 +196,7 @@ export function RecipeDetail() {
         <div style={{ position: 'relative', height: 320 }}>
           <RecipeThumb r={r} full letterSize={110} style={{ position: 'absolute', inset: 0 }} />
           <div style={{ position: 'absolute', top: 'calc(12px + env(safe-area-inset-top))', left: 16, right: 16, display: 'flex', justifyContent: 'space-between' }}>
-            <button type="button" aria-label="Wróć" onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))} style={roundBtn}>←</button>
+            <button type="button" aria-label="Wróć" onClick={goBack} style={roundBtn}>←</button>
             <div style={{ display: 'flex', gap: 8 }}>
               {canEdit && (
                 <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={{ ...roundBtn, width: 'auto', padding: '0 16px', borderRadius: 999, font: sans(13, 600) }}>
@@ -238,7 +245,7 @@ export function RecipeDetail() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '28px 44px 64px', maxWidth: 1240, margin: '0 auto' }}>
       {fileInput}
       <div style={{ display: 'flex', justifyContent: 'space-between', font: sans(14, 600), color: 'var(--text-2)' }}>
-        <button type="button" onClick={() => nav('/')} style={linkBtn}>← Wszystkie przepisy</button>
+        <button type="button" onClick={goBack} style={linkBtn}>← Wszystkie przepisy</button>
         {canEdit && (
           <span style={{ display: 'flex', gap: 20 }}>
             <button type="button" onClick={() => setPlanOpen(true)} style={linkBtn}>Dodaj do planu</button>
@@ -298,17 +305,21 @@ function Fact({ value, label, first }: { value: ReactNode; label: string; first?
 }
 
 /**
- * Per-serving macros as a calorie-share bar (protein/carbs 4 kcal per gram,
- * fat 9) with the grams underneath. The bar renders only when all three are
- * estimated; partial data shows just the numbers.
+ * Macros for the chosen portions (stored per portion, so ×selectedServings — the
+ * same total as the kcal fact) as a calorie-share bar (protein/carbs 4 kcal per
+ * gram, fat 9) with the grams underneath. The bar renders only when all three
+ * are estimated; partial data shows just the numbers.
  */
 function MacroBar({ r }: { r: Recipe }) {
   const isMobile = useIsMobile()
+  const n = r.selectedServings
   const defs = [
     { key: 'B', grams: r.protein, color: 'var(--sage)', kcalPerGram: 4 },
     { key: 'T', grams: r.fat, color: 'var(--gold)', kcalPerGram: 9 },
     { key: 'W', grams: r.carbs, color: 'var(--accent)', kcalPerGram: 4 },
-  ].filter((d): d is typeof d & { grams: number } => d.grams != null)
+  ]
+    .filter((d): d is typeof d & { grams: number } => d.grams != null)
+    .map((d) => ({ ...d, grams: d.grams * n }))
   if (defs.length === 0) return null
   const total = defs.reduce((sum, d) => sum + d.grams * d.kcalPerGram, 0)
   return (
@@ -325,7 +336,7 @@ function MacroBar({ r }: { r: Recipe }) {
             {d.key} {formatGrams(d.grams)}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto' }}>{isMobile ? 'na porcję' : 'na porcję · szacunkowo'}</span>
+        <span style={{ marginLeft: 'auto' }}>na {plural(n, 'porcję', 'porcje', 'porcji')}{isMobile ? '' : ' · szacunkowo'}</span>
       </div>
     </div>
   )
@@ -333,15 +344,20 @@ function MacroBar({ r }: { r: Recipe }) {
 
 /**
  * Portion picker (1–8; recipes written for more keep their base reachable).
- * The choice is saved on the recipe, so it survives navigation, and the server
- * rescales ingredient amounts, missing/to-buy and cook deductions to it.
+ * Starts at one portion = one person. The choice is saved on the recipe, so it
+ * survives navigation, and the server rescales ingredient amounts, missing/to-buy
+ * and cook deductions to it; kcal and macros multiply on the client.
  */
 function ServingsStepper({ recipe, canEdit }: { recipe: Recipe; canEdit: boolean }) {
   const set = useSetRecipeServings()
   const selected = recipe.selectedServings
   const max = Math.max(8, recipe.servings)
   if (!canEdit) return <>{selected}</>
+  // 32px hit areas pulled back by negative margins: thumb-sized without widening the fact cell.
   const step = (disabled: boolean): CSSProperties => ({
+    width: 32,
+    height: 32,
+    margin: '-6px -8px',
     border: 0,
     background: 'transparent',
     padding: 0,
@@ -352,7 +368,7 @@ function ServingsStepper({ recipe, canEdit }: { recipe: Recipe; canEdit: boolean
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <button type="button" title="Mniej porcji" disabled={selected <= 1 || set.isPending} onClick={() => set.mutate({ id: recipe.id, servings: selected - 1 })} style={step(selected <= 1 || set.isPending)}>−</button>
-      <span style={{ color: selected !== recipe.servings ? 'var(--accent-text)' : undefined }}>{selected}</span>
+      <span>{selected}</span>
       <button type="button" title="Więcej porcji" disabled={selected >= max || set.isPending} onClick={() => set.mutate({ id: recipe.id, servings: selected + 1 })} style={step(selected >= max || set.isPending)}>+</button>
     </span>
   )

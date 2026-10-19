@@ -176,8 +176,11 @@ public static class AgentDocs
         `cookbook.md`), zamiast tworzyć wariant („Blond Kuchara”, nie „Blond kucharz”).
 
         `kcal` (int), `protein`, `fat`, `carbs` (liczby, gramy) — szacunkowe wartości odżywcze
-        **NA JEDNĄ PORCJĘ**, nie na całe danie. **Zawsze oszacuj je przy dodawaniu przepisu**
-        (policz ze składników i liczby porcji; wystarczy rozsądne przybliżenie) — napędzają
+        **NA JEDNĄ PORCJĘ = to, co zjada jedna osoba**, nie na całe danie: suma ze wszystkich
+        składników podzielona przez `servings`. **Zawsze oszacuj je przy dodawaniu przepisu**
+        (wystarczy rozsądne przybliżenie). Aplikacja domyślnie pokazuje przepis na 1 porcję
+        i mnoży kcal/makro przez wybraną liczbę porcji, więc wartość na całe danie albo
+        niezgodna z `servings` daje błędne kalorie w planie i dzienniku. Napędzają
         podsumowania kalorii w planie tygodnia. `null`/pominięte = jeszcze nie oszacowane
         (starsze przepisy). **Zawsze komplet czterech wartości, nigdy samo `kcal`** — gdy
         źródło (np. jadłospis) podaje tylko kalorie, oszacuj białko/tłuszcz/węglowodany
@@ -278,13 +281,15 @@ public static class AgentDocs
           `q` szuka w tytule i źródle; `sourceName` to dokładne źródło (bez względu na wielkość liter).
         - `GET /recipes/{id}` — szczegóły + które składniki są na stanie / do kupienia
           (uwzględnia ilości: za mało w spiżarni = do kupienia). `selectedServings` to
-          zapisany wybór porcji z ekranu przepisu — **ilości składników w odpowiedzi są
-          już przeskalowane** do tego wyboru (`servings` pozostaje bazową liczbą porcji
-          z przepisu; pliki w `context/recipes/` zawsze pokazują ilości bazowe).
+          zapisany wybór porcji z ekranu przepisu (**domyślnie 1** — jedna osoba) — **ilości
+          składników w odpowiedzi są już przeskalowane** do tego wyboru (`servings` pozostaje
+          bazową liczbą porcji z przepisu; pliki w `context/recipes/` zawsze pokazują ilości
+          bazowe). `kcal`/makro zawsze na jedną porcję — razem to `kcal × selectedServings`.
         - `PUT /recipes/{id}/servings` — body `{ "servings": 4 }` (1–8): zapisz wybór
           porcji. Skaluje ilości wszędzie, gdzie się liczą (szczegóły, do kupienia,
-          cook-proposal, zapotrzebowanie na liście zakupów). Wartość równa bazowej
-          liczbie porcji przywraca przepis „jak w oryginale".
+          cook-proposal, zapotrzebowanie na liście zakupów). `1` przywraca domyślną
+          jedną porcję. Plan tygodnia tego nie używa: wpis kupuje swoje `portions`,
+          a gotowanie na kilka dni — cały garnek.
         - `GET /recipes/{id}/cook-proposal` — co odjąć ze spiżarni po ugotowaniu
           (na składnik: `pantryItemId`, `proposedAmount`, `deductible`, `skipReason`).
         - `PUT /recipes/{id}` — pełna podmiana (to samo body co POST). **Uwaga:** pominięcie

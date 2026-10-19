@@ -150,10 +150,10 @@ public static class RecipesEndpoints
             recipe.Steps.Clear();
 
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
-            var previousServings = recipe.Servings;
             ApplyInput(recipe, input, dt, cu, pantry, ingredientNormalizer);
-            // A redefined portion count invalidates the saved scaling choice.
-            if (recipe.Servings != previousServings) recipe.SelectedServings = null;
+            // SelectedServings survives: it counts people eating, not a ratio to the base.
+            if (recipe.SelectedServings > Math.Max(RecipeScaling.MaxServings, recipe.Servings))
+                recipe.SelectedServings = null;
             // Children self-assign Guid ids, so change detection would treat them as
             // existing rows (UPDATE → 0 rows → concurrency error); register as inserts.
             db.RecipeIngredients.AddRange(recipe.Ingredients);
@@ -340,7 +340,7 @@ public static class RecipesEndpoints
         });
 
         // Save the portion choice; every quantity-aware read/write above scales to it.
-        // Choosing the recipe's own portion count clears the scaling.
+        // Choosing the default (one portion) clears the saved choice.
         g.MapPut("/{id:guid}/servings", async (Guid id, RecipeServingsInput input, MiseDbContext db) =>
         {
             var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == id);
@@ -350,7 +350,7 @@ public static class RecipesEndpoints
             if (input.Servings < 1 || input.Servings > max)
                 return Results.BadRequest(new { error = $"Liczba porcji musi być od 1 do {max}." });
 
-            recipe.SelectedServings = input.Servings == recipe.Servings ? null : input.Servings;
+            recipe.SelectedServings = input.Servings == RecipeScaling.DefaultServings ? null : input.Servings;
             await db.SaveChangesAsync();
             return Results.Ok(new
             {

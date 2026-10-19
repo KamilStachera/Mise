@@ -9,7 +9,8 @@ public sealed record PlanShoppingSelection(
     IReadOnlyCollection<string> ScopeKeys);
 
 /// <summary>
-/// Builds shopping demand from plan entries that have not been cooked yet.
+/// Builds shopping demand from plan entries that have not been cooked yet. Each entry
+/// buys its own portions (×1 = one person); a pot's cook day buys the whole pot.
 /// The cooked matching rule is shared with the plan grid and pending-cook reminder.
 /// </summary>
 public static class PlanShoppingService
@@ -38,7 +39,7 @@ public static class PlanShoppingService
             .Where(e => e.Recipe is not null && NeedsShopping(e) && !IsCooked(e, logs))
             .Select(e => new ShoppingRecipeSource(
                 $"plan:{e.Id}", e.Recipe!.Title,
-                e.Cook is { } cook ? RecipeScaling.ScaledTo(e.Recipe, cook.Portions) : RecipeScaling.Scaled(e.Recipe)))
+                RecipeScaling.ScaledTo(e.Recipe, e.Cook?.Portions ?? e.Portions)))
             .ToList();
         var scopeKeys = entries.Select(e => $"plan:{e.Id}").ToList();
         return new PlanShoppingSelection(sources, scopeKeys);
