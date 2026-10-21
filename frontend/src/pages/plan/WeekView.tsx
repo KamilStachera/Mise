@@ -11,12 +11,14 @@ import { useDiarySheets } from '../../components/diary/useDiarySheets'
 import { TAB_BAR_HEIGHT } from '../../components/TabBar'
 import { Button, Eyebrow, PageTitle, Sheet, inputStyle, mono, sans, usePagePad } from '../../components/ui'
 
-/** „1 265 / 1 805” when there is a budget; otherwise eaten, or the planned estimate. */
+/**
+ * „1 265 / 1 805”: everything eaten that day against the budget. Planned food only shows as
+ * „~” while nothing is eaten yet (future days) — never added on top of the eaten total.
+ */
 function dayLabel(t: DayTotals, budget: number | null): string {
-  if (t.eaten === 0 && t.planned === 0) return budget != null ? `— / ${formatKcal(budget)}` : '—'
-  const eaten = t.eaten > 0 ? formatKcal(t.eaten) : ''
-  const planned = t.planned > 0 ? `${eaten ? ' + ' : '~'}${formatKcal(t.planned)}` : ''
-  return `${eaten}${planned}${budget != null ? ` / ${formatKcal(budget)}` : ' kcal'}`
+  const kcal = kcalText(t)
+  if (!kcal) return budget != null ? `— / ${formatKcal(budget)}` : '—'
+  return `${kcal}${budget != null ? ` / ${formatKcal(budget)}` : ' kcal'}`
 }
 
 /**
@@ -193,7 +195,19 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                 const list = at(d, s)
                 const joined = s === 'snack' && list.length > 1
                 const rows: PlanEntry[][] = list.length === 0 ? [[]] : joined ? [list] : list.map((e) => [e])
-                return rows.map((row, ri) => (
+                // Przekąski pile up through the day: a filled snack slot keeps its own „+ Dodaj”.
+                const more = canEdit && s === 'snack' && list.length > 0 && (
+                  <button
+                    key={`${s}-more`}
+                    type="button"
+                    onClick={() => openAdd(d, s)}
+                    style={{ display: 'grid', gridTemplateColumns: '78px minmax(0, 1fr)', gap: 10, padding: '0 0 8px', border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    <span />
+                    <span style={{ font: sans(13.5, 600), color: 'var(--text-2)' }}>+ Dodaj przekąskę</span>
+                  </button>
+                )
+                return [...rows.map((row, ri) => (
                   <button
                     key={`${s}-${ri}`}
                     type="button"
@@ -223,7 +237,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                       {kcalText(dayTotals(row))}
                     </span>
                   </button>
-                ))
+                )), more]
               })}
             </div>
           )
@@ -343,6 +357,9 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                     {list.length === 0 && canEdit && (
                       <button type="button" onClick={() => openAdd(d, s)} aria-label={`Dodaj: ${slotLabel[s]}`} style={{ flex: 1, minHeight: 64, border: '1px dashed var(--border-2)', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 18, color: 'var(--text-3)' }}>+</button>
                     )}
+                    {list.length > 0 && canEdit && (
+                      <button type="button" onClick={() => openAdd(d, s)} aria-label={`Dodaj kolejne: ${slotLabel[s]}`} style={{ alignSelf: 'flex-start', height: 24, padding: '0 10px', border: '1px dashed var(--border-2)', borderRadius: 999, background: 'transparent', cursor: 'pointer', font: sans(13, 500), color: 'var(--text-3)' }}>+</button>
+                    )}
                   </div>
                 )
               }),
@@ -386,9 +403,10 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
   )
 }
 
+/** Eaten kcal; the „~” planned estimate only when nothing is eaten yet. */
 function kcalText(t: DayTotals): string {
-  if (t.eaten + t.planned === 0) return ''
-  return t.planned > 0 && t.eaten === 0 ? `~${formatKcal(t.planned)}` : formatKcal(t.eaten + t.planned)
+  if (t.eaten > 0) return formatKcal(t.eaten)
+  return t.planned > 0 ? `~${formatKcal(t.planned)}` : ''
 }
 
 const arrowBtn: CSSProperties = { width: 32, height: 36, border: 0, background: 'transparent', cursor: 'pointer', font: sans(16, 600), color: 'var(--text)' }

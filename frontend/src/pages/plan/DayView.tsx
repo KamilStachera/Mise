@@ -393,7 +393,8 @@ export function PrivateDiary({ switcher }: { switcher: ReactNode }) {
 function SlotBlock({ slot, entries: list, onAdd: add, canEdit, children }: { slot: Slot; entries: PlanEntry[]; onAdd: () => void; canEdit: boolean; children: ReactNode }) {
   const t = dayTotals(list)
   const planned = list.length > 0 && list.every((e) => !e.eaten)
-  const sum = list.length === 0 ? '' : `${planned || t.missing ? '~' : ''}${formatKcal(t.eaten + t.planned)} kcal`
+  // What was eaten; the planned estimate only while nothing in the slot is eaten yet.
+  const sum = list.length === 0 ? '' : `${planned || t.missing ? '~' : ''}${formatKcal(planned ? t.planned : t.eaten)} kcal`
   return (
     <section style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0 8px', borderTop: '1px solid var(--rule)' }}>

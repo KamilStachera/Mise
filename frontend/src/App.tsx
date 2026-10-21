@@ -11,6 +11,7 @@ import { ChatSidebar } from './components/ChatSidebar'
 import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
 import { UpdatePill } from './components/UpdatePill'
+import { LoginNudge } from './components/LoginNudge'
 import { Library } from './pages/Library'
 import { RecipeDetail } from './pages/RecipeDetail'
 import { Pantry } from './pages/Pantry'
@@ -99,6 +100,7 @@ export default function App() {
       <PendingCookModal />
       <ToastHost />
       <UpdatePill />
+      <LoginNudge />
     </div>
   )
 }
