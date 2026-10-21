@@ -2,6 +2,9 @@
 // backend stays the source of truth and re-exports ./context after every write.
 const BASE = (process.env.MISE_API_URL ?? 'http://localhost:5080').replace(/\/+$/, '')
 const API_KEY = process.env.MISE_API_KEY
+// Whose diary, goal and weight the tools touch (person id from DIARY_PEOPLE order);
+// unset = person 1. Sous sets it per signed-in person.
+const PERSON = process.env.MISE_PERSON?.trim()
 
 export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   // FormData goes through as-is (fetch sets the multipart boundary header itself).
@@ -9,6 +12,7 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
   const headers: Record<string, string> = {
     ...(isForm ? {} : { 'Content-Type': 'application/json' }),
     ...(API_KEY ? { 'X-Api-Key': API_KEY } : {}),
+    ...(PERSON ? { 'X-Person': PERSON } : {}),
   }
   let res: Response
   try {

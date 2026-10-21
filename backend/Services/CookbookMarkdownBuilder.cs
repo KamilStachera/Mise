@@ -59,9 +59,12 @@ public sealed class CookbookMarkdownBuilder
         sb.AppendLine("- Sprawdź `pantry.json` przed propozycją — zaznacz wszystko, co trzeba dokupić.");
         sb.AppendLine("- Ilości w spiżarni są przybliżone (g/ml/szt); do zakupów używaj `iloscDoPlanowania`. Po zakupach dodawaj delty przez " +
             "`POST /pantry/adjust`; nowe pozycje katalogu tylko świadomie przez `POST /pantry`.");
-        sb.AppendLine($"- Domyślnie {servings} porcje. Frytkownica beztłuszczowa: {airfryer}.");
-        sb.AppendLine("- Zapisy (przepisy, spiżarnia, plan, historia) wyłącznie przez REST API — patrz `AGENTS.md` i `api.md`. Nie edytuj plików w tym folderze.");
-        sb.AppendLine("- Plan tygodnia jest w `plan.md`, historia gotowania w `cooklog.md`.");
+        sb.AppendLine($"- Gotując dla domu, domyślnie {servings} porcje. Kcal i makro przepisu są zawsze na jedną porcję (jedna osoba). " +
+            $"Frytkownica beztłuszczowa: {airfryer}.");
+        sb.AppendLine("- Zapisy (przepisy, spiżarnia, plan, dziennik, historia) wyłącznie narzędziami MCP `pichci` albo przez REST API — " +
+            "patrz `AGENTS.md` i `api.md`. Nie edytuj plików w tym folderze.");
+        sb.AppendLine("- Plan tygodnia jest w `plan.md`, historia gotowania w `cooklog.md`. Dziennik jedzenia, cel i waga są prywatne " +
+            "(tylko przez narzędzia/API).");
         sb.AppendLine();
 
         sb.AppendLine($"## Stan spiżarni ({pantry.Count} pozycji w katalogu)");
@@ -84,7 +87,7 @@ public sealed class CookbookMarkdownBuilder
             sb.AppendLine($"Źródła (`sourceName`): {string.Join(", ", origins)}.");
         foreach (var r in recipes.OrderBy(r => r.Title, Pl.Comparer))
         {
-            var meta = new List<string> { $"{r.TimeMinutes} min", $"{r.Servings} porcje" };
+            var meta = new List<string> { $"{r.TimeMinutes} min", ServingsLabel(r.Servings) };
             if (r.DishType is DishType d) meta.Add(DishTypeLabel(d).ToLowerInvariant());
             if (r.Cuisine is Cuisine c) meta.Add($"kuchnia {CuisineLabel(c)}");
             if (AirFryer.Uses(r)) meta.Add("frytkownica");
@@ -126,6 +129,12 @@ public sealed class CookbookMarkdownBuilder
 
     private static IEnumerable<string> SplitLines(string text) =>
         (text ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>„1 porcja”, „2 porcje”, „5 porcji” (nominative, for recipe meta lines).</summary>
+    public static string ServingsLabel(int n) =>
+        n == 1 ? "1 porcja"
+        : n % 10 is >= 2 and <= 4 && n % 100 is < 12 or > 14 ? $"{n} porcje"
+        : $"{n} porcji";
 
     public static string SourceLabel(RecipeSource s) => s switch
     {

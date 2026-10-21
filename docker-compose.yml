@@ -32,6 +32,7 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1}
+      SOUS_URL: http://sous:8090
       # Access control: anonymous = read-only; writes need a whitelisted Google
       # session or the X-Api-Key header (agents/MCP). See README "Going public".
       Auth__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
@@ -72,6 +73,27 @@ services:
     depends_on:
       - api
 
+  # In-app Sous on Codex, signed in with the household's ChatGPT plan (AI_PROVIDER=codex).
+  # One-time login: docker compose exec sous codex login --device-auth
+  # Internal only: no ports — the api container is the only caller and does the auth.
+  sous:
+    build:
+      context: .
+      dockerfile: sous/Dockerfile
+    restart: unless-stopped
+    environment:
+      MISE_API_URL: http://api:8080
+      MISE_API_KEY: ${MISE_API_KEY:-}
+      SOUS_MODEL: ${SOUS_MODEL:-}
+      SOUS_REASONING: ${SOUS_REASONING:-low}
+      TZ: Europe/Warsaw
+    volumes:
+      - ./context:/context:ro
+      # ChatGPT sign-in (auth.json) and the conversation threads.
+      - sous-codex:/root/.codex
+    depends_on:
+      - api
+
   # Public exposure via Cloudflare Tunnel (TLS + domain, no open inbound ports).
   # Opt-in: docker compose --profile public up -d --build
   # Ingress is configured in the Cloudflare Zero Trust dashboard:
@@ -90,3 +112,4 @@ volumes:
   mise-db:
   mise-images:
   mise-keys:
+  sous-codex:

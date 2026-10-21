@@ -73,9 +73,11 @@ help plan meals.
   receipt, fill the weekly plan).
 - An optional **MCP server** (`mcp/`) exposing the same operations as first-class
   agent tools.
-- **Optional in-app "Sous" chat** (off by default) if you'd rather wire up an
-  OpenAI key or a local Ollama model. It opens beside the content on desktop and
-  full-screen on phones; opened on a recipe page it answers about that recipe.
+- **Optional in-app "Sous" chat** (off by default): Codex signed in with your
+  ChatGPT plan (no API billing), an OpenAI key, or a local Ollama model. It opens
+  beside the content on desktop and full-screen on phones; opened on a recipe page
+  it answers about that recipe. On Codex it can also log food, plan meals and edit
+  lists, as the signed-in person.
 
 Stack: ASP.NET Core (.NET 9, minimal APIs) + EF Core + PostgreSQL · React + Vite +
 TypeScript · all containerized with Docker Compose.
@@ -195,7 +197,32 @@ See `mcp/README.md`.
 
 ## Optional: in-app chat
 
-The "Sous" panel is built but disabled until you choose a provider in `.env`:
+The "Sous" panel is built but disabled until you choose a provider in `.env`.
+
+**Codex on your ChatGPT plan (recommended).** The `sous` container runs Codex
+(`sous/server.mjs`, OpenAI's Codex SDK) inside `./context` with a read-only sandbox
+and the pichci MCP tools, so Sous reads the cookbook files and writes through the
+API — food diary, plan, shopping, pantry — as whoever is signed in. Usage counts
+against the plan's Codex limits; there is no API bill.
+
+```ini
+AI_PROVIDER=codex
+# SOUS_MODEL=            # empty = Codex default
+# SOUS_REASONING=low     # minimal / low / medium / high
+```
+
+Then sign in once (enable device-code login in ChatGPT → Settings → Security first):
+
+```bash
+docker compose up -d --build
+docker compose exec sous codex login --device-auth   # open the link, enter the code
+```
+
+The sign-in and the conversation threads live in the `sous-codex` volume. Each
+person has their own conversation ("Nowa rozmowa" starts over). The `sous`
+container has no published port; only the API talks to it.
+
+**Other providers:**
 
 ```ini
 # OpenAI (pay-as-you-go API key — separate from a ChatGPT subscription)
@@ -209,8 +236,9 @@ OPENAI_MODEL=gpt-4o-mini
 # OLLAMA_MODEL=llama3.1
 ```
 
-Restart (`docker compose up -d`) and the panel turns on. It streams replies with
-your `cookbook.md` + live pantry injected as the system prompt.
+Restart (`docker compose up -d`) and the panel turns on. These stream replies with
+your `cookbook.md` + live pantry injected as the system prompt; they answer but
+can't change anything.
 
 ---
 
@@ -251,6 +279,7 @@ Moving hosts later (e.g. VPS → home server) is just: copy the volumes
 backend/      ASP.NET Core API (Domain, Data, Features/<endpoints>, Services)
 frontend/     React + Vite SPA (pages, components, api hooks), served by nginx
 mcp/          MCP server exposing the API as agent tools (build with npm run build)
+sous/         in-app Sous runner: Codex on a ChatGPT plan + the MCP tools (container)
 context/      generated AI context (gitignored)
 docker-compose.yml
 ```

@@ -20,9 +20,9 @@ public static class ChatEndpoints
         g.MapGet("/health", (IChatProvider provider) =>
             Results.Ok(new { enabled = provider.Enabled, provider = provider.Name }));
 
-        g.MapGet("/history", async (string? sessionId, MiseDbContext db) =>
+        g.MapGet("/history", async (string? sessionId, MiseDbContext db, PersonScope person) =>
         {
-            var sid = string.IsNullOrWhiteSpace(sessionId) ? "default" : sessionId!;
+            var sid = SessionOf(sessionId, person);
             var msgs = await db.ChatMessages.AsNoTracking()
                 .Where(m => m.SessionId == sid)
                 .OrderBy(m => m.CreatedAt)
@@ -31,8 +31,16 @@ public static class ChatEndpoints
             return Results.Ok(msgs);
         });
 
-        g.MapPost("/", async (ChatRequest req, HttpContext ctx, MiseDbContext db,
-            IChatProvider provider, ContextExportService export, CancellationToken ct) =>
+        // „Nowa rozmowa”: drops the messages and with them the Codex thread handle.
+        g.MapDelete("/history", async (string? sessionId, MiseDbContext db, PersonScope person) =>
+        {
+            var sid = SessionOf(sessionId, person);
+            await db.ChatMessages.Where(m => m.SessionId == sid).ExecuteDeleteAsync();
+            return Results.NoContent();
+        });
+
+        g.MapPost("/", async (ChatRequest req, HttpContext ctx, MiseDbContext db, PersonScope person,
+            People people, IChatProvider provider, ContextExportService export, CancellationToken ct) =>
         {
             if (!provider.Enabled)
                 return Results.Json(new
@@ -44,22 +52,30 @@ public static class ChatEndpoints
             if (string.IsNullOrWhiteSpace(req.Message))
                 return Results.BadRequest();
 
-            var sid = string.IsNullOrWhiteSpace(req.SessionId) ? "default" : req.SessionId!;
+            var sid = SessionOf(req.SessionId, person);
+            var message = req.Message.Trim();
 
-            db.ChatMessages.Add(new ChatMessage { SessionId = sid, Role = "user", Content = req.Message.Trim() });
+            db.ChatMessages.Add(new ChatMessage { SessionId = sid, Role = "user", Content = message });
             await db.SaveChangesAsync(ct);
 
-            var systemPrompt = await export.BuildCookbookAsync(ct);
-            if (req.RecipeId is Guid rid && await export.BuildRecipeFocusAsync(rid, ct) is string focus)
-                systemPrompt += "\n\n---\n\n## Użytkownik ogląda teraz ten przepis\n"
-                    + "Odpowiadaj w jego kontekście, chyba że pytanie wyraźnie dotyczy czegoś innego.\n\n"
-                    + focus;
+            var focus = req.RecipeId is Guid rid ? await export.BuildRecipeFocusAsync(rid, ct) : null;
+            string? systemPrompt = null;
+            if (provider.NeedsSystemPrompt)
+            {
+                systemPrompt = await export.BuildCookbookAsync(ct);
+                if (focus is not null)
+                    systemPrompt += "\n\n---\n\n## Użytkownik ogląda teraz ten przepis\n"
+                        + "Odpowiadaj w jego kontekście, chyba że pytanie wyraźnie dotyczy czegoś innego.\n\n"
+                        + focus;
+            }
             var history = await db.ChatMessages.AsNoTracking()
                 .Where(m => m.SessionId == sid)
                 .OrderByDescending(m => m.CreatedAt).Take(20)
                 .ToListAsync(ct);
             history.Reverse();
             var turns = history.Select(m => new ChatTurn(m.Role, m.Content)).ToList();
+            var threadId = history.Where(m => m.Role == "ai").Select(m => ThreadOf(m.MetadataJson)).LastOrDefault(t => t is not null);
+            var who = people.All.FirstOrDefault(p => p.Id == person.Id) ?? new PersonInfo(person.Id, $"Osoba {person.Id}", null);
 
             ctx.Response.Headers.ContentType = "text/event-stream";
             ctx.Response.Headers.CacheControl = "no-cache";
@@ -69,10 +85,16 @@ public static class ChatEndpoints
             var failed = false;
             try
             {
-                await foreach (var delta in provider.StreamAsync(systemPrompt, turns, ct))
+                var turn = new ChatTurnRequest(systemPrompt, turns, message, who, focus, threadId);
+                await foreach (var chunk in provider.StreamAsync(turn, ct))
                 {
-                    assistant.Append(delta);
-                    await WriteEvent(ctx, new { delta });
+                    if (chunk.ThreadId is { } t) threadId = t;
+                    if (chunk.Status is { } status) await WriteEvent(ctx, new { status });
+                    if (chunk.Delta is { } delta)
+                    {
+                        assistant.Append(delta);
+                        await WriteEvent(ctx, new { delta });
+                    }
                 }
             }
             catch (Exception) when (!ct.IsCancellationRequested)
@@ -83,7 +105,13 @@ public static class ChatEndpoints
 
             if (assistant.Length > 0)
             {
-                db.ChatMessages.Add(new ChatMessage { SessionId = sid, Role = "ai", Content = assistant.ToString() });
+                db.ChatMessages.Add(new ChatMessage
+                {
+                    SessionId = sid,
+                    Role = "ai",
+                    Content = assistant.ToString(),
+                    MetadataJson = threadId is null ? null : JsonSerializer.Serialize(new { codexThread = threadId }),
+                });
                 await db.SaveChangesAsync(ct);
             }
 
@@ -92,6 +120,21 @@ public static class ChatEndpoints
         });
 
         return api;
+    }
+
+    /// <summary>Each person has their own Sous conversation unless the client names a session.</summary>
+    private static string SessionOf(string? sessionId, PersonScope person) =>
+        string.IsNullOrWhiteSpace(sessionId) ? $"person-{person.Id}" : sessionId!;
+
+    private static string? ThreadOf(string? metadataJson)
+    {
+        if (metadataJson is null) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(metadataJson);
+            return doc.RootElement.TryGetProperty("codexThread", out var t) ? t.GetString() : null;
+        }
+        catch (JsonException) { return null; }
     }
 
     private static async Task WriteEvent(HttpContext ctx, object payload)

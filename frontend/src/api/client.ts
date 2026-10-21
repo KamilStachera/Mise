@@ -635,9 +635,10 @@ export function setPersonHeader(id: number | null) {
   personHeader = id
 }
 
-async function http<T>(path: string, init?: RequestInit): Promise<T> {
+/** `asSelf`: skip the switcher's X-Person — Sous always talks to (and logs for) the signed-in person. */
+async function http<T>(path: string, init?: RequestInit, asSelf = false): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (personHeader != null) headers['X-Person'] = String(personHeader)
+  if (personHeader != null && !asSelf) headers['X-Person'] = String(personHeader)
   const res = await fetch(BASE + path, { headers, ...init })
   if (!res.ok) throw new ApiError(res.status, res.statusText)
   if (res.status === 204) return undefined as T
@@ -795,7 +796,8 @@ export const api = {
     http<{ path: string; files: string[]; exportedAt: string }>(`/context/export`, { method: 'POST' }),
 
   chatHealth: () => http<ChatHealth>(`/chat/health`),
-  chatHistory: () => http<ChatMessage[]>(`/chat/history`),
+  chatHistory: () => http<ChatMessage[]>(`/chat/history`, undefined, true),
+  resetChat: () => http<void>(`/chat/history`, { method: 'DELETE' }, true),
 
   authMe: () => http<AuthMe>(`/auth/me`),
   logout: () => http<void>(`/auth/logout`, { method: 'POST' }),
@@ -813,6 +815,8 @@ export async function streamChat(
   signal?: AbortSignal,
   /** Recipe the user is looking at — the server adds it to the prompt. */
   recipeId?: string,
+  /** Progress line while the agent reads files or calls tools („Sprawdzam spiżarnię…”). */
+  onStatus?: (text: string) => void,
 ): Promise<void> {
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
@@ -837,6 +841,7 @@ export async function streamChat(
       try {
         const payload = JSON.parse(line.slice('data:'.length).trim())
         if (payload.delta) onDelta(payload.delta as string)
+        if (payload.status) onStatus?.(payload.status as string)
         if (payload.error) throw new Error('stream interrupted')
       } catch (e) {
         if (e instanceof Error && e.message === 'stream interrupted') throw e

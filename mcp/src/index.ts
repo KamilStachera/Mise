@@ -177,12 +177,12 @@ server.tool(
 
 server.tool(
   'set_recipe_servings',
-  'Zapisz wybór liczby porcji dla przepisu (1–8). Skaluje ilości składników wszędzie, gdzie się ' +
+  'Zapisz wybór liczby porcji dla przepisu (1–8, albo do bazowej liczby porcji, gdy większa). Skaluje ilości składników wszędzie, gdzie się ' +
     'liczą: szczegóły przepisu, do kupienia, cook-proposal i zapotrzebowanie na liście zakupów. ' +
     'Wartość 1 przywraca domyślną jedną porcję (jedna osoba).',
   {
     id: z.string().uuid().describe('Id przepisu'),
-    servings: z.number().int().min(1).describe('Wybrana liczba porcji (1–8)'),
+    servings: z.number().int().min(1).describe('Wybrana liczba porcji'),
   },
   async ({ id, servings }) => text(await put(`/recipes/${id}/servings`, { servings })),
 )
@@ -503,7 +503,10 @@ server.tool(
 
 server.tool(
   'get_plan',
-  'Plan posiłków (domyślnie 14 dni od poniedziałku bieżącego tygodnia).',
+  'Kalendarz osoby: plan posiłków i dziennik jedzenia (domyślnie 14 dni od poniedziałku bieżącego ' +
+    'tygodnia). Wpis ma eaten (zjedzone czy tylko w planie), kcal/protein/fat/carbs jako SUMY dla wpisu ' +
+    '(nie na porcję), portions, slot (breakfast/lunch/dinner/snack), cookId/isLeftover dla garnków ' +
+    'i isCatering dla cateringu. Kilka wpisów w jednym slocie to norma.',
   {
     start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
     days: z.number().int().positive().max(60).optional(),
@@ -538,7 +541,10 @@ server.tool(
 
 server.tool(
   'set_plan_entry',
-  'Zaplanuj posiłek na konkretny dzień i porę (upsert — ponowny zapis nadpisuje). Podaj recipeId zapisanego przepisu ALBO title dla dania bez przepisu.',
+  'Zaplanuj posiłek na konkretny dzień i porę. Upsert: nadpisuje pierwszy zaplanowany (niezjedzony) ' +
+    'posiłek w tym slocie; zjedzone wpisy, resztki i catering zostają. Podaj recipeId zapisanego przepisu ' +
+    'ALBO title dla dania bez przepisu. Żeby DOPISAĆ kolejną rzecz do slotu albo zapisać coś zjedzonego, ' +
+    'użyj log_food.',
   {
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('YYYY-MM-DD'),
     slot: z.enum(['breakfast', 'lunch', 'dinner']).describe('śniadanie / obiad / kolacja'),
@@ -555,7 +561,7 @@ server.tool(
     'Zakupy liczą tylko dzień gotowania, przeskalowany do całego garnka. Używaj zamiast kilku set_plan_entry z tym samym przepisem.',
   {
     recipeId: z.string().uuid(),
-    portions: z.number().int().min(1).max(12).describe('porcje w garnku (≥ 1 + liczba przypisań)'),
+    portions: z.number().int().min(1).max(12).describe('porcje w garnku (≥ 1 + liczba przypisań); nadwyżka czeka w lodówce (get_fridge)'),
     firstDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('dzień gotowania, YYYY-MM-DD'),
     firstSlot: z.enum(['breakfast', 'lunch', 'dinner']),
     assignments: z
@@ -604,7 +610,7 @@ server.tool(
   'log_cook',
   'Odnotuj ugotowane danie z oceną i notatką — to feedback, z którego uczą się kolejne propozycje. ' +
     'Podaj recipeId ALBO dishName. Przez deductions możesz od razu odjąć zużyte składniki ze spiżarni: ' +
-    'ilości policz z przepisu (podpowiedź: GET /recipes/{id}/cook-proposal), ilość w jednostce pozycji ' +
+    'ilości policz z przepisu (podpowiedź: get_cook_proposal), ilość w jednostce pozycji ' +
     'spiżarni, składniki o niezgodnej/nieprzeliczalnej jednostce pomiń. Stan nie zejdzie poniżej zera.',
   {
     recipeId: z.string().uuid().optional(),
@@ -628,7 +634,7 @@ server.tool(
 
 server.tool(
   'update_cook_log_entry',
-  'Popraw istniejący wpis historii gotowania (id z GET /cooklog lub cooklog.md) — uzupełnij ocenę, ' +
+  'Popraw istniejący wpis historii gotowania (id z get_cook_log) — uzupełnij ocenę, ' +
     'notatkę, datę lub nazwę dania. rating/note są pełną podmianą (pominięte = wyczyszczone); ' +
     'dishName/cookedAt pominięte zostają bez zmian. Odjęć ze spiżarni nie da się edytować.',
   {
@@ -639,6 +645,201 @@ server.tool(
     cookedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
   },
   async ({ id, ...input }) => text(await put(`/cooklog/${id}`, input)),
+)
+
+server.tool(
+  'get_cook_log',
+  'Historia gotowania (najnowsze pierwsze) z id wpisów do update_cook_log_entry. Opcjonalnie tylko jeden przepis.',
+  {
+    recipeId: z.string().uuid().optional(),
+    limit: z.number().int().min(1).max(500).optional().describe('Domyślnie 50'),
+  },
+  async ({ recipeId, limit }) => {
+    const p = new URLSearchParams()
+    if (recipeId) p.set('recipeId', recipeId)
+    if (limit) p.set('limit', String(limit))
+    const qs = p.toString()
+    return text(await get(`/cooklog${qs ? '?' + qs : ''}`))
+  },
+)
+
+server.tool(
+  'get_cook_proposal',
+  'Co odjąć ze spiżarni po ugotowaniu przepisu (na składnik: pantryItemId, proposedAmount, deductible, ' +
+    'skipReason) — gotowe deductions dla log_cook. Ilości są przeskalowane do zapisanego wyboru porcji.',
+  { id: z.string().uuid().describe('Id przepisu') },
+  async ({ id }) => text(await get(`/recipes/${id}/cook-proposal`)),
+)
+
+// ---- Dziennik jedzenia, cel i aktywność (prywatne, per osoba — MISE_PERSON) ----
+
+const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('YYYY-MM-DD')
+const DIARY_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'] as const
+
+server.tool(
+  'log_food',
+  'Zapisz jedzenie w dzienniku (zawsze DOPISUJE nowy wpis — w slocie może być kilka). Domyślnie jako ' +
+    'zjedzone (eaten=true); eaten=false = tylko zaplanowane. Zapisany przepis: recipeId + portions ' +
+    '(kcal policzy aplikacja z przepisu). Wszystko inne: title + kcal i makro jako SUMY dla tego, co ' +
+    'zjedzono (nie na 100 g — przelicz sam, gramy podaj w grams). Przekąski i słodycze → slot "snack". ' +
+    'Szukając wartości odżywczych produktu, sprawdź najpierw get_food_favorites.',
+  {
+    date: DATE,
+    slot: z.enum(DIARY_SLOTS).describe('śniadanie / obiad / kolacja / przekąski'),
+    recipeId: z.string().uuid().optional().describe('Zapisany przepis'),
+    portions: z.number().min(0.25).max(10).optional().describe('Porcje przepisu (domyślnie 1)'),
+    title: z.string().optional().describe('Nazwa, gdy to nie zapisany przepis, np. "Kinder Bueno"'),
+    grams: z.number().positive().optional().describe('Ile gramów zjedzono (informacyjnie)'),
+    kcal: z.number().int().min(0).max(10000).optional().describe('Suma kcal wpisu (bez recipeId: zawsze podaj)'),
+    protein: z.number().min(0).optional().describe('Suma białka w g'),
+    fat: z.number().min(0).optional().describe('Suma tłuszczu w g'),
+    carbs: z.number().min(0).optional().describe('Suma węglowodanów w g'),
+    note: z.string().optional(),
+    eaten: z.boolean().default(true).describe('true = zjedzone (domyślnie), false = tylko w planie'),
+  },
+  async (input) => text(await post('/plan/entries', input)),
+)
+
+server.tool(
+  'update_plan_entry',
+  'Zmień wpis kalendarza (id z get_plan): oznacz jako zjedzony (eaten=true zapisuje kcal przepisu na ' +
+    'stałe) lub cofnij, przenieś (date/slot), zmień porcje (wpisy z przepisem) albo nazwę/kcal/makro ' +
+    '(wpisy bez przepisu). Zmieniają się tylko podane pola.',
+  {
+    id: z.string().uuid(),
+    eaten: z.boolean().optional(),
+    date: DATE.optional(),
+    slot: z.enum(DIARY_SLOTS).optional(),
+    portions: z.number().min(0.25).max(10).optional().describe('Tylko wpisy z przepisem'),
+    title: z.string().optional().describe('Tylko wpisy bez przepisu'),
+    kcal: z.number().int().min(0).max(10000).optional().describe('Suma kcal; tylko wpisy bez przepisu'),
+    protein: z.number().min(0).optional(),
+    fat: z.number().min(0).optional(),
+    carbs: z.number().min(0).optional(),
+    grams: z.number().min(0).optional().describe('0 czyści'),
+    note: z.string().optional(),
+  },
+  async ({ id, ...input }) => text(await patch(`/plan/entry/${id}`, input)),
+)
+
+server.tool(
+  'delete_plan_entry',
+  'Usuń wpis kalendarza (id z get_plan). Usunięcie dnia gotowania garnka usuwa też jego zaplanowane ' +
+    'resztki (zjedzone zostają). Usunięty wpis cateringu nie wraca („dziś bez cateringu”).',
+  { id: z.string().uuid() },
+  async ({ id }) => {
+    await del(`/plan/entry/${id}`)
+    return text({ ok: true, removed: id })
+  },
+)
+
+server.tool(
+  'get_food_favorites',
+  'Ulubione produkty z dziennika („Ulubione”): nazwa, kcal i makro na porcję albo na 100 g (per100g, ' +
+    'lastGrams = zwykła ilość). Szybciej i dokładniej niż zgadywanie — użyj log_food_favorite.',
+  {},
+  async () => text(await get('/diary/favorites')),
+)
+
+server.tool(
+  'log_food_favorite',
+  'Zapisz ulubiony produkt jako zjedzony (id z get_food_favorites). Dla produktów na 100 g podaj grams ' +
+    '(domyślnie zwykła ilość).',
+  {
+    id: z.string().uuid(),
+    date: DATE,
+    slot: z.enum(DIARY_SLOTS),
+    grams: z.number().positive().optional(),
+  },
+  async ({ id, ...input }) => text(await post(`/diary/favorites/${id}/log`, input)),
+)
+
+server.tool(
+  'get_fridge',
+  '„W lodówce”: garnki z porcjami, które zostały (cookId, remaining, kcalPerPortion). Ugotowane ' +
+    'jedzenie wypada stąd po 7 dniach.',
+  {},
+  async () => text(await get('/diary/fridge')),
+)
+
+server.tool(
+  'eat_from_fridge',
+  'Zjedz jedną porcję z garnka w lodówce (cookId z get_fridge) — zapisuje ją w dzienniku jako zjedzoną.',
+  { cookId: z.string().uuid(), date: DATE, slot: z.enum(DIARY_SLOTS) },
+  async ({ cookId, ...input }) => text(await post(`/diary/cooks/${cookId}/eat`, input)),
+)
+
+server.tool(
+  'discard_fridge_leftovers',
+  'Resztki z garnka wyrzucone — niezaplanowane porcje znikają z lodówki (cookId z get_fridge).',
+  { cookId: z.string().uuid() },
+  async ({ cookId }) => {
+    await post(`/diary/cooks/${cookId}/discard`, {})
+    return text({ ok: true, discarded: cookId })
+  },
+)
+
+server.tool(
+  'get_budget',
+  'Dzienny budżet kcal: cel (target) + część kcal aktywnych z danego dnia (bonus) = budget, plus cel ' +
+    'białka. Ile zostało = budget − suma kcal zjedzonych wpisów dnia (get_plan). target=null → cel ' +
+    'jeszcze nieustawiony.',
+  {
+    start: DATE.optional().describe('Domyślnie poniedziałek bieżącego tygodnia'),
+    days: z.number().int().min(1).max(60).optional().describe('Domyślnie 7'),
+  },
+  async ({ start, days }) => {
+    const p = new URLSearchParams()
+    if (start) p.set('start', start)
+    if (days) p.set('days', String(days))
+    const qs = p.toString()
+    return text(await get(`/body/budget${qs ? '?' + qs : ''}`))
+  },
+)
+
+server.tool(
+  'get_progress',
+  'Postępy: waga (trend = średnia 7 dni, weeklyChange), cel wagi, etaWeeks, bilans bieżącego tygodnia ' +
+    '(średnio zjedzone vs budżet, deficyt) i seria dni z dziennikiem.',
+  { days: z.number().int().min(7).max(730).optional().describe('Zakres wykresu wagi, domyślnie 84') },
+  async ({ days }) => text(await get(`/body/progress${days ? `?days=${days}` : ''}`)),
+)
+
+server.tool(
+  'get_goal',
+  'Cel osoby („Twój cel”): płeć, wzrost, waga docelowa, tempo, poziom aktywności i wyliczone BMR, ' +
+    'TDEE, dzienny cel kcal i białka. configured=false → jeszcze nieustawiony.',
+  {},
+  async () => text(await get('/body')),
+)
+
+server.tool(
+  'log_weight',
+  'Zapisz ważenie (kg) na dany dzień. Ręczny wpis wygrywa z wagą łazienkową; ponowny zapis nadpisuje.',
+  { date: DATE, kg: z.number().min(25).max(350) },
+  async ({ date, kg }) => text(await put(`/body/weights/${date}`, { kg })),
+)
+
+server.tool(
+  'get_activity',
+  'Aktywność z opaski i ręczne treningi z ostatnich dni (najnowsze pierwsze): kcal aktywne, bonus do ' +
+    'budżetu, treningi. state: none/connected/stale (opaska nie wysyła danych od 24 h).',
+  { days: z.number().int().min(1).max(60).optional().describe('Domyślnie 7') },
+  async ({ days }) => text(await get(`/activity${days ? `?days=${days}` : ''}`)),
+)
+
+server.tool(
+  'log_workout',
+  'Dopisz ręczny trening (gdy opaska go nie złapała). Treningów z opaski nie dopisuj drugi raz — ' +
+    'sprawdź najpierw get_activity.',
+  {
+    date: DATE,
+    type: z.string().describe('Rodzaj, np. "Rower", "Siłownia"'),
+    minutes: z.number().int().min(1).max(600),
+    kcal: z.number().int().min(0).max(5000).describe('Spalone kcal aktywne (szacunek)'),
+    time: z.string().regex(/^\d{2}:\d{2}$/).optional().describe('Godzina startu HH:mm'),
+  },
+  async (input) => text(await post('/activity/workouts', input)),
 )
 
 const transport = new StdioServerTransport()

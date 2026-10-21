@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useMatch, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useChatHealth, useChatHistory, useRecipe } from '../api/hooks'
-import { streamChat } from '../api/client'
+import { api, streamChat } from '../api/client'
 import { registerPromptConsumer } from '../lib/chatBus'
 import { plural } from '../lib/labels'
 import { mono, sans } from './ui'
@@ -28,6 +29,9 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  // What the agent is doing while it hasn't answered yet (Codex: „Sprawdzam spiżarnię…”).
+  const [status, setStatus] = useState<string | null>(null)
+  const qc = useQueryClient()
   // Prompt handed over via chatBus (e.g. the random view's "ask Sous" link);
   // held until the health check confirms chat is enabled.
   const [queued, setQueued] = useState<string | null>(null)
@@ -78,7 +82,10 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
         },
         undefined,
         recipeId,
+        setStatus,
       )
+      // Sous may have logged food, planned meals or edited lists — refresh what's on screen.
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'chatHistory' })
     } catch {
       // Keep whatever streamed before the failure instead of wiping it.
       setMessages((m) => {
@@ -94,7 +101,15 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
       })
     } finally {
       setTyping(false)
+      setStatus(null)
     }
+  }
+
+  async function reset() {
+    if (typing || messages.length === 0 || !confirm('Zacząć nową rozmowę? Obecna zniknie.')) return
+    await api.resetChat()
+    setMessages([])
+    qc.invalidateQueries({ queryKey: ['chatHistory'] })
   }
 
   const panelStyle: CSSProperties = fullscreen
@@ -110,14 +125,26 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
           </span>
           <span style={{ font: sans(12.5), color: 'var(--panel-text-2)' }}>zna Twoją spiżarnię i profil</span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          title="Zamknij"
-          style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text)', cursor: 'pointer', fontSize: 13 }}
-        >
-          ✕
-        </button>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {enabled && messages.length > 0 && (
+            <button
+              type="button"
+              onClick={reset}
+              disabled={typing}
+              style={{ height: 34, padding: '0 12px', borderRadius: 999, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text-2)', font: sans(12.5, 500), whiteSpace: 'nowrap', cursor: typing ? 'default' : 'pointer' }}
+            >
+              Nowa rozmowa
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            title="Zamknij"
+            style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text)', cursor: 'pointer', fontSize: 13 }}
+          >
+            ✕
+          </button>
+        </span>
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: 22 }}>
@@ -134,10 +161,11 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
         {!enabled && <DisabledNote />}
 
         {typing && messages[messages.length - 1]?.content === '' && (
-          <div style={{ alignSelf: 'flex-start', background: 'var(--ai-bubble)', borderRadius: '14px 14px 14px 4px', padding: '13px 16px', display: 'flex', gap: 5 }}>
+          <div style={{ alignSelf: 'flex-start', background: 'var(--ai-bubble)', borderRadius: '14px 14px 14px 4px', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 5 }}>
             {[0, 0.2, 0.4].map((d) => (
               <span key={d} style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--panel-text-2)', animation: `blink 1.2s infinite ${d}s` }} />
             ))}
+            {status && <span style={{ marginLeft: 8, font: sans(13), color: 'var(--panel-text-2)' }}>{status}</span>}
           </div>
         )}
 

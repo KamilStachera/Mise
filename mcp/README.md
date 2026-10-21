@@ -4,7 +4,7 @@ A small stdio [MCP](https://modelcontextprotocol.io) server that exposes the Pic
 cookbook REST API as first-class tools for Claude Code and Codex:
 
 - recipes — `get_cookbook`, `search_recipes`, `get_recipe`, `add_recipe`,
-  `update_recipe`, `add_recipe_image`
+  `update_recipe`, `set_recipe_nutrition`, `set_recipe_servings`, `add_recipe_image`
 - pantry — `get_pantry`, `add_to_pantry` (deltas, e.g. after a receipt),
   `set_pantry_quantities` (absolute amounts), `create_pantry_item`,
   `add_pantry_aliases`, `get_receipt_mappings`, `delete_receipt_mapping`
@@ -13,10 +13,18 @@ cookbook REST API as first-class tools for Claude Code and Codex:
 - household supplies (separate list, no pantry link) — `get_supplies` (returns the
   learned "hot" items too), `add_supplies`, `check_supplies`, `remove_supplies`,
   `clear_supplies`
-- plan & log — `get_plan`, `set_plan_entry`, `preview_plan_shopping`,
-  `add_plan_missing_to_shopping`, `log_cook` (with optional pantry
-  deductions), `update_cook_log_entry`, `get_pending_cooks` +
-  `dismiss_cook_reminder` (plan entries never logged as cooked)
+- plan & log — `get_plan`, `set_plan_entry`, `plan_cook_for_days`,
+  `preview_plan_shopping`, `add_plan_missing_to_shopping`, `log_cook` (with optional
+  pantry deductions, see `get_cook_proposal`), `get_cook_log`, `update_cook_log_entry`,
+  `get_pending_cooks` + `dismiss_cook_reminder` (plan entries never logged as cooked)
+- food diary (private, per person) — `log_food`, `update_plan_entry`,
+  `delete_plan_entry`, `get_food_favorites`, `log_food_favorite`, `get_fridge`,
+  `eat_from_fridge`, `discard_fridge_leftovers`
+- goal & activity (private, per person) — `get_budget`, `get_progress`, `get_goal`,
+  `log_weight`, `get_activity`, `log_workout`
+
+Diary tools act for person 1 unless `MISE_PERSON=<id>` is set (ids follow the
+`DIARY_PEOPLE` order). The in-app Sous sets it to the signed-in person.
 
 The exported `./context` folder stays the primary **read** path (open it in your
 agent); MCP is the **write / quick-query** path that works from any directory.

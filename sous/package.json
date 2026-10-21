@@ -1,0 +1,16 @@
+{
+  "name": "pichci-sous",
+  "version": "1.0.0",
+  "private": true,
+  "description": "In-app Sous chat: runs Codex (signed in with ChatGPT) over the Pichci context folder and MCP tools",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@openai/codex-sdk": "0.163.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

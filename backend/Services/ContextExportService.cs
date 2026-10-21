@@ -245,7 +245,7 @@ public sealed class ContextExportService
                 ? $"{CookbookMarkdownBuilder.SourceLabel(r.Source)} ({sourceName})"
                 : CookbookMarkdownBuilder.SourceLabel(r.Source),
             $"{r.TimeMinutes} min",
-            $"{r.Servings} porcje",
+            CookbookMarkdownBuilder.ServingsLabel(r.Servings),
             r.Difficulty,
         };
         if (r.DishType is DishType d) header.Add(CookbookMarkdownBuilder.DishTypeLabel(d));
@@ -328,7 +328,8 @@ public sealed class ContextExportService
         var sb = new StringBuilder();
         sb.AppendLine("# Plan posiłków");
         sb.AppendLine();
-        sb.AppendLine("Bieżący i przyszły tydzień. Wpisy zmieniaj przez `PUT /plan/entry` (patrz `api.md`).");
+        sb.AppendLine("Bieżący i przyszły tydzień — same posiłki. Wpisy zmieniaj przez `set_plan_entry` / `PUT /plan/entry` (patrz `api.md`). " +
+            "Dziennik (przekąski, co zjedzone, kcal) jest prywatny: `get_plan` / `GET /plan` z kluczem API.");
 
         for (var week = 0; week < 2; week++)
         {

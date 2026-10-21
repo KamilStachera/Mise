@@ -31,25 +31,34 @@ public static class AgentDocs
            wspólnego ze spiżarnią ani z jedzeniem; sekcja „Częste" to rzeczy kupowane
            regularnie, które można dopisywać bez pytania.
 
-        ## Zapisywanie — wyłącznie przez REST API
+        **Dziennika jedzenia, celu, wagi i aktywności nie ma w plikach** — są prywatne
+        i osobne dla każdej osoby. Czytasz je i zapisujesz wyłącznie narzędziami / API
+        (sekcja „Dziennik jedzenia i odchudzanie” niżej).
+
+        ## Zapisywanie — narzędzia MCP `pichci` albo REST API
 
         Pliki w tym folderze są **generowane przez aplikację i nadpisywane przy każdej
-        zmianie danych — niczego tu nie edytuj ani nie dodawaj**. Wszystkie zapisy wykonuj
-        przez API pod `{API}` (aplikacja musi działać: `docker compose up`). **Zapisy
-        wymagają nagłówka `X-Api-Key`** — wartość to `MISE_API_KEY` z pliku `.env`
-        aplikacji; szczegóły i przykład w `api.md`:
+        zmianie danych — niczego tu nie edytuj ani nie dodawaj**. Jeśli masz narzędzia
+        MCP serwera `pichci`, **używaj ich** (klucz i osobę mają już ustawione). Bez nich
+        zapisuj przez API pod `{API}` z nagłówkiem `X-Api-Key` (wartość `MISE_API_KEY`
+        z pliku `.env` aplikacji; szczegóły w `api.md`):
 
-        - nowy przepis: `POST {API}/recipes`
-        - zakupy → spiżarnia (delty, np. po paragonie): `POST {API}/pantry/adjust`
-        - inwentaryzacja spiżarni (ilości absolutne): `POST {API}/pantry/bulk`
-        - nowa pozycja katalogu spiżarni (świadomie, rzadko): `POST {API}/pantry`
-        - plan tygodnia: `PUT {API}/plan/entry`
-        - odnotowanie ugotowanego dania (+ zdjęcie składników ze stanu): `POST {API}/cooklog`
-        - pozycja na liście zakupów: `POST {API}/shopping`
-        - pozycja na liście domowej (chemia, higiena, papier): `POST {API}/supplies`
+        | co | narzędzie MCP | REST |
+        |---|---|---|
+        | nowy przepis | `add_recipe` | `POST {API}/recipes` |
+        | poprawka kalorii przepisu | `set_recipe_nutrition` | `PATCH {API}/recipes/{id}/nutrition` |
+        | zakupy → spiżarnia (delty, paragon) | `add_to_pantry` | `POST {API}/pantry/adjust` |
+        | inwentaryzacja (ilości absolutne) | `set_pantry_quantities` | `POST {API}/pantry/bulk` |
+        | nowa pozycja katalogu (rzadko) | `create_pantry_item` | `POST {API}/pantry` |
+        | plan: posiłek w slocie | `set_plan_entry` | `PUT {API}/plan/entry` |
+        | garnek na kilka dni | `plan_cook_for_days` | `POST {API}/diary/cooks` |
+        | zjedzone / dopisanie do dziennika | `log_food` | `POST {API}/plan/entries` |
+        | ugotowane danie (+ odjęcie ze spiżarni) | `log_cook` | `POST {API}/cooklog` |
+        | lista zakupów | `add_shopping_items` | `POST {API}/shopping` |
+        | lista domowa (chemia, papier) | `add_supplies` | `POST {API}/supplies` |
 
-        Pełna dokumentacja endpointów i schematów JSON z przykładami `curl`: **`api.md`**.
-        Po udanym zapisie aplikacja sama odświeża pliki w tym folderze.
+        Pełna dokumentacja endpointów i schematów JSON: **`api.md`**. Po udanym zapisie
+        aplikacja sama odświeża pliki w tym folderze.
 
         ## Typowe zadania
 
@@ -113,16 +122,49 @@ public static class AgentDocs
 
         ### Plan tygodnia
         1. Przeczytaj `plan.md`, `cooklog.md` (nie powtarzaj świeżo gotowanych dań) i `recipes/`.
-        2. Zapisuj `PUT {API}/plan/entry` dzień po dniu (sloty: `breakfast` / `lunch` / `dinner`).
-        3. Najpierw `GET {API}/plan/shopping-preview`, potem `POST {API}/plan/add-missing-to-shopping`.
+        2. Zapisuj `set_plan_entry` / `PUT {API}/plan/entry` dzień po dniu (sloty:
+           `breakfast` / `lunch` / `dinner`). To samo danie na kilka dni = jeden garnek:
+           `plan_cook_for_days` / `POST {API}/diary/cooks` (dzień gotowania + resztki).
+        3. Najpierw `preview_plan_shopping`, potem `add_plan_missing_to_shopping`.
            Jeśli użytkownik poda korekty, prześlij je jako `confirmations`; bez nich system użyje
            bezpiecznej ilości konserwatywnej. Podsumuj, co trzeba dokupić.
 
+        ## Dziennik jedzenia i odchudzanie
+
+        Kalendarz jest jednocześnie planem i dziennikiem: każdy wpis jest albo zaplanowany,
+        albo zjedzony (`eaten`). Każda osoba w domu ma własny dziennik, cel, wagę i opaskę —
+        narzędzia działają na osobie, w imieniu której rozmawiasz. Zakupy, spiżarnia
+        i przepisy są wspólne.
+
+        - **Co zjedzone** („zjadłem batonika”, „na obiad była zupa”): `log_food` (domyślnie
+          `eaten: true`). Zapisany przepis → `recipeId` + `portions`; wszystko inne →
+          `title` + `kcal` i makro jako **sumy** dla zjedzonej ilości (przelicz ze 100 g sam).
+          Najpierw sprawdź `get_food_favorites` — tam są produkty tej osoby z dokładnymi
+          wartościami (`log_food_favorite`).
+          Przekąski i słodycze idą do slotu `snack`; w jednym slocie może być wiele wpisów.
+        - **Zaplanowane, a potem zjedzone**: `update_plan_entry` z `eaten: true` (id z
+          `get_plan`). Zjedzenie przepisu zapisuje jego kcal na stałe — nie przeliczaj
+          historii, gdy przepis się zmieni.
+        - **Resztki z garnka**: `get_fridge` → `eat_from_fridge`. Nie dopisuj ich jako nowego
+          przepisu (zakupy liczą tylko dzień gotowania).
+        - **Ile zostało na dziś**: `get_budget` (budżet = cel + część kcal z aktywności)
+          minus suma kcal zjedzonych wpisów dnia z `get_plan`. Postępy, trend wagi i bilans
+          tygodnia: `get_progress`; cel i jego wyliczenie: `get_goal`.
+        - **Catering** (dieta pudełkowa): w dni dostawy aplikacja sama dopisuje wpis
+          „Catering” jako zjedzony — nie dopisuj go drugi raz. Usunięcie wpisu = „dziś bez
+          cateringu”.
+        - **Waga**: `log_weight`. **Trening**, którego nie złapała opaska: `log_workout`
+          (najpierw `get_activity`, żeby nie liczyć go dwa razy).
+        - Dni są polskie (strefa Europe/Warsaw). „Wczoraj”, „dziś” licz od dzisiejszej daty.
+        - Usuwanie wpisów i zmiany celu tylko na wyraźną prośbę. Bądź wspierający, bez
+          moralizowania: dzień ponad budżet to informacja, nie porażka.
+
         ## Zasady
 
-        Domyślna liczba porcji, preferencje sprzętowe, ostrość, budżet itd. — patrz
-        `cookbook.md`, sekcje „Zasady dla asystenta" i „Profil szczegółowy (ankieta)".
-        Przy każdej propozycji wskaż wszystko, co trzeba dokupić.
+        Preferencje sprzętowe, ostrość, budżet itd. — patrz `cookbook.md`, sekcje „Zasady dla
+        asystenta" i „Profil szczegółowy (ankieta)". Kalorie i makro przepisu są zawsze **na
+        jedną porcję = jedna osoba**; „domyślna liczba porcji” z profilu dotyczy gotowania dla
+        całego domu. Przy każdej propozycji wskaż wszystko, co trzeba dokupić.
         """.Replace("{API}", apiBase);
 
     public static string ApiMd(string apiBase) => """
@@ -134,9 +176,12 @@ public static class AgentDocs
 
         ## Uwierzytelnianie
 
-        Odczyty (GET) są otwarte. **Każdy zapis (POST/PUT/PATCH/DELETE) oraz `GET /chat/*`,
-        `GET /context/status` i `GET /context/connect` wymagają nagłówka `X-Api-Key`**
-        o wartości ze zmiennej `MISE_API_KEY` aplikacji (plik `.env` obok docker-compose):
+        Odczyty (GET) są otwarte, z wyjątkiem prywatnych: `/diary/*`, `/body/*`,
+        `/activity/*`, `/chat/*`, `/context/status`, `/context/connect` i `/swagger`.
+        `GET /plan` bez klucza pokazuje sam plan posiłków (bez przekąsek, wpisów z kcal
+        i stanu „zjedzone”). **Każdy zapis (POST/PUT/PATCH/DELETE) i każdy prywatny odczyt
+        wymaga nagłówka `X-Api-Key`** o wartości ze zmiennej `MISE_API_KEY` aplikacji (plik
+        `.env` obok docker-compose):
 
         ```bash
         curl -X POST {API}/shopping -H "X-Api-Key: $MISE_API_KEY" \
@@ -287,7 +332,7 @@ public static class AgentDocs
           bazowe). `kcal`/makro zawsze na jedną porcję — razem to `kcal × selectedServings`.
           `?base=true` zwraca ilości jak w przepisie (bez skalowania) — **użyj go zawsze
           przed `PUT`**, inaczej zapiszesz przeskalowane ilości jako bazowe.
-        - `PUT /recipes/{id}/servings` — body `{ "servings": 4 }` (1–8): zapisz wybór
+        - `PUT /recipes/{id}/servings` — body `{ "servings": 4 }` (1–8, albo do bazowej liczby porcji, gdy większa): zapisz wybór
           porcji. Skaluje ilości wszędzie, gdzie się liczą (szczegóły, do kupienia,
           cook-proposal, zapotrzebowanie na liście zakupów). `1` przywraca domyślną
           jedną porcję. Plan tygodnia tego nie używa: wpis kupuje swoje `portions`,
@@ -411,18 +456,12 @@ public static class AgentDocs
         ### Pozostałe
         - `GET /plan?start=YYYY-MM-DD&days=14` — wpisy (domyślnie od poniedziałku bieżącego
           tygodnia). Każdy wpis ma `cooked` — czy istnieje pasujący wpis w historii
-          gotowania (ten sam przepis/nazwa, ±1 dzień) — oraz `portions`, `kcal` (suma dla
-          wpisu), `cookId`/`isLeftover` dla garnków.
-        - `DELETE /plan/entry/{id}` — usunięcie dnia gotowania usuwa też zaplanowane resztki.
-        - Dziennik jedzenia (slot `snack`, zjedzone wpisy, `/diary/*`), cel i waga (`/body/*`)
-          oraz aktywność z opaski (`/activity/*`) są prywatne i nie trafiają do `plan.md`.
-        - Dziennik, cel, waga, aktywność i plan są osobne dla każdej osoby w domu.
-          Domyślnie działasz na osobie 1 (ta, która gotuje); nagłówek `X-Person: <id>`
-          wybiera inną (lista osób: `GET /auth/me` → `people`). Zakupy są wspólne.
-        - Catering (dieta pudełkowa): `GET/PUT /body/catering` — `{ "enabled": true,
-          "kcal": 1996, "protein": 145, "fat": 77, "carbs": 180, "weekdays": 31,
-          "startDate": "YYYY-MM-DD" }` (`weekdays`: bit 0 = poniedziałek … bit 6 = niedziela).
-          W dni dostawy wpis „Catering” (`isCatering: true`) dopisuje się sam jako zjedzony.
+          gotowania (ten sam przepis/nazwa, ±1 dzień) — oraz `eaten`, `portions`,
+          `kcal`/`protein`/`fat`/`carbs` (sumy dla wpisu, `kcalMissing` gdy brak szacunku),
+          `cookId`/`isLeftover` dla garnków i `isCatering`. Z kluczem API zwraca też dziennik
+          (przekąski, wpisy z kcal); bez klucza — sam plan posiłków.
+        - `DELETE /plan/entry/{id}` — usunięcie dnia gotowania usuwa też zaplanowane resztki
+          (zjedzone zostają w dzienniku).
         - `GET /plan/shopping-preview?start=YYYY-MM-DD&days=7` — porównuje szacunek z
           ilością konserwatywną i oznacza `needsConfirmation` tylko gdy zmienia wynik zakupów.
         - `POST /plan/add-missing-to-shopping` — `{ "start": "YYYY-MM-DD", "days": 7,
@@ -436,6 +475,81 @@ public static class AgentDocs
           → `POST /cooklog` z `cookedAt` = data z planu.
         - `POST /plan/entry/{id}/dismiss-cook-reminder` — posiłek pominięty: nie
           przypominaj o tym wpisie.
+
+        ## Dziennik jedzenia (prywatny, per osoba)
+
+        Kalendarz to jednocześnie plan i dziennik: wpis jest zaplanowany albo zjedzony
+        (`eaten`). Dziennik, cel, waga, aktywność i catering są osobne dla każdej osoby.
+        Domyślnie działasz na osobie 1; nagłówek `X-Person: <id>` wybiera inną (lista osób:
+        `GET /auth/me` → `people`). Zakupy, spiżarnia, przepisy i pending-cook są wspólne.
+        Nic z tej sekcji nie trafia do plików w `context/`.
+
+        ### POST /plan/entries — dopisz wpis (zawsze nowy, nigdy nie nadpisuje)
+        ```bash
+        curl -X POST {API}/plan/entries -H "Content-Type: application/json" -d '{
+          "date": "2026-07-06", "slot": "snack", "title": "Kinder Bueno", "grams": 43,
+          "kcal": 245, "protein": 3.7, "fat": 16, "carbs": 21, "eaten": true
+        }'
+        ```
+        Zapisany przepis: `recipeId` + `portions` (0,25–10, domyślnie 1) — kcal liczy
+        aplikacja (kcal przepisu na porcję × porcje). Bez przepisu: `title` + `kcal`, `protein`,
+        `fat`, `carbs` jako **sumy dla całego wpisu** (`grams` jest informacyjne — przelicz
+        wartości ze 100 g sam). `eaten` domyślnie `false` (= zaplanowane); zapisując coś
+        zjedzonego, wyślij `true`. Opcjonalne `"favorite": { "name", "kcal", "protein"?,
+        "fat"?, "carbs"?, "per100g"?, "lastGrams"?, "barcode"? }` zapamiętuje produkt w
+        „Ulubionych”.
+
+        ### PATCH /plan/entry/{id} — zmień wpis (tylko podane pola)
+        `{ "eaten"?, "date"?, "slot"?, "note"?, "portions"? (wpisy z przepisem), "title"?,
+        "kcal"?, "protein"?, "fat"?, "carbs"?, "grams"? (wpisy bez przepisu) }`. Przejście na
+        `eaten: true` zapisuje kcal/makro przepisu na stałe (snapshot) — historia nie zmienia
+        się, gdy potem poprawisz przepis. `grams: 0` czyści gramy.
+
+        ### Garnki i lodówka
+        - `GET /diary/fridge` — „W lodówce”: garnki z ostatnich 7 dni z porcjami
+          (`cookId`, `remaining`, `kcalPerPortion`).
+        - `POST /diary/cooks/{id}/eat` — `{ "date", "slot" }`: zjedz porcję (wpis resztek, zjedzony).
+        - `POST /diary/cooks/{id}/discard` — reszta wyrzucona; niezaplanowane porcje znikają.
+        - `GET /diary/cooks/{id}` — garnek z wpisami; `PUT /diary/cooks/{id}` —
+          `{ "portions", "assignments": [{ "date", "slot" }] }` podmienia zaplanowane resztki
+          (zjedzone zostają) i wielkość garnka.
+        - `POST /diary/cooks` może też zamienić istniejący wpis w dzień gotowania:
+          dodaj `"fromEntryId": "<guid wpisu>"`.
+
+        ### Ulubione produkty
+        - `GET /diary/favorites` — ranking (`?all=true` — wszystkie, z ukrytymi). Wartości na
+          porcję albo na 100 g (`per100g`, `lastGrams` = zwykła ilość).
+        - `POST /diary/favorites` — zapamiętaj produkt (body jak `favorite` wyżej).
+        - `POST /diary/favorites/{id}/log` — `{ "date", "slot", "grams"? }`: zapisz jako zjedzony.
+        - `PATCH /diary/favorites/{id}` — `{ "pinned"?, "hidden"? }`.
+        - `GET /diary/barcode/{kod}` — produkt po kodzie kreskowym (najpierw zapamiętany,
+          potem Open Food Facts; wartości na 100 g).
+
+        ## Cel, waga i aktywność (prywatne, per osoba)
+
+        - `GET /body` — cel: `sex` (`female`/`male`), `birthYear`, `heightCm`, `goalKg`,
+          `activityLevel` (`sedentary`/`light`/`moderate`/`high`), `paceKg` (kg/tydzień, 0–1),
+          `targetOverride`, `proteinOverride`, `addBackPercent` (jaka część kcal z aktywności
+          wraca do budżetu) oraz wyliczone `bmr`, `tdee`, `computedTarget`, `target`,
+          `proteinTarget`. `configured: false` = jeszcze nieustawiony.
+        - `PUT /body` — pełna podmiana tych pól (+ opcjonalnie `currentKg` = dzisiejsze ważenie).
+        - `GET /body/budget?start=YYYY-MM-DD&days=7` — na dzień: `target`, `activeKcal`,
+          `bonus`, `budget` (= target + bonus); ile zostało = `budget` − suma kcal zjedzonych
+          wpisów dnia. `target: null` = brak celu.
+        - `GET /body/progress?days=84` — waga (`weights` z trendem 7-dniowym), `weeklyChange`,
+          `etaWeeks`, `week` (średnio zjedzone vs budżet, deficyt, szacowany spadek) i `streak`.
+        - `PUT /body/weights/{YYYY-MM-DD}` — `{ "kg": 72.4 }` (25–350); ręczny wpis wygrywa
+          z wagą łazienkową. `DELETE /body/weights/{data}` usuwa.
+        - Catering (dieta pudełkowa): `GET/PUT /body/catering` — `{ "enabled": true,
+          "kcal": 1996, "protein": 145, "fat": 77, "carbs": 180, "weekdays": 31,
+          "startDate": "YYYY-MM-DD" }` (`weekdays`: bit 0 = poniedziałek … bit 6 = niedziela).
+          W dni dostawy wpis „Catering” (`isCatering: true`) dopisuje się sam jako zjedzony;
+          usunięty nie wraca. `POST /body/catering/log` — `{ "date" }` dopisuje pudełko
+          w dzień bez dostawy.
+        - `GET /activity?days=7` — kcal aktywne na dzień (opaska + ręczne treningi), `bonus`,
+          treningi, `state` (`none`/`connected`/`stale`).
+        - `POST /activity/workouts` — `{ "date", "type", "minutes", "kcal", "time"? ("HH:mm") }`
+          ręczny trening; `DELETE /activity/workouts/{id}`. Treningów z opaski nie dopisuj.
 
         ## Historia gotowania (cook log)
 
@@ -570,6 +684,43 @@ public static class AgentDocs
                    `POST {API}/plan/add-missing-to-shopping`; podsumuj, co trzeba dokupić.
                 """),
         };
+    }
+
+    /// <summary>
+    /// In-app Sous on Codex: sent once, at the start of a Codex thread. Codex also loads
+    /// AGENTS.md from the context folder it runs in.
+    /// </summary>
+    public static string SousInstructions(string personName) => """
+        Jesteś Sous — asystent kulinarny i dietetyczny w aplikacji Pichci. Rozmawiasz w panelu
+        czatu w aplikacji (najczęściej na telefonie) z osobą: {PERSON}.
+
+        - Bieżący folder to kontekst kuchni: AGENTS.md (zasady — stosuj się), cookbook.md,
+          pantry.json, plan.md, cooklog.md, recipes/, supplies.md. Czytaj tylko to, czego
+          potrzebujesz do odpowiedzi.
+        - Wszystko, co zmienia dane, i wszystko z dziennika (zjedzone, budżet kcal, waga,
+          aktywność) robisz narzędziami MCP `pichci`. Działają w imieniu {PERSON}. Nie masz
+          sieci ani zapisu plików — nie próbuj curl ani edycji plików.
+        - Proste dopisanie (zjedzone jedzenie, pozycja na liście zakupów, ważenie) wykonaj od
+          razu i potwierdź jednym zdaniem z liczbami (np. ile kcal zostało na dziś).
+          Usuwanie, czyszczenie list, podmiana przepisu, zmiana celu i nowy przepis — najpierw
+          pokaż propozycję i poczekaj na zgodę.
+        - Odpowiadaj po polsku, krótko i konkretnie, jak w komunikatorze. Czat pokazuje zwykły
+          tekst: bez nagłówków, tabel, pogrubień i bloków kodu; listy jako linie zaczynające
+          się od „– ”. Nie pokazuj identyfikatorów ani JSON-a.
+        - Gdy czegoś nie wiesz (np. ile czegoś zjedzono), dopytaj jednym pytaniem zamiast
+          zgadywać — chyba że rozsądne oszacowanie wystarczy; wtedy powiedz, że to szacunek.
+        """.Replace("{PERSON}", personName);
+
+    /// <summary>Every Sous turn: the date (threads outlive days) plus the recipe on screen, if any.</summary>
+    public static string SousTurn(DateTime now, string personName, string message, string? recipeFocus)
+    {
+        var day = new[] { "niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota" }[(int)now.DayOfWeek];
+        var header = $"[Pichci · {day} {now:yyyy-MM-dd}, godz. {now:HH:mm} · pisze: {personName}]";
+        var focus = recipeFocus is null
+            ? ""
+            : "\n[Na ekranie jest ten przepis — odpowiadaj w jego kontekście, chyba że pytanie dotyczy czegoś innego]\n"
+              + recipeFocus + "\n";
+        return $"{header}{focus}\n{message}";
     }
 
     public static string OneShotPrompt(string contextDir, string apiBase) => """
