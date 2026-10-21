@@ -267,7 +267,7 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
           {fridgeBlock}
           {activityBlock}
           <span style={{ textAlign: 'center', font: mono(11.5), color: 'var(--text-3)' }}>‹ przesuń, żeby zmienić dzień ›</span>
-          <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
+          <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
             <Button size="xl" style={{ width: '100%' }} onClick={onAdd}>{addLabel}</Button>
           </div>
         </>

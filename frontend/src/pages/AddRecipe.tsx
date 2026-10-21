@@ -237,7 +237,7 @@ export function AddRecipe() {
       </Section>
 
       {isMobile ? (
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '10px 16px', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
+        <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '10px 16px', background: 'var(--bg)', borderTop: '1px solid var(--border)' }}>
           {saveButtons}
         </div>
       ) : (

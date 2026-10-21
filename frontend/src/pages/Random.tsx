@@ -270,7 +270,7 @@ export function Random() {
         {pick && canEdit && <Button variant="quiet" onClick={() => setPlanOpen(true)}>Dodaj do planu</Button>}
         {askSous}
         {previous}
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px 10px', background: 'var(--bg)' }}>
+        <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px 10px', background: 'var(--bg)' }}>
           <div style={{ display: 'flex', gap: 10 }}>
             {pick ? (
               <>

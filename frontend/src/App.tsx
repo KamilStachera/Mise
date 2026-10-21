@@ -4,7 +4,7 @@ import { registerChatOpener } from './lib/chatBus'
 import { showToast } from './lib/toastBus'
 import { useIsMobile } from './lib/useIsMobile'
 import { useScrollMemory } from './lib/useScrollMemory'
-import { useAuth } from './api/hooks'
+import { useAuth, useChatHealth } from './api/hooks'
 import { Sidebar } from './components/Sidebar'
 import { TabBar, TAB_BAR_HEIGHT } from './components/TabBar'
 import { ChatSidebar } from './components/ChatSidebar'
@@ -12,6 +12,7 @@ import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
 import { UpdatePill } from './components/UpdatePill'
 import { LoginNudge } from './components/LoginNudge'
+import { SousFab } from './components/SousFab'
 import { Library } from './pages/Library'
 import { RecipeDetail } from './pages/RecipeDetail'
 import { Pantry } from './pages/Pantry'
@@ -27,6 +28,7 @@ import { History } from './pages/History'
 export default function App() {
   const isMobile = useIsMobile()
   const { canEdit } = useAuth()
+  const { data: chatHealth } = useChatHealth()
   const [chatOpen, setChatOpen] = useState(false)
   const { pathname } = useLocation()
   // Recipe pages bring their own sticky action bar on phones (design screen 02).
@@ -101,6 +103,7 @@ export default function App() {
       <ToastHost />
       <UpdatePill />
       <LoginNudge />
+      {showTabs && canEdit && chatHealth?.enabled && !chatOpen && <SousFab onOpen={() => setChatOpen(true)} />}
     </div>
   )
 }
