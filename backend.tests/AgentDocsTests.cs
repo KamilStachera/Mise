@@ -64,4 +64,22 @@ public class AgentDocsTests
         Assert.Contains("Nie zgaduj id", commands["wzbogac-cwiczenia.md"], StringComparison.Ordinal);
         Assert.Contains("/wzbogac-cwiczenia", AgentDocs.CommandsInstall("/ctx"), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void TrainingPlanDocs_DescribeTheGridPrivacyAndTheCommand()
+    {
+        var agents = AgentDocs.AgentsMd("http://localhost:5080/api");
+        var api = AgentDocs.ApiMd("http://localhost:5080/api");
+        var commands = AgentDocs.CommandFiles("http://localhost:5080/api", "/ctx");
+
+        Assert.Contains("## Trening — ankieta i plan (prywatne, per osoba)", agents, StringComparison.Ordinal);
+        Assert.Contains("`create_training_program`", agents, StringComparison.Ordinal);
+        Assert.Contains("`/training/*`", api, StringComparison.Ordinal);
+        Assert.Contains("POST /training/programs", api, StringComparison.Ordinal);
+        Assert.Contains("0 = poniedziałek", api, StringComparison.Ordinal);
+        Assert.True(commands.ContainsKey("plan-treningowy.md"));
+        Assert.Contains("Poczekaj na moją zgodę", commands["plan-treningowy.md"], StringComparison.Ordinal);
+        Assert.Contains("/plan-treningowy", AgentDocs.CommandsInstall("/ctx"), StringComparison.Ordinal);
+        Assert.Contains("dodawaj filmów", AgentDocs.SousInstructions("Ola"), StringComparison.Ordinal);
+    }
 }

@@ -33,6 +33,10 @@ public class MiseDbContext : DbContext
     public DbSet<Catering> Caterings => Set<Catering>();
     public DbSet<ProfileAnswer> ProfileAnswers => Set<ProfileAnswer>();
     public DbSet<Exercise> Exercises => Set<Exercise>();
+    public DbSet<TrainingProfile> TrainingProfiles => Set<TrainingProfile>();
+    public DbSet<TrainingProgram> TrainingPrograms => Set<TrainingProgram>();
+    public DbSet<ProgramDay> ProgramDays => Set<ProgramDay>();
+    public DbSet<ProgramExercise> ProgramExercises => Set<ProgramExercise>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -268,6 +272,56 @@ public class MiseDbContext : DbContext
             e.Property(x => x.YoutubeId).HasMaxLength(16);
             e.Property(x => x.VideoTitle).HasMaxLength(300);
             e.Property(x => x.VideoChannel).HasMaxLength(200);
+        });
+
+        b.Entity<TrainingProfile>(e =>
+        {
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            e.HasOne<Person>().WithOne().HasForeignKey<TrainingProfile>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.Goal).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Level).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Location).HasConversion<string>().HasMaxLength(8);
+            e.Property(x => x.Limitations).HasMaxLength(1000);
+            e.Property(x => x.Dislikes).HasMaxLength(1000);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+        });
+
+        b.Entity<TrainingProgram>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(120);
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.Rationale).HasMaxLength(4000);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.CreatedBy).HasMaxLength(16);
+            e.HasIndex(x => new { x.PersonId, x.Status });
+            // One active program per person; the service archives the previous one first.
+            e.HasIndex(x => x.PersonId).IsUnique().HasFilter("\"Status\" = 'Active'")
+                .HasDatabaseName("IX_TrainingPrograms_PersonId_Active");
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Days).WithOne(d => d.Program!).HasForeignKey(d => d.ProgramId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ProgramDay>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(120);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Location).HasConversion<string>().HasMaxLength(8);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Property(x => x.VideoYoutubeId).HasMaxLength(16);
+            e.Property(x => x.VideoTitle).HasMaxLength(300);
+            e.Property(x => x.WorkoutType).HasMaxLength(60);
+            e.HasIndex(x => new { x.ProgramId, x.Week, x.Weekday }).IsUnique();
+            e.HasMany(x => x.Exercises).WithOne(p => p.Day!).HasForeignKey(p => p.ProgramDayId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ProgramExercise>(e =>
+        {
+            e.Property(x => x.TargetKg).HasPrecision(6, 2);
+            e.Property(x => x.Notes).HasMaxLength(300);
+            e.Property(x => x.SupersetGroup).HasMaxLength(8);
+            // An exercise used by a plan can't vanish from the catalog (hide it instead).
+            e.HasOne(x => x.Exercise).WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

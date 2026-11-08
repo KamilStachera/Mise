@@ -148,6 +148,7 @@ api.MapDiary();
 api.MapBody();
 api.MapActivity();
 api.MapExercises();
+api.MapTraining();
 api.MapContext();
 api.MapChat();
 

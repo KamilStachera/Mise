@@ -1,6 +1,6 @@
 # Training module ("Trening") — feature set
 
-Status: **agreed** (2026-11-08). P1 done, P2 tooling done.
+Status: **agreed** (2026-11-08). P1–P3 done; P4 (live tracker) next.
 
 She was about to buy Anna Lewandowska's *Diet & Training by Ann* (dieta.hpba.pl, ~90 zł/month).
 The diet side is already covered by Pichci's diary (and she is moving to catering), so we build
@@ -50,10 +50,21 @@ Decisions:
 - MCP: `search_exercises`, `get_exercise`, `enrich_exercises`, `add_exercise`.
   Command: `/wzbogac-cwiczenia [n | partia]`. Coverage counter on the catalog header.
 
-### F3. Plan z ankiety (P3)
-Training profile (goal, days/week, minutes, weekdays, location, home kit, styles, limitations),
-program → weeks → days → exercises (sets, rep range or seconds, rest, target kg, superset), one
-active program per person, "Dziś" view, `/plan-treningowy`.
+### F3. Plan z ankiety ✅ (P3)
+- **Ankieta** (`/trening/ankieta`): goal, level, days/week, minutes, preferred weekdays, where
+  (home / gym / both), home kit, styles, injuries, dislikes, notes. One per person.
+- **Program** → weeks → days → exercises (sets, rep range or seconds, rest, target kg, superset).
+  Every week is written out, so progression is data. Week *n* = the n-th calendar week from the
+  Monday of `startDate`; one workout per day; no day before the start. One active program per
+  person (archives the previous one; partial unique index).
+- A day is either **exercises** or **follow-along** (one verified YouTube workout + minutes + type).
+- **Dziś** (`/trening/dzis`): today's workout, or "odpoczynek" with the next one previewed.
+- **Plan** (`/trening/plan`): week chips, the seven weekdays, "Dlaczego taki plan" (agent's
+  rationale), **Zamień** per exercise (easier / similar / harder × my kit / no kit / gym, optionally
+  in the following weeks of the same day name), a day editor (sets, reps or seconds, rest, kg,
+  reorder, add from the catalog, or a follow-along video) with server errors inline.
+- Plans come from an agent: Sous ("Ułóż plan z Sous", no videos — it has no web) or Claude Code
+  `/plan-treningowy` (can add follow-along videos). Validation names the day: "Tydzień 2, wtorek: …".
 
 ### F4. Trening na żywo (P4)
 Session snapshot of the day's targets, set rows prefilled from last time, rest timer + wake lock,
@@ -76,6 +87,7 @@ progress charts, weekly per-muscle heatmap on the body map.
 1. ~~**P1 Katalog**~~ — done 2026-11-08.
 2. ~~**P2 Opisy i wideo (tooling)**~~ — done 2026-11-08; run `/wzbogac-cwiczenia` batches, starting
    with the exercises her plan will use.
-3. **P3 Plan** — profile, program, questionnaire, Dziś, `/plan-treningowy`.
+3. ~~**P3 Plan**~~ — done 2026-11-08: profile, program, questionnaire, Dziś, swap, day editor,
+   `/plan-treningowy`.
 4. **P4 Trening na żywo** — sessions, tracker, PRs, swap, Workout dedupe, Historia.
 5. **P5 Filmy i dopieszczenie** — follow-along library, favourites, charts, heatmap.

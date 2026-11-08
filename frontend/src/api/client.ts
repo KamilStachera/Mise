@@ -623,10 +623,18 @@ const BASE = '/api'
 /** Carries the HTTP status so callers can react to 401 (session expired / read-only). */
 export class ApiError extends Error {
   status: number
-  constructor(status: number, statusText: string) {
+  /** The server's Polish `{ error }` message, when it sent one (validation 400s, 409s). */
+  detail: string | null
+  constructor(status: number, statusText: string, detail: string | null = null) {
     super(`${status} ${statusText}`)
     this.status = status
+    this.detail = detail
   }
+}
+
+/** Human-readable failure for a toast or an inline form error. */
+export function errorText(e: unknown, fallback = 'Nie udało się zapisać.'): string {
+  return e instanceof ApiError && e.detail ? e.detail : fallback
 }
 
 /** Whose diary the private endpoints act for (the Plan switcher); null = the caller's own. */
@@ -640,7 +648,16 @@ export async function http<T>(path: string, init?: RequestInit, asSelf = false):
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (personHeader != null && !asSelf) headers['X-Person'] = String(personHeader)
   const res = await fetch(BASE + path, { headers, ...init })
-  if (!res.ok) throw new ApiError(res.status, res.statusText)
+  if (!res.ok) {
+    let detail: string | null = null
+    try {
+      const body = JSON.parse(await res.text())
+      if (typeof body?.error === 'string') detail = body.error
+    } catch {
+      /* not JSON — keep the status line */
+    }
+    throw new ApiError(res.status, res.statusText, detail)
+  }
   if (res.status === 204) return undefined as T
   const text = await res.text()
   return (text ? JSON.parse(text) : undefined) as T

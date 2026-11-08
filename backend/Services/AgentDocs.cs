@@ -58,6 +58,9 @@ public static class AgentDocs
         | lista domowa (chemia, papier) | `add_supplies` | `POST {API}/supplies` |
         | ćwiczenie: polski opis + film | `enrich_exercises` | `POST {API}/exercises/enrich` |
         | nowe ćwiczenie (pilates, joga…) | `add_exercise` | `POST {API}/exercises` |
+        | ankieta treningowa | `set_training_profile` | `PUT {API}/training/profile` |
+        | nowy plan treningowy | `create_training_program` | `POST {API}/training/programs` |
+        | zamiana ćwiczenia w planie | `update_program_exercise` | `PATCH {API}/training/program-exercises/{id}` |
 
         Pełna dokumentacja endpointów i schematów JSON: **`api.md`**. Po udanym zapisie
         aplikacja sama odświeża pliki w tym folderze.
@@ -178,6 +181,32 @@ public static class AgentDocs
         - Ćwiczenia spoza katalogu (pilates, joga, mobilność) dodawaj `add_exercise` — najpierw
           sprawdź, czy nie ma ich już pod angielską nazwą.
 
+        ## Trening — ankieta i plan (prywatne, per osoba)
+
+        Każda osoba ma ankietę treningową (`get_training_profile`) i co najwyżej jeden aktywny
+        plan (`get_training_program`); „co dziś” → `get_training_today`. Komenda
+        `/plan-treningowy` prowadzi przez układanie planu.
+
+        - **Plan rozpisujesz w całości**: każdy tydzień i każdy dzień (`week` 1…n, `weekday`
+          0 = poniedziałek). Ta sama `name` w kolejnych tygodniach = ten sam trening z progresją
+          (np. +1 seria, wyższy zakres powtórzeń, dłuższy plank). Liczba dni i ich długość —
+          z ankiety (`daysPerWeek`, `minutesPerSession`, `preferredWeekdays`); 4–8 ćwiczeń na
+          dzień, zaczynaj od złożonych.
+        - **Tylko ćwiczenia z katalogu**, dobrane do miejsca: dom = `homeEquipment` + masa ciała
+          (`search_exercises` z `location: home`), siłownia = wszystko. Szanuj `limitations`
+          (kontuzje) i `dislikes`. Zakresy powtórzeń (`repsMin`–`repsMax`), ćwiczenia na czas
+          przez `seconds`. `targetKg` tylko gdy masz podstawę — lepiej pominąć niż zgadywać.
+        - Zanim zapiszesz plan, dopisz polskie opisy (`enrich_exercises`) ćwiczeniom, które
+          go tworzą i ich jeszcze nie mają — ona czyta plan po polsku.
+        - **Dzień z filmem** (`kind: "follow-along"`): jeden pełny trening z YouTube (pilates,
+          joga, HIIT) z `videoYoutubeId` znalezionym w wyszukiwarce (sprawdzany — nie zgaduj),
+          `videoMinutes` i `workoutType`. Tylko gdy styl jest w `styles`.
+        - W `rationale` krótko wyjaśnij jej plan: podział, progresję, co z ankiety uwzględniłeś.
+        - Najpierw pokaż propozycję (tydzień 1 + jak rośnie), zapisuj po akceptacji
+          (`create_training_program` z `activate: true`). Zmiany jednego ćwiczenia:
+          `update_program_exercise` (zamiana: `get_exercise_alternatives`); większe zmiany:
+          `replace_training_program`.
+
         ## Zasady
 
         Preferencje sprzętowe, ostrość, budżet itd. — patrz `cookbook.md`, sekcje „Zasady dla
@@ -196,7 +225,7 @@ public static class AgentDocs
         ## Uwierzytelnianie
 
         Odczyty (GET) są otwarte, z wyjątkiem prywatnych: `/diary/*`, `/body/*`,
-        `/activity/*`, `/chat/*`, `/context/status`, `/context/connect` i `/swagger`.
+        `/activity/*`, `/training/*`, `/chat/*`, `/context/status`, `/context/connect` i `/swagger`.
         `GET /plan` bez klucza pokazuje sam plan posiłków (bez przekąsek, wpisów z kcal
         i stanu „zjedzone”). **Każdy zapis (POST/PUT/PATCH/DELETE) i każdy prywatny odczyt
         wymaga nagłówka `X-Api-Key`** o wartości ze zmiennej `MISE_API_KEY` aplikacji (plik
@@ -667,6 +696,42 @@ public static class AgentDocs
           pola jak wyżej; duplikat nazwy → `409` z `id` istniejącego.
         - Film: serwer weryfikuje `youtubeId` w YouTube (oEmbed) — nieistniejący lub bez zgody
           na osadzanie → błąd dla tego ćwiczenia; tytuł i kanał zapisuje sam.
+        - `GET /exercises/{id}/alternatives?direction=easier|similar|harder&location=home|gym|none&limit=8`
+          — zamienniki (wspólna partia główna; `home` = sprzęt z ankiety + masa ciała).
+
+        ## Trening — ankieta i plan (prywatne, per osoba)
+
+        Tokeny: `goal` — lose-fat, tone, strength, mobility, general · `location` — home, gym,
+        any · `styles` — strength, pilates, yoga, hiit, stretching, cardio · `kind` (dzień) —
+        exercises, follow-along. `weekday`: 0 = poniedziałek … 6 = niedziela. Tydzień `n` to
+        n-ty tydzień kalendarzowy od poniedziałku tygodnia `startDate`; dzień nie może wypaść
+        przed `startDate`.
+
+        - `GET /training/profile` / `PUT /training/profile` — `{ goal, level, daysPerWeek (1–7),
+          minutesPerSession (10–180), preferredWeekdays (maska, bit 0 = pon), location,
+          homeEquipment[], styles[], limitations, dislikes, notes }` (PUT: tylko podane pola).
+          `configured: false` = jeszcze bez ankiety.
+        - `GET /training/program` — aktywny plan (`204` gdy brak); `GET /training/programs` —
+          lista; `GET /training/programs/{id}`.
+        - `POST /training/programs` — `{ name, description?, rationale?, startDate?, weeks (1–26),
+          activate?, createdBy?: "ai", days: [ { week, weekday, name, kind?, location?, notes?,
+          videoYoutubeId?, videoMinutes?, workoutType?, exercises: [ { exerciseId, sets?,
+          repsMin?, repsMax?, seconds?, restSeconds?, targetKg?, notes?, supersetGroup? } ] } ] }`.
+          Jeden trening na dzień; `exercises` 1–20 (dzień `follow-along`: bez ćwiczeń, z filmem —
+          sprawdzanym w YouTube). Powtórzenia ALBO `seconds`. Błąd wskazuje dzień:
+          „Tydzień 2, wtorek: …”. `activate: true` archiwizuje poprzedni aktywny plan.
+        - `PUT /training/programs/{id}` — pełna podmiana (te same pola).
+          `PATCH /training/programs/{id}` — `{ name?, description?, rationale?, startDate?,
+          status?: "active"|"draft"|"archived" }`. `DELETE /training/programs/{id}`.
+        - `POST /training/programs/{id}/days` (dzień jak wyżej; zajęty termin → `409`),
+          `PUT /training/programs/{id}/days/{dayId}` (podmiana dnia, id zostaje),
+          `DELETE /training/programs/{id}/days/{dayId}`.
+        - `PATCH /training/program-exercises/{id}` — `{ exerciseId?, sets?, repsMin?, repsMax?,
+          seconds?, restSeconds?, targetKg?, clearTargetKg?, notes?, applyToFollowingWeeks? }`;
+          zamiana ćwiczenia czyści `targetKg`, a przejście powtórzenia ↔ czas ustawia domyślne
+          10–12 / 30 s. Zwraca `{ swapped, program }`.
+        - `GET /training/today?date=YYYY-MM-DD` — `{ status: none|before-start|scheduled|rest|finished,
+          program, week, day, next }`.
 
         ## Profil
 
@@ -748,6 +813,27 @@ public static class AgentDocs
                    Ćwiczenia z `errors` (np. odrzucony film) popraw i wyślij ponownie albo zapisz bez filmu.
                 6. Na koniec podaj, ile opisano, ile z filmem i co pominięto.
                 """),
+            ["plan-treningowy.md"] = T("""
+                Ułóż albo dostosuj mój plan treningowy w Pichci. Wytyczne: $ARGUMENTS
+                („dostosuj” = popraw kolejne tygodnie istniejącego planu; inaczej nowy plan).
+
+                1. Przeczytaj sekcje „Trening” w `{CTX}/AGENTS.md`.
+                2. `get_training_profile` (`GET {API}/training/profile`). Bez ankiety (`configured:
+                   false`) zadaj mi po kolei: cel, poziom, ile dni i minut, które dni, gdzie ćwiczę
+                   i jaki mam sprzęt, style (siłowy, pilates, joga…), kontuzje, czego nie lubię —
+                   i zapisz `set_training_profile`.
+                3. `get_training_program` — sprawdź, czy jest aktywny plan (przy „dostosuj” to on
+                   jest punktem wyjścia; zachowaj minione tygodnie bez zmian).
+                4. Dobierz ćwiczenia `search_exercises` (`location: home` dla dni w domu, filtr
+                   `muscle`), zaczynając od złożonych ruchów; unikaj tego, co koliduje z kontuzjami.
+                   Dni z filmem (pilates/joga) — tylko z filmem znalezionym w wyszukiwarce.
+                5. Pokaż propozycję: podział tygodnia, tydzień 1 (ćwiczenia, serie × powtórzenia,
+                   przerwy) i jak plan rośnie w kolejnych tygodniach. Poczekaj na moją zgodę.
+                6. Opisz po polsku (`enrich_exercises`) użyte ćwiczenia bez opisu, potem zapisz
+                   `create_training_program` z `activate: true` (przy „dostosuj”:
+                   `replace_training_program`) i krótkim `rationale`. Błąd walidacji wskazuje dzień —
+                   popraw go i ponów.
+                """),
         };
     }
 
@@ -774,6 +860,10 @@ public static class AgentDocs
           się od „– ”. Nie pokazuj identyfikatorów ani JSON-a.
         - Gdy czegoś nie wiesz (np. ile czegoś zjedzono), dopytaj jednym pytaniem zamiast
           zgadywać — chyba że rozsądne oszacowanie wystarczy; wtedy powiedz, że to szacunek.
+        - Trening: ankieta, plan i „co dziś” są w narzędziach `*_training_*` (zasady w AGENTS.md,
+          sekcje „Trening”). Plan możesz ułożyć i zmieniać; nie masz wyszukiwarki, więc nie
+          dodawaj filmów (ani do ćwiczeń, ani dni „z filmem”) — powiedz, że dopisze je Claude
+          Code komendą /wzbogac-cwiczenia.
         """.Replace("{PERSON}", personName);
 
     /// <summary>Every Sous turn: the date (threads outlive days) plus the recipe on screen, if any.</summary>
@@ -820,7 +910,7 @@ public static class AgentDocs
         """;
 
     public static string CommandsInstall(string contextDir) => """
-        # Claude Code (komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien, /wzbogac-cwiczenia)
+        # Claude Code (komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien, /wzbogac-cwiczenia, /plan-treningowy)
         cp "{CTX}/commands/"*.md ~/.claude/commands/
 
         # Codex CLI

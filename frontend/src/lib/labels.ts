@@ -1,5 +1,5 @@
 import type { Cuisine, DishType, Slot, Source, Status, SupplyCategory, Unit } from '../api/client'
-import type { Equipment, ExerciseCategory, ExerciseLevel, Muscle } from '../api/training'
+import type { Equipment, ExerciseCategory, ExerciseLevel, Muscle, TrainingGoal, TrainingLocation, TrainingStyle } from '../api/training'
 
 // Polish display labels for English API tokens (enum values stay English on the wire).
 
@@ -251,3 +251,33 @@ export const exerciseCategoryLabel: Record<ExerciseCategory, string> = {
   yoga: 'Joga',
   mobility: 'Mobilność',
 }
+
+export const TRAINING_GOALS: TrainingGoal[] = ['tone', 'lose-fat', 'strength', 'mobility', 'general']
+
+export const trainingGoalLabel: Record<TrainingGoal, string> = {
+  tone: 'Ujędrnienie i sylwetka',
+  'lose-fat': 'Spalanie tłuszczu',
+  strength: 'Siła',
+  mobility: 'Mobilność i zdrowe plecy',
+  general: 'Ogólna sprawność',
+}
+
+export const trainingLocationLabel: Record<TrainingLocation, string> = {
+  home: 'W domu',
+  gym: 'Na siłowni',
+  any: 'Dom i siłownia',
+}
+
+export const TRAINING_STYLES: TrainingStyle[] = ['strength', 'pilates', 'yoga', 'hiit', 'stretching', 'cardio']
+
+export const trainingStyleLabel: Record<TrainingStyle, string> = {
+  strength: 'Siłowy',
+  pilates: 'Pilates',
+  yoga: 'Joga',
+  hiit: 'HIIT',
+  stretching: 'Rozciąganie',
+  cardio: 'Cardio',
+}
+
+/** Equipment someone can own at home (the questionnaire's checklist). */
+export const HOME_EQUIPMENT: Equipment[] = ['dumbbell', 'kettlebell', 'bands', 'exercise-ball', 'medicine-ball', 'foam-roll', 'barbell', 'other']

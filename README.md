@@ -69,8 +69,13 @@ help plan meals.
   exercise shows a front/back muscle map, start/end photos, steps, "Na co uważać" and
   "Częste błędy", and an embedded YouTube demo. Agents write the Polish descriptions and
   pick the videos (`/wzbogac-cwiczenia`); the server checks every video id with YouTube
-  before saving it. Training plans and a live workout tracker are next — see
-  `docs/training/`.
+  before saving it.
+- A private **training plan** (Trening → Dziś / Plan): a short questionnaire (goal, days,
+  minutes, home kit, injuries…), then an agent — Sous, or `/plan-treningowy` in Claude Code
+  — writes a multi-week program with progression. Dziś shows today's workout or the next
+  one; Plan shows each week, lets you swap any exercise for an easier / similar / harder one
+  that fits your equipment, and edit days. A day can also be a full follow-along YouTube
+  workout (pilates, yoga). A live set-by-set tracker is next — see `docs/training/`.
 - A **dinner roulette** ("Losuj") that picks tonight's meal by your rules (and can
   drop the pick straight into the plan), and a
   **cooking history** ("Historia") with stats, streaks and repeat badges.

@@ -4,6 +4,7 @@ import { useExercises, type Equipment, type ExerciseLevel, type ExerciseListItem
 import { FilterDropdown } from '../../components/FilterDropdown'
 import { BodyMap } from '../../components/training/BodyMap'
 import { ExerciseSheet } from '../../components/training/ExerciseSheet'
+import { TrainingNav } from '../../components/training/TrainingNav'
 import { Chip, PageTitle, SearchField, Sheet, mono, sans, usePagePad } from '../../components/ui'
 import { EQUIPMENT, EXERCISE_LEVELS, MUSCLES, equipmentLabel, exerciseLevelLabel, muscleLabel } from '../../lib/labels'
 import { useInfiniteScroll } from '../../lib/useInfiniteScroll'
@@ -131,6 +132,7 @@ export function CatalogView() {
 
   return (
     <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 24 }}>
+      <TrainingNav />
       <PageTitle
         title="Ćwiczenia"
         count={data?.total}

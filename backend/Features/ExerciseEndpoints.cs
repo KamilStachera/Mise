@@ -89,6 +89,27 @@ public static class ExerciseEndpoints
                 ? Results.Ok(ToDetailDto(e))
                 : Results.NotFound());
 
+        // Swap candidates. location=home uses her kit from the training profile (signed-in callers
+        // only — anonymous visitors get the default home set), none = bodyweight, gym = anything.
+        g.MapGet("/{id:guid}/alternatives", async (Guid id, string? direction, string? location, int? limit,
+            HttpContext ctx, AccessControl access, PersonScope person, MiseDbContext db) =>
+        {
+            var target = await db.Exercises.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
+            if (target is null) return Results.NotFound();
+            var dir = ExerciseAlternatives.Direction.Similar;
+            if (direction is not null && !ExerciseTokens.TryParse(direction, out dir))
+                return Bad("direction", ["similar", "easier", "harder"]);
+            var loc = location?.Trim().ToLowerInvariant() ?? "gym";
+            if (loc is not ("home" or "gym" or "any" or "none")) return Bad("location", ["home", "gym", "none"]);
+            var profile = loc == "home" && access.IsPrivileged(ctx)
+                ? await db.TrainingProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.PersonId == person.Id)
+                : null;
+            var catalog = await db.Exercises.AsNoTracking().Where(e => !e.Hidden).ToListAsync();
+            var items = ExerciseAlternatives.For(target, catalog, ExerciseAlternatives.AllowedFor(loc, profile), dir,
+                Math.Clamp(limit ?? 8, 1, 30));
+            return Results.Ok(new ExerciseAlternativesDto(id, ExerciseTokens.Of(dir), loc, items.Select(ToListDto).ToList()));
+        });
+
         g.MapGet("/{id:guid}/images/{n:int}.webp", async (Guid id, int n, HttpContext ctx,
             MiseDbContext db, ExerciseImages images) =>
         {

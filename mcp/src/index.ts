@@ -965,5 +965,169 @@ server.tool(
   async (input) => text(await post('/exercises', input)),
 )
 
+server.tool(
+  'get_exercise_alternatives',
+  'Zamienniki ćwiczenia (ta sama partia główna): direction easier/similar/harder; location home = jej sprzęt ' +
+    'z ankiety + masa ciała, none = bez sprzętu, gym = wszystko.',
+  {
+    id: z.string().uuid(),
+    direction: z.enum(['easier', 'similar', 'harder']).optional(),
+    location: z.enum(['home', 'gym', 'none']).optional(),
+    limit: z.number().int().min(1).max(30).optional(),
+  },
+  async ({ id, ...q }) => {
+    const p = new URLSearchParams()
+    for (const [k, v] of Object.entries(q)) if (v !== undefined) p.set(k, String(v))
+    return text(await get(`/exercises/${id}/alternatives?${p}`))
+  },
+)
+
+// ---- Trening: ankieta i plan (prywatne, per osoba) ----
+
+const TRAINING_GOALS = ['lose-fat', 'tone', 'strength', 'mobility', 'general'] as const
+const TRAINING_LOCATIONS = ['home', 'gym', 'any'] as const
+const TRAINING_STYLES = ['strength', 'pilates', 'yoga', 'hiit', 'stretching', 'cardio'] as const
+
+const programExerciseShape = z.object({
+  exerciseId: z.string().uuid().describe('Id z search_exercises'),
+  sets: z.number().int().min(1).max(10).optional().describe('Domyślnie 3'),
+  repsMin: z.number().int().min(1).max(100).optional().describe('Zakres powtórzeń od…'),
+  repsMax: z.number().int().min(1).max(100).optional().describe('…do (podwójna progresja: gdy zrobi górę zakresu, ciężar w górę)'),
+  seconds: z.number().int().min(5).max(900).optional().describe('Zamiast powtórzeń — ćwiczenia na czas (plank, rozciąganie)'),
+  restSeconds: z.number().int().min(0).max(600).optional().describe('Przerwa między seriami; domyślnie 75 s (na czas: 45 s)'),
+  targetKg: z.number().min(0).max(500).optional().describe('Sugerowany ciężar (na rękę przy hantlach); pomiń przy masie ciała'),
+  notes: z.string().max(300).optional().describe('Krótka wskazówka do tego planu, np. "tempo 3-1-1"'),
+  supersetGroup: z.string().max(8).optional().describe('Ta sama litera = superseria'),
+})
+
+const programDayShape = z.object({
+  week: z.number().int().min(1).max(26),
+  weekday: z.number().int().min(0).max(6).describe('0 = poniedziałek … 6 = niedziela'),
+  name: z.string().max(120).describe('Nazwa treningu, np. "Dół ciała A"; ta sama nazwa w kolejnych tygodniach = ten sam trening z progresją'),
+  kind: z.enum(['exercises', 'follow-along']).optional().describe('exercises (domyślnie) albo follow-along = jeden pełny film do ćwiczenia razem'),
+  location: z.enum(TRAINING_LOCATIONS).optional(),
+  notes: z.string().max(1000).optional().describe('Rozgrzewka, wskazówki na ten dzień'),
+  videoYoutubeId: z.string().optional().describe('follow-along: link/id filmu YouTube (sprawdzany — nie zgaduj)'),
+  videoMinutes: z.number().int().min(1).max(240).optional(),
+  workoutType: z.string().max(60).optional().describe('follow-along: etykieta do aktywności, np. "Pilates", "Joga", "HIIT"'),
+  exercises: z.array(programExerciseShape).max(20).optional().describe('exercises: kolejność = kolejność wykonania'),
+})
+
+const programShape = {
+  name: z.string().max(120),
+  description: z.string().max(1000).optional(),
+  rationale: z
+    .string()
+    .max(4000)
+    .optional()
+    .describe('Dlaczego taki plan — krótko, po polsku, dla niej (cel, podział, progresja, co z ankiety uwzględniono)'),
+  startDate: DATE.optional().describe('Domyślnie najbliższy poniedziałek (dziś, jeśli poniedziałek)'),
+  weeks: z.number().int().min(1).max(26).optional().describe('Domyślnie 4'),
+  activate: z.boolean().optional().describe('true = ten plan staje się aktywny (poprzedni → archiwum)'),
+  days: z.array(programDayShape).describe('Wszystkie dni wszystkich tygodni (rozpisz każdy tydzień — progresja jest w danych)'),
+}
+
+server.tool(
+  'get_training_profile',
+  'Ankieta treningowa osoby: cel, poziom, dni w tygodniu, minuty, preferowane dni (maska bitowa, bit 0 = pon), ' +
+    'gdzie ćwiczy, sprzęt w domu, style, ograniczenia/kontuzje, czego nie lubi. configured=false → poproś o ankietę.',
+  {},
+  async () => text(await get('/training/profile')),
+)
+
+server.tool(
+  'set_training_profile',
+  'Zapisz ankietę treningową (podane pola; pominięte zostają).',
+  {
+    goal: z.enum(TRAINING_GOALS).optional(),
+    level: z.enum(EXERCISE_LEVELS).optional(),
+    daysPerWeek: z.number().int().min(1).max(7).optional(),
+    minutesPerSession: z.number().int().min(10).max(180).optional(),
+    preferredWeekdays: z.number().int().min(0).max(127).optional().describe('Maska: 1 = pon, 2 = wt, 4 = śr, 8 = czw, 16 = pt, 32 = sob, 64 = nd'),
+    location: z.enum(TRAINING_LOCATIONS).optional(),
+    homeEquipment: z.array(z.enum(EQUIPMENT)).optional(),
+    styles: z.array(z.enum(TRAINING_STYLES)).optional(),
+    limitations: z.string().max(1000).optional(),
+    dislikes: z.string().max(1000).optional(),
+    notes: z.string().max(1000).optional(),
+  },
+  async (input) => text(await put('/training/profile', input)),
+)
+
+server.tool(
+  'get_training_program',
+  'Plan treningowy: bez id = aktywny (pusty wynik = brak planu), z id = konkretny. Dni z datami, ćwiczenia ' +
+    'z seriami/powtórzeniami/ciężarem. list=true → lista wszystkich planów osoby.',
+  { id: z.string().uuid().optional(), list: z.boolean().optional() },
+  async ({ id, list }) => {
+    if (list) return text(await get('/training/programs'))
+    const res = await get(id ? `/training/programs/${id}` : '/training/program')
+    return text(res ?? { program: null, info: 'Brak aktywnego planu.' })
+  },
+)
+
+server.tool(
+  'create_training_program',
+  'Utwórz plan treningowy z rozpisanymi WSZYSTKIMI tygodniami i dniami. Ćwiczenia tylko z katalogu (id z ' +
+    'search_exercises), dobrane do ankiety (sprzęt, czas, ograniczenia). Serwer waliduje całość i zwraca błąd ' +
+    'wskazujący dzień („Tydzień 2, wtorek: …”). Pokaż propozycję i zapisz po akceptacji.',
+  programShape,
+  async (input) => text(await post('/training/programs', { ...input, createdBy: 'ai' })),
+)
+
+server.tool(
+  'replace_training_program',
+  'Pełna podmiana planu (nagłówek + wszystkie dni) — do „dostosuj plan” na kolejne tygodnie. Przepisz też ' +
+    'tygodnie, które się nie zmieniają.',
+  { id: z.string().uuid(), ...programShape },
+  async ({ id, ...input }) => text(await put(`/training/programs/${id}`, { ...input, createdBy: 'ai' })),
+)
+
+server.tool(
+  'set_training_day',
+  'Dodaj dzień do planu (bez dayId) albo podmień istniejący (z dayId: nazwa, termin, ćwiczenia — całość).',
+  { programId: z.string().uuid(), dayId: z.string().uuid().optional(), day: programDayShape },
+  async ({ programId, dayId, day }) =>
+    text(dayId ? await put(`/training/programs/${programId}/days/${dayId}`, day) : await post(`/training/programs/${programId}/days`, day)),
+)
+
+server.tool(
+  'delete_training_day',
+  'Usuń dzień z planu (tylko na wyraźną prośbę).',
+  { programId: z.string().uuid(), dayId: z.string().uuid() },
+  async ({ programId, dayId }) => {
+    await del(`/training/programs/${programId}/days/${dayId}`)
+    return text({ ok: true })
+  },
+)
+
+server.tool(
+  'update_program_exercise',
+  'Zmień jedno ćwiczenie w planie (id slotu z get_training_program): serie, powtórzenia, czas, przerwę, ciężar, ' +
+    'notatkę — albo zamień ćwiczenie (exerciseId; zamienniki z get_exercise_alternatives). ' +
+    'applyToFollowingWeeks=true zamienia je też w kolejnych tygodniach w dniach o tej samej nazwie.',
+  {
+    id: z.string().uuid(),
+    exerciseId: z.string().uuid().optional(),
+    sets: z.number().int().min(1).max(10).optional(),
+    repsMin: z.number().int().min(1).max(100).optional(),
+    repsMax: z.number().int().min(1).max(100).optional(),
+    seconds: z.number().int().min(5).max(900).optional(),
+    restSeconds: z.number().int().min(0).max(600).optional(),
+    targetKg: z.number().min(0).max(500).optional(),
+    clearTargetKg: z.boolean().optional(),
+    notes: z.string().max(300).optional(),
+    applyToFollowingWeeks: z.boolean().optional(),
+  },
+  async ({ id, ...input }) => text(await patch(`/training/program-exercises/${id}`, input)),
+)
+
+server.tool(
+  'get_training_today',
+  'Co dziś w planie: status none/before-start/scheduled/rest/finished, tydzień, dzisiejszy trening i następny.',
+  { date: DATE.optional() },
+  async ({ date }) => text(await get(`/training/today${date ? `?date=${date}` : ''}`)),
+)
+
 const transport = new StdioServerTransport()
 await server.connect(transport)

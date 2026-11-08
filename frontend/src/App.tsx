@@ -95,7 +95,10 @@ export default function App() {
           <Route path="/profile/cel" element={<Goal />} />
           <Route path="/add" element={<AddRecipe />} />
           <Route path="/trening" element={<Training />} />
+          <Route path="/trening/dzis" element={<Training />} />
+          <Route path="/trening/plan" element={<Training />} />
           <Route path="/trening/cwiczenia" element={<Training />} />
+          <Route path="/trening/ankieta" element={<Training />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -679,3 +679,109 @@ public class Exercise
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+public enum TrainingGoal { LoseFat, Tone, Strength, Mobility, General }
+
+/// <summary>Where a plan day happens; Home limits exercises to <see cref="TrainingProfile.HomeEquipment"/>.</summary>
+public enum TrainingLocation { Home, Gym, Any }
+
+/// <summary>Exercises = a list she logs set by set; FollowAlong = one full YouTube workout she plays.</summary>
+public enum ProgramDayKind { Exercises, FollowAlong }
+
+/// <summary>At most one Active program per person (service + partial unique index).</summary>
+public enum ProgramStatus { Active, Draft, Archived }
+
+/// <summary>
+/// The training questionnaire, one per person (like <see cref="BodyProfile"/>). Typed fields
+/// on purpose: plan generation, the swap filter and scheduling read them directly.
+/// </summary>
+public class TrainingProfile
+{
+    public int PersonId { get; set; }
+    public TrainingGoal Goal { get; set; } = TrainingGoal.General;
+    public ExerciseLevel Level { get; set; } = ExerciseLevel.Beginner;
+    public int DaysPerWeek { get; set; } = 3;
+    public int MinutesPerSession { get; set; } = 45;
+    /// <summary>Bit 0 = Monday … bit 6 = Sunday (same as <see cref="Catering.Weekdays"/>); 0 = any.</summary>
+    public int PreferredWeekdays { get; set; }
+    public TrainingLocation Location { get; set; } = TrainingLocation.Any;
+    /// <summary><see cref="ExerciseEquipment"/> names she has at home (bodyweight is implied).</summary>
+    public List<string> HomeEquipment { get; set; } = [];
+    /// <summary>Tokens from <c>TrainingRules.Styles</c>: strength, pilates, yoga, hiit, stretching, cardio.</summary>
+    public List<string> Styles { get; set; } = [];
+    /// <summary>Injuries / pain — the plan must respect these.</summary>
+    public string Limitations { get; set; } = "";
+    public string Dislikes { get; set; } = "";
+    public string Notes { get; set; } = "";
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// A multi-week plan, written out week by week so progression lives in the data (the agent
+/// writes every week). Week n spans the n-th calendar week counted from the Monday of
+/// <see cref="StartDate"/>; a day is placed by (Week, Weekday) — see <c>ProgramSchedule</c>.
+/// </summary>
+public class TrainingProgram
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; } = Person.DefaultId;
+    public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
+    /// <summary>The agent's reasoning, shown as "Dlaczego taki plan".</summary>
+    public string Rationale { get; set; } = "";
+    public DateOnly StartDate { get; set; }
+    public int Weeks { get; set; } = 4;
+    public ProgramStatus Status { get; set; } = ProgramStatus.Draft;
+    /// <summary>"ai" or "manual".</summary>
+    public string CreatedBy { get; set; } = "manual";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public List<ProgramDay> Days { get; set; } = [];
+}
+
+/// <summary>One training day of a program. Unique per (Program, Week, Weekday).</summary>
+public class ProgramDay
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProgramId { get; set; }
+    public TrainingProgram? Program { get; set; }
+    /// <summary>1..Program.Weeks.</summary>
+    public int Week { get; set; } = 1;
+    /// <summary>0 = Monday … 6 = Sunday.</summary>
+    public int Weekday { get; set; }
+    /// <summary>"Dół ciała A" — same name across weeks = the same workout, progressed.</summary>
+    public string Name { get; set; } = "";
+    public ProgramDayKind Kind { get; set; } = ProgramDayKind.Exercises;
+    public TrainingLocation Location { get; set; } = TrainingLocation.Any;
+    public string Notes { get; set; } = "";
+    /// <summary>FollowAlong only: the verified YouTube workout to play.</summary>
+    public string? VideoYoutubeId { get; set; }
+    public string? VideoTitle { get; set; }
+    public int? VideoMinutes { get; set; }
+    /// <summary>FollowAlong only: Polish label for the activity log ("Pilates", "HIIT").</summary>
+    public string? WorkoutType { get; set; }
+    public List<ProgramExercise> Exercises { get; set; } = [];
+}
+
+/// <summary>
+/// One exercise slot of a day: sets × (RepsMin–RepsMax reps | Seconds), rest, optional target kg.
+/// Slots sharing a <see cref="SupersetGroup"/> are done back to back.
+/// </summary>
+public class ProgramExercise
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ProgramDayId { get; set; }
+    public ProgramDay? Day { get; set; }
+    public int Order { get; set; }
+    public Guid ExerciseId { get; set; }
+    public Exercise? Exercise { get; set; }
+    public int Sets { get; set; } = 3;
+    public int? RepsMin { get; set; }
+    public int? RepsMax { get; set; }
+    /// <summary>Timed exercises (planks, holds): seconds per set instead of reps.</summary>
+    public int? Seconds { get; set; }
+    public int RestSeconds { get; set; } = 60;
+    public decimal? TargetKg { get; set; }
+    public string Notes { get; set; } = "";
+    public string? SupersetGroup { get; set; }
+}

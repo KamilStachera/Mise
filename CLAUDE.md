@@ -154,9 +154,21 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
 - **Dates in the frontend:** always parse `YYYY-MM-DD` with
   `lib/dates.ts` (`new Date('YYYY-MM-DD')` is UTC midnight and shifts the day).
 - **Training catalog (`Exercise`) is shared and public to read** (`/api/exercises`);
-  per-person training data will live under `/api/training` (private). Spec:
-  `docs/training/features.md`. Code: `Services/Training/`, `Features/ExerciseEndpoints.cs`,
+  per-person training data (`TrainingProfile`, `TrainingProgram` → `ProgramDay` →
+  `ProgramExercise`) lives under `/api/training`, private even for reads and scoped to
+  `PersonScope` on every lookup by id. Spec: `docs/training/features.md`. Code:
+  `Services/Training/`, `Features/ExerciseEndpoints.cs`, `Features/TrainingEndpoints.cs`,
   `Features/TrainingDtos.cs`, `pages/training/`, `components/training/`, `api/training.ts`.
+  - Programs: week *n* = n-th calendar week from the Monday of `StartDate`, a day sits at
+    (Week, Weekday 0 = Monday), unique per program, never before `StartDate`
+    (`ProgramSchedule`, `TrainingRules`). One active program per person — `ActivateAsync`
+    archives the old one in its own save first, because of the partial unique index; the
+    full-replace PUT deletes old days before inserting new ones (same unique keys), in a
+    transaction.
+  - Validation lives in `TrainingRules` and names the day ("Tydzień 2, wtorek: …") so an
+    agent can fix one spot; follow-along day videos also go through `YouTubeVerifier`.
+  - `ProgramExercise.Exercise` is `Restrict` on delete — hide catalog exercises, don't
+    delete them.
   - The catalog is seeded from vendored free-exercise-db JSON (embedded resource,
     pinned `ExerciseImport.UpstreamSha`). `ExerciseImport` runs every boot and **only
     inserts missing `SourceId`s** — never update rows there, or agent enrichment is lost.
