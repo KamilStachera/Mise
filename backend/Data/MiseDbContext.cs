@@ -57,6 +57,7 @@ public class MiseDbContext : DbContext
     public DbSet<ProgramExercise> ProgramExercises => Set<ProgramExercise>();
     public DbSet<Household> Households => Set<Household>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+    public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -207,6 +208,17 @@ public class MiseDbContext : DbContext
         b.Entity<Household>(e =>
         {
             e.Property(x => x.Name).HasMaxLength(80);
+        });
+
+        b.Entity<InviteCode>(e =>
+        {
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Starter).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.CodeHash).HasMaxLength(64);
+            e.Property(x => x.HouseholdName).HasMaxLength(80);
+            e.HasIndex(x => x.CodeHash).IsUnique();
+            e.HasIndex(x => x.HouseholdId);
+            e.HasOne<Household>().WithMany().HasForeignKey(x => x.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<ApiKey>(e =>

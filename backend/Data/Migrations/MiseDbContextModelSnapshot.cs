@@ -594,6 +594,70 @@ namespace Mise.Api.Data.Migrations
                     b.ToTable("Households");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.InviteCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("CreatedByPersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CreatedHouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("HouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("HouseholdName")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int?>("SourceHouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Starter")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.PrimitiveCollection<List<string>>("StarterSources")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateTimeOffset?>("UsedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("UsedByPersonId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("HouseholdId");
+
+                    b.ToTable("InviteCodes");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.PantryItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1735,6 +1799,14 @@ namespace Mise.Api.Data.Migrations
                         .HasForeignKey("Mise.Api.Domain.HealthSync", "PersonId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.InviteCode", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.PantryItem", b =>

@@ -24,8 +24,9 @@ public static class ContextEndpoints
         g.MapGet("/connect", (ContextExportService export) =>
         {
             var ctxDir = export.HostDirectory ?? AgentDocs.ContextDirToken;
-            var repoDir = export.HostDirectory is string host
-                ? (System.IO.Path.GetDirectoryName(host.TrimEnd('\\', '/')) ?? AgentDocs.RepoDirToken)
+            // HOST_CONTEXT_DIR is the repo's context folder; this household's export is a subfolder of it.
+            var repoDir = export.HostRoot is string host
+                ? (System.IO.Path.GetDirectoryName(host) ?? AgentDocs.RepoDirToken)
                 : AgentDocs.RepoDirToken;
             return Results.Ok(new
             {

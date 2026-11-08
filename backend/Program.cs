@@ -22,6 +22,8 @@ builder.Services.AddScoped<ShoppingService>();
 builder.Services.AddScoped<SupplyService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTenancy();
+builder.Services.AddScoped<HouseholdProvisioner>();
+builder.Services.AddHouseholdRateLimits();
 builder.Services.AddScoped<DiaryService>();
 builder.Services.AddScoped<BodyService>();
 builder.Services.AddScoped<ActivityService>();
@@ -107,6 +109,7 @@ app.UseForwardedHeaders(forwarded);
 app.UseAuthentication();
 // Before static files and swagger on purpose — the guard must cover them too.
 app.UseMiddleware<ApiAccessMiddleware>();
+app.UseRateLimiter();
 
 // Recipe photos live outside wwwroot (a docker volume in production).
 app.UseStaticFiles(new StaticFileOptions
@@ -127,6 +130,7 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 var api = app.MapGroup("/api");
 api.MapImages();
 api.MapAuth();
+api.MapHouseholds();
 api.MapRecipes();
 api.MapPantry();
 api.MapShopping();

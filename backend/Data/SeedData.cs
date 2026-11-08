@@ -11,7 +11,8 @@ namespace Mise.Api.Data;
 /// </summary>
 public static class SeedData
 {
-    public static async Task EnsureSeededAsync(MiseDbContext db, CancellationToken ct = default)
+    /// <param name="demoRecipes">False for a new household that gets starter recipes copied in instead.</param>
+    public static async Task EnsureSeededAsync(MiseDbContext db, CancellationToken ct = default, bool demoRecipes = true)
     {
         // Every item starts at quantity 0: the catalog says what we track, the real
         // amounts arrive via receipt scans / manual edits. Links from seeded recipes
@@ -134,6 +135,11 @@ public static class SeedData
             },
         };
         if (!await db.Preferences.AnyAsync(ct)) db.Preferences.Add(prefs);
+        if (!demoRecipes)
+        {
+            await db.SaveChangesAsync(ct);
+            return;
+        }
 
         Recipe R(string title, RecipeSource source, int time, string difficulty, string tint,
             DishType dish, Cuisine cuisine,

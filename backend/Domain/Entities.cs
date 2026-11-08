@@ -858,3 +858,39 @@ public class ApiKey : IHouseholdOwned, IPersonOwned
     public DateTimeOffset? LastUsedAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
 }
+
+public enum InviteKind { NewHousehold, Join }
+
+/// <summary>What a new household starts with: nothing but the demo seed, every recipe, or chosen sources.</summary>
+public enum StarterMode { None, All, Sources }
+
+/// <summary>
+/// A one-time code a signed-in Google account redeems on the onboarding screen. <c>Join</c> adds the
+/// redeemer to <see cref="HouseholdId"/> (any member can create one); <c>NewHousehold</c> (admin only)
+/// creates a household and copies starter recipes from <see cref="SourceHouseholdId"/>. Only the
+/// SHA-256 of the code is stored. Single use: <see cref="UsedAt"/> is a concurrency check, so two
+/// simultaneous redemptions can't both win.
+/// </summary>
+public class InviteCode
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public InviteKind Kind { get; set; }
+    public string CodeHash { get; set; } = "";
+    /// <summary>Join: the household to join.</summary>
+    public int? HouseholdId { get; set; }
+    /// <summary>NewHousehold: suggested name (the redeemer's name fills in when empty).</summary>
+    public string? HouseholdName { get; set; }
+    /// <summary>NewHousehold: where starter recipes are copied from (the admin's household).</summary>
+    public int? SourceHouseholdId { get; set; }
+    public StarterMode Starter { get; set; } = StarterMode.None;
+    /// <summary>Starter = Sources: the <see cref="Recipe.SourceName"/>s to copy.</summary>
+    public List<string> StarterSources { get; set; } = [];
+    public int? CreatedByPersonId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ExpiresAt { get; set; }
+    [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
+    public DateTimeOffset? UsedAt { get; set; }
+    public int? UsedByPersonId { get; set; }
+    /// <summary>The household a NewHousehold code created (for the admin's list).</summary>
+    public int? CreatedHouseholdId { get; set; }
+}

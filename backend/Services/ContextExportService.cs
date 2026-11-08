@@ -21,7 +21,8 @@ public sealed class ContextExportService
 {
     private readonly MiseDbContext _db;
     private readonly CookbookMarkdownBuilder _cookbook;
-    private readonly string _dir;
+    private readonly string _root;
+    private readonly string? _hostRoot;
 
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -40,18 +41,50 @@ public sealed class ContextExportService
         var dir = string.IsNullOrWhiteSpace(configured)
             ? System.IO.Path.Combine(env.ContentRootPath, "..", "context")
             : configured;
-        _dir = System.IO.Path.GetFullPath(dir);
+        _root = System.IO.Path.GetFullPath(dir);
 
         var hostDir = config["HOST_CONTEXT_DIR"];
-        HostDirectory = string.IsNullOrWhiteSpace(hostDir) ? null : hostDir.Trim();
+        _hostRoot = string.IsNullOrWhiteSpace(hostDir) ? null : hostDir.Trim().TrimEnd('\\', '/');
         var apiBase = config["PUBLIC_API_BASE"];
         ApiBase = string.IsNullOrWhiteSpace(apiBase) ? "http://localhost:5080/api" : apiBase.Trim();
     }
 
-    public string Directory => _dir;
+    /// <summary>Each household exports to its own subfolder: <c>{ContextDir}/{householdId}</c>.</summary>
+    public string Directory => System.IO.Path.Combine(_root, HouseholdKey);
 
-    /// <summary>Where the context folder lives on the host (for agent prompts); null if not configured.</summary>
-    public string? HostDirectory { get; }
+    /// <summary>The parent of every household's folder.</summary>
+    public string Root => _root;
+
+    /// <summary>Where this household's context folder lives on the host (for agent prompts); null if not configured.</summary>
+    public string? HostDirectory => _hostRoot is null ? null : _hostRoot + HostSeparator + HouseholdKey;
+
+    /// <summary>The host folder holding every household's folder (its parent is the repo).</summary>
+    public string? HostRoot => _hostRoot;
+
+    private char HostSeparator => _hostRoot is not null && _hostRoot.Contains('\\') ? '\\' : '/';
+
+    private string HouseholdKey => _db.Tenant.HouseholdId?.ToString()
+        ?? throw new InvalidOperationException("Context export needs a household (tenant not set).");
+
+    /// <summary>
+    /// The single-household layout wrote straight into the root; drop those generated files once
+    /// so agents don't read a stale, mixed copy. Household folders (numeric names) are kept.
+    /// </summary>
+    public void RemoveLegacyRootFiles()
+    {
+        if (!System.IO.Directory.Exists(_root)) return;
+        foreach (var file in System.IO.Directory.GetFiles(_root))
+        {
+            var name = System.IO.Path.GetFileName(file);
+            if (name.EndsWith(".md", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                System.IO.File.Delete(file);
+        }
+        foreach (var sub in new[] { "recipes", "commands" })
+        {
+            var path = System.IO.Path.Combine(_root, sub);
+            if (System.IO.Directory.Exists(path)) System.IO.Directory.Delete(path, recursive: true);
+        }
+    }
 
     /// <summary>API base as reachable from agents on the host, e.g. http://localhost:5080/api.</summary>
     public string ApiBase { get; }
@@ -89,22 +122,24 @@ public sealed class ContextExportService
 
     // Serialize writers: exports now fire on every data mutation, and two overlapping
     // exports would race on the same files.
-    private static readonly SemaphoreSlim Gate = new(1, 1);
+    // One lock per household folder.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> Gates = new();
 
     public async Task<ContextExportResult> ExportAsync(CancellationToken ct = default)
     {
-        await Gate.WaitAsync(ct);
+        var gate = Gates.GetOrAdd(Directory, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
         try
         {
-            return await ExportCoreAsync(ct);
+            return await ExportCoreAsync(Directory, ct);
         }
         finally
         {
-            Gate.Release();
+            gate.Release();
         }
     }
 
-    private async Task<ContextExportResult> ExportCoreAsync(CancellationToken ct)
+    private async Task<ContextExportResult> ExportCoreAsync(string dir, CancellationToken ct)
     {
         var prefs = await LoadPreferencesAsync(ct);
         var pantry = (await _db.PantryItems.AsNoTracking().ToListAsync(ct))
@@ -144,10 +179,10 @@ public sealed class ContextExportService
             .OrderBy(e => e.Date)
             .ToListAsync(ct);
 
-        System.IO.Directory.CreateDirectory(_dir);
-        var recipesDir = System.IO.Path.Combine(_dir, "recipes");
+        System.IO.Directory.CreateDirectory(dir);
+        var recipesDir = System.IO.Path.Combine(dir, "recipes");
         System.IO.Directory.CreateDirectory(recipesDir);
-        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(_dir, "commands"));
+        System.IO.Directory.CreateDirectory(System.IO.Path.Combine(dir, "commands"));
 
         var files = new List<string>();
 
@@ -201,7 +236,7 @@ public sealed class ContextExportService
             await WriteAsync(rel, BuildRecipeMarkdown(r, history), files, ct);
         }
 
-        return new ContextExportResult(_dir, files, DateTimeOffset.UtcNow);
+        return new ContextExportResult(dir, files, DateTimeOffset.UtcNow);
     }
 
     // Caps keep cooklog.md and per-recipe history from growing unbounded (the
@@ -217,7 +252,7 @@ public sealed class ContextExportService
 
     private async Task WriteAsync(string relativePath, string content, List<string> files, CancellationToken ct)
     {
-        var full = System.IO.Path.Combine(_dir, relativePath);
+        var full = System.IO.Path.Combine(Directory, relativePath);
         await System.IO.File.WriteAllTextAsync(full, content, new UTF8Encoding(false), ct);
         files.Add(relativePath.Replace('\\', '/'));
     }

@@ -36,6 +36,8 @@ public static class DbInitializer
         var households = await db.Households.AsNoTracking().OrderBy(h => h.Id).Select(h => h.Id).ToListAsync(ct);
         var matcher = scope.ServiceProvider.GetRequiredService<IngredientMatcher>();
         var export = scope.ServiceProvider.GetRequiredService<ContextExportService>();
+        try { export.RemoveLegacyRootFiles(); }
+        catch (Exception ex) { logger.LogWarning("Removing the old single-household context files failed: {Message}", ex.Message); }
         foreach (var household in households)
         {
             tenant.UseHousehold(household);

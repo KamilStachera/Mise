@@ -47,6 +47,20 @@ public class RecipeImageStore
     /// Lazily builds a WebP for old and new uploads. Originals remain untouched.
     /// Invalid/oversized legacy images fall back to the original.
     /// </summary>
+    /// <summary>
+    /// Copies a stored photo for another recipe (a new household's starter copy) — its own file,
+    /// so deleting one household's photo never breaks the other's. Null when the source is gone.
+    /// </summary>
+    public string? CopyFor(Guid recipeId, string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath) || sourcePath.Contains("..") || Path.IsPathRooted(sourcePath)) return null;
+        var source = Path.Combine(Root, sourcePath);
+        if (!File.Exists(source)) return null;
+        var name = $"{recipeId:N}-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid().ToString("N")[..8]}{Path.GetExtension(sourcePath)}";
+        File.Copy(source, Path.Combine(Root, name));
+        return name;
+    }
+
     public async Task<string?> GetCardAsync(string fileName, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(fileName) || fileName != Path.GetFileName(fileName)) return null;
