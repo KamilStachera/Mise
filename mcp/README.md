@@ -29,8 +29,9 @@ cookbook REST API as first-class tools for Claude Code and Codex:
   `get_training_program`, `create_training_program`, `replace_training_program`,
   `set_training_day`, `delete_training_day`, `update_program_exercise`, `get_training_today`
 
-Diary tools act for person 1 unless `MISE_PERSON=<id>` is set (ids follow the
-`DIARY_PEOPLE` order). The in-app Sous sets it to the signed-in person.
+Tools act as the owner of the API key, in their household. `MISE_PERSON=<id>`
+picks another person of the same household (ids: `GET /api/auth/me` → `people`).
+The in-app Sous uses the internal key and sets it to the signed-in person.
 
 The exported `./context` folder stays the primary **read** path (open it in your
 agent); MCP is the **write / quick-query** path that works from any directory.
@@ -50,16 +51,17 @@ npm run build
 Requires Node 18+. The Pichci app must be running (`docker compose up`) — the server
 proxies `http://localhost:5080` (override with the `MISE_API_URL` env var).
 
-Writes require the `MISE_API_KEY` env var — the same secret as in the app's
-`.env` (reads work without it; everything works without it when the app runs
-with `AUTH_DEV_BYPASS=true`).
+Writes (and private reads) require the `MISE_API_KEY` env var set to your
+**personal API key** — create one in the app under *Profil → Połącz agenta* (it is
+shown once; revoke it there too). Everything works without it when the app runs
+with `AUTH_DEV_BYPASS=true`.
 
 ## Register
 
 **Claude Code:**
 
 ```bash
-claude mcp add pichci -e MISE_API_KEY=<your-key> -- node <absolute-repo-path>/mcp/dist/index.js
+claude mcp add pichci -e MISE_API_KEY=<personal-key> -- node <absolute-repo-path>/mcp/dist/index.js
 ```
 
 **Codex** — add to `~/.codex/config.toml`:
@@ -68,7 +70,7 @@ claude mcp add pichci -e MISE_API_KEY=<your-key> -- node <absolute-repo-path>/mc
 [mcp_servers.pichci]
 command = "node"
 args = ["<absolute-repo-path>/mcp/dist/index.js"]
-env = { MISE_API_KEY = "<your-key>" }
+env = { MISE_API_KEY = "<personal-key>" }
 ```
 
 The Profile screen in the app (card "Połącz agenta") renders these snippets with

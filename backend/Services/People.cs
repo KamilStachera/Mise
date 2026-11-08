@@ -166,11 +166,11 @@ public static class People
     }
 
     /// <summary>
-    /// One-time bridge from the single-household config: <c>DIARY_PEOPLE</c> (<c>Name:email,…</c>,
-    /// order = person id) names/links household 1's existing people, and every
-    /// <c>AUTH_ALLOWED_EMAILS</c> address that still has no person gets a new one in household 1.
-    /// Never guesses which emailless person an address belongs to. Idempotent; remove the two
-    /// variables once every account is linked.
+    /// Bridge from the single-household config, run on every boot (idempotent): <c>DIARY_PEOPLE</c>
+    /// (<c>Name:email,…</c>, order = person id) names/links household 1's existing people, and every
+    /// <c>AUTH_ALLOWED_EMAILS</c> or <c>ADMIN_EMAILS</c> address that still has no person gets a new
+    /// one in household 1 (so the owner of a fresh install can sign in and invite people). Never
+    /// guesses which emailless person an address belongs to.
     /// </summary>
     public static async Task ImportLegacyConfigAsync(MiseDbContext db, IConfiguration config, ILogger logger,
         CancellationToken ct = default)
@@ -185,7 +185,7 @@ public static class People
                     Email: NormalizeEmail(colon < 0 ? null : part[(colon + 1)..]));
             })
             .ToList();
-        var allowed = (config["Auth:AllowedEmails"] ?? "")
+        var allowed = $"{config["Auth:AllowedEmails"]},{config["Auth:AdminEmails"]}"
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(NormalizeEmail).OfType<string>().Distinct().ToList();
         if (entries.Count == 0 && allowed.Count == 0) return;
@@ -219,7 +219,7 @@ public static class People
             var row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email };
             db.People.Add(row);
             people.Add(row);
-            logger.LogInformation("AUTH_ALLOWED_EMAILS: added {Email} to household 1 as a new person", email);
+            logger.LogInformation("AUTH_ALLOWED_EMAILS/ADMIN_EMAILS: added {Email} to household 1 as a new person", email);
         }
         await db.SaveChangesAsync(ct);
     }

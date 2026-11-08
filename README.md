@@ -176,14 +176,38 @@ each with a copy button:
 Set `HOST_CONTEXT_DIR` in `.env` (the absolute host path of `./context`) so the
 prompts come out ready to paste; otherwise the card asks for the path once.
 
-> **Security note:** the app enforces access control in the backend itself:
-> anonymous visitors get **read-only** access (all GETs except the AI chat and
-> the context-integration endpoints), while every write requires either a
-> logged-in **Google account from the whitelist** (`AUTH_ALLOWED_EMAILS`) or the
-> **`X-Api-Key` header** (`MISE_API_KEY`) used by agents and the MCP server.
-> For a friction-free local dev loop set `AUTH_DEV_BYPASS=true` in `.env`
-> (the `.env.example` default) — never do that on an internet-exposed machine.
-> See **Going public** below for exposing the app beyond your LAN.
+> **Security note:** the app enforces access control in the backend itself —
+> see **Households and access** below. For a friction-free local dev loop set
+> `AUTH_DEV_BYPASS=true` in `.env` (the `.env.example` default) — never do that
+> on an internet-exposed machine. See **Going public** for exposing the app
+> beyond your LAN.
+
+## Households and access
+
+One deployment hosts several **households**. Each has its own recipes, pantry,
+shopping and household lists, plan and people; nothing is visible across
+households (enforced in `MiseDbContext`: every owned row carries `HouseholdId`,
+global query filters hide other households, saving refuses cross-household
+writes). Inside a household everyone shares the kitchen and keeps their own food
+diary, goal, weight, band and training.
+
+- **Sign-in:** any Google account may sign in. One that belongs to no household
+  sees the **invite-code screen**.
+- **Invite codes** (single use, valid 7 days, rate-limited):
+  - *Profil → Domownicy → Zaproś domownika*: any member invites a partner into
+    their household.
+  - *Profil → Gospodarstwa* (admins, `ADMIN_EMAILS`): a code that creates a **new
+    household** for a friend, with a private copy of chosen starter recipes
+    (all, or by source) including photos.
+- **Agents / MCP:** personal API keys from *Profil → Połącz agenta* (`pk_…`, shown
+  once, revocable) — a key acts as its person, in their household. Put it in the
+  agent's `MISE_API_KEY`.
+- **Sous** runs on the owner's ChatGPT plan, so admins switch it on per household
+  (off for new ones).
+- **Anonymous visitors** may browse one household read-only when
+  `PUBLIC_HOUSEHOLD_ID` is set; otherwise they only see the sign-in screen.
+- `MISE_API_KEY` in `.env` is the internal key of the `sous` container (it must
+  name a person with `X-Person`), not an agent key.
 
 ## MCP server
 
@@ -194,7 +218,7 @@ prompts come out ready to paste; otherwise the card asks for the path once.
 
 ```bash
 cd mcp && npm install && npm run build
-claude mcp add pichci -e MISE_API_KEY=<your-key> -- node <absolute-repo-path>/mcp/dist/index.js
+claude mcp add pichci -e MISE_API_KEY=<personal-key> -- node <absolute-repo-path>/mcp/dist/index.js
 ```
 
 Codex equivalent (`~/.codex/config.toml`):
@@ -203,12 +227,12 @@ Codex equivalent (`~/.codex/config.toml`):
 [mcp_servers.pichci]
 command = "node"
 args = ["<absolute-repo-path>/mcp/dist/index.js"]
-env = { MISE_API_KEY = "<your-key>" }
+env = { MISE_API_KEY = "<personal-key>" }
 ```
 
-The app must be running; the server talks to `http://localhost:5080`
-(override with `MISE_API_URL`). Writes require `MISE_API_KEY` — the same value
-as in the app's `.env` (not needed if the app runs with `AUTH_DEV_BYPASS=true`).
+The server talks to `http://localhost:5080` (override with `MISE_API_URL`, e.g.
+`https://pichci.com`). `MISE_API_KEY` is your **personal key** from *Profil →
+Połącz agenta* (not needed if the app runs with `AUTH_DEV_BYPASS=true`).
 See `mcp/README.md`.
 
 ## Optional: in-app chat
@@ -283,11 +307,13 @@ One-time setup:
    `https://<your-domain>/api/auth/google-callback` (add
    `http://localhost:8080/api/auth/google-callback` for local testing).
 3. In `.env`: set `TUNNEL_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
-   `AUTH_ALLOWED_EMAILS` (comma-separated), a long random `MISE_API_KEY`,
-   `PUBLIC_API_BASE=https://<your-domain>/api` — and **`AUTH_DEV_BYPASS=false`**.
-   For two food diaries (each with their own goal, weight and band) add
-   `DIARY_PEOPLE=Name:google-email,Name:google-email`. The first person keeps the
-   existing diary, so keep the order stable.
+   `ADMIN_EMAILS` (your Google email), a long random `MISE_API_KEY` (internal,
+   for Sous), `PUBLIC_API_BASE=https://<your-domain>/api` — and
+   **`AUTH_DEV_BYPASS=false`**. Optionally `PUBLIC_HOUSEHOLD_ID=1` to let anonymous
+   visitors browse your recipes. While the Google consent screen is in *Testing*,
+   add every friend's account as a test user (or publish the consent screen).
+   The first household is created by the database migration and the admin
+   account joins it on boot; sign in with it, then invite people from *Profil*.
 4. Start with the profile: `docker compose --profile public up -d --build`.
    On a shared/VPS host also set `WEB_BIND=127.0.0.1:8080` in `.env` so nginx
    isn't reachable directly — only through the tunnel.

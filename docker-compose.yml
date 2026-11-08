@@ -37,14 +37,18 @@ services:
       EXERCISE_ENRICH: ${EXERCISE_ENRICH:-on}
       EXERCISE_ENRICH_INTERVAL: ${EXERCISE_ENRICH_INTERVAL:-60}
       EXERCISE_ENRICH_BATCH: ${EXERCISE_ENRICH_BATCH:-6}
-      # Access control: anonymous = read-only; writes need a whitelisted Google
-      # session or the X-Api-Key header (agents/MCP). See README "Going public".
+      # Households: members sign in with Google; new accounts join with an invite code.
+      # Agents use personal API keys; MISE_API_KEY is the internal key for the sous
+      # container. See README "Households and access".
       Auth__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Auth__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      Auth__AllowedEmails: ${AUTH_ALLOWED_EMAILS:-}
+      Auth__AdminEmails: ${ADMIN_EMAILS:-}
+      Auth__PublicHouseholdId: ${PUBLIC_HOUSEHOLD_ID:-}
       MISE_API_KEY: ${MISE_API_KEY:-}
       Auth__DevBypass: ${AUTH_DEV_BYPASS:-false}
-      # Who keeps a food diary (Name:email,…; first = person 1). Empty = one person.
+      # Legacy single-household config, imported once into household 1 on boot (safe to
+      # remove after the first boot of the households version).
+      Auth__AllowedEmails: ${AUTH_ALLOWED_EMAILS:-}
       Diary__People: ${DIARY_PEOPLE:-}
       KeysDir: /data/keys
       # "Today" for the plan/diary and the day a band sample belongs to are Polish days.

@@ -1,8 +1,8 @@
 # Pichci (repo: CukBuk) — developer guide
 
-Pichci (formerly "Mise") is a single-user, Polish-language AI-assisted cookbook: recipes, a
+Pichci (formerly "Mise") is a multi-household, Polish-language AI-assisted cookbook: recipes, a
 quantity-based pantry, shopping list, weekly plan, cook log — all exported as an
-AI-readable `./context` folder and writable through a REST API / MCP server.
+AI-readable `./context/<householdId>` folder and writable through a REST API / MCP server.
 See `README.md` for the user-facing story.
 
 **Language rule:** UI text and all data content are Polish; code, API contracts,
@@ -18,9 +18,11 @@ docker compose up -d --build    # web :8080, API :5080/api (Swagger /api/swagger
 Migrations auto-apply on API boot. For end-to-end verification (Playwright over
 the real UI, API probes, context-file checks) follow `.claude/skills/verify/SKILL.md`.
 
-**Access control:** anonymous = read-only; writes need a whitelisted Google
-session, the `X-Api-Key` header (`MISE_API_KEY`), or `AUTH_DEV_BYPASS=true` in
-`.env` (the local-dev default from `.env.example`). With bypass off the UI hides
+**Access control:** writes (and private reads) need a Google session of a household
+member, a personal API key (`X-Api-Key: pk_…`), or `AUTH_DEV_BYPASS=true` in `.env`
+(the local-dev default from `.env.example`; acts as the first person, `X-Person` may
+pick anyone, which is how you test several households locally). Anonymous = read-only
+on `PUBLIC_HOUSEHOLD_ID`, if set. With bypass off the UI hides
 all mutation controls for anonymous visitors — remember this when driving the
 app with Playwright.
 
@@ -82,13 +84,40 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
 
 ## Invariants that bite
 
+- **Households are tenants.** Every household-owned entity implements `IHouseholdOwned`
+  (`HouseholdId`); `MiseDbContext` hides other households with global query filters
+  (children — ingredients, steps, images, equipment, contributions, program days —
+  filter through their parent) and its `SaveChanges` stamps new rows from
+  `TenantContext` and throws `TenantViolationException` on cross-household writes.
+  A new entity that belongs to a household must implement `IHouseholdOwned` (and
+  `IPersonOwned` if per person) — then filtering and stamping are automatic. A fresh
+  scope sees nothing (fail closed): request scopes get their tenant from
+  `ApiAccessMiddleware`; boot code and hosted services must call
+  `TenantContext.UseSystem()` (sees all, must set `HouseholdId` on inserts) or
+  `UseHousehold(id)`. Lookups that run before the tenant is known (people by email,
+  API keys, HC tokens) use `IgnoreQueryFilters()` — keep that the exception.
+  `Exercise.HouseholdId` null = shared catalog, set = an agent's custom exercise.
+- **Who is calling** is resolved once per request by `People.ResolveAsync` into the
+  scoped `Caller` (kind, own person, acting person, household, admin) and the tenant.
+  Order: dev bypass → personal key (`ApiKeys`, SHA-256) → system key (`MISE_API_KEY`,
+  sous only, must send `X-Person`) → Google email → anonymous. `X-Person` is honoured
+  only within the caller's household. A Google account with no person is `Unlinked`:
+  only `/api/auth` and `/api/onboarding` work (403 `needsOnboarding` elsewhere).
+  Invites (`InviteCode`, hashed, single use, rate-limited redeem) and new-household
+  provisioning (`HouseholdProvisioner`: per-household seed + private starter copy with
+  own photo files) live in `Features/HouseholdEndpoints.cs`. Admins = `ADMIN_EMAILS`.
 - **All /api access flows through `Services/ApiAccessMiddleware.cs`** — a
   middleware, not a group filter, so it also covers the `/api/images` static
-  files and `/api/swagger`. Anonymous GETs are public except `/api/chat/*`,
-  `/api/context/status|connect` and swagger. `MISE_API_KEY` unset ⇒ key auth
+  files and `/api/swagger`. It resolves the caller first, then: privileged → through;
+  `/api/images` and `/api/exercises` GETs are open; other anonymous GETs only reach
+  the public household (`PUBLIC_HOUSEHOLD_ID`) and never the private prefixes
+  (`/api/chat`, diary, body, activity, training, household, keys, admin,
+  `/api/context/status|connect`, swagger). `MISE_API_KEY` unset ⇒ the system key is
   disabled (fail closed). The frontend derives read-only mode from
   `GET /api/auth/me` (`useAuth()` in `api/hooks.ts`) — wrap any new write UI in
-  `canEdit`.
+  `canEdit`; `needsOnboarding` swaps the whole app for `pages/Onboarding.tsx`.
+  Context exports are per household (`ContextExportService.Directory` =
+  `{ContextDir}/{householdId}`); Sous gets `household` and works in that folder.
 - **Pantry = ingredient catalog.** `Quantity: 0` means "known, not at home" and
   the item stays listed. Status In/Low/Out is **derived**
   (`Features/Dtos.cs` → `Mapping.StatusOf`), never stored or settable.
@@ -117,12 +146,15 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   `Services/DiaryService.cs` / `BodyService.cs`. `/api/diary` and `/api/body` are
   private even for reads; anonymous `GET /plan` hides snacks, typed food and eaten
   state (`Mapping.PublicView`). Spec + design: `docs/weight-loss/`.
-- **The diary is per person; the household isn't.** `Person` rows mirror `DIARY_PEOPLE`
-  (`Name:email,…`, order = id; person 1 owns all pre-people data). `PersonScope` (resolved
-  in `Services/People.cs`: `X-Person` header for privileged callers → own Google email →
-  person 1) scopes `PlanEntry`, `Cook`, `FoodFavorite`, body profile, weights, energy,
-  workouts, `HealthSync` and `Catering`. Agents/MCP and anonymous visitors act as person 1.
-  Shopping, pending-cook and the plan.md export stay household-wide — don't scope them.
+- **The diary is per person; the kitchen is per household.** `Person` rows live in the DB
+  (one Google email = one person = one household; emails stored lower-case). `PersonScope`
+  = `Caller.Acting` (the `X-Person` pick within the household, else the caller's own
+  person) scopes `PlanEntry`, `Cook`, `FoodFavorite`, body profile, weights, energy,
+  workouts, `HealthSync`, `Catering` and training. A personal key acts as its owner;
+  anonymous visitors act as the public household's first person. Shopping, pending-cook
+  and the plan.md export stay household-wide — don't scope them by person.
+  `DIARY_PEOPLE`/`AUTH_ALLOWED_EMAILS`/`ADMIN_EMAILS` are only imported into household 1
+  on boot (`People.ImportLegacyConfigAsync`).
   Frontend: private query keys carry `usePerson().id`; the header comes from `api/person.ts`.
 - **Catering is materialized, not virtual.** `CateringService.EnsureAsync` (run by
   `GET /plan`, `/body/budget`, `/body/progress`) writes one eaten `IsCatering` entry per
