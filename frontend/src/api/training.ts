@@ -271,18 +271,38 @@ export const trainingApi = {
     http<{ swapped: number; program: TrainingProgram }>(`/training/program-exercises/${id}`, json('PATCH', input)),
 }
 
-export function useExercises(f: ExerciseQuery) {
+/** refreshEvery: poll (ms) while the background describer is filling the catalog in. */
+export function useExercises(f: ExerciseQuery, refreshEvery?: number) {
   return useQuery({
     queryKey: ['exercises', f],
     queryFn: () => trainingApi.exercises(f),
     // Keep the old list on screen while a filter change loads.
     placeholderData: keepPreviousData,
     staleTime: 60_000,
+    refetchInterval: refreshEvery,
   })
 }
 
 export function useExercise(id: string | null | undefined) {
   return useQuery({ queryKey: ['exercise', id], queryFn: () => trainingApi.exercise(id!), enabled: !!id, staleTime: 60_000 })
+}
+
+export interface EnrichmentStatus {
+  enabled: boolean
+  running: boolean
+  lastRunAt: string | null
+  pausedUntil: string | null
+  lastError: string | null
+}
+
+/** The background describer (GPT via Sous); polled so the catalog counter moves on its own. */
+export function useEnrichmentStatus() {
+  return useQuery({
+    queryKey: ['exerciseEnrichment'],
+    queryFn: () => http<EnrichmentStatus>('/exercises/enrichment'),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  })
 }
 
 export function useExerciseAlternatives(id: string | null, direction: SwapDirection, location: SwapLocation) {

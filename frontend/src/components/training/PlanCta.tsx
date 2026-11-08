@@ -44,7 +44,8 @@ export function PlanCta({ finished }: { finished?: boolean }) {
       </div>
       {configured && (
         <p style={{ margin: 0, font: sans(12.5), color: 'var(--text-3)' }}>
-          Albo w Claude Code / Codex: <code style={{ font: mono(12, 500) }}>/plan-treningowy</code> — tam agent dobierze też filmy.
+          Albo w Claude Code / Codex: <code style={{ font: mono(12, 500) }}>/plan-treningowy</code>. Polskie opisy i filmy
+          ćwiczeń z planu aplikacja dopisze sama w ciągu kilku minut.
         </p>
       )}
     </section>

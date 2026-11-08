@@ -171,6 +171,9 @@ public static class AgentDocs
         ćwiczenia pokazuje mapę mięśni, film, kroki, „Na co uważać” i „Częste błędy”. Katalogu
         nie ma w plikach — szukaj `search_exercises`, czytaj `get_exercise`.
 
+        - **Aplikacja sama uzupełnia opisy i filmy w tle** (GPT z wyszukiwarką, kilka ćwiczeń
+          na minutę; najpierw te z aktywnych planów). Nie musisz tego robić przy okazji innych
+          zadań — `enrich_exercises` służy do poprawek albo przyspieszenia.
         - **Polskie opisy** dopisujesz `enrich_exercises` (komenda `/wzbogac-cwiczenia`):
           `namePl`, `instructionsPl` (3–6 kroków), `tipsPl` (2–4 wskazówki techniczne),
           `mistakesPl` (2–4 błędy). Pisz prostym językiem, jak trenerka do początkującej osoby.
@@ -196,8 +199,8 @@ public static class AgentDocs
           (`search_exercises` z `location: home`), siłownia = wszystko. Szanuj `limitations`
           (kontuzje) i `dislikes`. Zakresy powtórzeń (`repsMin`–`repsMax`), ćwiczenia na czas
           przez `seconds`. `targetKg` tylko gdy masz podstawę — lepiej pominąć niż zgadywać.
-        - Zanim zapiszesz plan, dopisz polskie opisy (`enrich_exercises`) ćwiczeniom, które
-          go tworzą i ich jeszcze nie mają — ona czyta plan po polsku.
+        - Polskie opisy i filmy ćwiczeń z nowego planu aplikacja dopisze w tle w ciągu kilku
+          minut — nie musisz ich pisać przed zapisaniem planu.
         - **Dzień z filmem** (`kind: "follow-along"`): jeden pełny trening z YouTube (pilates,
           joga, HIIT) z `videoYoutubeId` znalezionym w wyszukiwarce (sprawdzany — nie zgaduj),
           `videoMinutes` i `workoutType`. Tylko gdy styl jest w `styles`.
@@ -829,8 +832,7 @@ public static class AgentDocs
                    Dni z filmem (pilates/joga) — tylko z filmem znalezionym w wyszukiwarce.
                 5. Pokaż propozycję: podział tygodnia, tydzień 1 (ćwiczenia, serie × powtórzenia,
                    przerwy) i jak plan rośnie w kolejnych tygodniach. Poczekaj na moją zgodę.
-                6. Opisz po polsku (`enrich_exercises`) użyte ćwiczenia bez opisu, potem zapisz
-                   `create_training_program` z `activate: true` (przy „dostosuj”:
+                6. Zapisz `create_training_program` z `activate: true` (przy „dostosuj”:
                    `replace_training_program`) i krótkim `rationale`. Błąd walidacji wskazuje dzień —
                    popraw go i ponów.
                 """),
@@ -861,9 +863,10 @@ public static class AgentDocs
         - Gdy czegoś nie wiesz (np. ile czegoś zjedzono), dopytaj jednym pytaniem zamiast
           zgadywać — chyba że rozsądne oszacowanie wystarczy; wtedy powiedz, że to szacunek.
         - Trening: ankieta, plan i „co dziś” są w narzędziach `*_training_*` (zasady w AGENTS.md,
-          sekcje „Trening”). Plan możesz ułożyć i zmieniać; nie masz wyszukiwarki, więc nie
-          dodawaj filmów (ani do ćwiczeń, ani dni „z filmem”) — powiedz, że dopisze je Claude
-          Code komendą /wzbogac-cwiczenia.
+          sekcje „Trening”). Plan możesz ułożyć i zmieniać. Polskie opisy i filmy ćwiczeń
+          aplikacja dopisuje sama w tle (najpierw z nowego planu) — nie pisz ich przy układaniu
+          planu. Film do dnia „z filmem” (pilates, joga) znajdź wyszukiwarką; adres podaj tylko
+          z wyników, nigdy nie zgaduj (serwer go sprawdza).
         """.Replace("{PERSON}", personName);
 
     /// <summary>Every Sous turn: the date (threads outlive days) plus the recipe on screen, if any.</summary>

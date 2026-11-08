@@ -19,6 +19,10 @@ public record ExerciseDetailDto(Guid Id, string? SourceId, string Name, string N
     string? YoutubeId, int? VideoStartSeconds, string? VideoTitle, string? VideoChannel,
     IReadOnlyList<string> ImageUrls, bool IsTimed, bool Hidden, DateTimeOffset? EnrichedAt);
 
+/// <summary>The background describer (GPT via Sous): on/off, mid-batch, last success, pause after an error.</summary>
+public record ExerciseEnrichmentStatusDto(bool Enabled, bool Running, DateTimeOffset? LastRunAt,
+    DateTimeOffset? PausedUntil, string? LastError);
+
 public record ExerciseVocabularyDto(IReadOnlyList<string> Muscles, IReadOnlyList<string> Equipment,
     IReadOnlyList<string> Categories, IReadOnlyList<string> Levels, IReadOnlyList<string> Forces,
     IReadOnlyList<string> Mechanics);

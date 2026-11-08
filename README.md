@@ -67,8 +67,10 @@ help plan meals.
   public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db), filterable
   by muscle (tap the silhouette), equipment, level, "home kit" and "has video". Each
   exercise shows a front/back muscle map, start/end photos, steps, "Na co uważać" and
-  "Częste błędy", and an embedded YouTube demo. Agents write the Polish descriptions and
-  pick the videos (`/wzbogac-cwiczenia`); the server checks every video id with YouTube
+  "Częste błędy", and an embedded YouTube demo. With Sous on Codex, the app fills the
+  Polish descriptions and finds the videos **by itself in the background** (GPT with web
+  search, a few exercises a minute, the active plan's exercises first); agents can also do
+  it on demand (`/wzbogac-cwiczenia`). The server checks every video id with YouTube
   before saving it.
 - A private **training plan** (Trening → Dziś / Plan): a short questionnaire (goal, days,
   minutes, home kit, injuries…), then an agent — Sous, or `/plan-treningowy` in Claude Code
@@ -223,7 +225,15 @@ against the plan's Codex limits; there is no API bill.
 AI_PROVIDER=codex
 # SOUS_MODEL=            # empty = Codex default
 # SOUS_REASONING=low     # minimal / low / medium / high
+# EXERCISE_ENRICH=on     # background exercise descriptions + videos; "off" on dev machines
+# EXERCISE_ENRICH_INTERVAL=60   # seconds between batches
+# EXERCISE_ENRICH_BATCH=6       # exercises per GPT job
 ```
+
+On Codex the same container also runs the **exercise describer**: one small GPT job
+per minute (live web search, structured JSON) that writes Polish descriptions and finds
+YouTube demos for the training catalog until every exercise has them. It pauses while
+someone is chatting with Sous and for 30 minutes after hitting the plan's usage limit.
 
 Then sign in once (enable device-code login in ChatGPT → Settings → Security first):
 

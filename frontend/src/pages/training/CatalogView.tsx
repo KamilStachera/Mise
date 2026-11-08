@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useExercises, type Equipment, type ExerciseLevel, type ExerciseListItem, type Muscle } from '../../api/training'
+import { useEnrichmentStatus, useExercises, type Equipment, type ExerciseLevel, type ExerciseListItem, type Muscle } from '../../api/training'
 import { FilterDropdown } from '../../components/FilterDropdown'
 import { BodyMap } from '../../components/training/BodyMap'
 import { ExerciseSheet } from '../../components/training/ExerciseSheet'
@@ -44,10 +44,11 @@ export function CatalogView() {
     return () => document.removeEventListener('click', onDocClick)
   }, [])
 
+  const { data: enrichment } = useEnrichmentStatus()
   const { data, isLoading, isError } = useExercises({
     q, muscle, level, equipment: equipment ? [equipment] : undefined,
     location: homeOnly ? 'home' : null, video: videoOnly,
-  })
+  }, enrichment?.enabled ? 120_000 : undefined)
   const items = data?.items ?? EMPTY
   const resetKey = JSON.stringify([q, muscle, equipment, level, homeOnly, videoOnly])
   const { visibleItems, sentinel, hasMore } = useInfiniteScroll(items, resetKey, `${KEY}page`)
@@ -127,6 +128,11 @@ export function CatalogView() {
   const coverage = data && (
     <span style={{ font: mono(11.5, 500), color: 'var(--text-3)' }}>
       Opisane po polsku: {data.enrichedTotal} / {data.catalogTotal}
+      {enrichment?.enabled && data.enrichedTotal < data.catalogTotal && (
+        <span style={{ color: 'var(--accent-text)' }}>
+          {enrichment.pausedUntil && new Date(enrichment.pausedUntil) > new Date() ? ' · opisy wstrzymane, wrócę później' : ' · ✦ AI dopisuje opisy i filmy w tle'}
+        </span>
+      )}
     </span>
   )
 

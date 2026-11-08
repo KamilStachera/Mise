@@ -79,6 +79,14 @@ public static class ExerciseEndpoints
                 matched.Skip(skip).Take(take).Select(ToListDto).ToList()));
         });
 
+        // Background enrichment status for the catalog header (details only for signed-in callers).
+        g.MapGet("/enrichment", (EnrichmentState state, HttpContext ctx, AccessControl access) =>
+        {
+            var privileged = access.IsPrivileged(ctx);
+            return Results.Ok(new ExerciseEnrichmentStatusDto(state.Enabled, state.Running, state.LastRunAt,
+                state.PausedUntil, privileged ? state.LastError : null));
+        });
+
         g.MapGet("/vocabulary", () => Results.Ok(new ExerciseVocabularyDto(
             ExerciseTokens.All<Muscle>(), ExerciseTokens.All<ExerciseEquipment>(),
             ExerciseTokens.All<ExerciseCategory>(), ExerciseTokens.All<ExerciseLevel>(),

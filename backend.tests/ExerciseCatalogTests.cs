@@ -219,6 +219,7 @@ public class ExerciseCatalogTests
         builder.Services.AddHttpClient();
         builder.Services.AddSingleton<ExerciseImages>();
         builder.Services.AddSingleton(new PersonScope(1));
+        builder.Services.AddSingleton<EnrichmentState>();
         builder.Services.AddSingleton(new YouTubeVerifier(new StubFactory(_ => new HttpResponseMessage(HttpStatusCode.NotFound))));
         await using var app = builder.Build();
         app.UseMiddleware<ApiAccessMiddleware>();

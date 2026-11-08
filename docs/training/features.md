@@ -43,7 +43,11 @@ Decisions:
 - Photos are fetched from GitHub on first request, re-encoded to WebP and cached in the images
   volume (`exercises-v1/`).
 
-### F2. Opisy i wideo ✅ tooling (P2) — batches still to run
+### F2. Opisy i wideo ✅ (P2)
+- **Automatic, in the background**: `ExerciseEnrichmentWorker` sends batches of 6 exercises to
+  GPT on the ChatGPT plan (Sous `/job`, live web search, strict JSON) about once a minute and
+  saves Polish name, steps, tips, mistakes and a verified YouTube demo. Active-plan exercises
+  first (a saved plan wakes it), then everything else; ~820 exercises ≈ a few hours.
 - `PATCH /exercises/{id}`, `POST /exercises/enrich` (≤ 50, per-item errors), `POST /exercises`.
 - Every `youtubeId` is checked with YouTube oEmbed (404 → doesn't exist, 401 → not embeddable);
   title + channel stored. Agents must never guess ids.

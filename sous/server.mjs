@@ -4,6 +4,9 @@
 //
 //   POST /turn  { prompt, instructions, threadId?, person }  → NDJSON stream of
 //               { status } | { delta } | { threadId } | { error } … then { done: true }
+//   POST /job   { prompt, outputSchema } → { text } (JSON matching the schema) | { error, limit }
+//               A one-off background task (exercise descriptions): fresh thread, live web
+//               search, no MCP tools — the api validates and saves the result itself.
 //   GET  /health → { ok, loggedIn }
 import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -122,17 +125,75 @@ const firstLine = (s) => s.split('\n').find((l) => l.trim())?.trim().slice(0, 12
 function friendly(message) {
   if (/401|unauthori[sz]ed|log ?in|auth/i.test(message))
     return 'Sous nie jest zalogowany do ChatGPT. Na serwerze: docker compose exec sous codex login --device-auth'
-  if (/usage limit|rate limit|429/i.test(message))
+  if (isLimit(message))
     return 'Limit Codexa w planie ChatGPT na teraz się wyczerpał — spróbuj za jakiś czas.'
   return `Sous nie odpowiedział: ${message}`
 }
 
 const loggedIn = () => existsSync(join(CODEX_HOME, 'auth.json'))
 
+// Background jobs write nothing and read nothing locally: no MCP, empty working dir.
+const jobOptions = {
+  workingDirectory: '/tmp',
+  skipGitRepoCheck: true,
+  sandboxMode: 'read-only',
+  approvalPolicy: 'never',
+  networkAccessEnabled: false,
+  webSearchMode: process.env.SOUS_JOB_WEB_SEARCH || 'live',
+  modelReasoningEffort: process.env.SOUS_JOB_REASONING || 'low',
+  ...(process.env.SOUS_MODEL ? { model: process.env.SOUS_MODEL } : {}),
+}
+const jobCodex = new Codex()
+
+async function runJob({ prompt, outputSchema }, signal) {
+  const thread = jobCodex.startThread(jobOptions)
+  const result = await thread.run(prompt, { outputSchema, signal })
+  return { text: result.finalResponse, usage: result.usage }
+}
+
+const isLimit = (message) => /usage limit|rate limit|429/i.test(message)
+
+async function readJson(req) {
+  let raw = ''
+  for await (const chunk of req) raw += chunk
+  return JSON.parse(raw)
+}
+
+async function handleJob(req, res) {
+  let body
+  try {
+    body = await readJson(req)
+    if (typeof body.prompt !== 'string' || !body.prompt.trim()) throw new Error('prompt')
+  } catch {
+    res.writeHead(400).end()
+    return
+  }
+  const abort = new AbortController()
+  res.on('close', () => { if (!res.writableFinished) abort.abort() })
+  const t0 = Date.now()
+  try {
+    if (!loggedIn()) throw new Error('not logged in')
+    const out = await runJob(body, abort.signal)
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(out))
+    console.log(`job ok ${Date.now() - t0} ms`)
+  } catch (e) {
+    console.error(`job failed after ${Date.now() - t0} ms: ${e.message}`)
+    if (!abort.signal.aborted) {
+      res.writeHead(502, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: e.message, limit: isLimit(e.message) }))
+    }
+  }
+}
+
 createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ ok: true, loggedIn: loggedIn() }))
+    return
+  }
+  if (req.method === 'POST' && req.url === '/job') {
+    await handleJob(req, res)
     return
   }
   if (req.method !== 'POST' || req.url !== '/turn') {

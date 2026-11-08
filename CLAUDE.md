@@ -177,6 +177,16 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   - **Every `youtubeId` write goes through `YouTubeVerifier` (oEmbed)** — agents must not
     be able to store invented ids. `ExerciseCatalog.Prepare` validates without mutating;
     the video is verified before the patch is applied.
+  - **Background describer** (`ExerciseEnrichmentWorker` → `ExerciseEnrichment`): with
+    `AI_PROVIDER=codex` and `EXERCISE_ENRICH` ≠ `off`, it asks GPT through Sous `POST /job`
+    (fresh thread, live web search, no MCP, `outputSchema`) for a batch of exercises, then
+    validates and saves itself — GPT never writes. Order: active-plan exercises → missing
+    text → home kit → easier levels. Never overwrites existing Polish text; unverifiable
+    videos are dropped; per-exercise attempts are in memory (max 3 until restart). Steps
+    aside for 2 min after any chat message; usage-limit errors pause it 30 min. Saving a
+    program calls `EnrichmentState.Kick()`. Tune with `EXERCISE_ENRICH_INTERVAL` (s) /
+    `EXERCISE_ENRICH_BATCH`; set `EXERCISE_ENRICH=off` on dev machines so they don't spend
+    the ChatGPT plan on the local DB.
   - Photos are fetched from GitHub on demand (`ExerciseImages`, strict path regex), cached
     as WebP under `{ImagesDir}/exercises-v1/`. Resize code is shared with recipe cards in
     `Services/ImageResizer.cs`.

@@ -55,7 +55,7 @@ public static class TrainingEndpoints
                 : Results.NotFound());
 
         g.MapPost("/programs", async (TrainingProgramInput input, MiseDbContext db, PersonScope person,
-            YouTubeVerifier youtube, CancellationToken ct) =>
+            YouTubeVerifier youtube, EnrichmentState enrichment, CancellationToken ct) =>
         {
             var p = new TrainingProgram { PersonId = person.Id };
             if (await BuildAsync(p, input, db, youtube, ct) is { } error) return Results.BadRequest(new { error });
@@ -64,11 +64,12 @@ public static class TrainingEndpoints
             if (input.Activate == true) await ActivateAsync(db, p, ct);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+            enrichment.Kick(); // describe the plan's exercises first
             return Results.Created($"/api/training/programs/{p.Id}", ToDto(p));
         });
 
         g.MapPut("/programs/{id:guid}", async (Guid id, TrainingProgramInput input, MiseDbContext db,
-            PersonScope person, YouTubeVerifier youtube, CancellationToken ct) =>
+            PersonScope person, YouTubeVerifier youtube, EnrichmentState enrichment, CancellationToken ct) =>
         {
             var p = await db.TrainingPrograms.Include(x => x.Days).ThenInclude(d => d.Exercises)
                 .FirstOrDefaultAsync(x => x.Id == id && x.PersonId == person.Id, ct);
@@ -85,6 +86,7 @@ public static class TrainingEndpoints
             if (input.Activate == true) await ActivateAsync(db, p, ct);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+            enrichment.Kick();
             return Results.Ok(ToDto(await LoadAsync(db, person).FirstAsync(x => x.Id == id, ct)));
         });
 

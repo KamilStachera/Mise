@@ -171,6 +171,7 @@ public class TrainingProgramTests
         builder.Services.AddDbContext<MiseDbContext>(o => o.UseInMemoryDatabase(dbName));
         builder.Services.AddSingleton<AccessControl>();
         builder.Services.AddSingleton(new PersonScope(1));
+        builder.Services.AddSingleton<EnrichmentState>();
         builder.Services.AddSingleton(new YouTubeVerifier(new NoHttp()));
         await using var app = builder.Build();
         app.UseMiddleware<ApiAccessMiddleware>();

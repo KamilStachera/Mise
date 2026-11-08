@@ -80,6 +80,10 @@ public class AgentDocsTests
         Assert.True(commands.ContainsKey("plan-treningowy.md"));
         Assert.Contains("Poczekaj na moją zgodę", commands["plan-treningowy.md"], StringComparison.Ordinal);
         Assert.Contains("/plan-treningowy", AgentDocs.CommandsInstall("/ctx"), StringComparison.Ordinal);
-        Assert.Contains("dodawaj filmów", AgentDocs.SousInstructions("Ola"), StringComparison.Ordinal);
+        var sous = AgentDocs.SousInstructions("Ola");
+        Assert.Contains("dopisuje sama w tle", sous, StringComparison.Ordinal);
+        Assert.Contains("nigdy nie zgaduj", sous, StringComparison.Ordinal);
+        Assert.DoesNotContain("nie masz wyszukiwarki", sous, StringComparison.Ordinal);
+        Assert.Contains("Aplikacja sama uzupełnia opisy i filmy w tle", agents, StringComparison.Ordinal);
     }
 }

@@ -39,6 +39,11 @@ builder.Services.AddScoped<ContextExportService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ExerciseImages>();
 builder.Services.AddSingleton<YouTubeVerifier>();
+// Background Polish descriptions + demo videos for the exercise catalog (GPT via Sous).
+builder.Services.AddSingleton<EnrichmentState>();
+builder.Services.AddSingleton<ISousJobs, SousJobs>();
+builder.Services.AddScoped<ExerciseEnrichment>();
+builder.Services.AddHostedService<ExerciseEnrichmentWorker>();
 builder.Services.AddScoped<IChatProvider>(sp =>
     ChatProviderFactory.Create(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<IHttpClientFactory>()));
 
