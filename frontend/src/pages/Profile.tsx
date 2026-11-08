@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, useBody, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire, useCookLog } from '../api/hooks'
 import { loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
+import { AdminHouseholdsCard, HouseholdCard } from '../components/HouseholdCards'
 import { useIsMobile } from '../lib/useIsMobile'
 import { Avatar, Button, Chip, Eyebrow, PageTitle, SectionHead, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
@@ -110,6 +111,9 @@ export function Profile() {
           <LinkRow label="Ankieta kulinarna" meta={totalQuestions ? `${answered}/${totalQuestions}` : ''} onClick={() => nav('/profile/ankieta')} />
         </div>
 
+        {canEdit && <HouseholdCard />}
+        {canEdit && <AdminHouseholdsCard />}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>
             <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 20 }}>Co wie asystent</span>
@@ -157,6 +161,13 @@ export function Profile() {
         </div>
         {questionnaire && <QuestionnaireSummary q={questionnaire} answered={answered} total={totalQuestions} canEdit={canEdit} />}
       </div>
+
+      {canEdit && (
+        <div style={{ display: 'grid', gridTemplateColumns: auth?.isAdmin ? '1fr 1fr' : 'minmax(0, 560px)', gap: 56, alignItems: 'start' }}>
+          <HouseholdCard />
+          <AdminHouseholdsCard />
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 8 }}>
         <SectionHead title="Asystent i dane" size={24} />

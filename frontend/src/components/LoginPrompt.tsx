@@ -11,7 +11,7 @@ export function LoginPrompt({ title }: { title: string }) {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: '28px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)' }}>
         <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 32, lineHeight: 1.1 }}>{title}</span>
         <span style={{ font: sans(15), lineHeight: 1.5, color: 'var(--text-2)', maxWidth: '46ch' }}>
-          Przeglądanie jest otwarte dla wszystkich, ale zmiany wymagają zalogowania kontem Google z listy domowników.
+          Zmiany wymagają zalogowania kontem Google należącym do tego domu. Nowa osoba wpisuje po zalogowaniu kod zaproszenia od domownika.
         </span>
         <Button onClick={() => { window.location.href = loginUrl(pathname) }}>Zaloguj się przez Google</Button>
       </div>

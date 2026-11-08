@@ -1,22 +1,31 @@
 import { useState, type CSSProperties } from 'react'
-import { useConnectInfo } from '../api/hooks'
+import type { CreatedApiKey } from '../api/client'
+import { useApiKeys, useAuth, useConnectInfo, useHouseholdActions } from '../api/hooks'
 
 const CTX_TOKEN = '{{CONTEXT_DIR}}'
 const REPO_TOKEN = '{{REPO_DIR}}'
 const LS_KEY = 'mise.hostContextDir'
 
-/** Strip a trailing "context" segment to get the repo root (mcp/ lives next to context/). */
+/** Strip a trailing "context" (or "context/<household>") to get the repo root (mcp/ lives next to context/). */
 function repoDirOf(ctxDir: string): string {
-  return ctxDir.replace(/[\\/]+$/, '').replace(/[\\/]context$/i, '')
+  return ctxDir.replace(/[\\/]+$/, '').replace(/[\\/]context([\\/]\d+)?$/i, '')
+}
+
+/** Each household's export is a numbered subfolder of the repo's context folder. */
+function householdDir(contextRoot: string, household: number | undefined): string {
+  const root = contextRoot.replace(/[\\/]+$/, '')
+  if (household == null || /[\\/]\d+$/.test(root)) return root
+  return `${root}${root.includes('\\') ? '\\' : '/'}${household}`
 }
 
 export function ConnectAgentCard() {
   const { data: info } = useConnectInfo()
+  const { data: auth } = useAuth()
   const [manualDir, setManualDir] = useState(() => localStorage.getItem(LS_KEY) ?? '')
 
   if (!info) return null
 
-  const ctxDir = info.hostContextPath ?? (manualDir.trim() || null)
+  const ctxDir = info.hostContextPath ?? (manualDir.trim() ? householdDir(manualDir.trim(), auth?.household?.id) : null)
   const needsPath = !info.hostContextPath
 
   function substitute(text: string): string {
@@ -32,6 +41,8 @@ export function ConnectAgentCard() {
         Skopiuj to, czego potrzebujesz — jednorazowy prompt, wpis do globalnej konfiguracji,
         komendy <Code>/dodaj-przepis</Code> albo rejestrację serwera MCP.
       </p>
+
+      <ApiKeys />
 
       {needsPath && (
         <div style={{ marginBottom: 14 }}>
@@ -67,6 +78,53 @@ export function ConnectAgentCard() {
         disabled={!ctxDir}
       />
       <CopyBlock title="Serwer MCP — Codex (~/.codex/config.toml)" text={substitute(info.prompts.codexMcpToml)} disabled={!ctxDir} />
+    </div>
+  )
+}
+
+/** Personal keys: an agent's MISE_API_KEY acts as you, in your household. Shown once. */
+function ApiKeys() {
+  const { data: keys } = useApiKeys()
+  const actions = useHouseholdActions()
+  const [name, setName] = useState('')
+  const [fresh, setFresh] = useState<CreatedApiKey | null>(null)
+  const dateFmt = new Intl.DateTimeFormat('pl-PL', { day: 'numeric', month: 'short' })
+
+  return (
+    <div style={{ marginBottom: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ font: "500 12.5px var(--sans)", color: 'var(--text-2)' }}>
+        Klucz API — zapisy agenta idą na twoje konto, w twoim domu. Ustaw go jako <Code>MISE_API_KEY</Code> w konfiguracji agenta / serwera MCP.
+      </div>
+      {fresh && (
+        <CopyBlock
+          title={`Nowy klucz „${fresh.name}” — skopiuj teraz, nie zobaczysz go ponownie`}
+          text={`MISE_API_KEY=${fresh.key}\n\n# Claude Code:\nclaude mcp add pichci -e MISE_API_KEY=${fresh.key} -e MISE_API_URL=${window.location.origin} -- node <repo>/mcp/dist/index.js\n\n# Codex (~/.codex/config.toml, w [mcp_servers.pichci]):\nenv = { MISE_API_KEY = "${fresh.key}", MISE_API_URL = "${window.location.origin}" }`}
+          disabled={false}
+        />
+      )}
+      {(keys ?? []).map((k) => (
+        <div key={k.id} style={{ display: 'flex', alignItems: 'center', gap: 10, font: '400 13px var(--sans)', color: 'var(--text-2)' }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            {k.name} <Code>{k.prefix}…</Code>
+            <span style={{ color: 'var(--text-3)' }}> · {k.lastUsedAt ? `używany ${dateFmt.format(new Date(k.lastUsedAt))}` : 'jeszcze nieużywany'}</span>
+          </span>
+          <button onClick={() => actions.revokeApiKey.mutate(k.id)} style={pill}>Unieważnij</button>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80}
+          placeholder="Nazwa, np. Claude Code na laptopie" style={{ ...input, height: 38, font: '400 13px var(--sans)' }} />
+        <button
+          style={{ ...pill, whiteSpace: 'nowrap' }}
+          disabled={!name.trim() || actions.createApiKey.isPending}
+          onClick={async () => {
+            setFresh(await actions.createApiKey.mutateAsync(name.trim()))
+            setName('')
+          }}
+        >
+          Nowy klucz
+        </button>
+      </div>
     </div>
   )
 }
@@ -138,6 +196,15 @@ const cap: CSSProperties = {
   textTransform: 'uppercase',
   color: 'var(--text-3)',
   marginBottom: 11,
+}
+const pill: CSSProperties = {
+  font: "500 11.5px var(--sans)",
+  color: 'var(--text-2)',
+  background: 'transparent',
+  border: '1px solid var(--border)',
+  borderRadius: 999,
+  padding: '4px 12px',
+  cursor: 'pointer',
 }
 const input: CSSProperties = {
   width: '100%',

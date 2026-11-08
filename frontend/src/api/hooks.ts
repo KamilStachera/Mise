@@ -42,11 +42,59 @@ export function usePerson() {
   return { id, own, people, person: people.find((p) => p.id === id) ?? null, pick: pickPerson }
 }
 
+// ---- household, invites, admin, keys ----
+
+export function useHousehold(enabled = true) {
+  return useQuery({ queryKey: ['household'], queryFn: api.household, enabled })
+}
+
+export function useAdminOverview(enabled = true) {
+  return useQuery({ queryKey: ['admin'], queryFn: api.adminOverview, enabled })
+}
+
+export function useApiKeys(enabled = true) {
+  return useQuery({ queryKey: ['api-keys'], queryFn: api.apiKeys, enabled })
+}
+
+/** Household + admin mutations; every one refreshes what it touches (and auth, for names/Sous). */
+export function useHouseholdActions() {
+  const qc = useQueryClient()
+  const refresh = (...keys: string[]) => () => Promise.all(keys.map((k) => qc.invalidateQueries({ queryKey: [k] })))
+  return {
+    rename: useMutation({ mutationFn: api.renameHousehold, onSuccess: refresh('household', 'auth') }),
+    renamePerson: useMutation({
+      mutationFn: ({ id, name }: { id: number; name: string }) => api.renamePerson(id, name),
+      onSuccess: refresh('household', 'auth'),
+    }),
+    createJoinInvite: useMutation({ mutationFn: api.createJoinInvite, onSuccess: refresh('household') }),
+    deleteJoinInvite: useMutation({ mutationFn: api.deleteJoinInvite, onSuccess: refresh('household') }),
+    createHouseholdInvite: useMutation({ mutationFn: api.createHouseholdInvite, onSuccess: refresh('admin') }),
+    deleteHouseholdInvite: useMutation({ mutationFn: api.deleteHouseholdInvite, onSuccess: refresh('admin') }),
+    patchHousehold: useMutation({
+      mutationFn: ({ id, ...patch }: { id: number; name?: string; sousEnabled?: boolean }) => api.patchHousehold(id, patch),
+      onSuccess: refresh('admin', 'auth', 'chatHealth'),
+    }),
+    createApiKey: useMutation({ mutationFn: api.createApiKey, onSuccess: refresh('api-keys') }),
+    revokeApiKey: useMutation({ mutationFn: api.revokeApiKey, onSuccess: refresh('api-keys') }),
+  }
+}
+
+/** Redeeming a code turns an unlinked account into a member: refresh everything. */
+export function useRedeemInvite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ code, name }: { code: string; name: string }) => api.redeemInvite(code, name),
+    meta: { ownErrors: true },
+    onSuccess: () => qc.invalidateQueries(),
+  })
+}
+
 export function useLogout() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => api.logout(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['auth'] }),
+    // Everything cached belonged to that session's household.
+    onSuccess: () => qc.invalidateQueries(),
   })
 }
 

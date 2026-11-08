@@ -607,14 +607,84 @@ export interface Person {
   name: string
 }
 export interface AuthMe {
+  /** A household member: may edit. False = read-only (anonymous, or signed in without a household). */
   authenticated: boolean
   email: string | null
   name: string | null
   picture: string | null
   /** The caller's own diary. */
   personId: number | null
-  /** Everyone with a diary; empty for anonymous visitors. */
+  /** The caller's household; empty for anonymous visitors. */
   people: Person[] | null
+  /** Signed in with Google (may still be without a household). */
+  signedIn: boolean
+  /** Signed in but in no household yet: show the invite-code screen. */
+  needsOnboarding: boolean
+  isAdmin: boolean
+  household: HouseholdInfo | null
+  /** Anonymous visitors may browse a public household read-only. */
+  publicHousehold: boolean
+}
+export interface HouseholdInfo {
+  id: number
+  name: string
+  sousEnabled: boolean
+}
+export interface HouseholdMember {
+  id: number
+  name: string
+  email: string | null
+  isSelf: boolean
+}
+export interface Invite {
+  id: string
+  kind: 'join' | 'new-household'
+  createdAt: string
+  expiresAt: string
+  householdName: string | null
+  starter: 'none' | 'all' | 'sources'
+  starterSources: string[]
+}
+export interface HouseholdDetail extends HouseholdInfo {
+  members: HouseholdMember[]
+  invites: Invite[]
+}
+export interface CreatedInvite {
+  id: string
+  code: string
+  expiresAt: string
+}
+export interface AdminHousehold {
+  id: number
+  name: string
+  sousEnabled: boolean
+  createdAt: string
+  members: string[]
+  recipes: number
+}
+export interface AdminOverview {
+  households: AdminHousehold[]
+  invites: Invite[]
+  sources: { name: string; count: number }[]
+  sourceRecipes: number
+}
+export interface AdminInviteInput {
+  householdName?: string
+  starter: 'none' | 'all' | 'sources'
+  sources?: string[]
+}
+export interface ApiKeyInfo {
+  id: string
+  name: string
+  prefix: string
+  createdAt: string
+  lastUsedAt: string | null
+}
+export interface CreatedApiKey {
+  id: string
+  name: string
+  prefix: string
+  key: string
 }
 
 // ---- fetch helpers ----
@@ -817,6 +887,24 @@ export const api = {
   resetChat: () => http<void>(`/chat/history`, { method: 'DELETE' }, true),
 
   authMe: () => http<AuthMe>(`/auth/me`),
+  redeemInvite: (code: string, name: string) =>
+    http<{ householdId: number; personId: number }>(`/onboarding/redeem`, { method: 'POST', body: JSON.stringify({ code, name }) }),
+  household: () => http<HouseholdDetail>(`/household`, undefined, true),
+  renameHousehold: (name: string) =>
+    http<HouseholdDetail>(`/household`, { method: 'PATCH', body: JSON.stringify({ name }) }, true),
+  renamePerson: (id: number, name: string) =>
+    http<HouseholdDetail>(`/household/people/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }, true),
+  createJoinInvite: () => http<CreatedInvite>(`/household/invites`, { method: 'POST' }, true),
+  deleteJoinInvite: (id: string) => http<void>(`/household/invites/${id}`, { method: 'DELETE' }, true),
+  adminOverview: () => http<AdminOverview>(`/admin`, undefined, true),
+  createHouseholdInvite: (input: AdminInviteInput) =>
+    http<CreatedInvite>(`/admin/invites`, { method: 'POST', body: JSON.stringify(input) }, true),
+  deleteHouseholdInvite: (id: string) => http<void>(`/admin/invites/${id}`, { method: 'DELETE' }, true),
+  patchHousehold: (id: number, patch: { name?: string; sousEnabled?: boolean }) =>
+    http<AdminOverview>(`/admin/households/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }, true),
+  apiKeys: () => http<ApiKeyInfo[]>(`/keys`, undefined, true),
+  createApiKey: (name: string) => http<CreatedApiKey>(`/keys`, { method: 'POST', body: JSON.stringify({ name }) }, true),
+  revokeApiKey: (id: string) => http<void>(`/keys/${id}`, { method: 'DELETE' }, true),
   logout: () => http<void>(`/auth/logout`, { method: 'POST' }),
 }
 

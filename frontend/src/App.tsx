@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { registerChatOpener } from './lib/chatBus'
-import { showToast } from './lib/toastBus'
 import { useIsMobile } from './lib/useIsMobile'
 import { useScrollMemory } from './lib/useScrollMemory'
 import { useAuth, useChatHealth } from './api/hooks'
@@ -25,10 +24,11 @@ import { Questionnaire } from './pages/Questionnaire'
 import { Random } from './pages/Random'
 import { History } from './pages/History'
 import { Training } from './pages/Training'
+import { Onboarding, Welcome } from './pages/Onboarding'
 
 export default function App() {
   const isMobile = useIsMobile()
-  const { canEdit } = useAuth()
+  const { data: auth, canEdit } = useAuth()
   const { data: chatHealth } = useChatHealth()
   const [chatOpen, setChatOpen] = useState(false)
   const { pathname } = useLocation()
@@ -39,16 +39,10 @@ export default function App() {
 
   useEffect(() => registerChatOpener(() => setChatOpen(true)), [])
 
-  // Whitelist rejection lands back on "/?auth=denied" (see AuthEndpoints/Google setup).
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('auth') === 'denied') {
-      showToast('To konto Google nie ma dostępu do edycji. Poproś właściciela o dodanie adresu do listy.')
-      params.delete('auth')
-      const qs = params.toString()
-      window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''))
-    }
-  }, [])
+  // Before the app: a Google account without a household redeems an invite code; with no
+  // public household to browse, an anonymous visitor can only sign in.
+  if (auth?.needsOnboarding) return <><Onboarding /><ToastHost /></>
+  if (auth && !auth.authenticated && !auth.signedIn && !auth.publicHousehold) return <Welcome />
 
   // Desktop: sidebar | content | Sous panel. Phone: content over a fixed tab bar; Sous is a full-screen sheet.
   return (

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth, useLogout, useShopping, useSupplies } from '../api/hooks'
+import { useAuth, useChatHealth, useLogout, useShopping, useSupplies } from '../api/hooks'
 import { loginUrl } from '../api/client'
 import { Avatar, Wordmark, mono, sans } from './ui'
 
@@ -75,6 +75,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
   const nav = useNavigate()
   const { pathname } = useLocation()
   const { data: auth, canEdit } = useAuth()
+  const { data: chatHealth } = useChatHealth()
   const logout = useLogout()
   const toBuy = useToBuyCount()
   const section = navSection(pathname)
@@ -132,7 +133,8 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {canEdit && (
+        {/* Sous is switched on per household (it runs on the owner's ChatGPT plan). */}
+        {canEdit && chatHealth?.enabled && (
           <button
             type="button"
             onClick={onToggleChat}
