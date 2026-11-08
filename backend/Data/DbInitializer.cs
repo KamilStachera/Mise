@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Domain;
 using Mise.Api.Services;
+using Mise.Api.Services.Training;
 
 namespace Mise.Api.Data;
 
@@ -27,6 +28,9 @@ public static class DbInitializer
 
         await scope.ServiceProvider.GetRequiredService<People>().SyncAsync(db, ct);
         await SeedData.EnsureSeededAsync(db, ct);
+        // Insert-only: never touches existing rows, so agent enrichment survives every boot.
+        var exercises = await ExerciseImport.EnsureImportedAsync(db, ct);
+        if (exercises > 0) logger.LogInformation("Imported {Count} exercises from free-exercise-db", exercises);
         await RelinkAndBackfillAsync(db, scope.ServiceProvider.GetRequiredService<IngredientMatcher>(), ct);
 
         try

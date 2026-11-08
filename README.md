@@ -27,7 +27,7 @@ help plan meals.
   change steps), and a screen wake lock so the display stays on at the stove.
 - **Desktop and phone layouts** from one design: on desktop a sidebar with full
   page names (Historia and Profil kulinarny grouped under "Twoja kuchnia"); on
-  phones five tabs — Przepisy, Plan, Zakupy, Spiżarnia, Ja — with Losuj inside
+  phones six tabs — Przepisy, Plan, Trening, Zakupy, Spiżarnia, Ja — with Losuj inside
   Przepisy, Historia inside Ja, and each screen's main action pinned at the
   bottom. A minimal PWA manifest lets you install it to your home screen (open
   `http://<host-ip>:8080` on the same LAN).
@@ -63,6 +63,14 @@ help plan meals.
   steps and the private URL are on Plan → Aktywność); half of the burned kcal is
   added to the day's budget. Diary, goal, weight and activity need a login even to
   read. Design and roadmap: `docs/weight-loss/`.
+- A **training exercise catalog** (Trening → Ćwiczenia): ~820 exercises from the
+  public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db), filterable
+  by muscle (tap the silhouette), equipment, level, "home kit" and "has video". Each
+  exercise shows a front/back muscle map, start/end photos, steps, "Na co uważać" and
+  "Częste błędy", and an embedded YouTube demo. Agents write the Polish descriptions and
+  pick the videos (`/wzbogac-cwiczenia`); the server checks every video id with YouTube
+  before saving it. Training plans and a live workout tracker are next — see
+  `docs/training/`.
 - A **dinner roulette** ("Losuj") that picks tonight's meal by your rules (and can
   drop the pick straight into the plan), and a
   **cooking history** ("Historia") with stats, streaks and repeat badges.
@@ -174,7 +182,8 @@ prompts come out ready to paste; otherwise the card asks for the path once.
 
 `mcp/` contains a small stdio MCP server that proxies the REST API as tools
 (`add_recipe`, `add_recipe_image`, `add_to_pantry`, `set_pantry_quantities`,
-`preview_plan_shopping`, `add_plan_missing_to_shopping`, `set_plan_entry`, `log_cook`, …):
+`preview_plan_shopping`, `add_plan_missing_to_shopping`, `set_plan_entry`, `log_cook`,
+`search_exercises`, `enrich_exercises`, …):
 
 ```bash
 cd mcp && npm install && npm run build

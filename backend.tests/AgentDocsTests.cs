@@ -46,4 +46,22 @@ public class AgentDocsTests
             StringComparison.Ordinal);
         Assert.Contains("GET /supplies/hot", api, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void TrainingDocs_ForbidGuessedVideosAndShipTheEnrichCommand()
+    {
+        var agents = AgentDocs.AgentsMd("http://localhost:5080/api");
+        var api = AgentDocs.ApiMd("http://localhost:5080/api");
+        var commands = AgentDocs.CommandFiles("http://localhost:5080/api", "/ctx");
+
+        Assert.Contains("## Trening — katalog ćwiczeń", agents, StringComparison.Ordinal);
+        Assert.Contains("Nigdy nie zgaduj id", agents, StringComparison.Ordinal);
+        Assert.Contains("`enrich_exercises`", agents, StringComparison.Ordinal);
+        Assert.Contains("## Ćwiczenia (katalog treningowy, wspólny)", api, StringComparison.Ordinal);
+        Assert.Contains("POST /exercises/enrich", api, StringComparison.Ordinal);
+        Assert.Contains("middle-back", api, StringComparison.Ordinal);
+        Assert.True(commands.ContainsKey("wzbogac-cwiczenia.md"));
+        Assert.Contains("Nie zgaduj id", commands["wzbogac-cwiczenia.md"], StringComparison.Ordinal);
+        Assert.Contains("/wzbogac-cwiczenia", AgentDocs.CommandsInstall("/ctx"), StringComparison.Ordinal);
+    }
 }

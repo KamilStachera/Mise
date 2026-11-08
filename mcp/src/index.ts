@@ -842,5 +842,128 @@ server.tool(
   async (input) => text(await post('/activity/workouts', input)),
 )
 
+// ---- Trening: katalog ćwiczeń (wspólny; free-exercise-db + polskie opisy) ----
+
+const MUSCLES = [
+  'abdominals', 'abductors', 'adductors', 'biceps', 'calves', 'chest', 'forearms', 'glutes', 'hamstrings',
+  'lats', 'lower-back', 'middle-back', 'neck', 'quadriceps', 'shoulders', 'traps', 'triceps',
+] as const
+const EQUIPMENT = [
+  'body-only', 'dumbbell', 'kettlebell', 'bands', 'barbell', 'ez-bar', 'cable', 'machine',
+  'medicine-ball', 'exercise-ball', 'foam-roll', 'other',
+] as const
+const EXERCISE_LEVELS = ['beginner', 'intermediate', 'expert'] as const
+const EXERCISE_CATEGORIES = [
+  'strength', 'stretching', 'plyometrics', 'cardio', 'powerlifting', 'olympic-weightlifting', 'strongman',
+  'pilates', 'yoga', 'mobility',
+] as const
+
+type ExerciseRow = {
+  id: string; name: string; nameEn: string; namePl: string | null; level: string; equipment: string
+  primaryMuscles: string[]; secondaryMuscles: string[]; hasVideo: boolean; enriched: boolean; isTimed: boolean
+}
+
+const PL_LIST = z.array(z.string().max(600)).max(12)
+
+const enrichShape = {
+  namePl: z.string().max(200).optional().describe('Polska nazwa, jak mówi się na siłowni (np. "Wykroki z hantlami", "Hip thrust ze sztangą")'),
+  instructionsPl: PL_LIST.optional().describe('Kroki wykonania po polsku, 3–6 krótkich zdań w trybie rozkazującym'),
+  tipsPl: PL_LIST.optional().describe('„Na co uważać”: 2–4 wskazówki techniczne (np. "Kolano nad stopą, nie do środka")'),
+  mistakesPl: PL_LIST.optional().describe('„Częste błędy”: 2–4 rzeczy, których NIE robić (np. "Odrywanie pięt od podłogi")'),
+  youtubeId: z
+    .string()
+    .optional()
+    .describe(
+      'Film instruktażowy: id (11 znaków) albo link YouTube. Serwer sprawdza go w YouTube (oEmbed) — ' +
+        'NIGDY nie zgaduj id; podaj tylko film, który znalazłeś w wyszukiwarce. "" usuwa film.',
+    ),
+  videoStartSeconds: z.number().int().min(0).max(14400).optional().describe('Od której sekundy zaczyna się pokaz ćwiczenia'),
+  isTimed: z.boolean().optional().describe('true = wykonywane na czas (plank, rozciąganie), false = na powtórzenia'),
+  hidden: z.boolean().optional().describe('Ukryj z katalogu (np. duplikat, ćwiczenie niszowe)'),
+  level: z.enum(EXERCISE_LEVELS).optional(),
+  primaryMuscles: z.array(z.enum(MUSCLES)).min(1).optional().describe('Popraw tylko, gdy dane źródłowe są błędne'),
+  secondaryMuscles: z.array(z.enum(MUSCLES)).optional(),
+}
+
+server.tool(
+  'search_exercises',
+  'Szukaj w katalogu ćwiczeń (ok. 820 widocznych; nazwy angielskie, a po wzbogaceniu też polskie). Filtr ' +
+    'muscle łapie partię główną LUB pomocniczą (główne pierwsze). location=home = sprzęt domowy (bez sprzętu, ' +
+    'hantle, kettlebell, gumy, piłki, roller). enriched=false → ćwiczenia bez polskiego opisu (do /wzbogac-cwiczenia).',
+  {
+    q: z.string().optional().describe('Fraza z nazwy, PL lub EN (np. "lunge", "przysiad")'),
+    muscle: z.enum(MUSCLES).optional(),
+    equipment: z.array(z.enum(EQUIPMENT)).optional(),
+    level: z.enum(EXERCISE_LEVELS).optional(),
+    category: z.enum(EXERCISE_CATEGORIES).optional(),
+    location: z.enum(['home', 'gym']).optional(),
+    enriched: z.boolean().optional(),
+    video: z.boolean().optional().describe('true = tylko z filmem, false = tylko bez filmu'),
+    limit: z.number().int().min(1).max(200).optional().describe('Domyślnie 30'),
+    offset: z.number().int().min(0).optional(),
+  },
+  async ({ equipment, limit, ...f }) => {
+    const p = new URLSearchParams()
+    for (const [k, v] of Object.entries(f)) if (v !== undefined) p.set(k, String(v))
+    if (equipment?.length) p.set('equipment', equipment.join(','))
+    p.set('limit', String(limit ?? 30))
+    const res = await get<{ total: number; enrichedTotal: number; catalogTotal: number; items: ExerciseRow[] }>(`/exercises?${p}`)
+    return text({
+      total: res.total,
+      enrichedTotal: res.enrichedTotal,
+      catalogTotal: res.catalogTotal,
+      items: res.items.map((e) => ({
+        id: e.id, name: e.name, nameEn: e.nameEn, level: e.level, equipment: e.equipment,
+        primary: e.primaryMuscles, secondary: e.secondaryMuscles, timed: e.isTimed,
+        video: e.hasVideo, enriched: e.enriched,
+      })),
+    })
+  },
+)
+
+server.tool(
+  'get_exercise',
+  'Pełny opis ćwiczenia: instrukcje EN (instructionsEn) i PL, wskazówki, błędy, film, partie mięśni.',
+  { id: z.string().uuid() },
+  async ({ id }) => text(await get(`/exercises/${id}`)),
+)
+
+server.tool(
+  'enrich_exercises',
+  'Dopisz polskie opisy i filmy do ćwiczeń z katalogu (maks. 50 naraz). Podawaj tylko pola, które ' +
+    'zmieniasz; listy podmieniają całość. Każde ćwiczenie zapisuje się osobno — błędy (np. nieistniejący ' +
+    'film) wracają w errors z id, reszta się zapisuje. Napisz opis na podstawie instructionsEn (get_exercise) ' +
+    'i własnej wiedzy trenerskiej, prostym językiem.',
+  {
+    items: z
+      .array(z.object({ id: z.string().uuid(), ...enrichShape }))
+      .min(1)
+      .max(50),
+  },
+  async ({ items }) => text(await post('/exercises/enrich', { items })),
+)
+
+server.tool(
+  'add_exercise',
+  'Dodaj ćwiczenie, którego nie ma w katalogu (np. pilates, joga, mobilność). Najpierw sprawdź ' +
+    'search_exercises (po PL i EN) — duplikat nazwy zwraca 409 z id istniejącego.',
+  {
+    namePl: z.string().max(200),
+    nameEn: z.string().max(200).optional(),
+    category: z.enum(EXERCISE_CATEGORIES).optional().describe('Domyślnie strength'),
+    level: z.enum(EXERCISE_LEVELS).optional().describe('Domyślnie beginner'),
+    equipment: z.enum(EQUIPMENT).optional().describe('Domyślnie body-only'),
+    primaryMuscles: z.array(z.enum(MUSCLES)).min(1),
+    secondaryMuscles: z.array(z.enum(MUSCLES)).optional(),
+    instructionsPl: PL_LIST.optional(),
+    tipsPl: PL_LIST.optional(),
+    mistakesPl: PL_LIST.optional(),
+    youtubeId: enrichShape.youtubeId,
+    videoStartSeconds: enrichShape.videoStartSeconds,
+    isTimed: z.boolean().optional(),
+  },
+  async (input) => text(await post('/exercises', input)),
+)
+
 const transport = new StdioServerTransport()
 await server.connect(transport)

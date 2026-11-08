@@ -22,6 +22,9 @@ cookbook REST API as first-class tools for Claude Code and Codex:
   `eat_from_fridge`, `discard_fridge_leftovers`
 - goal & activity (private, per person) — `get_budget`, `get_progress`, `get_goal`,
   `log_weight`, `get_activity`, `log_workout`
+- training exercise catalog (shared) — `search_exercises`, `get_exercise`,
+  `enrich_exercises` (Polish descriptions + YouTube demo; the server verifies every
+  video id), `add_exercise`
 
 Diary tools act for person 1 unless `MISE_PERSON=<id>` is set (ids follow the
 `DIARY_PEOPLE` order). The in-app Sous sets it to the signed-in person.

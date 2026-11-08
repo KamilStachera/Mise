@@ -56,6 +56,8 @@ public static class AgentDocs
         | ugotowane danie (+ odjęcie ze spiżarni) | `log_cook` | `POST {API}/cooklog` |
         | lista zakupów | `add_shopping_items` | `POST {API}/shopping` |
         | lista domowa (chemia, papier) | `add_supplies` | `POST {API}/supplies` |
+        | ćwiczenie: polski opis + film | `enrich_exercises` | `POST {API}/exercises/enrich` |
+        | nowe ćwiczenie (pilates, joga…) | `add_exercise` | `POST {API}/exercises` |
 
         Pełna dokumentacja endpointów i schematów JSON: **`api.md`**. Po udanym zapisie
         aplikacja sama odświeża pliki w tym folderze.
@@ -158,6 +160,23 @@ public static class AgentDocs
         - Dni są polskie (strefa Europe/Warsaw). „Wczoraj”, „dziś” licz od dzisiejszej daty.
         - Usuwanie wpisów i zmiany celu tylko na wyraźną prośbę. Bądź wspierający, bez
           moralizowania: dzień ponad budżet to informacja, nie porażka.
+
+        ## Trening — katalog ćwiczeń
+
+        Aplikacja ma wspólny katalog ok. 820 ćwiczeń (zaimportowany z free-exercise-db, po
+        angielsku). Każde ma partie mięśni (główne / pomocnicze), sprzęt i poziom; ekran
+        ćwiczenia pokazuje mapę mięśni, film, kroki, „Na co uważać” i „Częste błędy”. Katalogu
+        nie ma w plikach — szukaj `search_exercises`, czytaj `get_exercise`.
+
+        - **Polskie opisy** dopisujesz `enrich_exercises` (komenda `/wzbogac-cwiczenia`):
+          `namePl`, `instructionsPl` (3–6 kroków), `tipsPl` (2–4 wskazówki techniczne),
+          `mistakesPl` (2–4 błędy). Pisz prostym językiem, jak trenerka do początkującej osoby.
+        - **Film** (`youtubeId`): wyłącznie film, który znalazłeś w wyszukiwarce i który
+          pokazuje dokładnie to ćwiczenie; krótkie polskie filmy mają pierwszeństwo, potem
+          angielskie. **Nigdy nie zgaduj id** — serwer sprawdza każdy film w YouTube i odrzuca
+          nieistniejące lub zablokowane do osadzania. Bez dostępu do wyszukiwarki pomiń film.
+        - Ćwiczenia spoza katalogu (pilates, joga, mobilność) dodawaj `add_exercise` — najpierw
+          sprawdź, czy nie ma ich już pod angielską nazwą.
 
         ## Zasady
 
@@ -621,6 +640,34 @@ public static class AgentDocs
           `{ "hidden": true }` chowa z podpowiedzi; `DELETE /supplies/hot/{id}` kasuje
           zliczenia (statystyki przeżywają usunięcie pozycji z listy — stąd ranking).
 
+        ## Ćwiczenia (katalog treningowy, wspólny)
+
+        Odczyt otwarty (jak przepisy), zapis z kluczem. Tokeny: `muscle` — abdominals,
+        abductors, adductors, biceps, calves, chest, forearms, glutes, hamstrings, lats,
+        lower-back, middle-back, neck, quadriceps, shoulders, traps, triceps · `equipment` —
+        body-only, dumbbell, kettlebell, bands, barbell, ez-bar, cable, machine, medicine-ball,
+        exercise-ball, foam-roll, other · `level` — beginner, intermediate, expert ·
+        `category` — strength, stretching, plyometrics, cardio, powerlifting,
+        olympic-weightlifting, strongman, pilates, yoga, mobility. Pełna lista:
+        `GET /exercises/vocabulary`.
+
+        - `GET /exercises?q=&muscle=&equipment=dumbbell,bands&level=&category=&location=home&enriched=false&video=true&limit=60&offset=0`
+          — `{ total, enrichedTotal, catalogTotal, items[] }`. `muscle` łapie partię główną lub
+          pomocniczą (główne pierwsze; `primaryOnly=true` tylko główne). `location=home` =
+          sprzęt domowy. Ukryte pomijane (`includeHidden=true`).
+        - `GET /exercises/{id}` — całość: `instructionsEn`, `instructionsPl`, `tipsPl`,
+          `mistakesPl`, `youtubeId`, `videoTitle`, `imageUrls`, mięśnie, `isTimed`.
+        - `PATCH /exercises/{id}` — częściowa zmiana (tylko podane pola): `namePl`,
+          `instructionsPl`, `tipsPl`, `mistakesPl` (listy maks. 12 punktów, podmieniają całość),
+          `youtubeId` (id lub link; `""` usuwa), `videoStartSeconds`, `isTimed`, `hidden`,
+          `level`, `category`, `equipment`, `primaryMuscles`, `secondaryMuscles`.
+        - `POST /exercises/enrich` — `{ "items": [ { "id": "…", "namePl": "…", … } ] }` (maks. 50);
+          zwraca `{ updated, errors: [ { id, error } ] }` — każde ćwiczenie osobno.
+        - `POST /exercises` — nowe ćwiczenie: `namePl` (wymagane), `primaryMuscles` (min. 1) i
+          pola jak wyżej; duplikat nazwy → `409` z `id` istniejącego.
+        - Film: serwer weryfikuje `youtubeId` w YouTube (oEmbed) — nieistniejący lub bez zgody
+          na osadzanie → błąd dla tego ćwiczenia; tytuł i kanał zapisuje sam.
+
         ## Profil
 
         - `GET /preferences` / `PUT /preferences` — podstawowy profil (gospodarstwo, sprzęt, smaki).
@@ -682,6 +729,24 @@ public static class AgentDocs
                    zapisane przepisy z `{CTX}/recipes/` i to, co jest w spiżarni.
                 3. Po mojej akceptacji zapisz wpisy przez `PUT {API}/plan/entry` i wywołaj
                    `POST {API}/plan/add-missing-to-shopping`; podsumuj, co trzeba dokupić.
+                """),
+            ["wzbogac-cwiczenia.md"] = T("""
+                Dopisz polskie opisy i filmy do ćwiczeń w katalogu Pichci. Ile lub które: $ARGUMENTS
+                (liczba = tyle ćwiczeń, domyślnie 10; nazwa partii lub sprzętu = zacznij od nich).
+
+                1. Przeczytaj sekcję „Trening — katalog ćwiczeń” w `{CTX}/AGENTS.md`.
+                2. Wybierz ćwiczenia bez opisu: `search_exercises` z `enriched: false` (albo
+                   `GET {API}/exercises?enriched=false`). Kolejność: sprzęt domowy (`location: home`)
+                   przed siłownią, poziom beginner/intermediate przed expert, popularne ruchy
+                   (przysiady, wykroki, hip thrust, martwy ciąg, wiosłowanie, pompki, plank) przed niszowymi.
+                3. Dla każdego: `get_exercise`, a potem napisz po polsku `namePl`, `instructionsPl`
+                   (3–6 kroków), `tipsPl` (2–4 „Na co uważać”) i `mistakesPl` (2–4 „Częste błędy”).
+                4. Znajdź w wyszukiwarce krótki film instruktażowy z dokładnie tym ćwiczeniem (najpierw
+                   po polsku, potem po angielsku) i podaj jego link jako `youtubeId`. Nie zgaduj id;
+                   bez wyszukiwarki pomiń film. Ćwiczenie niszowe lub dublujące inne → `hidden: true`.
+                5. Zapisuj partiami po 5–10 przez `enrich_exercises` (`POST {API}/exercises/enrich`).
+                   Ćwiczenia z `errors` (np. odrzucony film) popraw i wyślij ponownie albo zapisz bez filmu.
+                6. Na koniec podaj, ile opisano, ile z filmem i co pominięto.
                 """),
         };
     }
@@ -755,7 +820,7 @@ public static class AgentDocs
         """;
 
     public static string CommandsInstall(string contextDir) => """
-        # Claude Code (komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien)
+        # Claude Code (komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien, /wzbogac-cwiczenia)
         cp "{CTX}/commands/"*.md ~/.claude/commands/
 
         # Codex CLI

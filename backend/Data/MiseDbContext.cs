@@ -32,6 +32,7 @@ public class MiseDbContext : DbContext
     public DbSet<Person> People => Set<Person>();
     public DbSet<Catering> Caterings => Set<Catering>();
     public DbSet<ProfileAnswer> ProfileAnswers => Set<ProfileAnswer>();
+    public DbSet<Exercise> Exercises => Set<Exercise>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -251,6 +252,22 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Key).HasMaxLength(100);
             e.HasIndex(x => x.Key).IsUnique();
+        });
+
+        b.Entity<Exercise>(e =>
+        {
+            e.Property(x => x.SourceId).HasMaxLength(100);
+            e.HasIndex(x => x.SourceId).IsUnique();
+            e.Property(x => x.NameEn).HasMaxLength(200);
+            e.Property(x => x.NamePl).HasMaxLength(200);
+            e.Property(x => x.Category).HasConversion<string>().HasMaxLength(24);
+            e.Property(x => x.Level).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Force).HasConversion<string>().HasMaxLength(8);
+            e.Property(x => x.Mechanic).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Equipment).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.YoutubeId).HasMaxLength(16);
+            e.Property(x => x.VideoTitle).HasMaxLength(300);
+            e.Property(x => x.VideoChannel).HasMaxLength(200);
         });
     }
 }

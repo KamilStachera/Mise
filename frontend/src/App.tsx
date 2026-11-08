@@ -24,6 +24,7 @@ import { Goal } from './pages/Goal'
 import { Questionnaire } from './pages/Questionnaire'
 import { Random } from './pages/Random'
 import { History } from './pages/History'
+import { Training } from './pages/Training'
 
 export default function App() {
   const isMobile = useIsMobile()
@@ -93,6 +94,8 @@ export default function App() {
           <Route path="/profile/ankieta" element={<Questionnaire />} />
           <Route path="/profile/cel" element={<Goal />} />
           <Route path="/add" element={<AddRecipe />} />
+          <Route path="/trening" element={<Training />} />
+          <Route path="/trening/cwiczenia" element={<Training />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

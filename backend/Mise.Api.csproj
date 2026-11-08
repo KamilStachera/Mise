@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- free-exercise-db (The Unlicense), pinned in ExerciseImport.UpstreamSha -->
+    <EmbeddedResource Include="Data\Seed\free-exercise-db\exercises.json" LogicalName="free-exercise-db.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.*">

@@ -1,4 +1,5 @@
 import type { Cuisine, DishType, Slot, Source, Status, SupplyCategory, Unit } from '../api/client'
+import type { Equipment, ExerciseCategory, ExerciseLevel, Muscle } from '../api/training'
 
 // Polish display labels for English API tokens (enum values stay English on the wire).
 
@@ -181,4 +182,72 @@ export function sourceEyebrow(r: { source: Source; sourceName?: string | null })
 /** "Danie główne · śródziemnomorska" — empty string when neither is set. */
 export function dishLine(r: { dishType: DishType | null; cuisine: Cuisine | null }): string {
   return [r.dishType && dishTypeLabel[r.dishType], r.cuisine && cuisineLabel[r.cuisine]].filter(Boolean).join(' · ')
+}
+
+// ---- Training (exercise catalog) ----
+
+export const MUSCLES: Muscle[] = [
+  'glutes', 'quadriceps', 'hamstrings', 'adductors', 'abductors', 'calves', 'abdominals', 'lower-back',
+  'middle-back', 'lats', 'traps', 'chest', 'shoulders', 'biceps', 'triceps', 'forearms', 'neck',
+]
+
+export const muscleLabel: Record<Muscle, string> = {
+  abdominals: 'Brzuch',
+  abductors: 'Odwodziciele',
+  adductors: 'Przywodziciele',
+  biceps: 'Biceps',
+  calves: 'Łydki',
+  chest: 'Klatka piersiowa',
+  forearms: 'Przedramiona',
+  glutes: 'Pośladki',
+  hamstrings: 'Tył uda',
+  lats: 'Najszersze grzbietu',
+  'lower-back': 'Dolny odcinek pleców',
+  'middle-back': 'Środek pleców',
+  neck: 'Szyja',
+  quadriceps: 'Przód uda',
+  shoulders: 'Barki',
+  traps: 'Kaptury',
+  triceps: 'Triceps',
+}
+
+export const EQUIPMENT: Equipment[] = [
+  'body-only', 'dumbbell', 'kettlebell', 'bands', 'exercise-ball', 'medicine-ball', 'foam-roll',
+  'barbell', 'ez-bar', 'cable', 'machine', 'other',
+]
+
+export const equipmentLabel: Record<Equipment, string> = {
+  'body-only': 'Bez sprzętu',
+  dumbbell: 'Hantle',
+  kettlebell: 'Kettlebell',
+  bands: 'Gumy',
+  barbell: 'Sztanga',
+  'ez-bar': 'Gryf łamany',
+  cable: 'Wyciąg',
+  machine: 'Maszyna',
+  'medicine-ball': 'Piłka lekarska',
+  'exercise-ball': 'Piłka gimnastyczna',
+  'foam-roll': 'Roller',
+  other: 'Inny sprzęt',
+}
+
+export const EXERCISE_LEVELS: ExerciseLevel[] = ['beginner', 'intermediate', 'expert']
+
+export const exerciseLevelLabel: Record<ExerciseLevel, string> = {
+  beginner: 'Początkujący',
+  intermediate: 'Średnio zaawansowany',
+  expert: 'Zaawansowany',
+}
+
+export const exerciseCategoryLabel: Record<ExerciseCategory, string> = {
+  strength: 'Siłowe',
+  stretching: 'Rozciąganie',
+  plyometrics: 'Skoki (plyometria)',
+  cardio: 'Cardio',
+  powerlifting: 'Trójbój',
+  'olympic-weightlifting': 'Podnoszenie ciężarów',
+  strongman: 'Strongman',
+  pilates: 'Pilates',
+  yoga: 'Joga',
+  mobility: 'Mobilność',
 }

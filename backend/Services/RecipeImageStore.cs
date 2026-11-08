@@ -1,5 +1,3 @@
-using SkiaSharp;
-
 namespace Mise.Api.Services;
 
 /// <summary>
@@ -67,50 +65,7 @@ public class RecipeImageStore
     }
 
     private static string BuildCard(string original, string cached)
-    {
-        using var input = File.OpenRead(original);
-        using var codec = SKCodec.Create(input);
-        if (codec is null || (long)codec.Info.Width * codec.Info.Height > 40_000_000)
-            return original;
-        using var bitmap = SKBitmap.Decode(codec);
-        if (bitmap is null) return original;
-        var origin = codec.EncodedOrigin;
-        var swap = (int)origin >= 5;
-        var width = swap ? bitmap.Height : bitmap.Width;
-        var height = swap ? bitmap.Width : bitmap.Height;
-        var scale = Math.Min(1d, (double)CardSize / Math.Max(width, height));
-        using var resized = new SKBitmap(Math.Max(1, (int)Math.Round(width * scale)),
-            Math.Max(1, (int)Math.Round(height * scale)));
-        using (var canvas = new SKCanvas(resized))
-        {
-            canvas.Clear(SKColors.Transparent);
-            canvas.Scale((float)resized.Width / width, (float)resized.Height / height);
-            // Apply EXIF orientation before dropping metadata from the derivative.
-            switch (origin)
-            {
-                case SKEncodedOrigin.TopRight: canvas.Translate(width, 0); canvas.Scale(-1, 1); break;
-                case SKEncodedOrigin.BottomRight: canvas.Translate(width, height); canvas.RotateDegrees(180); break;
-                case SKEncodedOrigin.BottomLeft: canvas.Translate(0, height); canvas.Scale(1, -1); break;
-                case SKEncodedOrigin.LeftTop: canvas.RotateDegrees(90); canvas.Scale(1, -1); break;
-                case SKEncodedOrigin.RightTop: canvas.Translate(width, 0); canvas.RotateDegrees(90); break;
-                case SKEncodedOrigin.RightBottom: canvas.Translate(width, height); canvas.RotateDegrees(90); canvas.Scale(-1, 1); break;
-                case SKEncodedOrigin.LeftBottom: canvas.Translate(0, height); canvas.RotateDegrees(270); break;
-            }
-            using var image = SKImage.FromBitmap(bitmap);
-            canvas.DrawImage(image, 0, 0, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-        }
-        using var encoded = resized.Encode(SKEncodedImageFormat.Webp, 78);
-        if (encoded is null) return original;
-        Directory.CreateDirectory(Path.GetDirectoryName(cached)!);
-        var temp = cached + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            using (var output = File.Create(temp)) encoded.SaveTo(output);
-            File.Move(temp, cached, overwrite: true);
-        }
-        finally { if (File.Exists(temp)) File.Delete(temp); }
-        return cached;
-    }
+        => ImageResizer.TryWriteWebp(original, cached, CardSize) ? cached : original;
 
     public void Delete(string? imagePath)
     {

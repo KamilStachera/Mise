@@ -606,3 +606,76 @@ public class ChatMessage
     public string? MetadataJson { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+// ───────────────────────────── Training ─────────────────────────────
+
+/// <summary>The 17 muscle groups of free-exercise-db, one to one (see <c>ExerciseImport</c>).</summary>
+public enum Muscle
+{
+    Abdominals, Abductors, Adductors, Biceps, Calves, Chest, Forearms, Glutes, Hamstrings,
+    Lats, LowerBack, MiddleBack, Neck, Quadriceps, Shoulders, Traps, Triceps,
+}
+
+/// <summary>What an exercise needs. "No equipment" is <see cref="BodyOnly"/>.</summary>
+public enum ExerciseEquipment
+{
+    BodyOnly, Dumbbell, Kettlebell, Bands, Barbell, EzBar, Cable, Machine,
+    MedicineBall, ExerciseBall, FoamRoll, Other,
+}
+
+/// <summary>Upstream categories plus Pilates/Yoga/Mobility for exercises agents add themselves.</summary>
+public enum ExerciseCategory
+{
+    Strength, Stretching, Plyometrics, Cardio, Powerlifting, OlympicWeightlifting, Strongman,
+    Pilates, Yoga, Mobility,
+}
+
+public enum ExerciseLevel { Beginner, Intermediate, Expert }
+
+public enum ExerciseForce { Push, Pull, Static }
+
+public enum ExerciseMechanic { Compound, Isolation }
+
+/// <summary>
+/// One exercise of the shared training catalog (not per person). Seeded from the vendored
+/// free-exercise-db JSON by <c>ExerciseImport</c>, which only ever INSERTS missing
+/// <see cref="SourceId"/>s — rows are never overwritten on boot, so the Polish enrichment
+/// agents add (<see cref="NamePl"/>, tips, video…) survives every restart.
+/// Muscle lists hold <see cref="Muscle"/> enum names; API tokens are kebab-case ("middle-back").
+/// </summary>
+public class Exercise
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>free-exercise-db id ("Air_Bike"), also its image folder; null for custom exercises.</summary>
+    public string? SourceId { get; set; }
+    public string NameEn { get; set; } = "";
+    public string? NamePl { get; set; }
+    public ExerciseCategory Category { get; set; } = ExerciseCategory.Strength;
+    public ExerciseLevel Level { get; set; } = ExerciseLevel.Beginner;
+    public ExerciseForce? Force { get; set; }
+    public ExerciseMechanic? Mechanic { get; set; }
+    public ExerciseEquipment Equipment { get; set; } = ExerciseEquipment.BodyOnly;
+    public List<string> PrimaryMuscles { get; set; } = [];
+    public List<string> SecondaryMuscles { get; set; } = [];
+    public List<string> InstructionsEn { get; set; } = [];
+    public List<string> InstructionsPl { get; set; } = [];
+    /// <summary>"Na co uważać" — form cues, Polish.</summary>
+    public List<string> TipsPl { get; set; } = [];
+    /// <summary>"Częste błędy" — what not to do, Polish.</summary>
+    public List<string> MistakesPl { get; set; } = [];
+    /// <summary>YouTube demo video id (11 chars). Verified by oEmbed on write; never guessed.</summary>
+    public string? YoutubeId { get; set; }
+    public int? VideoStartSeconds { get; set; }
+    public string? VideoTitle { get; set; }
+    public string? VideoChannel { get; set; }
+    /// <summary>Upstream relative image paths ("Air_Bike/0.jpg"), served as cached WebP.</summary>
+    public List<string> ImagePaths { get; set; } = [];
+    /// <summary>Logged in seconds (planks, holds, stretches) rather than reps.</summary>
+    public bool IsTimed { get; set; }
+    /// <summary>Out of the catalog (strongman, olympic lifts…); kept so references never break.</summary>
+    public bool Hidden { get; set; }
+    /// <summary>When an agent last wrote the Polish description; null = English only.</summary>
+    public DateTimeOffset? EnrichedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}

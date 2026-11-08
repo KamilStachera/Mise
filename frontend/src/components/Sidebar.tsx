@@ -19,6 +19,7 @@ export function navSection(pathname: string): string {
   if (pathname.startsWith('/pantry')) return 'pantry'
   if (pathname.startsWith('/shopping')) return 'shopping'
   if (pathname.startsWith('/profile')) return 'profile'
+  if (pathname.startsWith('/trening')) return 'training'
   return 'recipes'
 }
 
@@ -113,6 +114,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
             {toBuy > 0 && <span style={{ font: mono(12, 500), color: 'var(--accent-text)' }}>{toBuy}</span>}
           </NavLink>
           <NavLink active={section === 'pantry'} onClick={() => nav('/pantry')}>Spiżarnia</NavLink>
+          <NavLink active={section === 'training'} onClick={() => nav('/trening')}>Trening</NavLink>
         </nav>
         <nav style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
           <span style={{ font: mono(10.5, 500), letterSpacing: '.1em', color: 'var(--text-3)', padding: '0 0 8px 12px' }}>TWOJA KUCHNIA</span>

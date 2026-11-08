@@ -57,7 +57,7 @@ export function ConnectAgentCard() {
         disabled={!ctxDir}
       />
       <CopyBlock
-        title="Komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien — skopiuj raz"
+        title="Komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien, /wzbogac-cwiczenia — skopiuj raz"
         text={substitute(info.prompts.commandsInstall)}
         disabled={!ctxDir}
       />

@@ -6,7 +6,7 @@ import { mono, sans } from './ui'
 export const TAB_BAR_HEIGHT = 47
 
 /**
- * Phone navigation: five text tabs. Losuj lives inside Przepisy, Historia
+ * Phone navigation: six text tabs. Losuj lives inside Przepisy, Historia
  * and the profile inside "Ja".
  */
 export function TabBar() {
@@ -18,6 +18,7 @@ export function TabBar() {
   const tabs: { key: string; label: string; to: string; active: boolean; badge?: number }[] = [
     { key: 'recipes', label: 'Przepisy', to: '/', active: section === 'recipes' || section === 'random' },
     { key: 'plan', label: 'Plan', to: '/plan', active: section === 'plan' },
+    { key: 'training', label: 'Trening', to: '/trening', active: section === 'training' },
     { key: 'shopping', label: 'Zakupy', to: '/shopping', active: section === 'shopping', badge: toBuy },
     { key: 'pantry', label: 'Spiżarnia', to: '/pantry', active: section === 'pantry' },
     { key: 'me', label: 'Ja', to: '/profile', active: section === 'profile' || section === 'history' },
@@ -35,7 +36,7 @@ export function TabBar() {
         bottom: 0,
         zIndex: 30,
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
+        gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
         borderTop: '1px solid var(--rule)',
         background: 'var(--bg)',
         paddingBottom: 'env(safe-area-inset-bottom)',

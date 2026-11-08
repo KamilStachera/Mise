@@ -32,6 +32,17 @@ recipes/profile only on a brand-new DB; the pantry catalog reseeds whenever
 Frontend dev loop: `docker compose up db api` then `cd frontend && npm run dev`
 (Vite :5173 proxies `/api` → :5080).
 
+**Host .NET SDK may not match `global.json` (9.0.304).** Build, test and add
+migrations in the SDK image instead (Git Bash; `MSYS_NO_PATHCONV=1` keeps the
+paths intact):
+
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/root/.nuget/packages \
+  -w /src mcr.microsoft.com/dotnet/sdk:9.0 sh -c "dotnet test backend.tests"
+# migrations: -w /src/backend … sh -c "dotnet tool install -g dotnet-ef --version '9.*' \
+#   && export PATH=\$PATH:/root/.dotnet/tools && dotnet ef migrations add <Name>"
+```
+
 ## Layout
 
 - `backend/` — .NET 9 minimal APIs. `Features/<X>Endpoints.cs` (one file per
@@ -142,6 +153,22 @@ Frontend dev loop: `docker compose up db api` then `cd frontend && npm run dev`
   post-cook deductions; unparseable ones fall back to presence-based.
 - **Dates in the frontend:** always parse `YYYY-MM-DD` with
   `lib/dates.ts` (`new Date('YYYY-MM-DD')` is UTC midnight and shifts the day).
+- **Training catalog (`Exercise`) is shared and public to read** (`/api/exercises`);
+  per-person training data will live under `/api/training` (private). Spec:
+  `docs/training/features.md`. Code: `Services/Training/`, `Features/ExerciseEndpoints.cs`,
+  `Features/TrainingDtos.cs`, `pages/training/`, `components/training/`, `api/training.ts`.
+  - The catalog is seeded from vendored free-exercise-db JSON (embedded resource,
+    pinned `ExerciseImport.UpstreamSha`). `ExerciseImport` runs every boot and **only
+    inserts missing `SourceId`s** — never update rows there, or agent enrichment is lost.
+  - Enum tokens are kebab-case on the wire (`middle-back`, `body-only`; `ExerciseTokens`);
+    muscle lists are `text[]` of enum names.
+  - **Every `youtubeId` write goes through `YouTubeVerifier` (oEmbed)** — agents must not
+    be able to store invented ids. `ExerciseCatalog.Prepare` validates without mutating;
+    the video is verified before the patch is applied.
+  - Photos are fetched from GitHub on demand (`ExerciseImages`, strict path regex), cached
+    as WebP under `{ImagesDir}/exercises-v1/`. Resize code is shared with recipe cards in
+    `Services/ImageResizer.cs`.
+  - The body map polygons are vendored (MIT) in `components/training/bodyMapData.ts`.
 
 ## Adding a feature — the usual checklist
 

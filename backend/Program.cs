@@ -9,6 +9,7 @@ using Mise.Api.Data;
 using Mise.Api.Features;
 using Mise.Api.Services;
 using Mise.Api.Services.AiChat;
+using Mise.Api.Services.Training;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,8 @@ builder.Services.AddSingleton<CookbookMarkdownBuilder>();
 builder.Services.AddSingleton<RecipeImageStore>();
 builder.Services.AddScoped<ContextExportService>();
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<ExerciseImages>();
+builder.Services.AddSingleton<YouTubeVerifier>();
 builder.Services.AddScoped<IChatProvider>(sp =>
     ChatProviderFactory.Create(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<IHttpClientFactory>()));
 
@@ -144,6 +147,7 @@ api.MapPlan();
 api.MapDiary();
 api.MapBody();
 api.MapActivity();
+api.MapExercises();
 api.MapContext();
 api.MapChat();
 

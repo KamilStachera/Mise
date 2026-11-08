@@ -636,7 +636,7 @@ export function setPersonHeader(id: number | null) {
 }
 
 /** `asSelf`: skip the switcher's X-Person — Sous always talks to (and logs for) the signed-in person. */
-async function http<T>(path: string, init?: RequestInit, asSelf = false): Promise<T> {
+export async function http<T>(path: string, init?: RequestInit, asSelf = false): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (personHeader != null && !asSelf) headers['X-Person'] = String(personHeader)
   const res = await fetch(BASE + path, { headers, ...init })
