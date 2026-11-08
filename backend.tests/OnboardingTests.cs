@@ -76,6 +76,7 @@ public sealed class OnboardingTests : IAsyncLifetime
         var api = _app.MapGroup("/api");
         api.MapAuth();
         api.MapHouseholds();
+        api.MapKeys();
         api.MapGet("/recipes", (MiseDbContext db) => db.Recipes.OrderBy(r => r.Title).Select(r => r.Title).ToListAsync());
         await _app.StartAsync();
         _client = _app.GetTestClient();
@@ -168,6 +169,33 @@ public sealed class OnboardingTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.TooManyRequests, (await Redeem("late@example.com", "BBBBB-BBBBB", "x")).StatusCode);
         // Anonymous visitors can't redeem (they must sign in first).
         Assert.Equal(HttpStatusCode.BadRequest, (await Redeem(null, code, "x")).StatusCode);
+    }
+
+    [Fact]
+    public async Task PersonalKeys_ActAsTheirPerson_UntilRevoked()
+    {
+        var created = await Json(await Send(HttpMethod.Post, "/api/keys", Partner, new { name = "Codex na laptopie" }));
+        var key = created.GetProperty("key").GetString()!;
+        Assert.StartsWith("pk_", key);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+        request.Headers.Add("X-Api-Key", key);
+        var me = await Json(await _client.SendAsync(request));
+        Assert.Equal(1, me.GetProperty("personId").GetInt32());
+        Assert.Equal("Dom", me.GetProperty("household").GetProperty("name").GetString());
+
+        // Listed for its owner only, never with the secret.
+        var listed = await Send(HttpMethod.Get, "/api/keys", Partner);
+        Assert.DoesNotContain(key, await listed.Content.ReadAsStringAsync());
+        Assert.Equal("[]", await (await Send(HttpMethod.Get, "/api/keys", Admin)).Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await Send(HttpMethod.Delete, $"/api/keys/{created.GetProperty("id").GetString()}", Admin)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await Send(HttpMethod.Delete, $"/api/keys/{created.GetProperty("id").GetString()}", Partner)).StatusCode);
+        var revoked = new HttpRequestMessage(HttpMethod.Post, "/api/household/invites");
+        revoked.Headers.Add("X-Api-Key", key);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.SendAsync(revoked)).StatusCode);
     }
 
     private MiseDbContext Db(TenantContext tenant) =>

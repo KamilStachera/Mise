@@ -40,8 +40,8 @@ public static class AgentDocs
         Pliki w tym folderze są **generowane przez aplikację i nadpisywane przy każdej
         zmianie danych — niczego tu nie edytuj ani nie dodawaj**. Jeśli masz narzędzia
         MCP serwera `pichci`, **używaj ich** (klucz i osobę mają już ustawione). Bez nich
-        zapisuj przez API pod `{API}` z nagłówkiem `X-Api-Key` (wartość `MISE_API_KEY`
-        z pliku `.env` aplikacji; szczegóły w `api.md`):
+        zapisuj przez API pod `{API}` z nagłówkiem `X-Api-Key` (osobisty klucz z aplikacji:
+        Profil → Połącz agenta, trzymany w zmiennej `MISE_API_KEY`; szczegóły w `api.md`):
 
         | co | narzędzie MCP | REST |
         |---|---|---|
@@ -230,9 +230,11 @@ public static class AgentDocs
         Odczyty (GET) są otwarte, z wyjątkiem prywatnych: `/diary/*`, `/body/*`,
         `/activity/*`, `/training/*`, `/chat/*`, `/context/status`, `/context/connect` i `/swagger`.
         `GET /plan` bez klucza pokazuje sam plan posiłków (bez przekąsek, wpisów z kcal
-        i stanu „zjedzone”). **Każdy zapis (POST/PUT/PATCH/DELETE) i każdy prywatny odczyt
-        wymaga nagłówka `X-Api-Key`** o wartości ze zmiennej `MISE_API_KEY` aplikacji (plik
-        `.env` obok docker-compose):
+        i stanu „zjedzone”) — o ile serwer udostępnia publiczny dom. **Każdy zapis
+        (POST/PUT/PATCH/DELETE) i każdy prywatny odczyt wymaga nagłówka `X-Api-Key`** z
+        osobistym kluczem (`pk_…`), który domownik generuje w aplikacji (Profil → Połącz
+        agenta) i trzyma w zmiennej `MISE_API_KEY` po stronie agenta. Klucz działa jako ta
+        osoba, w jej domu — inne domy są dla niego niewidoczne:
 
         ```bash
         curl -X POST {API}/shopping -H "X-Api-Key: $MISE_API_KEY" \
@@ -241,7 +243,8 @@ public static class AgentDocs
 
         Dodawaj ten nagłówek do wszystkich przykładów zapisu poniżej. Brak lub zły
         klucz → `401`. (Ludzie w przeglądarce logują się kontem Google — agentów to
-        nie dotyczy; serwer MCP czyta klucz ze zmiennej środowiskowej `MISE_API_KEY`.)
+        nie dotyczy; serwer MCP czyta klucz ze zmiennej środowiskowej `MISE_API_KEY`.
+        Unieważniony w aplikacji klucz przestaje działać od razu.)
 
         ## Słowniki
 
@@ -531,8 +534,9 @@ public static class AgentDocs
 
         Kalendarz to jednocześnie plan i dziennik: wpis jest zaplanowany albo zjedzony
         (`eaten`). Dziennik, cel, waga, aktywność i catering są osobne dla każdej osoby.
-        Domyślnie działasz na osobie 1; nagłówek `X-Person: <id>` wybiera inną (lista osób:
-        `GET /auth/me` → `people`). Zakupy, spiżarnia, przepisy i pending-cook są wspólne.
+        Domyślnie działasz na osobie, do której należy klucz; nagłówek `X-Person: <id>` wybiera
+        inną osobę z tego samego domu (lista: `GET /auth/me` → `people`; osoby z innych domów
+        są ignorowane). Zakupy, spiżarnia, przepisy i pending-cook są wspólne dla domu.
         Nic z tej sekcji nie trafia do plików w `context/`.
 
         ### POST /plan/entries — dopisz wpis (zawsze nowy, nigdy nie nadpisuje)

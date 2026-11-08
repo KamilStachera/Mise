@@ -17,8 +17,13 @@ public static class ChatEndpoints
     {
         var g = api.MapGroup("/chat").WithTags("Chat");
 
-        g.MapGet("/health", (IChatProvider provider) =>
-            Results.Ok(new { enabled = provider.Enabled, provider = provider.Name }));
+        // Sous runs on the owner's ChatGPT plan, so the admin switches it on per household.
+        g.MapGet("/health", async (IChatProvider provider, Caller caller, MiseDbContext db, CancellationToken ct) =>
+            Results.Ok(new
+            {
+                enabled = provider.Enabled && await SousAllowedAsync(db, caller, ct),
+                provider = provider.Name,
+            }));
 
         g.MapGet("/history", async (string? sessionId, MiseDbContext db, PersonScope person) =>
         {
@@ -39,10 +44,10 @@ public static class ChatEndpoints
             return Results.NoContent();
         });
 
-        g.MapPost("/", async (ChatRequest req, HttpContext ctx, MiseDbContext db, PersonScope person,
+        g.MapPost("/", async (ChatRequest req, HttpContext ctx, MiseDbContext db, PersonScope person, Caller caller,
             IChatProvider provider, ContextExportService export, CancellationToken ct) =>
         {
-            if (!provider.Enabled)
+            if (!provider.Enabled || !await SousAllowedAsync(db, caller, ct))
                 return Results.Json(new
                 {
                     enabled = false,
@@ -122,6 +127,9 @@ public static class ChatEndpoints
 
         return api;
     }
+
+    private static Task<bool> SousAllowedAsync(MiseDbContext db, Caller caller, CancellationToken ct) =>
+        db.Households.AsNoTracking().AnyAsync(h => h.Id == caller.HouseholdId && h.SousEnabled, ct);
 
     /// <summary>Each person has their own Sous conversation unless the client names a session.</summary>
     private static string SessionOf(string? sessionId, PersonScope person) =>

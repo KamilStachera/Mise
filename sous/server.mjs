@@ -2,7 +2,7 @@
 // plan (CODEX_HOME holds auth.json + thread sessions). Internal only — the api container
 // is the sole caller and does the auth; never publish this port.
 //
-//   POST /turn  { prompt, instructions, threadId?, person }  → NDJSON stream of
+//   POST /turn  { prompt, instructions, threadId?, person, household }  → NDJSON stream of
 //               { status } | { delta } | { threadId } | { error } … then { done: true }
 //   POST /job   { prompt, outputSchema } → { text } (JSON matching the schema) | { error, limit }
 //               A one-off background task (exercise descriptions): fresh thread, live web
@@ -18,6 +18,12 @@ const CONTEXT_DIR = process.env.CONTEXT_DIR ?? '/context'
 const MCP_ENTRY = process.env.MCP_ENTRY ?? '/app/mcp/dist/index.js'
 const CODEX_HOME = process.env.CODEX_HOME ?? join(process.env.HOME ?? '/root', '.codex')
 
+// Each household's context export lives in its own subfolder (CONTEXT_DIR/<householdId>).
+const threadOptionsFor = (household) => ({
+  ...threadOptions,
+  workingDirectory: join(CONTEXT_DIR, String(Number(household) || 1)),
+})
+
 const threadOptions = {
   workingDirectory: CONTEXT_DIR,
   skipGitRepoCheck: true,
@@ -30,7 +36,7 @@ const threadOptions = {
   ...(process.env.SOUS_MODEL ? { model: process.env.SOUS_MODEL } : {}),
 }
 
-/** One Codex per person: the MCP server's env decides whose diary the tools write to. */
+/** One Codex per person: the MCP server's env decides whose diary (and household) the tools write to. */
 function codexFor(person) {
   return new Codex({
     config: {
@@ -79,9 +85,11 @@ function statusOf(item) {
   }
 }
 
-async function runTurn({ prompt, instructions, threadId, person }, send, signal) {
-  const codex = codexFor(person ?? 1)
-  let thread = threadId ? codex.resumeThread(threadId, threadOptions) : codex.startThread(threadOptions)
+async function runTurn({ prompt, instructions, threadId, person, household }, send, signal) {
+  if (!person) throw new Error('person is required')
+  const codex = codexFor(person)
+  const options = threadOptionsFor(household)
+  let thread = threadId ? codex.resumeThread(threadId, options) : codex.startThread(options)
   let input = threadId ? prompt : `${instructions}\n\n${prompt}`
   let started = false
 
@@ -111,7 +119,7 @@ async function runTurn({ prompt, instructions, threadId, person }, send, signal)
       // A thread lost with the volume (or never saved) can't resume: start over once.
       if (threadId && !started && attempt === 0 && !signal.aborted) {
         console.warn(`resume ${threadId} failed (${e.message}); starting a new thread`)
-        thread = codex.startThread(threadOptions)
+        thread = codex.startThread(options)
         input = `${instructions}\n\n${prompt}`
         continue
       }
@@ -227,7 +235,7 @@ createServer(async (req, res) => {
       send({ error: friendly(e.message) })
     }
   }
-  console.log(`turn person=${body.person} ${body.threadId ? 'resume' : 'new'} ${Date.now() - t0} ms`)
+  console.log(`turn household=${body.household} person=${body.person} ${body.threadId ? 'resume' : 'new'} ${Date.now() - t0} ms`)
   send({ done: true })
   res.end()
 }).listen(PORT, () => console.log(`sous listening on :${PORT}, context ${CONTEXT_DIR}, logged in: ${loggedIn()}`))

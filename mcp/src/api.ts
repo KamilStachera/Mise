@@ -1,9 +1,11 @@
 // Thin fetch wrapper over the Pichci REST API. The MCP server is a proxy: the
 // backend stays the source of truth and re-exports ./context after every write.
 const BASE = (process.env.MISE_API_URL ?? 'http://localhost:5080').replace(/\/+$/, '')
+// A personal key (pk_…, made in the app: Profil → Połącz agenta) acts as its person, in
+// their household. Sous uses the deployment's internal key plus MISE_PERSON instead.
 const API_KEY = process.env.MISE_API_KEY
-// Whose diary, goal and weight the tools touch (person id from DIARY_PEOPLE order);
-// unset = person 1. Sous sets it per signed-in person.
+// Whose diary, goal and weight the tools touch — another person of the same household;
+// unset = the key's own person. Sous sets it per signed-in person.
 const PERSON = process.env.MISE_PERSON?.trim()
 
 export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -29,7 +31,7 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
   const text = await res.text()
   if (res.status === 401) {
     throw new Error(
-      `Pichci API 401: zapisy wymagają klucza API — ustaw zmienną środowiskową MISE_API_KEY (tę samą co w .env aplikacji). ${text}`,
+      `Pichci API 401: zapisy wymagają klucza API — ustaw zmienną środowiskową MISE_API_KEY na osobisty klucz z aplikacji (Profil → Połącz agenta). ${text}`,
     )
   }
   if (!res.ok) throw new Error(`Pichci API ${res.status} ${res.statusText}: ${text}`)

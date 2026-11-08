@@ -147,8 +147,8 @@ public sealed class OllamaChatProvider : IChatProvider
 }
 
 /// <summary>
-/// Codex signed in with the household's ChatGPT plan, run by the internal `sous` container
-/// (sous/server.mjs). Codex reads ./context and writes through the pichci MCP tools as the
+/// Codex signed in with the owner's ChatGPT plan, run by the internal `sous` container
+/// (sous/server.mjs). Codex reads the household's ./context/{id} and writes through the pichci MCP tools as the
 /// chatting person; the conversation lives in a Codex thread, so only the new message is sent.
 /// </summary>
 public sealed class CodexChatProvider : IChatProvider
@@ -175,6 +175,7 @@ public sealed class CodexChatProvider : IChatProvider
             instructions = AgentDocs.SousInstructions(turn.Person.Name),
             threadId = turn.ThreadId,
             person = turn.Person.Id,
+            household = turn.Person.HouseholdId,
         });
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/turn");
         req.Content = new StringContent(body, Encoding.UTF8, "application/json");

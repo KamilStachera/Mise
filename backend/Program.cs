@@ -131,6 +131,7 @@ var api = app.MapGroup("/api");
 api.MapImages();
 api.MapAuth();
 api.MapHouseholds();
+api.MapKeys();
 api.MapRecipes();
 api.MapPantry();
 api.MapShopping();
