@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -22,10 +21,7 @@ builder.Services.AddScoped<RecipeIngredientNormalizer>();
 builder.Services.AddScoped<ShoppingService>();
 builder.Services.AddScoped<SupplyService>();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<People>();
-// Whose diary a request acts for (X-Person switcher → own Google email → person 1).
-builder.Services.AddScoped(sp => sp.GetRequiredService<People>().Resolve(
-    sp.GetRequiredService<IHttpContextAccessor>().HttpContext, sp.GetRequiredService<AccessControl>()));
+builder.Services.AddTenancy();
 builder.Services.AddScoped<DiaryService>();
 builder.Services.AddScoped<BodyService>();
 builder.Services.AddScoped<ActivityService>();
@@ -83,27 +79,17 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Auth:Google:ClientId"]))
         // Under /api so both nginx and the Vite dev proxy route it to the backend.
         o.CallbackPath = "/api/auth/google-callback";
         o.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        // Any Google account may sign in; one that belongs to no household only reaches
+        // /api/auth and /api/onboarding (invite code) until it joins one.
         o.ClaimActions.MapJsonKey("picture", "picture");
-        o.Events.OnTicketReceived = ctx =>
-        {
-            var access = ctx.HttpContext.RequestServices.GetRequiredService<AccessControl>();
-            var email = ctx.Principal?.FindFirstValue(ClaimTypes.Email);
-            if (!access.IsAllowedEmail(email))
-            {
-                // Not whitelisted: no cookie, bounce back with a flag the SPA turns into a toast.
-                ctx.Response.Redirect("/?auth=denied");
-                ctx.HandleResponse();
-            }
-            return Task.CompletedTask;
-        };
     });
 }
 
 var app = builder.Build();
 
 var accessControl = app.Services.GetRequiredService<AccessControl>();
-if (!accessControl.ApiKeyEnabled && !accessControl.DevBypass)
-    app.Logger.LogWarning("MISE_API_KEY is not set — agent/MCP writes are disabled (fail closed).");
+if (!accessControl.SystemKeyEnabled && !accessControl.DevBypass)
+    app.Logger.LogWarning("MISE_API_KEY is not set — the Sous container can't call the API (fail closed).");
 
 await DbInitializer.InitAsync(app.Services, app.Logger);
 

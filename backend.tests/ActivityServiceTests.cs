@@ -73,7 +73,7 @@ public class ActivityServiceTests
     {
         await using var db = NewDb();
         var date = DateOnly.FromDateTime(new DateTimeOffset(2026, 10, 13, 7, 5, 0, TimeSpan.Zero).LocalDateTime);
-        db.WeightEntries.Add(new WeightEntry { Date = date, Kg = 70.9m, Source = MeasurementSource.Manual });
+        db.WeightEntries.Add(new WeightEntry { PersonId = 1, Date = date, Kg = 70.9m, Source = MeasurementSource.Manual });
         await db.SaveChangesAsync();
         var activity = new ActivityService(db);
 
@@ -87,8 +87,8 @@ public class ActivityServiceTests
     {
         await using var db = NewDb();
         var date = new DateOnly(2026, 10, 1);   // a past day: the whole BMR applies
-        db.EnergySamples.Add(new EnergySample { Kind = EnergyKind.Total, Date = date, Start = Day.AddDays(-12), End = Day.AddDays(-12).AddHours(23), Kcal = 1900 });
-        db.Workouts.Add(new Workout { Date = date, Minutes = 40, Kcal = 140, Type = "Spacer", Source = MeasurementSource.Manual });
+        db.EnergySamples.Add(new EnergySample { PersonId = 1, Kind = EnergyKind.Total, Date = date, Start = Day.AddDays(-12), End = Day.AddDays(-12).AddHours(23), Kcal = 1900 });
+        db.Workouts.Add(new Workout { PersonId = 1, Date = date, Minutes = 40, Kcal = 140, Type = "Spacer", Source = MeasurementSource.Manual });
         await db.SaveChangesAsync();
 
         var day = (await new ActivityService(db).DaysAsync(date, date, bmr: 1450)).Single();

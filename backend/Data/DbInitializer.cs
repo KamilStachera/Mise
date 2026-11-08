@@ -11,6 +11,8 @@ public static class DbInitializer
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+        // Boot passes see every household; per-household work switches the tenant explicitly.
+        var tenant = db.Tenant.UseSystem();
 
         for (var attempt = 1; ; attempt++)
         {
@@ -26,32 +28,42 @@ public static class DbInitializer
             }
         }
 
-        await scope.ServiceProvider.GetRequiredService<People>().SyncAsync(db, ct);
-        await SeedData.EnsureSeededAsync(db, ct);
+        await People.ImportLegacyConfigAsync(db, scope.ServiceProvider.GetRequiredService<IConfiguration>(), logger, ct);
         // Insert-only: never touches existing rows, so agent enrichment survives every boot.
         var exercises = await ExerciseImport.EnsureImportedAsync(db, ct);
         if (exercises > 0) logger.LogInformation("Imported {Count} exercises from free-exercise-db", exercises);
-        await RelinkAndBackfillAsync(db, scope.ServiceProvider.GetRequiredService<IngredientMatcher>(), ct);
 
-        try
+        var households = await db.Households.AsNoTracking().OrderBy(h => h.Id).Select(h => h.Id).ToListAsync(ct);
+        var matcher = scope.ServiceProvider.GetRequiredService<IngredientMatcher>();
+        var export = scope.ServiceProvider.GetRequiredService<ContextExportService>();
+        foreach (var household in households)
         {
-            var export = scope.ServiceProvider.GetRequiredService<ContextExportService>();
-            await export.ExportAsync(ct);
-            logger.LogInformation("Context exported to {Dir}", export.Directory);
+            tenant.UseHousehold(household);
+            db.ChangeTracker.Clear();
+            await SeedData.EnsureSeededAsync(db, ct);
+            await RelinkAndBackfillAsync(db, matcher, ct);
+            try
+            {
+                await export.ExportAsync(ct);
+                logger.LogInformation("Context of household {Household} exported to {Dir}", household, export.Directory);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Initial context export of household {Household} failed: {Message}", household, ex.Message);
+            }
         }
-        catch (Exception ex)
-        {
-            logger.LogWarning("Initial context export failed: {Message}", ex.Message);
-        }
+        tenant.UseSystem();
+        db.ChangeTracker.Clear();
     }
 
     /// <summary>
-    /// Idempotent startup passes: (1) recompute recipe ingredient links against the
-    /// current pantry catalog, repairing stale fuzzy links as well as links cleared
+    /// Idempotent startup passes, run per household (never link one household's recipes to
+    /// another's pantry): (1) recompute recipe ingredient links against the household's
+    /// pantry catalog, repairing stale fuzzy links as well as links cleared
     /// by a pantry reseed, (2) backfill structured amounts from the display quantity
     /// where it parses ("500 g" → 500/G).
     /// </summary>
-    private static async Task RelinkAndBackfillAsync(MiseDbContext db, IngredientMatcher matcher,
+    public static async Task RelinkAndBackfillAsync(MiseDbContext db, IngredientMatcher matcher,
         CancellationToken ct)
     {
         var ingredients = await db.RecipeIngredients.ToListAsync(ct);

@@ -29,12 +29,14 @@ public class PlanShoppingServiceTests
         };
         var cookedEntry = new PlanEntry
         {
+            PersonId = 1,
             Date = start.AddDays(1),
             RecipeId = recipe.Id,
             Recipe = recipe,
         };
         var upcomingEntry = new PlanEntry
         {
+            PersonId = 1,
             Date = start.AddDays(5),
             RecipeId = recipe.Id,
             Recipe = recipe,
@@ -64,6 +66,7 @@ public class PlanShoppingServiceTests
         var recipe = new Recipe { Title = "Zupa" };
         var entry = new PlanEntry
         {
+            PersonId = 1,
             Date = start.AddDays(2),
             RecipeId = recipe.Id,
             Recipe = recipe,
@@ -115,10 +118,12 @@ public class PlanShoppingServiceTests
         };
         var cookedEntry = new PlanEntry
         {
+            PersonId = 1,
             Date = start.AddDays(1), RecipeId = recipe.Id, Recipe = recipe,
         };
         var upcomingEntry = new PlanEntry
         {
+            PersonId = 1,
             Date = start.AddDays(5), RecipeId = recipe.Id, Recipe = recipe,
         };
         db.PantryItems.Add(rice);
@@ -164,10 +169,10 @@ public class PlanShoppingServiceTests
                 new() { Name = "Wołowina", Quantity = "800 g", AmountValue = 800, AmountUnit = PantryUnit.G },
             },
         };
-        var single = new PlanEntry { Date = start, RecipeId = recipe.Id, Recipe = recipe, Portions = 1 };
-        var doubled = new PlanEntry { Date = start.AddDays(1), RecipeId = recipe.Id, Recipe = recipe, Portions = 1.5m };
-        var cook = new Cook { RecipeId = recipe.Id, Date = start.AddDays(2), Portions = 6 };
-        var potDay = new PlanEntry { Date = start.AddDays(2), RecipeId = recipe.Id, Recipe = recipe, Cook = cook, Portions = 1 };
+        var single = new PlanEntry { PersonId = 1, Date = start, RecipeId = recipe.Id, Recipe = recipe, Portions = 1 };
+        var doubled = new PlanEntry { PersonId = 1, Date = start.AddDays(1), RecipeId = recipe.Id, Recipe = recipe, Portions = 1.5m };
+        var cook = new Cook { PersonId = 1, RecipeId = recipe.Id, Date = start.AddDays(2), Portions = 6 };
+        var potDay = new PlanEntry { PersonId = 1, Date = start.AddDays(2), RecipeId = recipe.Id, Recipe = recipe, Cook = cook, Portions = 1 };
         db.Recipes.Add(recipe);
         db.Cooks.Add(cook);
         db.PlanEntries.AddRange(single, doubled, potDay);

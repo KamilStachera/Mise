@@ -51,7 +51,7 @@ public static class PreferencesEndpoints
         var prefs = await db.Preferences.Include(p => p.Equipment).OrderBy(p => p.Id).FirstOrDefaultAsync();
         if (prefs is null)
         {
-            prefs = new Preferences { Id = 1 };
+            prefs = new Preferences();
             db.Preferences.Add(prefs);
             await db.SaveChangesAsync();
         }

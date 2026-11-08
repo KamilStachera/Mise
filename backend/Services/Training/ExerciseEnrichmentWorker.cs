@@ -42,6 +42,8 @@ public sealed class ExerciseEnrichmentWorker(IServiceScopeFactory scopes, Enrich
             try
             {
                 using var scope = scopes.CreateScope();
+                // The catalog is shared and the quiet check spans every household's chats.
+                scope.ServiceProvider.GetRequiredService<TenantContext>().UseSystem();
                 var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
                 var since = DateTimeOffset.UtcNow - ChatQuietPeriod;
                 if (await db.ChatMessages.AnyAsync(m => m.CreatedAt > since, stop))

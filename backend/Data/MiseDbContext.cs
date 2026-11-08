@@ -1,11 +1,29 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Domain;
+using Mise.Api.Services;
 
 namespace Mise.Api.Data;
 
+/// <summary>
+/// Multi-household: every <see cref="IHouseholdOwned"/> table carries <c>HouseholdId</c>, hidden from
+/// other households by a global query filter (children filter through their parent) and stamped on
+/// insert from <see cref="TenantContext"/>. Saving refuses cross-household writes.
+/// </summary>
 public class MiseDbContext : DbContext
 {
-    public MiseDbContext(DbContextOptions<MiseDbContext> options) : base(options) { }
+    private readonly TenantContext _tenant;
+
+    public MiseDbContext(DbContextOptions<MiseDbContext> options, TenantContext tenant) : base(options) => _tenant = tenant;
+
+    /// <summary>Tests and design-time tooling only: acts for household 1.</summary>
+    public MiseDbContext(DbContextOptions<MiseDbContext> options) : this(options, TenantContext.For(1)) { }
+
+    public TenantContext Tenant => _tenant;
+
+    // Read by the query filters; EF re-evaluates them per query, so a tenant switch takes effect immediately.
+    private bool TenantIsSystem => _tenant.IsSystem;
+    private int? TenantHouseholdId => _tenant.HouseholdId;
 
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
@@ -37,6 +55,8 @@ public class MiseDbContext : DbContext
     public DbSet<TrainingProgram> TrainingPrograms => Set<TrainingProgram>();
     public DbSet<ProgramDay> ProgramDays => Set<ProgramDay>();
     public DbSet<ProgramExercise> ProgramExercises => Set<ProgramExercise>();
+    public DbSet<Household> Households => Set<Household>();
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -87,13 +107,14 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Merchant).HasMaxLength(120);
             e.Property(x => x.RawName).HasMaxLength(300);
             e.Property(x => x.NormalizedName).HasMaxLength(300);
-            e.HasIndex(x => new { x.Merchant, x.NormalizedName }).IsUnique();
+            e.HasIndex(x => new { x.HouseholdId, x.Merchant, x.NormalizedName }).IsUnique();
             e.HasOne(x => x.PantryItem).WithMany().HasForeignKey(x => x.PantryItemId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Preferences>(e =>
         {
+            e.HasIndex(x => x.HouseholdId).IsUnique();
             e.HasMany(x => x.Equipment).WithOne(q => q.Preferences!).HasForeignKey(q => q.PreferencesId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -124,7 +145,7 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Category).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.Name).HasMaxLength(200);
-            e.HasIndex(x => x.Checked);
+            e.HasIndex(x => new { x.HouseholdId, x.Checked });
         });
 
         b.Entity<SupplyFavorite>(e =>
@@ -132,7 +153,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Category).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.Name).HasMaxLength(200);
             e.Property(x => x.NormalizedName).HasMaxLength(200);
-            e.HasIndex(x => x.NormalizedName).IsUnique();
+            e.HasIndex(x => new { x.HouseholdId, x.NormalizedName }).IsUnique();
         });
 
         b.Entity<ChatMessage>(e =>
@@ -145,7 +166,7 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.DishName).HasMaxLength(300);
             e.HasOne(x => x.Recipe).WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.SetNull);
-            e.HasIndex(x => x.CookedAt);
+            e.HasIndex(x => new { x.HouseholdId, x.CookedAt });
             e.HasIndex(x => x.RecipeId);
         });
 
@@ -161,7 +182,7 @@ public class MiseDbContext : DbContext
             e.HasOne(x => x.Recipe).WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.Cook).WithMany(c => c.Entries).HasForeignKey(x => x.CookId).OnDelete(DeleteBehavior.SetNull);
             // Several entries per slot now (snacks, a leftover next to a fresh meal) — not unique.
-            e.HasIndex(x => new { x.Date, x.Slot });
+            e.HasIndex(x => new { x.HouseholdId, x.Date, x.Slot });
             e.HasIndex(x => x.CookId);
             e.HasIndex(x => new { x.PersonId, x.Date });
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
@@ -177,9 +198,24 @@ public class MiseDbContext : DbContext
 
         b.Entity<Person>(e =>
         {
-            e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Name).HasMaxLength(60);
+            // Stored lower-case (People.NormalizeEmail): one Google account = one person = one household.
             e.Property(x => x.Email).HasMaxLength(200);
+            e.HasIndex(x => x.Email).IsUnique().HasFilter("\"Email\" IS NOT NULL");
+        });
+
+        b.Entity<Household>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(80);
+        });
+
+        b.Entity<ApiKey>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(80);
+            e.Property(x => x.KeyHash).HasMaxLength(64);
+            e.Property(x => x.Prefix).HasMaxLength(16);
+            e.HasIndex(x => x.KeyHash).IsUnique();
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Catering>(e =>
@@ -255,13 +291,14 @@ public class MiseDbContext : DbContext
         b.Entity<ProfileAnswer>(e =>
         {
             e.Property(x => x.Key).HasMaxLength(100);
-            e.HasIndex(x => x.Key).IsUnique();
+            e.HasIndex(x => new { x.HouseholdId, x.Key }).IsUnique();
         });
 
         b.Entity<Exercise>(e =>
         {
             e.Property(x => x.SourceId).HasMaxLength(100);
             e.HasIndex(x => x.SourceId).IsUnique();
+            e.HasOne<Household>().WithMany().HasForeignKey(x => x.HouseholdId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.NameEn).HasMaxLength(200);
             e.Property(x => x.NamePl).HasMaxLength(200);
             e.Property(x => x.Category).HasConversion<string>().HasMaxLength(24);
@@ -323,5 +360,86 @@ public class MiseDbContext : DbContext
             // An exercise used by a plan can't vanish from the catalog (hide it instead).
             e.HasOne(x => x.Exercise).WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Restrict);
         });
+
+        ConfigureTenancy(b);
+    }
+
+    private void ConfigureTenancy(ModelBuilder b)
+    {
+        // Every household-owned root table: FK to Households + `IsSystem || HouseholdId == tenant`.
+        foreach (var type in b.Model.GetEntityTypes().Select(t => t.ClrType).ToList())
+        {
+            if (!typeof(IHouseholdOwned).IsAssignableFrom(type)) continue;
+            b.Entity(type).HasOne(typeof(Household)).WithMany()
+                .HasForeignKey(nameof(IHouseholdOwned.HouseholdId)).OnDelete(DeleteBehavior.Restrict);
+            b.Entity(type).HasQueryFilter(OwnedFilter(type));
+        }
+
+        // Children are filtered through their parent, so a lookup by id can't reach across households.
+        b.Entity<RecipeIngredient>().HasQueryFilter(e => TenantIsSystem || e.Recipe!.HouseholdId == TenantHouseholdId);
+        b.Entity<RecipeStep>().HasQueryFilter(e => TenantIsSystem || e.Recipe!.HouseholdId == TenantHouseholdId);
+        b.Entity<RecipeImage>().HasQueryFilter(e => TenantIsSystem || e.Recipe!.HouseholdId == TenantHouseholdId);
+        b.Entity<EquipmentItem>().HasQueryFilter(e => TenantIsSystem || e.Preferences!.HouseholdId == TenantHouseholdId);
+        b.Entity<ShoppingContribution>().HasQueryFilter(e => TenantIsSystem || e.ShoppingItem!.HouseholdId == TenantHouseholdId);
+        b.Entity<ProgramDay>().HasQueryFilter(e => TenantIsSystem || e.Program!.HouseholdId == TenantHouseholdId);
+        b.Entity<ProgramExercise>().HasQueryFilter(e => TenantIsSystem || e.Day!.Program!.HouseholdId == TenantHouseholdId);
+        // The shared catalog (null) plus this household's custom exercises.
+        b.Entity<Exercise>().HasQueryFilter(e => TenantIsSystem || e.HouseholdId == null || e.HouseholdId == TenantHouseholdId);
+    }
+
+    /// <summary><c>e => this.TenantIsSystem || (int?)e.HouseholdId == this.TenantHouseholdId</c> for a concrete type.</summary>
+    private LambdaExpression OwnedFilter(Type type)
+    {
+        var e = Expression.Parameter(type, "e");
+        var ctx = Expression.Constant(this);
+        var system = Expression.Property(ctx, nameof(TenantIsSystem));
+        var tenant = Expression.Property(ctx, nameof(TenantHouseholdId));
+        var owner = Expression.Convert(Expression.Property(e, nameof(IHouseholdOwned.HouseholdId)), typeof(int?));
+        return Expression.Lambda(Expression.OrElse(system, Expression.Equal(owner, tenant)), e);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyTenantRules();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplyTenantRules();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// Stamps new rows with the tenant's household and refuses writes to another household's rows.
+    /// System scopes may write anywhere but must set <c>HouseholdId</c> on new rows themselves.
+    /// </summary>
+    private void ApplyTenantRules()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted)) continue;
+            var name = entry.Metadata.ClrType.Name;
+
+            if (entry.Entity is IHouseholdOwned owned)
+            {
+                if (entry.State == EntityState.Added && owned.HouseholdId == 0)
+                    owned.HouseholdId = _tenant.HouseholdId
+                        ?? throw new TenantViolationException($"New {name} has no household (a system scope must set HouseholdId).");
+                if (!_tenant.IsSystem && owned.HouseholdId != _tenant.HouseholdId)
+                    throw new TenantViolationException($"{name} belongs to household {owned.HouseholdId}, not {_tenant.HouseholdId}.");
+                if (entry.State == EntityState.Modified && !_tenant.IsSystem
+                    && entry.Property(nameof(IHouseholdOwned.HouseholdId)).IsModified)
+                    throw new TenantViolationException($"{name} can't move between households.");
+            }
+
+            if (entry.State == EntityState.Added && entry.Entity is IPersonOwned { PersonId: 0 })
+                throw new TenantViolationException($"New {name} has no person.");
+
+            // An exercise an agent adds (no free-exercise-db id) belongs to that household only.
+            if (entry is { State: EntityState.Added, Entity: Exercise { HouseholdId: null, SourceId: null } custom }
+                && _tenant.HouseholdId is int household)
+                custom.HouseholdId = household;
+        }
     }
 }

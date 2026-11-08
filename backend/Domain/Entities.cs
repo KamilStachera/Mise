@@ -27,8 +27,9 @@ public enum ShoppingOrigin { Recipe, Manual }
 /// <summary>Snack ("Przekąski") is diary-only: small bites and sweets, private like the rest of the diary.</summary>
 public enum MealSlot { Breakfast, Lunch, Dinner, Snack }
 
-public class Recipe
+public class Recipe : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = "";
     public RecipeSource Source { get; set; } = RecipeSource.Manual;
@@ -148,8 +149,9 @@ public class RecipeStep
 /// with <see cref="Quantity"/> 0 is "known, not at home" and stays listed, so agents
 /// match against it instead of inventing near-duplicates.
 /// </summary>
-public class PantryItem
+public class PantryItem : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public PantryCategory Category { get; set; } = PantryCategory.Pantry;
@@ -176,8 +178,9 @@ public class PantryItem
 /// abbreviations intentionally live outside PantryItem.Aliases so they cannot affect
 /// recipe ingredient matching.
 /// </summary>
-public class ReceiptNameMapping
+public class ReceiptNameMapping : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     /// <summary>Normalised merchant label; empty means a global mapping.</summary>
     public string Merchant { get; set; } = "";
@@ -189,10 +192,11 @@ public class ReceiptNameMapping
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-/// <summary>Singleton row (Id = 1): the "Cooking Profile" fed to the AI.</summary>
-public class Preferences
+/// <summary>One row per household (unique <c>HouseholdId</c>): the "Cooking Profile" fed to the AI.</summary>
+public class Preferences : IHouseholdOwned
 {
-    public int Id { get; set; } = 1;
+    public int HouseholdId { get; set; }
+    public int Id { get; set; }
 
     public string HouseholdSummary { get; set; } = "";
     public string HouseholdDetail { get; set; } = "";
@@ -209,7 +213,7 @@ public class Preferences
 public class EquipmentItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public int PreferencesId { get; set; } = 1;
+    public int PreferencesId { get; set; }
     public Preferences? Preferences { get; set; }
 
     public string Name { get; set; } = "";
@@ -217,8 +221,9 @@ public class EquipmentItem
     public int Order { get; set; }
 }
 
-public class ShoppingItem
+public class ShoppingItem : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     /// <summary>Display label, e.g. Produce / Fridge / Pantry / Spices / Recipe.</summary>
@@ -273,8 +278,9 @@ public enum SupplyCategory { Cleaning, Hygiene, Paper, Kitchen, Pets, Other }
 /// no PantryItemId, no sync in either direction — rows only ever come from manual entry
 /// or an agent. Name-only by design; household goods do not fit g/ml/szt.
 /// </summary>
-public class SupplyItem
+public class SupplyItem : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public SupplyCategory Category { get; set; } = SupplyCategory.Other;
@@ -288,8 +294,9 @@ public class SupplyItem
 /// the <see cref="SupplyItem"/> rows: clear-checked hard-deletes items, so without a
 /// separate tally the history that "hot items" is computed from would be destroyed.
 /// </summary>
-public class SupplyFavorite
+public class SupplyFavorite : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     /// <summary>Identity key — IngredientMatcher.Normalize of the name. Unique.</summary>
     public string NormalizedName { get; set; } = "";
@@ -307,8 +314,9 @@ public class SupplyFavorite
 }
 
 /// <summary>A "we cooked this" journal entry — the feedback loop the AI learns from.</summary>
-public class CookLogEntry
+public class CookLogEntry : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>Optional link to a saved recipe; entries survive recipe deletion.</summary>
@@ -329,14 +337,15 @@ public class CookLogEntry
 /// hold several entries. Planned → eaten is <see cref="EatenAt"/>; nutrition rules live in
 /// <c>DiaryService</c>.
 /// </summary>
-public class PlanEntry
+public class PlanEntry : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     /// <summary>
     /// Whose calendar/diary this is (<see cref="Person"/>). Defaults to person 1 — agents and
     /// the household meal plan act for her; shopping ignores the owner.
     /// </summary>
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int PersonId { get; set; }
     public DateOnly Date { get; set; }
     public MealSlot Slot { get; set; } = MealSlot.Lunch;
 
@@ -396,11 +405,12 @@ public class PlanEntry
 /// plan entries (<see cref="PlanEntry.CookId"/>): the cook-day entry plus leftovers. What
 /// is neither assigned nor discarded sits "W lodówce".
 /// </summary>
-public class Cook
+public class Cook : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     /// <summary>Whose fridge the pot sits in ("W lodówce" is per person).</summary>
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int PersonId { get; set; }
     public Guid? RecipeId { get; set; }
     public Recipe? Recipe { get; set; }
     /// <summary>Recipe title snapshot (survives recipe deletion).</summary>
@@ -420,10 +430,11 @@ public class Cook
 /// Same tally idea as <see cref="SupplyFavorite"/>: ranked pinned → decayed count.
 /// Nutrition is per portion, or per 100 g when <see cref="Per100g"/>.
 /// </summary>
-public class FoodFavorite
+public class FoodFavorite : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int PersonId { get; set; }
     /// <summary>Identity key — IngredientMatcher.Normalize of the name. Unique per person.</summary>
     public string NormalizedName { get; set; } = "";
     public string Name { get; set; } = "";
@@ -453,9 +464,10 @@ public enum ActivityLevel { Sedentary, Light, Moderate, High }
 /// is set. Current weight is not stored here — it is the latest <see cref="WeightEntry"/>.
 /// Private like the diary.
 /// </summary>
-public class BodyProfile
+public class BodyProfile : IHouseholdOwned, IPersonOwned
 {
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int HouseholdId { get; set; }
+    public int PersonId { get; set; }
     public BodySex Sex { get; set; } = BodySex.Female;
     public int BirthYear { get; set; }
     public int HeightCm { get; set; }
@@ -478,10 +490,11 @@ public enum MeasurementSource { Manual, HealthConnect }
 /// One weigh-in per person per day. A manual entry always wins; from the scale (Health Connect)
 /// the day's earliest measurement is kept — the morning weight, not the after-dinner one.
 /// </summary>
-public class WeightEntry
+public class WeightEntry : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int PersonId { get; set; }
     public DateOnly Date { get; set; }
     public decimal Kg { get; set; }
     public MeasurementSource Source { get; set; } = MeasurementSource.Manual;
@@ -497,10 +510,11 @@ public enum EnergyKind { Active, Total }
 /// upserted on (PersonId, Kind, Start, End). A day's active kcal is the sum of its Active samples;
 /// when the band only writes Total, active ≈ total − BMR (see <c>ActivityService</c>).
 /// </summary>
-public class EnergySample
+public class EnergySample : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int PersonId { get; set; }
     public EnergyKind Kind { get; set; }
     public DateTimeOffset Start { get; set; }
     public DateTimeOffset End { get; set; }
@@ -515,10 +529,11 @@ public class EnergySample
 /// samples inside its window, so it is never counted twice; a manual one carries its own
 /// <see cref="Kcal"/>, which adds to the day.
 /// </summary>
-public class Workout
+public class Workout : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int PersonId { get; set; }
     public DateOnly Date { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public int Minutes { get; set; }
@@ -537,26 +552,56 @@ public class Workout
 /// webhook URL the phone's HC Webhook app posts to (<c>/api/hc/{token}</c>) and also says whose
 /// data it is. Rotate it to cut a phone off.
 /// </summary>
-public class HealthSync
+public class HealthSync : IHouseholdOwned, IPersonOwned
 {
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int HouseholdId { get; set; }
+    public int PersonId { get; set; }
     public string Token { get; set; } = "";
     public DateTimeOffset? LastSyncAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>
-/// Someone with their own food diary, goal, weight and band. The cookbook, pantry and
-/// shopping stay household-wide. Rows mirror the <c>Diary:People</c> config (order = Id,
-/// synced on boot by <c>DbInitializer</c>); person 1 owns everything from before people existed.
+/// A member of a household with their own food diary, goal, weight, band and training. The
+/// cookbook, pantry and shopping are shared by the household. A Google account (email) belongs
+/// to at most one person, so it lands in exactly one household.
 /// </summary>
-public class Person
+public class Person : IHouseholdOwned
 {
-    public const int DefaultId = 1;
+    public int HouseholdId { get; set; }
     public int Id { get; set; }
     public string Name { get; set; } = "";
     /// <summary>Google account that lands on this person's diary; null = reachable only via the switcher.</summary>
     public string? Email { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// The tenant: one kitchen with its own recipes, pantry, shopping, plan and people. Every
+/// <see cref="IHouseholdOwned"/> row carries its id and <c>MiseDbContext</c> filters on it.
+/// </summary>
+public class Household
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    /// <summary>In-app Sous runs on the owner's ChatGPT plan, so the admin turns it on per household.</summary>
+    public bool SousEnabled { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// A row that belongs to one household. <c>MiseDbContext</c> stamps <see cref="HouseholdId"/> on
+/// insert from the request's tenant and hides other households' rows with a global query filter.
+/// </summary>
+public interface IHouseholdOwned
+{
+    int HouseholdId { get; set; }
+}
+
+/// <summary>A row that belongs to one person (who must be in the row's household).</summary>
+public interface IPersonOwned
+{
+    int PersonId { get; }
 }
 
 /// <summary>
@@ -565,8 +610,9 @@ public class Person
 /// delivery day up to today and advances <see cref="MaterializedThrough"/>, so a deleted day
 /// stays deleted and editing the numbers never rewrites past days.
 /// </summary>
-public class Catering
+public class Catering : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public int PersonId { get; set; }
     public bool Enabled { get; set; } = true;
     public int Kcal { get; set; }
@@ -587,16 +633,18 @@ public class Catering
 /// <see cref="ProfileQuestionnaire"/> (e.g. "taste.heat"). Only answered
 /// questions have rows; the catalog itself lives in code.
 /// </summary>
-public class ProfileAnswer
+public class ProfileAnswer : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Key { get; set; } = "";
     public string Value { get; set; } = "";
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public class ChatMessage
+public class ChatMessage : IHouseholdOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public string SessionId { get; set; } = "default";
     /// <summary>"ai" or "user".</summary>
@@ -648,6 +696,8 @@ public class Exercise
     public Guid Id { get; set; } = Guid.NewGuid();
     /// <summary>free-exercise-db id ("Air_Bike"), also its image folder; null for custom exercises.</summary>
     public string? SourceId { get; set; }
+    /// <summary>Null = the shared catalog; a custom exercise an agent added belongs to that household only.</summary>
+    public int? HouseholdId { get; set; }
     public string NameEn { get; set; } = "";
     public string? NamePl { get; set; }
     public ExerciseCategory Category { get; set; } = ExerciseCategory.Strength;
@@ -695,8 +745,9 @@ public enum ProgramStatus { Active, Draft, Archived }
 /// The training questionnaire, one per person (like <see cref="BodyProfile"/>). Typed fields
 /// on purpose: plan generation, the swap filter and scheduling read them directly.
 /// </summary>
-public class TrainingProfile
+public class TrainingProfile : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public int PersonId { get; set; }
     public TrainingGoal Goal { get; set; } = TrainingGoal.General;
     public ExerciseLevel Level { get; set; } = ExerciseLevel.Beginner;
@@ -721,10 +772,11 @@ public class TrainingProfile
 /// writes every week). Week n spans the n-th calendar week counted from the Monday of
 /// <see cref="StartDate"/>; a day is placed by (Week, Weekday) — see <c>ProgramSchedule</c>.
 /// </summary>
-public class TrainingProgram
+public class TrainingProgram : IHouseholdOwned, IPersonOwned
 {
+    public int HouseholdId { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
-    public int PersonId { get; set; } = Person.DefaultId;
+    public int PersonId { get; set; }
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
     /// <summary>The agent's reasoning, shown as "Dlaczego taki plan".</summary>
@@ -784,4 +836,25 @@ public class ProgramExercise
     public decimal? TargetKg { get; set; }
     public string Notes { get; set; } = "";
     public string? SupersetGroup { get; set; }
+}
+
+// ───────────────────────────── Access ─────────────────────────────
+
+/// <summary>
+/// A personal API key for agents/MCP. It acts as its person, in that person's household. Only the
+/// SHA-256 of the key is stored; the plain key is shown once at creation.
+/// </summary>
+public class ApiKey : IHouseholdOwned, IPersonOwned
+{
+    public int HouseholdId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; }
+    public string Name { get; set; } = "";
+    /// <summary>Hex SHA-256 of the full key.</summary>
+    public string KeyHash { get; set; } = "";
+    /// <summary>The first characters of the key, to tell keys apart in the UI.</summary>
+    public string Prefix { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? LastUsedAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
 }

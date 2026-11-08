@@ -214,6 +214,7 @@ public class ExerciseCatalogTests
         var dbName = Guid.NewGuid().ToString();
         builder.Services.AddDbContext<MiseDbContext>(o => o.UseInMemoryDatabase(dbName));
         builder.Services.AddSingleton<AccessControl>();
+        builder.Services.AddTenancy();
         builder.Configuration["ImagesDir"] = Path.Combine(Path.GetTempPath(), "pichci-ex-test-" + Guid.NewGuid());
         builder.Services.AddSingleton<RecipeImageStore>();
         builder.Services.AddHttpClient();

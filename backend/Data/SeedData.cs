@@ -4,9 +4,10 @@ using Mise.Api.Domain;
 namespace Mise.Api.Data;
 
 /// <summary>
-/// Seeds the database (in Polish) so the app looks alive on first run. The pantry
-/// catalog seeds whenever the pantry table is empty (also after a fresh-start wipe);
-/// recipes and the cooking profile seed only on a brand-new install.
+/// Seeds one household (in Polish) so the app looks alive on first run. Runs under that
+/// household's tenant, so every "is it empty" check is per household: the pantry catalog
+/// seeds whenever the household's pantry is empty (also after a fresh-start wipe);
+/// demo recipes and the cooking profile only while it has no recipes at all.
 /// </summary>
 public static class SeedData
 {
@@ -113,7 +114,6 @@ public static class SeedData
 
         var prefs = new Preferences
         {
-            Id = 1,
             HouseholdSummary = "2 osoby",
             HouseholdDetail = "Kolacje przez większość dni, spokojniej w weekendy.",
             SkillSummary = "Średnio zaawansowany",
@@ -133,7 +133,7 @@ public static class SeedData
                 new EquipmentItem { Name = "Patelnia żeliwna", Order = 4 },
             },
         };
-        db.Preferences.Add(prefs);
+        if (!await db.Preferences.AnyAsync(ct)) db.Preferences.Add(prefs);
 
         Recipe R(string title, RecipeSource source, int time, string difficulty, string tint,
             DishType dish, Cuisine cuisine,

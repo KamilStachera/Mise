@@ -130,45 +130,6 @@ public class PeopleTests
         Assert.Equal(250, Assert.Single(await new DiaryService(db, Him).FavoritesAsync(false, null)).Kcal);
     }
 
-    [Fact]
-    public void Resolver_HeaderForPrivilegedOnly_ThenOwnEmail_ThenPersonOne()
-    {
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["Diary:People"] = "Ania:ania@example.com, Kamil:kamil@example.com",
-            ["Auth:AllowedEmails"] = "ania@example.com,kamil@example.com",
-            ["MISE_API_KEY"] = "secret",
-        }).Build();
-        var people = new People(config);
-        var access = new AccessControl(config);
-
-        Assert.Equal(["Ania", "Kamil"], people.All.Select(p => p.Name));
-        Assert.Equal(1, people.Resolve(Ctx(header: "2"), access).Id);                       // anonymous: header ignored
-        Assert.Equal(2, people.Resolve(Ctx(header: "2", apiKey: "secret"), access).Id);     // agent picks
-        Assert.Equal(1, people.Resolve(Ctx(apiKey: "secret"), access).Id);                  // agent default
-        Assert.Equal(2, people.Resolve(Ctx(email: "KAMIL@example.com"), access).Id);        // own login
-        Assert.Equal(1, people.Resolve(Ctx(email: "kamil@example.com", header: "1"), access).Id);
-        Assert.Equal(2, people.Resolve(Ctx(email: "kamil@example.com", header: "9"), access).Id);   // unknown id
-        Assert.Equal(1, people.Resolve(null, access).Id);
-    }
-
-    [Fact]
-    public void People_Unset_IsOnePerson()
-    {
-        var people = new People(new ConfigurationBuilder().Build());
-        Assert.Equal(1, Assert.Single(people.All).Id);
-    }
-
-    private static HttpContext Ctx(string? header = null, string? apiKey = null, string? email = null)
-    {
-        var ctx = new DefaultHttpContext();
-        if (header is not null) ctx.Request.Headers[People.Header] = header;
-        if (apiKey is not null) ctx.Request.Headers[AccessControl.ApiKeyHeader] = apiKey;
-        if (email is not null)
-            ctx.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Email, email)], "test"));
-        return ctx;
-    }
-
     private static MiseDbContext NewDb() => new(new DbContextOptionsBuilder<MiseDbContext>()
         .UseInMemoryDatabase(Guid.NewGuid().ToString())
         .Options);

@@ -93,17 +93,22 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
     public Task<HealthSync?> CurrentSyncAsync(CancellationToken ct = default) =>
         db.HealthSyncs.AsNoTracking().FirstOrDefaultAsync(s => s.PersonId == PersonId, ct);
 
-    /// <summary>Constant-time token check against every person's phone; null when the token is unknown.</summary>
+    /// <summary>
+    /// Constant-time token check against every person's phone (in every household — the webhook
+    /// runs before any tenant is known); null when the token is unknown. A match points the
+    /// tenant at the token's household, so the ingest that follows can only write there.
+    /// </summary>
     public async Task<HealthSync?> AuthorizeAsync(string token, CancellationToken ct = default)
     {
         var candidate = System.Text.Encoding.ASCII.GetBytes(token);
         HealthSync? match = null;
-        foreach (var sync in await db.HealthSyncs.ToListAsync(ct))
+        foreach (var sync in await db.HealthSyncs.IgnoreQueryFilters().ToListAsync(ct))
         {
             if (string.IsNullOrEmpty(sync.Token) || token.Length != sync.Token.Length) continue;
             if (CryptographicOperations.FixedTimeEquals(candidate, System.Text.Encoding.ASCII.GetBytes(sync.Token)))
                 match = sync;
         }
+        if (match is not null) db.Tenant.UseHousehold(match.HouseholdId);
         return match;
     }
 

@@ -170,6 +170,7 @@ public class TrainingProgramTests
         var dbName = Guid.NewGuid().ToString();
         builder.Services.AddDbContext<MiseDbContext>(o => o.UseInMemoryDatabase(dbName));
         builder.Services.AddSingleton<AccessControl>();
+        builder.Services.AddTenancy();
         builder.Services.AddSingleton(new PersonScope(1));
         builder.Services.AddSingleton<EnrichmentState>();
         builder.Services.AddSingleton(new YouTubeVerifier(new NoHttp()));

@@ -40,7 +40,7 @@ public static class ChatEndpoints
         });
 
         g.MapPost("/", async (ChatRequest req, HttpContext ctx, MiseDbContext db, PersonScope person,
-            People people, IChatProvider provider, ContextExportService export, CancellationToken ct) =>
+            IChatProvider provider, ContextExportService export, CancellationToken ct) =>
         {
             if (!provider.Enabled)
                 return Results.Json(new
@@ -75,7 +75,8 @@ public static class ChatEndpoints
             history.Reverse();
             var turns = history.Select(m => new ChatTurn(m.Role, m.Content)).ToList();
             var threadId = history.Where(m => m.Role == "ai").Select(m => ThreadOf(m.MetadataJson)).LastOrDefault(t => t is not null);
-            var who = people.All.FirstOrDefault(p => p.Id == person.Id) ?? new PersonInfo(person.Id, $"Osoba {person.Id}", null);
+            var who = await People.FindAsync(db, person.Id, ct)
+                ?? new PersonInfo(person.Id, $"Osoba {person.Id}", null, db.Tenant.HouseholdId ?? 0);
 
             ctx.Response.Headers.ContentType = "text/event-stream";
             ctx.Response.Headers.CacheControl = "no-cache";

@@ -136,12 +136,15 @@ public record PantryBulkResultDto(int Updated, List<PantryItemDto> Results,
     List<UnmatchedItemDto> NotInCatalog);
 
 /// <summary>
-/// Session state for the frontend; `Authenticated: false` = anonymous read-only mode. PersonId = the
-/// caller's own diary; People = everyone with a diary (empty for anonymous visitors).
+/// Session state for the frontend. `Authenticated` = a household member (may edit); false =
+/// read-only. `SignedIn` + `NeedsOnboarding` = a Google account that belongs to no household yet
+/// (show the invite-code screen). PersonId = the caller's own diary; People = their household.
 /// </summary>
 public record AuthMeDto(bool Authenticated, string? Email, string? Name, string? Picture,
-    int? PersonId = null, List<PersonDto>? People = null);
+    int? PersonId = null, List<PersonDto>? People = null, bool SignedIn = false, bool NeedsOnboarding = false,
+    bool IsAdmin = false, HouseholdDto? Household = null, bool PublicHousehold = false);
 public record PersonDto(int Id, string Name);
+public record HouseholdDto(int Id, string Name, bool SousEnabled);
 
 public record QuestionDto(string Key, string Label, string Type, string[]? Options, string? Placeholder);
 public record QuestionnaireSectionDto(string Key, string Title, List<QuestionDto> Questions);
