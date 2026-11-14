@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Data;
+using Mise.Api.Domain;
 using Mise.Api.Services;
 
 namespace Mise.Api.Features;
@@ -42,8 +43,12 @@ public static class AuthEndpoints
                 return Results.Ok(new AuthMeDto(true,
                     caller.Email ?? (dev ? "dev@localhost" : null), caller.Name ?? (dev ? "Dev" : self.Name), caller.Picture,
                     self.Id, caller.People.Select(p => new PersonDto(p.Id, p.Name)).ToList(),
-                    SignedIn: true, IsAdmin: caller.IsAdmin, Household: household));
+                    SignedIn: true, IsAdmin: caller.IsAdmin, Household: household,
+                    Role: self.Role == HouseholdRole.Owner ? "owner" : "member", CanManage: caller.IsOwner));
             }
+            if (caller.Kind == CallerKind.Blocked)
+                return Results.Ok(new AuthMeDto(false, caller.Email, caller.Name, caller.Picture,
+                    SignedIn: caller.Email is not null, Blocked: true));
             if (caller.Kind == CallerKind.Unlinked)
                 return Results.Ok(new AuthMeDto(false, caller.Email, caller.Name, caller.Picture,
                     SignedIn: true, NeedsOnboarding: true, IsAdmin: caller.IsAdmin, PublicHousehold: publicHousehold));

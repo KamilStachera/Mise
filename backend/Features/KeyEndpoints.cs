@@ -26,7 +26,7 @@ public static class KeyEndpoints
                 .Select(k => new ApiKeyDto(k.Id, k.Name, k.Prefix, k.CreatedAt, k.LastUsedAt))
                 .ToListAsync(ct)));
 
-        g.MapPost("/", async (ApiKeyInput input, Caller caller, MiseDbContext db, CancellationToken ct) =>
+        g.MapPost("/", async (ApiKeyInput input, Caller caller, MiseDbContext db, Audit audit, CancellationToken ct) =>
         {
             var name = input.Name?.Trim();
             if (string.IsNullOrEmpty(name) || name.Length > 80) return Results.BadRequest(new { error = "Nazwa klucza: 1–80 znaków." });
@@ -39,15 +39,17 @@ public static class KeyEndpoints
                 Prefix = key[..10],
             };
             db.ApiKeys.Add(row);
+            audit.Add("key.created", $"{caller.Self.Name}: nowy klucz API „{name}” ({row.Prefix}…).", caller.HouseholdId, caller.Self.Id);
             await db.SaveChangesAsync(ct);
             return Results.Ok(new ApiKeyCreatedDto(row.Id, row.Name, row.Prefix, key));
         });
 
-        g.MapDelete("/{id:guid}", async (Guid id, Caller caller, MiseDbContext db, CancellationToken ct) =>
+        g.MapDelete("/{id:guid}", async (Guid id, Caller caller, MiseDbContext db, Audit audit, CancellationToken ct) =>
         {
             var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && k.PersonId == caller.Self!.Id && k.RevokedAt == null, ct);
             if (key is null) return Results.NotFound();
             key.RevokedAt = DateTimeOffset.UtcNow;
+            audit.Add("key.revoked", $"{caller.Self!.Name}: unieważniono klucz „{key.Name}” ({key.Prefix}…).", caller.HouseholdId, caller.Self.Id);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
         });

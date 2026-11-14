@@ -76,6 +76,7 @@ public sealed class OnboardingTests : IAsyncLifetime
         var api = _app.MapGroup("/api");
         api.MapAuth();
         api.MapHouseholds();
+        api.MapAdmin();
         api.MapKeys();
         api.MapGet("/recipes", (MiseDbContext db) => db.Recipes.OrderBy(r => r.Title).Select(r => r.Title).ToListAsync());
         await _app.StartAsync();
@@ -146,10 +147,10 @@ public sealed class OnboardingTests : IAsyncLifetime
 
         // Sous is the admin's to switch on.
         Assert.Equal(HttpStatusCode.Forbidden, (await Send(HttpMethod.Patch, "/api/admin/households/2", Friend, new { sousEnabled = true })).StatusCode);
-        var overview = await Json(await Send(HttpMethod.Patch, "/api/admin/households/2", Admin, new { sousEnabled = true }));
-        var row = overview.GetProperty("households").EnumerateArray().Single(h => h.GetProperty("id").GetInt32() == 2);
+        var row = await Json(await Send(HttpMethod.Patch, "/api/admin/households/2", Admin, new { sousEnabled = true }));
         Assert.True(row.GetProperty("sousEnabled").GetBoolean());
         Assert.Equal(2, row.GetProperty("recipes").GetInt32());
+        var overview = await Json(await Send(HttpMethod.Get, "/api/admin/overview", Admin));
         Assert.Contains(overview.GetProperty("sources").EnumerateArray(), s => s.GetProperty("name").GetString() == "Blond Kuchara");
     }
 

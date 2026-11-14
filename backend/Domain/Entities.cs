@@ -574,7 +574,17 @@ public class Person : IHouseholdOwned
     /// <summary>Google account that lands on this person's diary; null = reachable only via the switcher.</summary>
     public string? Email { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Owners invite people, rename the household and change roles; members just use it.</summary>
+    public HouseholdRole Role { get; set; } = HouseholdRole.Member;
+    /// <summary>Global admin (admin panel). <c>ADMIN_EMAILS</c> accounts are admins regardless.</summary>
+    public bool IsAdmin { get; set; }
+    /// <summary>Blocked by an admin: no sign-in, no API keys, no Sous. Data stays; reversible.</summary>
+    public DateTimeOffset? BlockedAt { get; set; }
+    /// <summary>Last request (Google session or API key), updated at most every few minutes.</summary>
+    public DateTimeOffset? LastSeenAt { get; set; }
 }
+
+public enum HouseholdRole { Owner, Member }
 
 /// <summary>
 /// The tenant: one kitchen with its own recipes, pantry, shopping, plan and people. Every
@@ -587,6 +597,8 @@ public class Household
     /// <summary>In-app Sous runs on the owner's ChatGPT plan, so the admin turns it on per household.</summary>
     public bool SousEnabled { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Blocked by an admin: none of its people can sign in or use keys. Data stays; reversible.</summary>
+    public DateTimeOffset? BlockedAt { get; set; }
 }
 
 /// <summary>
@@ -893,4 +905,25 @@ public class InviteCode
     public int? UsedByPersonId { get; set; }
     /// <summary>The household a NewHousehold code created (for the admin's list).</summary>
     public int? CreatedHouseholdId { get; set; }
+    /// <summary>Join: the role the redeemer gets. NewHousehold: its creator is always the owner.</summary>
+    public HouseholdRole Role { get; set; } = HouseholdRole.Member;
+    /// <summary>Cancelled before use (kept for the code history instead of deleting the row).</summary>
+    public DateTimeOffset? RevokedAt { get; set; }
+}
+
+/// <summary>
+/// What admins and owners did (codes, joins, roles, blocks, keys, Sous) — the admin panel's log.
+/// Not household-owned: only admins read it, across households. <see cref="Kind"/> is a dotted
+/// token (<c>invite.created</c>, <c>person.blocked</c>, …); <see cref="Summary"/> is Polish text.
+/// </summary>
+public class AuditEvent
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public DateTimeOffset At { get; set; } = DateTimeOffset.UtcNow;
+    public int? ActorPersonId { get; set; }
+    public string ActorName { get; set; } = "";
+    public int? HouseholdId { get; set; }
+    public int? TargetPersonId { get; set; }
+    public string Kind { get; set; } = "";
+    public string Summary { get; set; } = "";
 }

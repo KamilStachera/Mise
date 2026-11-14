@@ -48,7 +48,18 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
         }
 
         await People.ResolveAsync(ctx, db, access, caller, ctx.RequestAborted);
-        if (caller.Kind == CallerKind.PersonalKey) await TouchKeyAsync(db, caller, ctx.RequestAborted);
+        await TouchAsync(db, caller, ctx.RequestAborted);
+
+        if (caller.Kind == CallerKind.Blocked && !path.StartsWithSegments("/api/auth"))
+        {
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await ctx.Response.WriteAsJsonAsync(new
+            {
+                error = "To konto jest zablokowane — skontaktuj się z administratorem.",
+                blocked = true,
+            });
+            return;
+        }
 
         if (path.StartsWithSegments("/api/auth") || path.StartsWithSegments("/api/onboarding") || caller.IsPrivileged)
         {
@@ -89,14 +100,24 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
         });
     }
 
-    /// <summary>Last-used bookkeeping for personal keys, at most every few minutes per key.</summary>
-    private static async Task TouchKeyAsync(MiseDbContext db, Caller caller, CancellationToken ct)
+    /// <summary>
+    /// Last-seen bookkeeping for the admin panel: the person behind a Google session or personal
+    /// key, and the key itself — at most every few minutes each, so most requests write nothing.
+    /// </summary>
+    private static async Task TouchAsync(MiseDbContext db, Caller caller, CancellationToken ct)
     {
-        var cutoff = DateTimeOffset.UtcNow.AddMinutes(-5);
-        var key = await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == caller.ApiKeyId, ct);
-        if (key is null || key.LastUsedAt > cutoff) return;
-        key.LastUsedAt = DateTimeOffset.UtcNow;
+        if (caller.Kind is not (CallerKind.Member or CallerKind.PersonalKey) || caller.Self is null) return;
+        var now = DateTimeOffset.UtcNow;
+        var cutoff = now.AddMinutes(-5);
+        var person = await db.People.FirstOrDefaultAsync(p => p.Id == caller.Self.Id
+            && (p.LastSeenAt == null || p.LastSeenAt < cutoff), ct);
+        var key = caller.ApiKeyId is Guid id
+            ? await db.ApiKeys.FirstOrDefaultAsync(k => k.Id == id && (k.LastUsedAt == null || k.LastUsedAt < cutoff), ct)
+            : null;
+        if (person is null && key is null) return;
+        if (person is not null) person.LastSeenAt = now;
+        if (key is not null) key.LastUsedAt = now;
         await db.SaveChangesAsync(ct);
-        db.Entry(key).State = EntityState.Detached;
+        db.ChangeTracker.Clear();
     }
 }

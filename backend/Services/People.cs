@@ -12,7 +12,9 @@ public sealed record PersonScope(int Id)
     public static readonly PersonScope Default = new(1);
 }
 
-public sealed record PersonInfo(int Id, string Name, string? Email, int HouseholdId);
+/// <param name="Blocked">The person or their whole household is blocked.</param>
+public sealed record PersonInfo(int Id, string Name, string? Email, int HouseholdId,
+    HouseholdRole Role = HouseholdRole.Member, bool IsAdmin = false, bool Blocked = false);
 
 public enum CallerKind
 {
@@ -28,6 +30,8 @@ public enum CallerKind
     SystemKey,
     /// <summary>Local development: everything allowed, <c>X-Person</c> may pick anyone.</summary>
     DevBypass,
+    /// <summary>A blocked person (or a member of a blocked household): only <c>/api/auth</c> answers.</summary>
+    Blocked,
 }
 
 /// <summary>
@@ -54,6 +58,9 @@ public sealed class Caller
     /// <summary>Allowed to write and to read the private endpoints of <see cref="HouseholdId"/>.</summary>
     public bool IsPrivileged => Kind is CallerKind.Member or CallerKind.PersonalKey or CallerKind.SystemKey or CallerKind.DevBypass
         && Acting is not null;
+
+    /// <summary>May invite people, rename the household and change roles in it.</summary>
+    public bool IsOwner => IsPrivileged && (IsAdmin || Self?.Role == HouseholdRole.Owner);
 }
 
 /// <summary>Person lookups and the request → <see cref="Caller"/> resolution.</summary>
@@ -65,25 +72,26 @@ public static class People
     public static string? NormalizeEmail(string? email) =>
         string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
 
-    public static PersonInfo Info(Person p) => new(p.Id, p.Name, p.Email, p.HouseholdId);
+    /// <summary>
+    /// Every person lookup goes through here (and bypasses the household filter: they run before
+    /// the tenant is known). <c>Blocked</c> includes a blocked household.
+    /// </summary>
+    private static IQueryable<PersonInfo> Infos(MiseDbContext db) =>
+        db.People.IgnoreQueryFilters().AsNoTracking().Select(p => new PersonInfo(p.Id, p.Name, p.Email, p.HouseholdId,
+            p.Role, p.IsAdmin, p.BlockedAt != null || db.Households.Any(h => h.Id == p.HouseholdId && h.BlockedAt != null)));
 
-    /// <summary>Lookups run before the tenant is known, so they bypass the household filter.</summary>
-    public static async Task<PersonInfo?> FindAsync(MiseDbContext db, int id, CancellationToken ct = default) =>
-        await db.People.IgnoreQueryFilters().AsNoTracking().Where(p => p.Id == id)
-            .Select(p => new PersonInfo(p.Id, p.Name, p.Email, p.HouseholdId)).FirstOrDefaultAsync(ct);
+    public static Task<PersonInfo?> FindAsync(MiseDbContext db, int id, CancellationToken ct = default) =>
+        Infos(db).FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public static async Task<PersonInfo?> FindByEmailAsync(MiseDbContext db, string? email, CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
         if (normalized is null) return null;
-        return await db.People.IgnoreQueryFilters().AsNoTracking().Where(p => p.Email == normalized)
-            .Select(p => new PersonInfo(p.Id, p.Name, p.Email, p.HouseholdId)).FirstOrDefaultAsync(ct);
+        return await Infos(db).FirstOrDefaultAsync(p => p.Email == normalized, ct);
     }
 
-    public static async Task<List<PersonInfo>> InHouseholdAsync(MiseDbContext db, int householdId, CancellationToken ct = default) =>
-        await db.People.IgnoreQueryFilters().AsNoTracking().Where(p => p.HouseholdId == householdId)
-            .OrderBy(p => p.Id)
-            .Select(p => new PersonInfo(p.Id, p.Name, p.Email, p.HouseholdId)).ToListAsync(ct);
+    public static Task<List<PersonInfo>> InHouseholdAsync(MiseDbContext db, int householdId, CancellationToken ct = default) =>
+        Infos(db).Where(p => p.HouseholdId == householdId).OrderBy(p => p.Id).ToListAsync(ct);
 
     /// <summary>
     /// Fills <paramref name="caller"/> and points the tenant at its household. Order: dev bypass →
@@ -110,8 +118,7 @@ public static class People
             caller.IsAdmin = true;
             // "Self" is the first person of whichever household the pick lands in, so a dev can
             // hop between households with the switcher header.
-            var first = await db.People.IgnoreQueryFilters().AsNoTracking().OrderBy(x => x.Id)
-                .Select(x => new PersonInfo(x.Id, x.Name, x.Email, x.HouseholdId)).FirstOrDefaultAsync(ct);
+            var first = await Infos(db).OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
             var pick = picked is int id ? await FindAsync(db, id, ct) : null;
             caller.Self = pick is not null && pick.HouseholdId != first?.HouseholdId
                 ? (await InHouseholdAsync(db, pick.HouseholdId, ct)).First()
@@ -137,7 +144,18 @@ public static class People
             caller.Self = await FindByEmailAsync(db, caller.Email, ct);
             caller.Kind = caller.Self is null ? CallerKind.Unlinked : CallerKind.Member;
             caller.Acting = caller.Self is null ? null : await PickWithinAsync(db, caller.Self, picked, ct);
-            caller.IsAdmin = access.IsAdminEmail(caller.Email);
+            // Admin = the DB flag, or ADMIN_EMAILS (the can't-lock-yourself-out fallback). API keys
+            // never carry admin rights.
+            caller.IsAdmin = caller.Self?.IsAdmin == true || access.IsAdminEmail(caller.Email);
+        }
+
+        // Blocked people (or households) keep their identity for /auth/me, nothing else.
+        if (caller.Self?.Blocked == true || caller.Acting?.Blocked == true)
+        {
+            caller.Kind = CallerKind.Blocked;
+            caller.Acting = null;
+            caller.IsAdmin = false;
+            caller.ApiKeyId = null;
         }
 
         if (caller.Acting is { } acting)
@@ -165,15 +183,44 @@ public static class People
         return other is not null && other.HouseholdId == self.HouseholdId ? other : self;
     }
 
+    public const string LegacyImportKind = "system.legacy-import";
+
     /// <summary>
-    /// Bridge from the single-household config, run on every boot (idempotent): <c>DIARY_PEOPLE</c>
-    /// (<c>Name:email,…</c>, order = person id) names/links household 1's existing people, and every
-    /// <c>AUTH_ALLOWED_EMAILS</c> or <c>ADMIN_EMAILS</c> address that still has no person gets a new
-    /// one in household 1 (so the owner of a fresh install can sign in and invite people). Never
-    /// guesses which emailless person an address belongs to.
+    /// Bridge from the single-household config. Once (marked by a <see cref="LegacyImportKind"/>
+    /// audit event, so a later unlink isn't undone by a reboot): <c>DIARY_PEOPLE</c>
+    /// (<c>Name:email,…</c>, order = person id) names/links household 1's existing people and
+    /// every <c>AUTH_ALLOWED_EMAILS</c> address without a person gets a new owner in household 1.
+    /// Every boot: each <c>ADMIN_EMAILS</c> address without a person joins household 1 as an owner
+    /// (so a fresh install's admin can sign in), and their person carries <c>IsAdmin</c>.
+    /// Never guesses which emailless person an address belongs to.
     /// </summary>
     public static async Task ImportLegacyConfigAsync(MiseDbContext db, IConfiguration config, ILogger logger,
         CancellationToken ct = default)
+    {
+        var admins = (config["Auth:AdminEmails"] ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizeEmail).OfType<string>().Distinct().ToList();
+        if (!await db.AuditEvents.AnyAsync(e => e.Kind == LegacyImportKind, ct))
+            await ImportOnceAsync(db, config, logger, ct);
+
+        var people = await db.People.IgnoreQueryFilters().ToListAsync(ct);
+        foreach (var email in admins)
+        {
+            var row = people.FirstOrDefault(x => x.Email == email);
+            if (row is null)
+            {
+                var name = email.Split('@')[0];
+                row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email, Role = HouseholdRole.Owner };
+                db.People.Add(row);
+                people.Add(row);
+                logger.LogInformation("ADMIN_EMAILS: added {Email} to household 1", email);
+            }
+            row.IsAdmin = true;
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task ImportOnceAsync(MiseDbContext db, IConfiguration config, ILogger logger, CancellationToken ct)
     {
         var entries = (config["Diary:People"] ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -185,7 +232,7 @@ public static class People
                     Email: NormalizeEmail(colon < 0 ? null : part[(colon + 1)..]));
             })
             .ToList();
-        var allowed = $"{config["Auth:AllowedEmails"]},{config["Auth:AdminEmails"]}"
+        var allowed = (config["Auth:AllowedEmails"] ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(NormalizeEmail).OfType<string>().Distinct().ToList();
         if (entries.Count == 0 && allowed.Count == 0) return;
@@ -199,7 +246,7 @@ public static class People
             if (row is null)
             {
                 if (entry.Email is not null && Taken(entry.Email)) continue;
-                row = new Person { HouseholdId = 1, Name = entry.Name, Email = entry.Email };
+                row = new Person { HouseholdId = 1, Name = entry.Name, Email = entry.Email, Role = HouseholdRole.Owner };
                 db.People.Add(row);
                 people.Add(row);
                 logger.LogInformation("DIARY_PEOPLE: added {Name} to household 1", entry.Name);
@@ -216,11 +263,18 @@ public static class People
         foreach (var email in allowed.Where(e => !Taken(e)))
         {
             var name = email.Split('@')[0];
-            var row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email };
+            var row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email, Role = HouseholdRole.Owner };
             db.People.Add(row);
             people.Add(row);
-            logger.LogInformation("AUTH_ALLOWED_EMAILS/ADMIN_EMAILS: added {Email} to household 1 as a new person", email);
+            logger.LogInformation("AUTH_ALLOWED_EMAILS: added {Email} to household 1 as a new person", email);
         }
+        db.AuditEvents.Add(new AuditEvent
+        {
+            ActorName = "system",
+            HouseholdId = 1,
+            Kind = LegacyImportKind,
+            Summary = $"Jednorazowy import DIARY_PEOPLE / AUTH_ALLOWED_EMAILS ({entries.Count + allowed.Count} wpisów).",
+        });
         await db.SaveChangesAsync(ct);
     }
 }

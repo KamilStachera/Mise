@@ -142,7 +142,8 @@ public record PantryBulkResultDto(int Updated, List<PantryItemDto> Results,
 /// </summary>
 public record AuthMeDto(bool Authenticated, string? Email, string? Name, string? Picture,
     int? PersonId = null, List<PersonDto>? People = null, bool SignedIn = false, bool NeedsOnboarding = false,
-    bool IsAdmin = false, HouseholdDto? Household = null, bool PublicHousehold = false);
+    bool IsAdmin = false, HouseholdDto? Household = null, bool PublicHousehold = false,
+    bool Blocked = false, string? Role = null, bool CanManage = false);
 public record PersonDto(int Id, string Name);
 public record HouseholdDto(int Id, string Name, bool SousEnabled);
 

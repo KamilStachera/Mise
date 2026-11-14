@@ -13,6 +13,7 @@ public static class TenancyServiceCollectionExtensions
     {
         services.TryAddScoped<TenantContext>();
         services.TryAddScoped<Caller>();
+        services.TryAddScoped<Audit>();
         services.TryAddScoped(sp => new PersonScope(sp.GetRequiredService<Caller>().Acting?.Id ?? 0));
         return services;
     }

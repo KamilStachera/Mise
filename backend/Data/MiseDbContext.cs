@@ -58,6 +58,7 @@ public class MiseDbContext : DbContext
     public DbSet<Household> Households => Set<Household>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -203,6 +204,7 @@ public class MiseDbContext : DbContext
             // Stored lower-case (People.NormalizeEmail): one Google account = one person = one household.
             e.Property(x => x.Email).HasMaxLength(200);
             e.HasIndex(x => x.Email).IsUnique().HasFilter("\"Email\" IS NOT NULL");
+            e.Property(x => x.Role).HasConversion<string>().HasMaxLength(16);
         });
 
         b.Entity<Household>(e =>
@@ -214,11 +216,20 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.Starter).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Role).HasConversion<string>().HasMaxLength(16);
             e.Property(x => x.CodeHash).HasMaxLength(64);
             e.Property(x => x.HouseholdName).HasMaxLength(80);
             e.HasIndex(x => x.CodeHash).IsUnique();
             e.HasIndex(x => x.HouseholdId);
             e.HasOne<Household>().WithMany().HasForeignKey(x => x.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AuditEvent>(e =>
+        {
+            e.Property(x => x.ActorName).HasMaxLength(200);
+            e.Property(x => x.Kind).HasMaxLength(40);
+            e.Property(x => x.Summary).HasMaxLength(500);
+            e.HasIndex(x => x.At);
         });
 
         b.Entity<ApiKey>(e =>
