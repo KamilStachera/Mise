@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Data;
@@ -74,24 +75,28 @@ public static class People
 
     /// <summary>
     /// Every person lookup goes through here (and bypasses the household filter: they run before
-    /// the tenant is known). <c>Blocked</c> includes a blocked household.
+    /// the tenant is known). <c>Blocked</c> includes a blocked household. Filter and order on the
+    /// entity BEFORE the projection: SQL providers can't translate a <c>Where</c> over the
+    /// constructor-projected <see cref="PersonInfo"/> (EF InMemory can, so tests alone won't catch it —
+    /// <c>TenancyTests</c> checks the SQL translation).
     /// </summary>
-    private static IQueryable<PersonInfo> Infos(MiseDbContext db) =>
-        db.People.IgnoreQueryFilters().AsNoTracking().Select(p => new PersonInfo(p.Id, p.Name, p.Email, p.HouseholdId,
-            p.Role, p.IsAdmin, p.BlockedAt != null || db.Households.Any(h => h.Id == p.HouseholdId && h.BlockedAt != null)));
+    public static IQueryable<PersonInfo> Query(MiseDbContext db, Expression<Func<Person, bool>> filter) =>
+        db.People.IgnoreQueryFilters().AsNoTracking().Where(filter).OrderBy(p => p.Id)
+            .Select(p => new PersonInfo(p.Id, p.Name, p.Email, p.HouseholdId, p.Role, p.IsAdmin,
+                p.BlockedAt != null || db.Households.Any(h => h.Id == p.HouseholdId && h.BlockedAt != null)));
 
     public static Task<PersonInfo?> FindAsync(MiseDbContext db, int id, CancellationToken ct = default) =>
-        Infos(db).FirstOrDefaultAsync(p => p.Id == id, ct);
+        Query(db, p => p.Id == id).FirstOrDefaultAsync(ct);
 
     public static async Task<PersonInfo?> FindByEmailAsync(MiseDbContext db, string? email, CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
         if (normalized is null) return null;
-        return await Infos(db).FirstOrDefaultAsync(p => p.Email == normalized, ct);
+        return await Query(db, p => p.Email == normalized).FirstOrDefaultAsync(ct);
     }
 
     public static Task<List<PersonInfo>> InHouseholdAsync(MiseDbContext db, int householdId, CancellationToken ct = default) =>
-        Infos(db).Where(p => p.HouseholdId == householdId).OrderBy(p => p.Id).ToListAsync(ct);
+        Query(db, p => p.HouseholdId == householdId).ToListAsync(ct);
 
     /// <summary>
     /// Fills <paramref name="caller"/> and points the tenant at its household. Order: dev bypass →
@@ -118,7 +123,7 @@ public static class People
             caller.IsAdmin = true;
             // "Self" is the first person of whichever household the pick lands in, so a dev can
             // hop between households with the switcher header.
-            var first = await Infos(db).OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
+            var first = await Query(db, _ => true).FirstOrDefaultAsync(ct);
             var pick = picked is int id ? await FindAsync(db, id, ct) : null;
             caller.Self = pick is not null && pick.HouseholdId != first?.HouseholdId
                 ? (await InHouseholdAsync(db, pick.HouseholdId, ct)).First()

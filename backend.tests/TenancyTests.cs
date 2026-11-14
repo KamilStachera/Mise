@@ -253,6 +253,23 @@ public class TenancyTests
         Assert.Equal(2, (await system.Recipes.SingleAsync(r => r.Title == "Nowy")).HouseholdId);
     }
 
+    [Fact]
+    public void PersonLookups_TranslateToPostgresSql()
+    {
+        // EF InMemory evaluates anything; Npgsql must translate. ToQueryString needs no server.
+        using var db = new MiseDbContext(new DbContextOptionsBuilder<MiseDbContext>()
+            .UseNpgsql("Host=localhost;Database=never-connected").Options, TenantContext.System());
+        const string email = "a@example.com";
+        foreach (var query in new[]
+        {
+            People.Query(db, p => p.Id == 1),
+            People.Query(db, p => p.Email == email),
+            People.Query(db, p => p.HouseholdId == 2),
+            People.Query(db, _ => true),
+        })
+            Assert.Contains("FROM \"People\"", query.ToQueryString());
+    }
+
     // ---- helpers ----
 
     private static MiseDbContext Db(string name, TenantContext tenant) =>
