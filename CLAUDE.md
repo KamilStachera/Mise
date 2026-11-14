@@ -203,7 +203,9 @@ local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backen
 - **Recipe photos:** gallery table `RecipeImages`; `Recipe.ImagePath` marks the
   default (newest upload becomes default). Files live in the `mise-images`
   volume (`ImagesDir` config), timestamped names = cache busting. IFormFile
-  minimal-API endpoints need `.DisableAntiforgery()`.
+  minimal-API endpoints need `.DisableAntiforgery()`. Uploads over 1 MB are stored as
+  WebP (≤ 2048 px, q85; `RecipeImageStore.SaveAsync`) unless WebP isn't smaller or the
+  file won't decode — then the upload is kept byte for byte. Existing files aren't touched.
 - **Ingredient amounts:** display string `Quantity` + structured
   `AmountValue`/`AmountUnit` (parsed by `Services/QuantityParser.cs`; refuses
   "garść"/"łyżki"). Structured amounts drive quantity-aware "missing" checks and

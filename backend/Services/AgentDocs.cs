@@ -458,6 +458,8 @@ public static class AgentDocs
           `curl -X POST {API}/recipes/<id>/image -F "file=@zdjecie.jpg"`.
           Nowe zdjęcie **staje się domyślnym** (na karcie i stronie przepisu);
           wcześniejsze zostają w galerii. Przez MCP: narzędzie `add_recipe_image`.
+          Pliki powyżej 1 MB serwer zapisuje jako WebP (maks. 2048 px na dłuższym boku),
+          więc `imageUrl` może mieć inne rozszerzenie niż przesłany plik.
         - `GET /recipes/{id}/images` — galeria (najnowsze najpierw, `isDefault` oznacza główne).
         - `PUT /recipes/{id}/images/{imageId}/default` — ustaw starsze zdjęcie jako główne.
         - `DELETE /recipes/{id}/images/{imageId}` — usuń zdjęcie z galerii; po usunięciu

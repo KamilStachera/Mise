@@ -123,6 +123,90 @@ public sealed class RecipeImageStoreTests : IDisposable
         Assert.True(File.Exists(other));
     }
 
+    // ---- uploads ----
+
+    [Fact]
+    public async Task BigPngUpload_IsStoredAsSmallerWebpWithinMaxSize()
+    {
+        var bytes = Encode(Noise(2600, 1300), SKEncodedImageFormat.Png);
+        Assert.True(bytes.Length > RecipeImageStore.OptimizeAboveBytes);
+
+        var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/png"));
+
+        Assert.EndsWith(".webp", name);
+        var stored = Path.Combine(root, name);
+        using var codec = SKCodec.Create(stored);
+        Assert.Equal(SKEncodedImageFormat.Webp, codec.EncodedFormat);
+        Assert.Equal((RecipeImageStore.MaxStoredSize, 1024), (codec.Info.Width, codec.Info.Height));
+        Assert.True(new FileInfo(stored).Length < bytes.Length);
+        Assert.Equal([name], Directory.GetFiles(root).Select(Path.GetFileName)); // the PNG is gone
+    }
+
+    [Fact]
+    public async Task BigWebpUpload_IsReencodedInPlaceWithoutLeftovers()
+    {
+        using var noise = Noise(1800, 1200);
+        using var lossless = noise.Encode(SKEncodedImageFormat.Webp, 100);
+        var bytes = lossless.ToArray();
+        Assert.True(bytes.Length > RecipeImageStore.OptimizeAboveBytes);
+
+        var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/webp"));
+
+        Assert.EndsWith(".webp", name);
+        Assert.True(new FileInfo(Path.Combine(root, name)).Length < bytes.Length);
+        Assert.Equal([name], Directory.GetFiles(root).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public async Task SmallUpload_IsStoredByteForByte()
+    {
+        using var small = new SKBitmap(300, 200);
+        small.Erase(SKColors.Orange);
+        var bytes = Encode(small, SKEncodedImageFormat.Jpeg);
+
+        var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/jpeg"));
+
+        Assert.EndsWith(".jpg", name);
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(Path.Combine(root, name)));
+    }
+
+    [Fact]
+    public async Task BigUndecodableUpload_IsKeptAsUploaded()
+    {
+        var bytes = new byte[RecipeImageStore.OptimizeAboveBytes + 10];
+        new Random(7).NextBytes(bytes);
+
+        var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/png"));
+
+        Assert.EndsWith(".png", name);
+        Assert.Equal(bytes, await File.ReadAllBytesAsync(Path.Combine(root, name)));
+        Assert.Single(Directory.GetFiles(root));
+    }
+
+    private static SKBitmap Noise(int width, int height)
+    {
+        var bitmap = new SKBitmap(width, height);
+        var random = new Random(42);
+        var pixels = new SKColor[width * height];
+        for (var i = 0; i < pixels.Length; i++)
+            pixels[i] = new SKColor((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256));
+        bitmap.Pixels = pixels;
+        return bitmap;
+    }
+
+    private static byte[] Encode(SKBitmap bitmap, SKEncodedImageFormat format)
+    {
+        using var data = bitmap.Encode(format, 90);
+        return data.ToArray();
+    }
+
+    private static Microsoft.AspNetCore.Http.IFormFile Upload(byte[] bytes, string contentType) =>
+        new Microsoft.AspNetCore.Http.FormFile(new MemoryStream(bytes), 0, bytes.Length, "file", "photo")
+        {
+            Headers = new Microsoft.AspNetCore.Http.HeaderDictionary(),
+            ContentType = contentType,
+        };
+
     private string Save(SKBitmap bitmap, string name, SKEncodedImageFormat format)
     {
         var path = Path.Combine(root, name);
