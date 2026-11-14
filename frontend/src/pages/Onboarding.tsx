@@ -33,6 +33,26 @@ export function Welcome() {
   )
 }
 
+/** Blocked by an admin (the person or their whole household). Data is kept; only an admin can lift it. */
+export function Blocked() {
+  const { data: auth } = useAuth()
+  const logout = useLogout()
+  return (
+    <Frame>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--rule)', paddingTop: 18 }}>
+        <h1 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 34, lineHeight: 1.05, letterSpacing: '-0.02em' }}>
+          Konto zablokowane
+        </h1>
+        <span style={{ font: sans(15), lineHeight: 1.55, color: 'var(--text-2)' }}>
+          {auth?.email ? <>Konto <b style={{ fontWeight: 600, color: 'var(--text)' }}>{auth.email}</b> zostało</> : 'To konto zostało'} zablokowane
+          przez administratora Pichci. Twoje dane są zachowane — skontaktuj się z administratorem, żeby odzyskać dostęp.
+        </span>
+      </div>
+      <Button variant="outline" onClick={() => logout.mutate()}>Zaloguj innym kontem</Button>
+    </Frame>
+  )
+}
+
 /** Signed in with Google but in no household yet: redeem an invite code (new household or join one). */
 export function Onboarding() {
   const { data: auth } = useAuth()

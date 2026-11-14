@@ -624,7 +624,13 @@ export interface AuthMe {
   household: HouseholdInfo | null
   /** Anonymous visitors may browse a public household read-only. */
   publicHousehold: boolean
+  /** Blocked by an admin (the person or their household): show the blocked screen. */
+  blocked: boolean
+  role: Role | null
+  /** Owner (or admin): may invite people, rename the household and change roles. */
+  canManage: boolean
 }
+export type Role = 'owner' | 'member'
 export interface HouseholdInfo {
   id: number
   name: string
@@ -635,6 +641,7 @@ export interface HouseholdMember {
   name: string
   email: string | null
   isSelf: boolean
+  role: Role
 }
 export interface Invite {
   id: string
@@ -644,8 +651,10 @@ export interface Invite {
   householdName: string | null
   starter: 'none' | 'all' | 'sources'
   starterSources: string[]
+  role: Role
 }
 export interface HouseholdDetail extends HouseholdInfo {
+  canManage: boolean
   members: HouseholdMember[]
   invites: Invite[]
 }
@@ -654,24 +663,89 @@ export interface CreatedInvite {
   code: string
   expiresAt: string
 }
+// ---- admin panel ----
+export interface AdminStats {
+  households: number
+  people: number
+  activeLast7Days: number
+  pendingInvites: number
+  liveKeys: number
+  blockedPeople: number
+}
+export interface AuditEvent {
+  id: string
+  at: string
+  actorName: string
+  kind: string
+  summary: string
+  householdId: number | null
+  householdName: string | null
+  targetPersonId: number | null
+}
+export interface AdminOverview {
+  stats: AdminStats
+  sources: { name: string; count: number }[]
+  sourceRecipes: number
+  recent: AuditEvent[]
+}
 export interface AdminHousehold {
   id: number
   name: string
   sousEnabled: boolean
+  blocked: boolean
   createdAt: string
-  members: string[]
+  members: { id: number; name: string; role: Role; blocked: boolean }[]
   recipes: number
+  planEntries: number
+  lastSeenAt: string | null
 }
-export interface AdminOverview {
-  households: AdminHousehold[]
-  invites: Invite[]
-  sources: { name: string; count: number }[]
-  sourceRecipes: number
+export interface AdminPerson {
+  id: number
+  name: string
+  email: string | null
+  householdId: number
+  householdName: string
+  role: Role
+  isAdmin: boolean
+  /** Admin via ADMIN_EMAILS — can't be demoted, blocked or unlinked from the panel. */
+  envAdmin: boolean
+  blocked: boolean
+  householdBlocked: boolean
+  createdAt: string
+  lastSeenAt: string | null
+  keys: number
 }
-export interface AdminInviteInput {
-  householdName?: string
+export type InviteStatus = 'pending' | 'used' | 'expired' | 'revoked'
+export interface AdminInvite {
+  id: string
+  kind: 'join' | 'new-household'
+  status: InviteStatus
+  createdAt: string
+  expiresAt: string
+  householdId: number | null
+  householdName: string | null
+  role: Role
   starter: 'none' | 'all' | 'sources'
-  sources?: string[]
+  starterSources: string[]
+  createdBy: string | null
+  usedBy: string | null
+  usedAt: string | null
+  revokedAt: string | null
+}
+export type AdminInviteInput =
+  | { kind: 'new-household'; householdName?: string; starter: 'none' | 'all' | 'sources'; sources?: string[] }
+  | { kind: 'join'; householdId: number; role: Role }
+export interface AdminKey {
+  id: string
+  name: string
+  prefix: string
+  personId: number
+  personName: string
+  householdId: number
+  householdName: string
+  createdAt: string
+  lastUsedAt: string | null
+  revokedAt: string | null
 }
 export interface ApiKeyInfo {
   id: string
@@ -896,12 +970,34 @@ export const api = {
     http<HouseholdDetail>(`/household/people/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }, true),
   createJoinInvite: () => http<CreatedInvite>(`/household/invites`, { method: 'POST' }, true),
   deleteJoinInvite: (id: string) => http<void>(`/household/invites/${id}`, { method: 'DELETE' }, true),
-  adminOverview: () => http<AdminOverview>(`/admin`, undefined, true),
-  createHouseholdInvite: (input: AdminInviteInput) =>
-    http<CreatedInvite>(`/admin/invites`, { method: 'POST', body: JSON.stringify(input) }, true),
-  deleteHouseholdInvite: (id: string) => http<void>(`/admin/invites/${id}`, { method: 'DELETE' }, true),
-  patchHousehold: (id: number, patch: { name?: string; sousEnabled?: boolean }) =>
-    http<AdminOverview>(`/admin/households/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }, true),
+  setPersonRole: (id: number, role: Role) =>
+    http<HouseholdDetail>(`/household/people/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }, true),
+  admin: {
+    overview: () => http<AdminOverview>(`/admin/overview`, undefined, true),
+    households: () => http<AdminHousehold[]>(`/admin/households`, undefined, true),
+    patchHousehold: (id: number, patch: { name?: string; sousEnabled?: boolean; blocked?: boolean }) =>
+      http<AdminHousehold>(`/admin/households/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }, true),
+    people: (filter: { q?: string; householdId?: number; status?: string }) => {
+      const p = new URLSearchParams()
+      if (filter.q) p.set('q', filter.q)
+      if (filter.householdId != null) p.set('householdId', String(filter.householdId))
+      if (filter.status) p.set('status', filter.status)
+      return http<AdminPerson[]>(`/admin/people?${p}`, undefined, true)
+    },
+    patchPerson: (id: number, patch: { name?: string; role?: Role; isAdmin?: boolean; blocked?: boolean }) =>
+      http<AdminPerson>(`/admin/people/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }, true),
+    unlinkPerson: (id: number) => http<AdminPerson>(`/admin/people/${id}/unlink`, { method: 'POST' }, true),
+    invites: (status: InviteStatus | 'all') => http<AdminInvite[]>(`/admin/invites?status=${status}`, undefined, true),
+    createInvite: (input: AdminInviteInput) =>
+      http<CreatedInvite>(`/admin/invites`, { method: 'POST', body: JSON.stringify(input) }, true),
+    extendInvite: (id: string, days = 7) =>
+      http<AdminInvite>(`/admin/invites/${id}/extend`, { method: 'POST', body: JSON.stringify({ days }) }, true),
+    revokeInvite: (id: string) => http<void>(`/admin/invites/${id}`, { method: 'DELETE' }, true),
+    keys: () => http<AdminKey[]>(`/admin/keys`, undefined, true),
+    revokeKey: (id: string) => http<void>(`/admin/keys/${id}`, { method: 'DELETE' }, true),
+    audit: (before?: string) =>
+      http<AuditEvent[]>(`/admin/audit?take=50${before ? `&before=${encodeURIComponent(before)}` : ''}`, undefined, true),
+  },
   apiKeys: () => http<ApiKeyInfo[]>(`/keys`, undefined, true),
   createApiKey: (name: string) => http<CreatedApiKey>(`/keys`, { method: 'POST', body: JSON.stringify({ name }) }, true),
   revokeApiKey: (id: string) => http<void>(`/keys/${id}`, { method: 'DELETE' }, true),

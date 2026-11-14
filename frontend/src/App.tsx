@@ -24,7 +24,8 @@ import { Questionnaire } from './pages/Questionnaire'
 import { Random } from './pages/Random'
 import { History } from './pages/History'
 import { Training } from './pages/Training'
-import { Onboarding, Welcome } from './pages/Onboarding'
+import { Blocked, Onboarding, Welcome } from './pages/Onboarding'
+import { AdminPage } from './pages/admin/AdminPage'
 
 export default function App() {
   const isMobile = useIsMobile()
@@ -41,6 +42,7 @@ export default function App() {
 
   // Before the app: a Google account without a household redeems an invite code; with no
   // public household to browse, an anonymous visitor can only sign in.
+  if (auth?.blocked) return <Blocked />
   if (auth?.needsOnboarding) return <><Onboarding /><ToastHost /></>
   if (auth && !auth.authenticated && !auth.signedIn && !auth.publicHousehold) return <Welcome />
 
@@ -93,6 +95,8 @@ export default function App() {
           <Route path="/trening/plan" element={<Training />} />
           <Route path="/trening/cwiczenia" element={<Training />} />
           <Route path="/trening/ankieta" element={<Training />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/:tab" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

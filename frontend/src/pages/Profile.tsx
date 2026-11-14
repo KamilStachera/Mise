@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, useBody, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire, useCookLog } from '../api/hooks'
 import { loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
-import { AdminHouseholdsCard, HouseholdCard } from '../components/HouseholdCards'
+import { HouseholdCard } from '../components/HouseholdCards'
 import { useIsMobile } from '../lib/useIsMobile'
 import { Avatar, Button, Chip, Eyebrow, PageTitle, SectionHead, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
@@ -112,7 +112,11 @@ export function Profile() {
         </div>
 
         {canEdit && <HouseholdCard />}
-        {canEdit && <AdminHouseholdsCard />}
+        {auth?.isAdmin && (
+          <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
+            <LinkRow label="Panel administratora" meta="domy, ludzie, kody" onClick={() => nav('/admin')} />
+          </div>
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>
@@ -163,9 +167,17 @@ export function Profile() {
       </div>
 
       {canEdit && (
-        <div style={{ display: 'grid', gridTemplateColumns: auth?.isAdmin ? '1fr 1fr' : 'minmax(0, 560px)', gap: 56, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 620px) minmax(0, 1fr)', gap: 56, alignItems: 'start' }}>
           <HouseholdCard />
-          <AdminHouseholdsCard />
+          {auth?.isAdmin && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--rule)', paddingTop: 14 }}>
+              <span style={{ font: sans(15.5, 500) }}>Panel administratora</span>
+              <span style={{ font: sans(13.5), lineHeight: 1.5, color: 'var(--text-2)' }}>
+                Domy, ludzie, uprawnienia, kody zaproszeń, klucze API i dziennik zmian.
+              </span>
+              <Button variant="outline" style={{ alignSelf: 'flex-start' }} onClick={() => nav('/admin')}>Otwórz panel</Button>
+            </div>
+          )}
         </div>
       )}
 

@@ -21,7 +21,7 @@ export function TabBar() {
     { key: 'training', label: 'Trening', to: '/trening', active: section === 'training' },
     { key: 'shopping', label: 'Zakupy', to: '/shopping', active: section === 'shopping', badge: toBuy },
     { key: 'pantry', label: 'Spiżarnia', to: '/pantry', active: section === 'pantry' },
-    { key: 'me', label: 'Ja', to: '/profile', active: section === 'profile' || section === 'history' },
+    { key: 'me', label: 'Ja', to: '/profile', active: section === 'profile' || section === 'history' || section === 'admin' },
   ]
 
   return (

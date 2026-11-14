@@ -20,6 +20,7 @@ export function navSection(pathname: string): string {
   if (pathname.startsWith('/shopping')) return 'shopping'
   if (pathname.startsWith('/profile')) return 'profile'
   if (pathname.startsWith('/trening')) return 'training'
+  if (pathname.startsWith('/admin')) return 'admin'
   return 'recipes'
 }
 
@@ -129,6 +130,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
           <NavLink active={section === 'history'} onClick={() => nav('/history')}>Historia</NavLink>
           <NavLink active={section === 'profile' && !pathname.startsWith('/profile/cel')} onClick={() => nav('/profile')}>Profil kulinarny</NavLink>
           {canEdit && <NavLink active={pathname.startsWith('/profile/cel')} onClick={() => nav('/profile/cel')}>Twój cel</NavLink>}
+          {auth?.isAdmin && <NavLink active={pathname.startsWith('/admin')} onClick={() => nav('/admin')}>Panel admina</NavLink>}
         </nav>
       </div>
 

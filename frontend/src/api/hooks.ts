@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
   type BodyInput,
@@ -8,6 +8,7 @@ import {
   type CookLogInput,
   type CookLogUpdateInput,
   type DiaryEntryInput,
+  type InviteStatus,
   type PantryItemInput,
   type PantryConfirmation,
   type PlanEntryInput,
@@ -15,6 +16,7 @@ import {
   type Preferences,
   type RecipeDetail,
   type RecipeInput,
+  type Role,
   type Slot,
   type SupplyCategory,
   type WorkoutInput,
@@ -48,8 +50,65 @@ export function useHousehold(enabled = true) {
   return useQuery({ queryKey: ['household'], queryFn: api.household, enabled })
 }
 
-export function useAdminOverview(enabled = true) {
-  return useQuery({ queryKey: ['admin'], queryFn: api.adminOverview, enabled })
+// Admin panel: every query key starts with 'admin', and every admin mutation refreshes all of them.
+export function useAdminOverview() {
+  const { data: auth } = useAuth()
+  return useQuery({ queryKey: ['admin', 'overview'], queryFn: api.admin.overview, enabled: auth?.isAdmin === true })
+}
+
+export function useAdminHouseholds() {
+  const { data: auth } = useAuth()
+  return useQuery({ queryKey: ['admin', 'households'], queryFn: api.admin.households, enabled: auth?.isAdmin === true })
+}
+
+export function useAdminPeople(filter: { q?: string; householdId?: number; status?: string }) {
+  const { data: auth } = useAuth()
+  return useQuery({ queryKey: ['admin', 'people', filter], queryFn: () => api.admin.people(filter), enabled: auth?.isAdmin === true })
+}
+
+export function useAdminInvites(status: InviteStatus | 'all') {
+  const { data: auth } = useAuth()
+  return useQuery({ queryKey: ['admin', 'invites', status], queryFn: () => api.admin.invites(status), enabled: auth?.isAdmin === true })
+}
+
+export function useAdminKeys() {
+  const { data: auth } = useAuth()
+  return useQuery({ queryKey: ['admin', 'keys'], queryFn: api.admin.keys, enabled: auth?.isAdmin === true })
+}
+
+/** The audit log, newest first, 50 per page ("Starsze" loads the next page). */
+export function useAdminAudit() {
+  const { data: auth } = useAuth()
+  return useInfiniteQuery({
+    queryKey: ['admin', 'audit'],
+    queryFn: ({ pageParam }) => api.admin.audit(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.length === 50 ? last[last.length - 1].at : undefined),
+    enabled: auth?.isAdmin === true,
+  })
+}
+
+/** Admin mutations. Errors stay with the caller (the panel shows the server's Polish message). */
+export function useAdminActions() {
+  const qc = useQueryClient()
+  const done = () => Promise.all([qc.invalidateQueries({ queryKey: ['admin'] }), qc.invalidateQueries({ queryKey: ['auth'] }),
+    qc.invalidateQueries({ queryKey: ['household'] }), qc.invalidateQueries({ queryKey: ['chatHealth'] })])
+  const opts = { onSuccess: done, meta: { ownErrors: true } }
+  return {
+    patchHousehold: useMutation({
+      mutationFn: ({ id, ...patch }: { id: number; name?: string; sousEnabled?: boolean; blocked?: boolean }) => api.admin.patchHousehold(id, patch),
+      ...opts,
+    }),
+    patchPerson: useMutation({
+      mutationFn: ({ id, ...patch }: { id: number; name?: string; role?: Role; isAdmin?: boolean; blocked?: boolean }) => api.admin.patchPerson(id, patch),
+      ...opts,
+    }),
+    unlinkPerson: useMutation({ mutationFn: api.admin.unlinkPerson, ...opts }),
+    createInvite: useMutation({ mutationFn: api.admin.createInvite, ...opts }),
+    extendInvite: useMutation({ mutationFn: (id: string) => api.admin.extendInvite(id), ...opts }),
+    revokeInvite: useMutation({ mutationFn: api.admin.revokeInvite, ...opts }),
+    revokeKey: useMutation({ mutationFn: api.admin.revokeKey, ...opts }),
+  }
 }
 
 export function useApiKeys(enabled = true) {
@@ -66,14 +125,13 @@ export function useHouseholdActions() {
       mutationFn: ({ id, name }: { id: number; name: string }) => api.renamePerson(id, name),
       onSuccess: refresh('household', 'auth'),
     }),
+    setRole: useMutation({
+      mutationFn: ({ id, role }: { id: number; role: Role }) => api.setPersonRole(id, role),
+      onSuccess: refresh('household', 'auth'),
+      meta: { ownErrors: true },
+    }),
     createJoinInvite: useMutation({ mutationFn: api.createJoinInvite, onSuccess: refresh('household') }),
     deleteJoinInvite: useMutation({ mutationFn: api.deleteJoinInvite, onSuccess: refresh('household') }),
-    createHouseholdInvite: useMutation({ mutationFn: api.createHouseholdInvite, onSuccess: refresh('admin') }),
-    deleteHouseholdInvite: useMutation({ mutationFn: api.deleteHouseholdInvite, onSuccess: refresh('admin') }),
-    patchHousehold: useMutation({
-      mutationFn: ({ id, ...patch }: { id: number; name?: string; sousEnabled?: boolean }) => api.patchHousehold(id, patch),
-      onSuccess: refresh('admin', 'auth', 'chatHealth'),
-    }),
     createApiKey: useMutation({ mutationFn: api.createApiKey, onSuccess: refresh('api-keys') }),
     revokeApiKey: useMutation({ mutationFn: api.revokeApiKey, onSuccess: refresh('api-keys') }),
   }
