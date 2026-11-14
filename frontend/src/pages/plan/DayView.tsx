@@ -369,21 +369,23 @@ export function PrivateDiary({ switcher }: { switcher: ReactNode }) {
   const pad = usePagePad()
   const nav = useNavigate()
   return (
-    <div style={{ ...pad, display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760 }}>
-      <PageTitle title="Plan" right={switcher} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 20, borderTop: '1px solid var(--rule)' }}>
-        <Eyebrow tone="accent">Prywatne</Eyebrow>
-        <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 30, lineHeight: 1.15 }}>Dziennik jest prywatny — zaloguj się</span>
-        <p style={{ margin: 0, font: sans(15), lineHeight: 1.5, color: 'var(--text-2)' }}>
-          Co zjedzone, ile kcal i resztki w lodówce widać tylko po zalogowaniu. Plan tygodnia i przepisy są dostępne dla wszystkich.
-        </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 6 }}>
-          <Button variant="outline" onClick={() => { window.location.href = loginUrl('/plan/dzien') }}>Zaloguj się</Button>
-          <Button variant="text" onClick={() => nav('/')}>Przeglądaj przepisy ›</Button>
+    <div style={{ ...pad, maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760 }}>
+        <PageTitle title="Plan" right={switcher} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 20, borderTop: '1px solid var(--rule)' }}>
+          <Eyebrow tone="accent">Prywatne</Eyebrow>
+          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 30, lineHeight: 1.15 }}>Dziennik jest prywatny — zaloguj się</span>
+          <p style={{ margin: 0, font: sans(15), lineHeight: 1.5, color: 'var(--text-2)' }}>
+            Co zjedzone, ile kcal i resztki w lodówce widać tylko po zalogowaniu. Plan tygodnia i przepisy są dostępne dla wszystkich.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 6 }}>
+            <Button variant="outline" onClick={() => { window.location.href = loginUrl('/plan/dzien') }}>Zaloguj się</Button>
+            <Button variant="text" onClick={() => nav('/')}>Przeglądaj przepisy ›</Button>
+          </div>
         </div>
-      </div>
-      <div aria-hidden style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: 0.5 }}>
-        {[0, 1, 2].map((i) => <div key={i} style={{ height: 44, borderTop: '1px solid var(--border)' }} />)}
+        <div aria-hidden style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: 0.5 }}>
+          {[0, 1, 2].map((i) => <div key={i} style={{ height: 44, borderTop: '1px solid var(--border)' }} />)}
+        </div>
       </div>
     </div>
   )

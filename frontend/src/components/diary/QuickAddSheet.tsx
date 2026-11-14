@@ -38,7 +38,8 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
   const feminine = useFeminine()
   // Catering chip: a box on a day without delivery (or one removed by mistake), never twice a day.
   const { data: catering } = useCatering()
-  const { data: week } = usePlan(toISO(mondayOf(parseISODate(date))))
+  // Mounted while closed with date '' — don't ask the API for week "NaN-NaN-NaN" then.
+  const { data: week } = usePlan(date ? toISO(mondayOf(parseISODate(date))) : undefined, open && date !== '')
   const logCatering = useLogCatering()
   const showCatering = catering?.configured === true && catering.enabled
     && !(week?.entries ?? []).some((e) => e.date === date && e.isCatering)

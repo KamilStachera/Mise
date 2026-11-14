@@ -81,69 +81,71 @@ export function ActivityView() {
   const showSetup = state === 'none' || setupOpen
 
   return (
-    <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 22 }}>
-      {back}
-      <PageTitle
-        title="Aktywność"
-        right={
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-            <PersonSwitch />
-            {!isMobile && <Button onClick={() => setSheet(true)}>+ Dodaj trening</Button>}
-          </div>
-        }
-      />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
-        {connection}
-        {showSetup && <Setup />}
-      </div>
-
-      {today && (
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24 }}>
-            Dziś <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>{dayShortMonth(parseISODate(today.date))}</span>
-          </span>
-          <StatStrip
-            stacked
-            items={[
-              { value: today.activeKcal > 0 ? formatKcal(today.activeKcal) : '—', label: 'kcal aktywnych' },
-              { value: String(today.workouts.length), label: today.workouts.length === 1 ? 'trening' : 'treningi' },
-              { value: `+${formatKcal(today.bonus)}`, label: 'do budżetu', highlight: true },
-            ]}
-          />
-          {today.workouts.map((w) => <WorkoutRow key={w.id} w={w} onDelete={() => del.mutate(w.id)} />)}
-        </section>
-      )}
-
-      {activity && activity.days.length > 1 && (
-        <section style={{ display: 'flex', flexDirection: 'column' }}>
-          <Eyebrow tone="ink" style={{ paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>Ostatnie 7 dni</Eyebrow>
-          {activity.days.slice(1).map((d) => {
-            const date = parseISODate(d.date)
-            return (
-              <div key={d.date} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 19 }}>
-                    {WEEKDAY_SHORT[(date.getDay() + 6) % 7]} <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>{dayShortMonth(date)}</span>
-                  </span>
-                  <span style={{ font: mono(13.5, 500) }}>{d.activeKcal > 0 ? `${formatKcal(d.activeKcal)} kcal` : '—'}</span>
-                </div>
-                {d.workouts.map((w) => (
-                  <span key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, font: sans(14), color: 'var(--text-2)' }}>
-                    {w.type} · {w.minutes} min <SourceTag band={w.source === 'band'} />
-                  </span>
-                ))}
-              </div>
-            )
-          })}
-        </section>
-      )}
-
-      {isMobile ? (
-        <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
-          <Button size="xl" style={{ width: '100%' }} onClick={() => setSheet(true)}>{state === 'none' ? '+ Dodaj trening ręcznie' : '+ Dodaj trening'}</Button>
+    <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto' }}>
+      <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 22 }}>
+        {back}
+        <PageTitle
+          title="Aktywność"
+          right={
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              <PersonSwitch />
+              {!isMobile && <Button onClick={() => setSheet(true)}>+ Dodaj trening</Button>}
+            </div>
+          }
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
+          {connection}
+          {showSetup && <Setup />}
         </div>
-      ) : null}
-      <WorkoutSheet open={sheet} onClose={() => setSheet(false)} weightKg={body?.currentKg ?? null} addBackPercent={addBack} />
+
+        {today && (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24 }}>
+              Dziś <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>{dayShortMonth(parseISODate(today.date))}</span>
+            </span>
+            <StatStrip
+              stacked
+              items={[
+                { value: today.activeKcal > 0 ? formatKcal(today.activeKcal) : '—', label: 'kcal aktywnych' },
+                { value: String(today.workouts.length), label: today.workouts.length === 1 ? 'trening' : 'treningi' },
+                { value: `+${formatKcal(today.bonus)}`, label: 'do budżetu', highlight: true },
+              ]}
+            />
+            {today.workouts.map((w) => <WorkoutRow key={w.id} w={w} onDelete={() => del.mutate(w.id)} />)}
+          </section>
+        )}
+
+        {activity && activity.days.length > 1 && (
+          <section style={{ display: 'flex', flexDirection: 'column' }}>
+            <Eyebrow tone="ink" style={{ paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>Ostatnie 7 dni</Eyebrow>
+            {activity.days.slice(1).map((d) => {
+              const date = parseISODate(d.date)
+              return (
+                <div key={d.date} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 19 }}>
+                      {WEEKDAY_SHORT[(date.getDay() + 6) % 7]} <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>{dayShortMonth(date)}</span>
+                    </span>
+                    <span style={{ font: mono(13.5, 500) }}>{d.activeKcal > 0 ? `${formatKcal(d.activeKcal)} kcal` : '—'}</span>
+                  </div>
+                  {d.workouts.map((w) => (
+                    <span key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, font: sans(14), color: 'var(--text-2)' }}>
+                      {w.type} · {w.minutes} min <SourceTag band={w.source === 'band'} />
+                    </span>
+                  ))}
+                </div>
+              )
+            })}
+          </section>
+        )}
+
+        {isMobile ? (
+          <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
+            <Button size="xl" style={{ width: '100%' }} onClick={() => setSheet(true)}>{state === 'none' ? '+ Dodaj trening ręcznie' : '+ Dodaj trening'}</Button>
+          </div>
+        ) : null}
+        <WorkoutSheet open={sheet} onClose={() => setSheet(false)} weightKg={body?.currentKg ?? null} addBackPercent={addBack} />
+      </div>
     </div>
   )
 }

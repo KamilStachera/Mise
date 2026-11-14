@@ -200,9 +200,9 @@ export function useCookLog(recipeId?: string, limit?: number) {
   })
 }
 
-export function usePlan(start?: string) {
+export function usePlan(start?: string, enabled = true) {
   const { id } = usePerson()
-  return useQuery({ queryKey: ['plan', id, start ?? 'current'], queryFn: () => api.plan(start) })
+  return useQuery({ queryKey: ['plan', id, start ?? 'current'], queryFn: () => api.plan(start), enabled })
 }
 
 /** Past plan entries never logged as cooked — drives the login reminder modal. */
