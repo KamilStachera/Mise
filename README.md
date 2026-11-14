@@ -193,12 +193,20 @@ diary, goal, weight, band and training.
 
 - **Sign-in:** any Google account may sign in. One that belongs to no household
   sees the **invite-code screen**.
+- **Roles:** each household has **owners** (invite people, rename the household,
+  change roles) and **members** (just use it). Whoever redeems a new-household code
+  is its owner.
 - **Invite codes** (single use, valid 7 days, rate-limited):
-  - *Profil → Domownicy → Zaproś domownika*: any member invites a partner into
+  - *Profil → Domownicy → Zaproś domownika*: an owner invites a partner into
     their household.
-  - *Profil → Gospodarstwa* (admins, `ADMIN_EMAILS`): a code that creates a **new
-    household** for a friend, with a private copy of chosen starter recipes
-    (all, or by source) including photos.
+  - *Panel admina → Kody* (admins): a code that creates a **new household** for a
+    friend, with a private copy of chosen starter recipes (all, or by source)
+    including photos — or a join code for any household, as member or owner.
+- **Admin panel** (`/admin`, admins = `ADMIN_EMAILS` plus anyone promoted there):
+  households (rename, Sous, block), people (roles, admin, block, unlink their Google
+  account), code history (used / expired / cancelled, extend, cancel), every API key
+  (revoke) and an audit log of everything admins and owners did. Nothing is
+  hard-deleted — blocked people and households keep their data and can be unblocked.
 - **Agents / MCP:** personal API keys from *Profil → Połącz agenta* (`pk_…`, shown
   once, revocable) — a key acts as its person, in their household. Put it in the
   agent's `MISE_API_KEY`.

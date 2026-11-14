@@ -45,6 +45,11 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
 #   && export PATH=\$PATH:/root/.dotnet/tools && dotnet ef migrations add <Name>"
 ```
 
+Without Docker: a newer host SDK (10.x) builds and tests the net9.0 projects when run from
+a folder *outside* the repo (so `global.json` doesn't apply), e.g.
+`dotnet test E:/Repos/CukBuk/backend.tests/Mise.Api.Tests.csproj`; for migrations use a
+local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backend/Mise.Api.csproj`.
+
 ## Layout
 
 - `backend/` — .NET 9 minimal APIs. `Features/<X>Endpoints.cs` (one file per
@@ -103,9 +108,20 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   sous only, must send `X-Person`) → Google email → anonymous. `X-Person` is honoured
   only within the caller's household. A Google account with no person is `Unlinked`:
   only `/api/auth` and `/api/onboarding` work (403 `needsOnboarding` elsewhere).
-  Invites (`InviteCode`, hashed, single use, rate-limited redeem) and new-household
-  provisioning (`HouseholdProvisioner`: per-household seed + private starter copy with
-  own photo files) live in `Features/HouseholdEndpoints.cs`. Admins = `ADMIN_EMAILS`.
+  Invites (`InviteCode`, hashed, single use, soft-revoked via `RevokedAt`, rate-limited
+  redeem) and new-household provisioning (`HouseholdProvisioner`: per-household seed +
+  private starter copy with own photo files) live in `Features/HouseholdEndpoints.cs`.
+- **Roles, admins, blocking.** `Person.Role` is `Owner`/`Member`: only owners (or admins)
+  invite, rename the household or other people and change roles (`Caller.IsOwner`); a
+  household always keeps an owner (`HouseholdEndpoints.SetRoleAsync`). Admin =
+  `Person.IsAdmin` or `ADMIN_EMAILS` (the lock-out fallback; never demotable/blockable in
+  the panel), Google session only — API keys never carry admin rights. A blocked person
+  or household resolves to `CallerKind.Blocked` (403 `blocked` everywhere but
+  `/api/auth`, keys and Sous included). Nothing is hard-deleted: block, unlink (email →
+  null, keys revoked), revoke. The admin panel API is `Features/AdminEndpoints.cs` — the
+  only feature code that reads across households (`IgnoreQueryFilters()` on purpose).
+  **Every admin/owner mutation adds an `AuditEvent`** via the scoped `Audit` service
+  (saved with the same `SaveChanges`); keep that when adding admin actions.
 - **All /api access flows through `Services/ApiAccessMiddleware.cs`** — a
   middleware, not a group filter, so it also covers the `/api/images` static
   files and `/api/swagger`. It resolves the caller first, then: privileged → through;
@@ -153,8 +169,11 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   workouts, `HealthSync`, `Catering` and training. A personal key acts as its owner;
   anonymous visitors act as the public household's first person. Shopping, pending-cook
   and the plan.md export stay household-wide — don't scope them by person.
-  `DIARY_PEOPLE`/`AUTH_ALLOWED_EMAILS`/`ADMIN_EMAILS` are only imported into household 1
-  on boot (`People.ImportLegacyConfigAsync`).
+  `DIARY_PEOPLE`/`AUTH_ALLOWED_EMAILS` are imported into household 1 **once** (marked by
+  a `system.legacy-import` audit event, so an unlink survives reboots); `ADMIN_EMAILS` is
+  applied every boot (missing admins join household 1, `IsAdmin` set) —
+  `People.ImportLegacyConfigAsync`. `Person.LastSeenAt` / key `LastUsedAt` are touched by
+  the middleware at most every 5 min.
   Frontend: private query keys carry `usePerson().id`; the header comes from `api/person.ts`.
 - **Catering is materialized, not virtual.** `CateringService.EnsureAsync` (run by
   `GET /plan`, `/body/budget`, `/body/progress`) writes one eaten `IsCatering` entry per
