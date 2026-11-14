@@ -92,7 +92,9 @@ help plan meals.
   ChatGPT plan (no API billing), an OpenAI key, or a local Ollama model. It opens
   beside the content on desktop and full-screen on phones; opened on a recipe page
   it answers about that recipe. On Codex it can also log food, plan meals and edit
-  lists, as the signed-in person.
+  lists, as the signed-in person — and import recipes: paste a link to a recipe page
+  or a PDF, or attach a PDF (the "PDF" button), and Sous proposes the recipes in
+  Pichci's format and saves the ones you approve, with the dish photo.
 
 Stack: ASP.NET Core (.NET 9, minimal APIs) + EF Core + PostgreSQL · React + Vite +
 TypeScript · all containerized with Docker Compose.
@@ -277,6 +279,14 @@ docker compose exec sous codex login --device-auth   # open the link, enter the 
 The sign-in and the conversation threads live in the `sous-codex` volume. Each
 person has their own conversation ("Nowa rozmowa" starts over). The `sous`
 container has no published port; only the API talks to it.
+
+Recipe import: Codex itself has no network, so the API reads links for it
+(`POST /api/import/url`, MCP `read_recipe_page`). It takes the schema.org recipe
+from the page (JSON-LD or microdata), falling back to the page text, and returns
+PDFs page by page. Attached PDFs keep only their text (`ImportDocuments`, dropped
+after 14 days). The fetcher only reaches public addresses — LAN, docker and
+loopback are refused at connect time — so a pasted link can't probe the home
+network. Sites behind bot walls (e.g. allrecipes) answer 402/403; Sous says so.
 
 **Other providers:**
 

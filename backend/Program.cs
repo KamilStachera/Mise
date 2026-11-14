@@ -35,6 +35,8 @@ builder.Services.AddSingleton<CookbookMarkdownBuilder>();
 builder.Services.AddSingleton<RecipeImageStore>();
 builder.Services.AddScoped<ContextExportService>();
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<Mise.Api.Services.Import.SafeWebFetcher>();
+builder.Services.AddScoped<Mise.Api.Services.Import.ImportService>();
 builder.Services.AddSingleton<ExerciseImages>();
 builder.Services.AddSingleton<YouTubeVerifier>();
 // Background Polish descriptions + demo videos for the exercise catalog (GPT via Sous).
@@ -148,5 +150,6 @@ api.MapExercises();
 api.MapTraining();
 api.MapContext();
 api.MapChat();
+api.MapImport();
 
 app.Run();

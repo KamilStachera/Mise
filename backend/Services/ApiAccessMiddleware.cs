@@ -11,10 +11,11 @@ namespace Mise.Api.Services;
 /// </summary>
 public sealed class ApiAccessMiddleware(RequestDelegate next)
 {
-    /// <summary>Reads that stay privileged: chat, the food diary and training are personal, context/status+connect leak host paths, swagger advertises the write surface, households/keys are account data.</summary>
+    /// <summary>Reads that stay privileged: chat and imported PDFs, the food diary and training are personal, context/status+connect leak host paths, swagger advertises the write surface, households/keys are account data.</summary>
     private static readonly PathString[] PrivatePrefixes =
     [
         new("/api/chat"),
+        new("/api/import"),
         new("/api/diary"),
         new("/api/body"),
         new("/api/activity"),

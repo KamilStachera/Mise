@@ -21,6 +21,10 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.*" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <!-- PDF text for recipe import (Apache-2.0) -->
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+    <!-- schema.org microdata on recipe pages (MIT) -->
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
   </ItemGroup>
 
 </Project>

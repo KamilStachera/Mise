@@ -67,8 +67,11 @@ public static class AgentDocs
 
         ## Typowe zadania
 
-        ### Przepis ze zdjęcia (lub tekstu / strony)
-        1. Obejrzyj zdjęcie / przeczytaj źródło samodzielnie i wyciągnij przepis.
+        ### Przepis ze zdjęcia (lub tekstu / strony / PDF-a)
+        1. Obejrzyj zdjęcie / przeczytaj źródło samodzielnie i wyciągnij przepis. Link do
+           strony lub PDF-a: `POST {API}/import/url` (MCP `read_recipe_page`) — zwraca przepisy
+           z danych strukturalnych strony albo jej tekst; PDF czytasz stronami przez
+           `GET {API}/import/documents/{id}` (MCP `read_import_document`).
         2. Znormalizuj do schematu z `api.md`: tytuł, czas w minutach, porcje, składniki
            `{ "name", "quantity", "displayText", "amountValue", "amountUnit" }` po polsku, kroki jako lista
            zdań. Oszacuj też wartości odżywcze NA PORCJĘ (`kcal`, `protein`, `fat`, `carbs`)
@@ -422,6 +425,24 @@ public static class AgentDocs
         - `DELETE /recipes/{id}/images/{imageId}` — usuń zdjęcie z galerii; po usunięciu
           głównego domyślnym zostaje najnowsze z pozostałych.
 
+        ### Import ze strony lub PDF-a (tylko odczyt)
+        Pomocniki do czytania źródeł — niczego nie zapisują. Przepis znormalizuj jak każdy inny
+        i zapisz `POST /recipes` (po mojej zgodzie). Prywatne: wymagają klucza / sesji.
+        - `POST /import/url` `{ "url": "https://…" }` — serwer pobiera adres (tylko publiczne
+          http/https, maks. 20 MB). Odpowiedź: `kind` `"page"` → `recipes[]` z danych
+          schema.org strony (`name`, `yield`, `prepMinutes`/`cookMinutes`/`totalMinutes`,
+          `ingredients[]` i `steps[]` jak na stronie, `imageUrl`, `nutrition` na porcję jako
+          tekst); gdy `recipes` jest puste — `text` strony (`textTruncated` przy ucięciu).
+          `kind` `"pdf"` → PDF zapisany jako dokument, `document` = pierwsze strony.
+          Błąd pobrania → 422 `{ "error": "…" }` (po polsku, do przekazania).
+          MCP: `read_recipe_page`.
+        - `POST /import/documents` — multipart (`file`), PDF do 20 MB → `{ id, name, pageCount,
+          textChars, looksScanned }`. Tak trafia do Sous załącznik z czatu.
+        - `GET /import/documents/{id}?fromPage=1&toPage=` — tekst stron (`pages[]` z `page` i
+          `text`), maks. ok. 40 tys. znaków naraz; czytaj dalej od `nextPage`, aż będzie `null`.
+          `looksScanned: true` = skan bez warstwy tekstu (poproś o zdjęcia stron). Dokumenty
+          znikają po 14 dniach. MCP: `read_import_document`.
+
         ## Spiżarnia
 
         Spiżarnia to zarazem **katalog składników**: pozycja z `quantity: 0` znaczy „znamy,
@@ -767,7 +788,9 @@ public static class AgentDocs
                 Dodaj przepis do mojej książki kucharskiej Pichci. Źródło (zdjęcie, plik, link lub opis): $ARGUMENTS
 
                 1. Przeczytaj `{CTX}/AGENTS.md` i schemat w `{CTX}/api.md`.
-                2. Obejrzyj / przeczytaj źródło i wyciągnij przepis; znormalizuj go do schematu
+                2. Obejrzyj / przeczytaj źródło i wyciągnij przepis (link do strony lub PDF-a:
+                   `POST {API}/import/url` albo narzędzie MCP `read_recipe_page`, dalsze strony PDF-a
+                   `read_import_document`); znormalizuj go do schematu
                    `POST {API}/recipes` (polskie nazwy składników, kroki jako zdania). Nie używaj
                    „do smaku", „odrobina", „kilka minut" ani instrukcji „według opakowania":
                    ustal dokładne ilości, czasy, temperatury i sprawdzalne punkty końcowe.
@@ -857,6 +880,14 @@ public static class AgentDocs
         - Wszystko, co zmienia dane, i wszystko z dziennika (zjedzone, budżet kcal, waga,
           aktywność) robisz narzędziami MCP `pichci`. Działają w imieniu {PERSON}. Nie masz
           sieci ani zapisu plików — nie próbuj curl ani edycji plików.
+        - Link do przepisu (strona albo PDF) przeczytaj `read_recipe_page` — serwer pobiera go za
+          ciebie. Załącznik PDF z czatu czytaj `read_import_document` (kolejne strony od
+          `nextPage`). Z każdego przepisu zrób propozycję wg zasad z AGENTS.md (po polsku,
+          dokładne ilości, czasy i temperatury, kcal i makro na porcję), pokaż ją i po zgodzie
+          zapisz `add_recipe` (source "web", sourceName = nazwa strony, autora lub książki),
+          a zdjęcie dania z `imageUrl` dołącz `add_recipe_image`. Przy wielu przepisach (cały
+          PDF) najpierw wypisz ich listę i zapytaj, które dodać; zapisuj po kilka i pomijaj te,
+          które już są w książce. Strony z błędem albo skany — powiedz wprost, co nie wyszło.
         - Proste dopisanie (zjedzone jedzenie, pozycja na liście zakupów, ważenie) wykonaj od
           razu i potwierdź jednym zdaniem z liczbami (np. ile kcal zostało na dziś).
           Usuwanie, czyszczenie list, podmiana przepisu, zmiana celu i nowy przepis — najpierw

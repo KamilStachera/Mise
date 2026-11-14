@@ -60,6 +60,8 @@ function codexFor(person) {
 
 // Polish status line for the "Sous pracuje…" bubble, by what Codex is doing.
 const TOOL_STATUS = [
+  [/recipe_page/, 'Czytam stronę z przepisem…'],
+  [/import_document/, 'Czytam PDF…'],
   [/pantry|receipt/, 'Sprawdzam spiżarnię…'],
   [/shopping/, 'Zaglądam na listę zakupów…'],
   [/suppl/, 'Zaglądam na listę domową…'],

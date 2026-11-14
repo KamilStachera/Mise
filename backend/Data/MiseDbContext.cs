@@ -38,6 +38,7 @@ public class MiseDbContext : DbContext
     public DbSet<SupplyItem> SupplyItems => Set<SupplyItem>();
     public DbSet<SupplyFavorite> SupplyFavorites => Set<SupplyFavorite>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ImportDocument> ImportDocuments => Set<ImportDocument>();
     public DbSet<CookLogEntry> CookLog => Set<CookLogEntry>();
     public DbSet<PlanEntry> PlanEntries => Set<PlanEntry>();
     public DbSet<Cook> Cooks => Set<Cook>();
@@ -156,6 +157,13 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200);
             e.Property(x => x.NormalizedName).HasMaxLength(200);
             e.HasIndex(x => new { x.HouseholdId, x.NormalizedName }).IsUnique();
+        });
+
+        b.Entity<ImportDocument>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(300);
+            e.Property(x => x.SourceUrl).HasMaxLength(2000);
+            e.HasIndex(x => new { x.HouseholdId, x.CreatedAt });
         });
 
         b.Entity<ChatMessage>(e =>

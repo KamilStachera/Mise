@@ -655,6 +655,24 @@ public class ProfileAnswer : IHouseholdOwned
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
+/// <summary>
+/// Text of a PDF handed over for import (uploaded in the Sous chat or fetched from a link),
+/// one string per page, so an agent can read a whole cookbook a few pages at a time instead
+/// of getting it in one prompt. Scratch data: rows older than <see cref="RetentionDays"/> are
+/// dropped on the next import; the PDF itself is never stored.
+/// </summary>
+public class ImportDocument : IHouseholdOwned
+{
+    public const int RetentionDays = 14;
+    public int HouseholdId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>File name (upload) or the URL's last segment.</summary>
+    public string Name { get; set; } = "";
+    public string? SourceUrl { get; set; }
+    public List<string> Pages { get; set; } = [];
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public class ChatMessage : IHouseholdOwned
 {
     public int HouseholdId { get; set; }

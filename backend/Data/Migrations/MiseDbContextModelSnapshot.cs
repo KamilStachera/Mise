@@ -638,6 +638,38 @@ namespace Mise.Api.Data.Migrations
                     b.ToTable("Households");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.ImportDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.PrimitiveCollection<List<string>>("Pages")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "CreatedAt");
+
+                    b.ToTable("ImportDocuments");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.InviteCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1867,6 +1899,15 @@ namespace Mise.Api.Data.Migrations
                     b.HasOne("Mise.Api.Domain.Person", null)
                         .WithOne()
                         .HasForeignKey("Mise.Api.Domain.HealthSync", "PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.ImportDocument", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

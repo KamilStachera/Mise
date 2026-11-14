@@ -256,6 +256,37 @@ server.tool(
 )
 
 server.tool(
+  'read_recipe_page',
+  'Przeczytaj stronę z przepisem albo PDF spod linku, który podał użytkownik (serwer Pichci pobiera go sam — ' +
+    'nie potrzebujesz sieci). Strona: `recipes` = przepisy z danych strukturalnych strony (dokładne składniki, ' +
+    'kroki, porcje, czasy, zdjęcie, kcal) — gdy puste, przepis wyciągnij z `text`. PDF (`kind: "pdf"`): ' +
+    'pierwsze strony w `document.pages`, dalsze przez read_import_document od `document.nextPage`. ' +
+    'Nic nie zapisuje: przepis znormalizuj wg zasad z AGENTS.md (po polsku, dokładne ilości i czasy), pokaż ' +
+    'propozycję, po zgodzie add_recipe (source: "web", sourceName = nazwa strony/autora), potem ' +
+    'add_recipe_image z `imageUrl` przepisu.',
+  { url: z.string().url().describe('Adres strony z przepisem lub pliku PDF (http/https)') },
+  async ({ url }) => text(await post('/import/url', { url })),
+)
+
+server.tool(
+  'read_import_document',
+  'Czytaj PDF dodany do importu (załącznik w czacie Sous albo PDF z read_recipe_page) — kilka stron naraz. ' +
+    'Kontynuuj od `nextPage`, aż będzie null. `looksScanned: true` = skan bez warstwy tekstu: poproś o zdjęcia stron.',
+  {
+    documentId: z.string().uuid().describe('documentId z załącznika lub document.id z read_recipe_page'),
+    fromPage: z.number().int().min(1).optional().describe('Pierwsza strona (od 1), domyślnie 1'),
+    toPage: z.number().int().min(1).optional().describe('Ostatnia strona; domyślnie tyle, ile się zmieści'),
+  },
+  async ({ documentId, fromPage, toPage }) => {
+    const p = new URLSearchParams()
+    if (fromPage) p.set('fromPage', String(fromPage))
+    if (toPage) p.set('toPage', String(toPage))
+    const qs = p.toString()
+    return text(await get(`/import/documents/${documentId}${qs ? '?' + qs : ''}`))
+  },
+)
+
+server.tool(
   'get_pantry',
   'Katalog spiżarni: quantity to przybliżony stan, planningQuantity to konserwatywna ilość do zakupów, ' +
     'confidence to confirmed/estimated/stale. 0 oznacza brak, pozycja zostaje w katalogu.',

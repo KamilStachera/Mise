@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useMatch, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useChatHealth, useChatHistory, useRecipe } from '../api/hooks'
-import { api, streamChat } from '../api/client'
+import { ApiError, api, streamChat, type ImportDocumentInfo } from '../api/client'
 import { registerPromptConsumer } from '../lib/chatBus'
 import { plural } from '../lib/labels'
 import { mono, sans } from './ui'
@@ -36,6 +36,11 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
   // held until the health check confirms chat is enabled.
   const [queued, setQueued] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // A PDF waiting to go out with the next message (uploaded as soon as it's picked).
+  const [attachment, setAttachment] = useState<ImportDocumentInfo | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const enabled = health?.enabled ?? false
 
@@ -65,10 +70,30 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
       ]
     : QUICKS
 
+  async function attach(file: File | undefined) {
+    if (!file) return
+    setUploadError(null)
+    setUploading(true)
+    try {
+      setAttachment(await api.uploadImportDocument(file))
+    } catch (e) {
+      setUploadError(e instanceof ApiError && e.detail ? e.detail : 'Nie udało się wgrać PDF-a.')
+    } finally {
+      setUploading(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
   async function send(text: string) {
-    if (!text.trim() || !enabled || typing) return
+    const doc = attachment
+    if ((!text.trim() && !doc) || !enabled || typing || uploading) return
+    // Mirrors what the server stores, so the history reload shows the same bubble.
+    const shownText = text.trim() || 'Przejrzyj załączony PDF.'
+    const shown = doc ? `${shownText}\n📎 ${doc.name}` : shownText
     setInput('')
-    setMessages((m) => [...m, { role: 'user', content: text.trim() }, { role: 'ai', content: '' }])
+    setAttachment(null)
+    setUploadError(null)
+    setMessages((m) => [...m, { role: 'user', content: shown }, { role: 'ai', content: '' }])
     setTyping(true)
     try {
       await streamChat(
@@ -83,6 +108,7 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
         undefined,
         recipeId,
         setStatus,
+        doc?.id,
       )
       // Sous may have logged food, planned meals or edited lists — refresh what's on screen.
       qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'chatHistory' })
@@ -186,7 +212,42 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
       </div>
 
       <div style={{ flex: 'none', padding: '16px 18px 20px', borderTop: '1px solid var(--panel-border)' }}>
-        <div style={{ minHeight: 48, borderRadius: 12, background: 'var(--panel-card)', display: 'flex', alignItems: 'flex-end', gap: 8, padding: '6px 6px 6px 16px', opacity: enabled ? 1 : 0.55 }}>
+        {(attachment || uploading || uploadError) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, font: sans(13), color: uploadError ? 'var(--accent-warm)' : 'var(--panel-text-2)' }}>
+            {uploading && <span>Wgrywam PDF…</span>}
+            {uploadError && <span>{uploadError}</span>}
+            {attachment && (
+              <>
+                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--panel-text)' }}>
+                  📎 {attachment.name}
+                </span>
+                <span style={{ flex: 'none', font: mono(11.5) }}>
+                  {attachment.looksScanned ? 'skan — bez tekstu' : plural(attachment.pageCount, 'strona', 'strony', 'stron')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachment(null)}
+                  aria-label="Usuń załącznik"
+                  style={{ flex: 'none', border: 0, background: 'transparent', color: 'var(--panel-text-2)', cursor: 'pointer', padding: '0 4px', fontSize: 12 }}
+                >
+                  ✕
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => attach(e.target.files?.[0])} />
+        <div style={{ minHeight: 48, borderRadius: 12, background: 'var(--panel-card)', display: 'flex', alignItems: 'flex-end', gap: 8, padding: '6px 6px 6px 8px', opacity: enabled ? 1 : 0.55 }}>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={!enabled || typing || uploading}
+            title="Dodaj PDF z przepisami"
+            aria-label="Dodaj PDF z przepisami"
+            style={{ flex: '0 0 auto', height: 36, padding: '0 8px', borderRadius: 9, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text-2)', font: mono(10.5, 500), letterSpacing: '.06em', cursor: enabled && !typing ? 'pointer' : 'not-allowed' }}
+          >
+            PDF
+          </button>
           <textarea
             value={input}
             disabled={!enabled}
@@ -198,7 +259,7 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
               }
             }}
             rows={1}
-            placeholder={!enabled ? 'Czat w aplikacji jest wyłączony' : recipe ? 'Zapytaj o przepis…' : 'Zapytaj Sous o obiad…'}
+            placeholder={!enabled ? 'Czat w aplikacji jest wyłączony' : recipe ? 'Zapytaj o przepis…' : attachment ? 'Co zrobić z tym PDF-em?' : 'Pytanie lub link do przepisu…'}
             style={{ flex: 1, alignSelf: 'center', border: 0, background: 'transparent', resize: 'none', font: sans(fullscreen ? 16 : 14.5), color: 'var(--panel-text)', lineHeight: 1.4, maxHeight: 96, padding: '6px 0' }}
           />
           <button

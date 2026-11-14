@@ -188,6 +188,12 @@ local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backen
   the day's earliest reading; a reading >5 kg off the person's last month is the other
   person on the shared scale and is dropped. Each person has their own token. Days are Polish days: the api container runs
   `TZ=Europe/Warsaw` (docker-compose) — `DateTime.Today` depends on it.
+- **Recipe import (links, PDFs) only reads.** `Services/Import/`: `/api/import/url` and
+  `/api/import/documents` hand agents the source (schema.org JSON-LD → microdata → page text;
+  PDF text per page in `ImportDocument`, 14-day scratch rows); the agent normalizes and saves
+  through `POST /recipes` like any recipe. **Every server-side fetch of a user-supplied URL
+  goes through `SafeWebFetcher`** — it refuses non-public IPs in the connect callback (covers
+  redirects and DNS rebinding); the API sits on the home LAN.
 - **Shopping list is fully decoupled from the pantry.** Nothing appears or
   disappears automatically; rows come from recipe add-missing, manual entry, or
   agents. There is no sync-from-pantry code — don't reintroduce it.

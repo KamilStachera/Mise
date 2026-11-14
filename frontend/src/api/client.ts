@@ -765,6 +765,15 @@ export interface CreatedApiKey {
 const BASE = '/api'
 
 /** Carries the HTTP status so callers can react to 401 (session expired / read-only). */
+export interface ImportDocumentInfo {
+  id: string
+  name: string
+  pageCount: number
+  textChars: number
+  /** Almost no text layer — a scan; Sous can't read it. */
+  looksScanned: boolean
+}
+
 export class ApiError extends Error {
   status: number
   /** The server's Polish `{ error }` message, when it sent one (validation 400s, 409s). */
@@ -833,6 +842,17 @@ export const api = {
     const res = await fetch(`${BASE}/recipes/${id}/image`, { method: 'POST', body: form })
     if (!res.ok) throw new ApiError(res.status, res.statusText)
     return (await res.json()) as { imageId: string; imageUrl: string; images: RecipeImage[] }
+  },
+  /** PDF for Sous to import from: the server keeps its text (14 days), Sous reads it page by page. */
+  uploadImportDocument: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`${BASE}/import/documents`, { method: 'POST', body: form })
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null
+      throw new ApiError(res.status, res.statusText, body?.error ?? null)
+    }
+    return (await res.json()) as ImportDocumentInfo
   },
   deleteRecipeImage: (id: string, imageId: string) =>
     http<{ images: RecipeImage[] }>(`/recipes/${id}/images/${imageId}`, { method: 'DELETE' }),
@@ -1018,11 +1038,13 @@ export async function streamChat(
   recipeId?: string,
   /** Progress line while the agent reads files or calls tools („Sprawdzam spiżarnię…”). */
   onStatus?: (text: string) => void,
+  /** PDF uploaded via `api.uploadImportDocument`, attached to this message. */
+  documentId?: string,
 ): Promise<void> {
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, recipeId }),
+    body: JSON.stringify({ message, recipeId, documentId }),
     signal,
   })
   if (!res.ok || !res.body) throw new ApiError(res.status, res.statusText || 'chat')
