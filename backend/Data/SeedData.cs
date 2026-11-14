@@ -12,7 +12,13 @@ namespace Mise.Api.Data;
 public static class SeedData
 {
     /// <param name="demoRecipes">False for a new household that gets starter recipes copied in instead.</param>
-    public static async Task EnsureSeededAsync(MiseDbContext db, CancellationToken ct = default, bool demoRecipes = true)
+    /// <param name="exampleProfile">
+    /// True (a fresh install) seeds the example cooking profile; false (a household created from an
+    /// invite) starts it empty — tastes and equipment are someone else's to describe (the
+    /// „Pierwsze kroki” checklist sends them to the questionnaire).
+    /// </param>
+    public static async Task EnsureSeededAsync(MiseDbContext db, CancellationToken ct = default, bool demoRecipes = true,
+        bool exampleProfile = true)
     {
         // Every item starts at quantity 0: the catalog says what we track, the real
         // amounts arrive via receipt scans / manual edits. Links from seeded recipes
@@ -134,7 +140,7 @@ public static class SeedData
                 new EquipmentItem { Name = "Patelnia żeliwna", Order = 4 },
             },
         };
-        if (!await db.Preferences.AnyAsync(ct)) db.Preferences.Add(prefs);
+        if (!await db.Preferences.AnyAsync(ct)) db.Preferences.Add(exampleProfile ? prefs : new Preferences());
         if (!demoRecipes)
         {
             await db.SaveChangesAsync(ct);

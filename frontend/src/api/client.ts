@@ -765,6 +765,15 @@ export interface CreatedApiKey {
 const BASE = '/api'
 
 /** Carries the HTTP status so callers can react to 401 (session expired / read-only). */
+export type FirstStepKey = 'profile' | 'pantry' | 'recipe' | 'plan' | 'invite' | 'goal' | 'training' | 'sous'
+
+/** „Pierwsze kroki” for someone new: each step ticks itself from real data. */
+export interface FirstSteps {
+  /** Not dismissed and a required step is still open. */
+  show: boolean
+  steps: { key: FirstStepKey; done: boolean; optional: boolean }[]
+}
+
 export interface ImportDocumentInfo {
   id: string
   name: string
@@ -989,6 +998,8 @@ export const api = {
   renamePerson: (id: number, name: string) =>
     http<HouseholdDetail>(`/household/people/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }, true),
   createJoinInvite: () => http<CreatedInvite>(`/household/invites`, { method: 'POST' }, true),
+  firstSteps: () => http<FirstSteps>(`/household/first-steps`, undefined, true),
+  dismissFirstSteps: () => http<FirstSteps>(`/household/first-steps/dismiss`, { method: 'POST' }, true),
   deleteJoinInvite: (id: string) => http<void>(`/household/invites/${id}`, { method: 'DELETE' }, true),
   setPersonRole: (id: number, role: Role) =>
     http<HouseholdDetail>(`/household/people/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }, true),

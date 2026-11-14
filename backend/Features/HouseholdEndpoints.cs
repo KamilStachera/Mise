@@ -48,6 +48,19 @@ public static class HouseholdEndpoints
         g.MapGet("/", async (Caller caller, MiseDbContext db, CancellationToken ct) =>
             Results.Ok(await DetailAsync(db, caller, ct)));
 
+        // „Pierwsze kroki”: always the signed-in person's own checklist (X-Person is ignored).
+        g.MapGet("/first-steps", async (Caller caller, MiseDbContext db, CancellationToken ct) =>
+            Results.Ok(await FirstSteps.BuildAsync(db, caller, ct)));
+
+        g.MapPost("/first-steps/dismiss", async (Caller caller, MiseDbContext db, CancellationToken ct) =>
+        {
+            if (caller.Self is null) return Results.NotFound();
+            var person = await db.People.FirstAsync(p => p.Id == caller.Self.Id, ct);
+            person.FirstStepsDismissedAt ??= DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(await FirstSteps.BuildAsync(db, caller, ct));
+        });
+
         g.MapPatch("/", async (HouseholdRenameInput input, Caller caller, MiseDbContext db, Audit audit, CancellationToken ct) =>
         {
             if (!caller.IsOwner) return OwnersOnly;

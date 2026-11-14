@@ -74,7 +74,9 @@ help plan meals.
   before saving it.
 - A private **training plan** (Trening → Dziś / Plan): a short questionnaire (goal, days,
   minutes, home kit, injuries…), then an agent — Sous, or `/plan-treningowy` in Claude Code
-  — writes a multi-week program with progression. Dziś shows today's workout or the next
+  — writes a multi-week program with progression. Without AI, "Plan z szablonu" builds a
+  6-week strength plan from the questionnaire (full body or upper/lower, staples that fit
+  the home kit or gym, sets by goal, a lighter last week). Dziś shows today's workout or the next
   one; Plan shows each week, lets you swap any exercise for an easier / similar / harder one
   that fits your equipment, and edit days. A day can also be a full follow-along YouTube
   workout (pilates, yoga). A live set-by-set tracker is next — see `docs/training/`.
@@ -204,6 +206,9 @@ diary, goal, weight, band and training.
   - *Panel admina → Kody* (admins): a code that creates a **new household** for a
     friend, with a private copy of chosen starter recipes (all, or by source)
     including photos — or a join code for any household, as member or owner.
+- **New people** land on a „Pierwsze kroki” checklist (cooking profile, pantry, first
+  recipe, first planned meal; optionally invite, goal, training survey, Sous) that ticks
+  itself as they use the app. A new household starts with an empty cooking profile.
 - **Admin panel** (`/admin`, admins = `ADMIN_EMAILS` plus anyone promoted there):
   households (rename, Sous, block), people (roles, admin, block, unlink their Google
   account), code history (used / expired / cancelled, extend, cancel), every API key

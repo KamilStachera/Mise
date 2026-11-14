@@ -259,6 +259,8 @@ export const trainingApi = {
   program: () => http<TrainingProgram | undefined>('/training/program'),
   today: (date?: string) => http<TrainingToday>(`/training/today${date ? `?date=${date}` : ''}`),
   createProgram: (input: TrainingProgramInput) => http<TrainingProgram>('/training/programs', json('POST', input)),
+  /** No AI: a 6-week strength plan from the questionnaire, activated right away. */
+  templateProgram: () => http<TrainingProgram>('/training/programs/template', { method: 'POST' }),
   patchProgram: (id: string, input: { name?: string; startDate?: string; status?: TrainingProgram['status'] }) =>
     http<TrainingProgram>(`/training/programs/${id}`, json('PATCH', input)),
   addDay: (programId: string, day: ProgramDayInput) =>
@@ -346,6 +348,7 @@ function useTrainingMutation<A, R>(fn: (a: A) => Promise<R>) {
 
 export const useSaveTrainingProfile = () => useTrainingMutation(trainingApi.saveProfile)
 export const useCreateProgram = () => useTrainingMutation(trainingApi.createProgram)
+export const useTemplateProgram = () => useTrainingMutation((_: void) => trainingApi.templateProgram())
 export const usePatchProgram = () =>
   useTrainingMutation((a: { id: string; input: Parameters<typeof trainingApi.patchProgram>[1] }) => trainingApi.patchProgram(a.id, a.input))
 export const useSaveDay = () =>

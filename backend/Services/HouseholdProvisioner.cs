@@ -5,8 +5,8 @@ using Mise.Api.Domain;
 namespace Mise.Api.Services;
 
 /// <summary>
-/// Creates a household: pantry catalog, household-list chips and a default cooking profile (the
-/// regular per-household seed), plus a private copy of starter recipes from another household
+/// Creates a household: pantry catalog, household-list chips and an empty cooking profile (they fill
+/// it in via the questionnaire — never the owner's tastes), plus a private copy of starter recipes from another household
 /// (new ids, own photo files, ingredients relinked to the new pantry). Demo recipes only when
 /// nothing is copied. Leaves the tenant pointed at the new household.
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class HouseholdProvisioner(MiseDbContext db, IngredientMatcher mat
 
         db.Tenant.UseHousehold(household.Id);
         db.ChangeTracker.Clear();
-        await SeedData.EnsureSeededAsync(db, ct, demoRecipes: starters.Count == 0);
+        await SeedData.EnsureSeededAsync(db, ct, demoRecipes: starters.Count == 0, exampleProfile: false);
 
         foreach (var source in starters)
             db.Recipes.Add(Copy(source));

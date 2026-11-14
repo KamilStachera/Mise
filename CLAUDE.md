@@ -109,8 +109,12 @@ local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backen
   only within the caller's household. A Google account with no person is `Unlinked`:
   only `/api/auth` and `/api/onboarding` work (403 `needsOnboarding` elsewhere).
   Invites (`InviteCode`, hashed, single use, soft-revoked via `RevokedAt`, rate-limited
-  redeem) and new-household provisioning (`HouseholdProvisioner`: per-household seed +
-  private starter copy with own photo files) live in `Features/HouseholdEndpoints.cs`.
+  redeem) and new-household provisioning (`HouseholdProvisioner`: per-household seed with an
+  **empty** cooking profile — never the owner's tastes — + private starter copy with own photo
+  files) live in `Features/HouseholdEndpoints.cs`. New people get the „Pierwsze kroki” checklist
+  (`Services/FirstSteps.cs`, `/api/household/first-steps`, card on the library): steps tick
+  from real data, never by hand; `Person.FirstStepsDismissedAt` hides it, and everyone who
+  existed before it (incl. household-1 bootstrap imports) starts dismissed.
 - **Roles, admins, blocking.** `Person.Role` is `Owner`/`Member`: only owners (or admins)
   invite, rename the household or other people and change roles (`Caller.IsOwner`); a
   household always keeps an owner (`HouseholdEndpoints.SetRoleAsync`). Admin =
@@ -226,6 +230,10 @@ local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backen
     transaction.
   - Validation lives in `TrainingRules` and names the day ("Tydzień 2, wtorek: …") so an
     agent can fix one spot; follow-along day videos also go through `YouTubeVerifier`.
+  - Templates (`TrainingTemplates`, `POST /training/programs/template`) build a plan without AI
+    from the questionnaire — curated free-exercise-db staples per slot, then a muscle search,
+    within the person's kit (empty home kit = bodyweight only; no bar exercises at home). They
+    emit an ordinary `TrainingProgramInput`, so they go through the same validation/activation.
   - `ProgramExercise.Exercise` is `Restrict` on delete — hide catalog exercises, don't
     delete them.
   - The catalog is seeded from vendored free-exercise-db JSON (embedded resource,

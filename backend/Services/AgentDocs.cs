@@ -788,6 +788,11 @@ public static class AgentDocs
           Jeden trening na dzień; `exercises` 1–20 (dzień `follow-along`: bez ćwiczeń, z filmem —
           sprawdzanym w YouTube). Powtórzenia ALBO `seconds`. Błąd wskazuje dzień:
           „Tydzień 2, wtorek: …”. `activate: true` archiwizuje poprzedni aktywny plan.
+        - `POST /training/programs/template` (bez treści) — gotowy plan siłowy z ankiety, bez AI:
+          6 tygodni od dziś, podział wg dni (całe ciało / góra–dół), ćwiczenia pod sprzęt i poziom,
+          serie wg celu, progresja i lżejszy 6. tydzień; od razu aktywny. Bez ankiety → `400`;
+          ankieta tylko z jogą/pilatesem → `422`. Ułożony z AI plan jest lepiej dopasowany — szablon
+          to szybki start (albo jedyna droga bez Sous).
         - `PUT /training/programs/{id}` — pełna podmiana (te same pola).
           `PATCH /training/programs/{id}` — `{ name?, description?, rationale?, startDate?,
           status?: "active"|"draft"|"archived" }`. `DELETE /training/programs/{id}`.

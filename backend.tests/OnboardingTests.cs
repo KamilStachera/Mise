@@ -129,13 +129,25 @@ public sealed class OnboardingTests : IAsyncLifetime
             var link = Assert.Single(copy.Ingredients).PantryItemId;
             Assert.NotNull(link);
             Assert.Equal("Czosnek", (await db.PantryItems.SingleAsync(p => p.Id == link)).Name);
-            Assert.Single(await db.Preferences.ToListAsync());
+            // Their own, empty cooking profile — never the owner's tastes or equipment.
+            var prefs = await db.Preferences.Include(p => p.Equipment).SingleAsync();
+            Assert.Equal(("", ""), (prefs.TasteCuisines, prefs.HouseholdSummary));
+            Assert.Empty(prefs.Equipment);
         }
-        Assert.True(File.Exists(Path.Combine(_root, "context", "2", "cookbook.md")));
+        var cookbook = await File.ReadAllTextAsync(Path.Combine(_root, "context", "2", "cookbook.md"));
+        Assert.Contains("jeszcze nieuzupełnione", cookbook);
+        Assert.DoesNotContain("Frytkownica beztłuszczowa:", cookbook);
 
         // Single use.
         Assert.Equal(HttpStatusCode.BadRequest, (await Redeem("someone@example.com", code, "Ktoś")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Redeem(Friend, code, "Ola")).StatusCode);
+
+        // „Pierwsze kroki”: a founder starts with every kitchen step open, invite offered (optional).
+        var steps = await Json(await Send(HttpMethod.Get, "/api/household/first-steps", Friend));
+        Assert.True(steps.GetProperty("show").GetBoolean());
+        Assert.Equal(["profile", "pantry", "recipe", "plan", "invite", "goal", "training"],
+            steps.GetProperty("steps").EnumerateArray().Select(s => s.GetProperty("key").GetString()));
+        Assert.All(steps.GetProperty("steps").EnumerateArray(), s => Assert.False(s.GetProperty("done").GetBoolean()));
 
         // The friend invites their partner into their own household.
         var join = await CodeAsync(await Send(HttpMethod.Post, "/api/household/invites", Friend));
@@ -144,6 +156,16 @@ public sealed class OnboardingTests : IAsyncLifetime
         Assert.Equal(["Ola", "Piotr"], household.GetProperty("members").EnumerateArray().Select(m => m.GetProperty("name").GetString()));
         Assert.Equal(["Dom"], [(await Json(await Send(HttpMethod.Get, "/api/household", Admin))).GetProperty("name").GetString()]);
         Assert.Equal(2, (await Json(await Send(HttpMethod.Get, "/api/household", Admin))).GetProperty("members").GetArrayLength());
+
+        // Inviting ticks the founder's step; the partner (a member) gets no invite step, and dismissing
+        // hides only their own checklist.
+        steps = await Json(await Send(HttpMethod.Get, "/api/household/first-steps", Friend));
+        Assert.True(steps.GetProperty("steps").EnumerateArray().Single(s => s.GetProperty("key").GetString() == "invite").GetProperty("done").GetBoolean());
+        var partnerSteps = await Json(await Send(HttpMethod.Get, "/api/household/first-steps", "partner@example.com"));
+        Assert.DoesNotContain(partnerSteps.GetProperty("steps").EnumerateArray(), s => s.GetProperty("key").GetString() == "invite");
+        var dismissed = await Json(await Send(HttpMethod.Post, "/api/household/first-steps/dismiss", "partner@example.com"));
+        Assert.False(dismissed.GetProperty("show").GetBoolean());
+        Assert.True((await Json(await Send(HttpMethod.Get, "/api/household/first-steps", Friend))).GetProperty("show").GetBoolean());
 
         // Sous is the admin's to switch on.
         Assert.Equal(HttpStatusCode.Forbidden, (await Send(HttpMethod.Patch, "/api/admin/households/2", Friend, new { sousEnabled = true })).StatusCode);

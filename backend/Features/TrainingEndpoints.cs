@@ -54,18 +54,21 @@ public static class TrainingEndpoints
                 ? Results.Ok(ToDto(p))
                 : Results.NotFound());
 
-        g.MapPost("/programs", async (TrainingProgramInput input, MiseDbContext db, PersonScope person,
+        g.MapPost("/programs", (TrainingProgramInput input, MiseDbContext db, PersonScope person,
+            YouTubeVerifier youtube, EnrichmentState enrichment, CancellationToken ct) =>
+            CreateAsync(input, db, person, youtube, enrichment, ct));
+
+        // No AI: a strength plan from the person's questionnaire (households without Sous, or a quick start).
+        g.MapPost("/programs/template", async (MiseDbContext db, PersonScope person,
             YouTubeVerifier youtube, EnrichmentState enrichment, CancellationToken ct) =>
         {
-            var p = new TrainingProgram { PersonId = person.Id };
-            if (await BuildAsync(p, input, db, youtube, ct) is { } error) return Results.BadRequest(new { error });
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            db.TrainingPrograms.Add(p);
-            if (input.Activate == true) await ActivateAsync(db, p, ct);
-            await db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-            enrichment.Kick(); // describe the plan's exercises first
-            return Results.Created($"/api/training/programs/{p.Id}", ToDto(p));
+            var profile = await db.TrainingProfiles.AsNoTracking().FirstOrDefaultAsync(x => x.PersonId == person.Id, ct);
+            if (profile is null) return Results.BadRequest(new { error = "Najpierw wypełnij ankietę treningową." });
+            var catalog = await db.Exercises.AsNoTracking()
+                .Where(e => !e.Hidden && (e.Category == ExerciseCategory.Strength || e.Category == ExerciseCategory.Powerlifting)).ToListAsync(ct);
+            var (plan, error) = TrainingTemplates.Build(profile, catalog, DateOnly.FromDateTime(DateTime.Today));
+            if (plan is null) return Results.UnprocessableEntity(new { error });
+            return await CreateAsync(plan, db, person, youtube, enrichment, ct);
         });
 
         g.MapPut("/programs/{id:guid}", async (Guid id, TrainingProgramInput input, MiseDbContext db,
@@ -288,6 +291,20 @@ public static class TrainingEndpoints
             .Where(x => x.PersonId == person.Id);
 
     /// <summary>Header + days from input; verifies follow-along videos. Leaves <paramref name="p"/>.Days set to the new days.</summary>
+    private static async Task<IResult> CreateAsync(TrainingProgramInput input, MiseDbContext db, PersonScope person,
+        YouTubeVerifier youtube, EnrichmentState enrichment, CancellationToken ct)
+    {
+        var p = new TrainingProgram { PersonId = person.Id };
+        if (await BuildAsync(p, input, db, youtube, ct) is { } error) return Results.BadRequest(new { error });
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        db.TrainingPrograms.Add(p);
+        if (input.Activate == true) await ActivateAsync(db, p, ct);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        enrichment.Kick(); // describe the plan's exercises first
+        return Results.Created($"/api/training/programs/{p.Id}", ToDto(p));
+    }
+
     private static async Task<string?> BuildAsync(TrainingProgram p, TrainingProgramInput input, MiseDbContext db,
         YouTubeVerifier youtube, CancellationToken ct)
     {

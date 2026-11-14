@@ -50,6 +50,17 @@ export function useHousehold(enabled = true) {
   return useQuery({ queryKey: ['household'], queryFn: api.household, enabled })
 }
 
+/** Refetched on every mount/focus — steps tick themselves as the person uses the app. */
+export function useFirstSteps() {
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['firstSteps'], queryFn: api.firstSteps, enabled: canEdit, staleTime: 0 })
+}
+
+export function useDismissFirstSteps() {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: api.dismissFirstSteps, onSuccess: (data) => qc.setQueryData(['firstSteps'], data) })
+}
+
 // Admin panel: every query key starts with 'admin', and every admin mutation refreshes all of them.
 export function useAdminOverview() {
   const { data: auth } = useAuth()

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useRecipes } from '../api/hooks'
+import { FirstStepsCard } from '../components/FirstStepsCard'
 import type { Cuisine, DishType, RecipeListItem, Source } from '../api/client'
 import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishLine, dishTypeLabel, sourceEyebrow, sourceLabel } from '../lib/labels'
 import { FilterDropdown } from '../components/FilterDropdown'
@@ -311,6 +312,8 @@ export function Library() {
           )
         }
       />
+
+      {canEdit && <FirstStepsCard />}
 
       {isMobile ? (
         <>

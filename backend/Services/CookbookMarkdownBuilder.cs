@@ -18,10 +18,12 @@ public sealed class CookbookMarkdownBuilder
         sb.AppendLine();
 
         sb.AppendLine("## Gospodarstwo");
-        sb.AppendLine($"- {Join(prefs.HouseholdSummary, prefs.HouseholdDetail)}");
+        sb.AppendLine($"- {OrUnset(Join(prefs.HouseholdSummary, prefs.HouseholdDetail))}");
         sb.AppendLine();
 
         sb.AppendLine("## Sprzęt");
+        if (prefs.Equipment.Count == 0 && string.IsNullOrWhiteSpace(prefs.EquipmentNote))
+            sb.AppendLine($"- {OrUnset("")}");
         if (prefs.Equipment.Count > 0)
         {
             var parts = prefs.Equipment
@@ -35,11 +37,13 @@ public sealed class CookbookMarkdownBuilder
         sb.AppendLine();
 
         sb.AppendLine("## Umiejętności i czas");
-        sb.AppendLine($"- {Join(prefs.SkillSummary, prefs.SkillDetail)}");
+        sb.AppendLine($"- {OrUnset(Join(prefs.SkillSummary, prefs.SkillDetail))}");
         sb.AppendLine();
 
         sb.AppendLine("## Smaki");
-        foreach (var line in SplitLines(prefs.TasteCuisines))
+        var tastes = SplitLines(prefs.TasteCuisines).ToList();
+        if (tastes.Count == 0) tastes.Add(OrUnset(""));
+        foreach (var line in tastes)
             sb.AppendLine($"- {line}");
         sb.AppendLine();
 
@@ -54,13 +58,15 @@ public sealed class CookbookMarkdownBuilder
         AppendQuestionnaire(sb, answers);
 
         var servings = answers.GetValueOrDefault("assistant.servings", "2");
-        var airfryer = answers.GetValueOrDefault("assistant.airfryer", "gdy ma sens");
+        // Only a kitchen that has one (or answered the question) gets the air-fryer rule.
+        var hasAirFryer = prefs.Equipment.Any(e => e.Name.Contains("frytkownic", StringComparison.OrdinalIgnoreCase));
+        var airfryer = answers.GetValueOrDefault("assistant.airfryer") ?? (hasAirFryer ? "gdy ma sens" : null);
         sb.AppendLine("## Zasady dla asystenta");
         sb.AppendLine("- Sprawdź `pantry.json` przed propozycją — zaznacz wszystko, co trzeba dokupić.");
         sb.AppendLine("- Ilości w spiżarni są przybliżone (g/ml/szt); do zakupów używaj `iloscDoPlanowania`. Po zakupach dodawaj delty przez " +
             "`POST /pantry/adjust`; nowe pozycje katalogu tylko świadomie przez `POST /pantry`.");
-        sb.AppendLine($"- Gotując dla domu, domyślnie {servings} porcje. Kcal i makro przepisu są zawsze na jedną porcję (jedna osoba). " +
-            $"Frytkownica beztłuszczowa: {airfryer}.");
+        sb.AppendLine($"- Gotując dla domu, domyślnie {servings} porcje. Kcal i makro przepisu są zawsze na jedną porcję (jedna osoba)." +
+            (airfryer is null ? "" : $" Frytkownica beztłuszczowa: {airfryer}."));
         sb.AppendLine("- Zapisy (przepisy, spiżarnia, plan, dziennik, historia) wyłącznie narzędziami MCP `pichci` albo przez REST API — " +
             "patrz `AGENTS.md` i `api.md`. Nie edytuj plików w tym folderze.");
         sb.AppendLine("- Plan tygodnia jest w `plan.md`, historia gotowania w `cooklog.md`. Dziennik jedzenia, cel i waga są prywatne " +
@@ -123,6 +129,10 @@ public sealed class CookbookMarkdownBuilder
         }
         if (wroteHeader) sb.AppendLine();
     }
+
+    /// <summary>A new household's empty profile: tell the agent to ask rather than assume.</summary>
+    private static string OrUnset(string text) =>
+        string.IsNullOrWhiteSpace(text) ? "(jeszcze nieuzupełnione — dopytaj albo odeślij do ankiety „Profil kulinarny”)" : text;
 
     private static string Join(string a, string b) =>
         string.IsNullOrWhiteSpace(b) ? a : string.IsNullOrWhiteSpace(a) ? b : $"{a}. {b}";

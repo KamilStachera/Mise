@@ -582,6 +582,11 @@ public class Person : IHouseholdOwned
     public DateTimeOffset? BlockedAt { get; set; }
     /// <summary>Last request (Google session or API key), updated at most every few minutes.</summary>
     public DateTimeOffset? LastSeenAt { get; set; }
+    /// <summary>
+    /// Closed the „Pierwsze kroki” checklist (or finished it). Null = still shown. People who existed
+    /// before the checklist were backfilled as dismissed.
+    /// </summary>
+    public DateTimeOffset? FirstStepsDismissedAt { get; set; }
 }
 
 public enum HouseholdRole { Owner, Member }

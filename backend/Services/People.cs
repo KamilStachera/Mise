@@ -215,7 +215,8 @@ public static class People
             if (row is null)
             {
                 var name = email.Split('@')[0];
-                row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email, Role = HouseholdRole.Owner };
+                row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email, Role = HouseholdRole.Owner,
+                    FirstStepsDismissedAt = DateTimeOffset.UtcNow }; // household 1 bootstrap = existing users
                 db.People.Add(row);
                 people.Add(row);
                 logger.LogInformation("ADMIN_EMAILS: added {Email} to household 1", email);
@@ -251,7 +252,8 @@ public static class People
             if (row is null)
             {
                 if (entry.Email is not null && Taken(entry.Email)) continue;
-                row = new Person { HouseholdId = 1, Name = entry.Name, Email = entry.Email, Role = HouseholdRole.Owner };
+                row = new Person { HouseholdId = 1, Name = entry.Name, Email = entry.Email, Role = HouseholdRole.Owner,
+                    FirstStepsDismissedAt = DateTimeOffset.UtcNow }; // household 1 bootstrap = existing users
                 db.People.Add(row);
                 people.Add(row);
                 logger.LogInformation("DIARY_PEOPLE: added {Name} to household 1", entry.Name);
@@ -268,7 +270,8 @@ public static class People
         foreach (var email in allowed.Where(e => !Taken(e)))
         {
             var name = email.Split('@')[0];
-            var row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email, Role = HouseholdRole.Owner };
+            var row = new Person { HouseholdId = 1, Name = name.Length > 60 ? name[..60] : name, Email = email, Role = HouseholdRole.Owner,
+                    FirstStepsDismissedAt = DateTimeOffset.UtcNow }; // household 1 bootstrap = existing users
             db.People.Add(row);
             people.Add(row);
             logger.LogInformation("AUTH_ALLOWED_EMAILS: added {Email} to household 1 as a new person", email);
