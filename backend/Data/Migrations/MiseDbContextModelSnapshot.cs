@@ -185,6 +185,7 @@ namespace Mise.Api.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<DateOnly?>("MaterializedThrough")
+                        .IsConcurrencyToken()
                         .HasColumnType("date");
 
                     b.Property<decimal?>("Protein")
@@ -896,6 +897,10 @@ namespace Mise.Api.Data.Migrations
                     b.HasIndex("PersonId", "Date");
 
                     b.HasIndex("HouseholdId", "Date", "Slot");
+
+                    b.HasIndex(new[] { "PersonId", "Date" }, "IX_PlanEntries_PersonId_Date_Catering")
+                        .IsUnique()
+                        .HasFilter("\"IsCatering\"");
 
                     b.ToTable("PlanEntries");
                 });

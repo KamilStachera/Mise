@@ -187,6 +187,10 @@ public class MiseDbContext : DbContext
             e.HasIndex(x => new { x.HouseholdId, x.Date, x.Slot });
             e.HasIndex(x => x.CookId);
             e.HasIndex(x => new { x.PersonId, x.Date });
+            // At most one catering box per person and day (CateringService races on page load).
+            // A separately named index (an unnamed HasIndex on the same columns would reuse the one above).
+            e.HasIndex(x => new { x.PersonId, x.Date }, Services.CateringService.OnePerDayIndex)
+                .IsUnique().HasFilter("\"IsCatering\"");
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 

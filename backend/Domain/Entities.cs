@@ -636,6 +636,7 @@ public class Catering : IHouseholdOwned, IPersonOwned
     /// <summary>First day the boxes count.</summary>
     public DateOnly StartDate { get; set; }
     /// <summary>Days up to here are done (written, or skipped on purpose); null = nothing yet.</summary>
+    [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
     public DateOnly? MaterializedThrough { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

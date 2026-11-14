@@ -110,6 +110,9 @@ public static class PlanEndpoints
             }
             if (input.Date is DateOnly date)
             {
+                if (entry.IsCatering && date != entry.Date && await db.PlanEntries.AnyAsync(
+                        e => e.PersonId == entry.PersonId && e.Date == date && e.IsCatering && e.Id != entry.Id))
+                    return Results.Conflict(new { error = "Na ten dzień catering jest już wpisany." });
                 entry.Date = date;
                 if (entry.Cook is not null && !entry.IsLeftover) entry.Cook.Date = date;
             }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Data;
 using Mise.Api.Domain;
+using Npgsql;
 
 namespace Mise.Api.Services;
 
@@ -25,7 +26,13 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
     public Task<Catering?> GetAsync(CancellationToken ct = default) =>
         db.Caterings.AsNoTracking().FirstOrDefaultAsync(c => c.PersonId == PersonId, ct);
 
-    /// <summary>Writes the missing catering days up to today. Cheap no-op once today is done.</summary>
+    /// <summary>
+    /// Writes the missing catering days up to today. Cheap no-op once today is done. Pages load
+    /// /plan, /body/budget and /body/progress in parallel and each calls this, so several requests
+    /// race for the same backlog: <see cref="Catering.MaterializedThrough"/> is a concurrency token
+    /// (and a unique index allows one catering entry per person and day), so only the first save
+    /// lands and the others drop their copies.
+    /// </summary>
     public async Task EnsureAsync(DateOnly today, CancellationToken ct = default)
     {
         var c = await db.Caterings.FirstOrDefaultAsync(x => x.PersonId == PersonId, ct);
@@ -34,13 +41,39 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
 
         var from = c.MaterializedThrough is DateOnly d ? d.AddDays(1) : c.StartDate;
         if (from < c.StartDate) from = c.StartDate;
+        // Idempotent: a day that already has its box (written by a parallel request, or before the
+        // start date was moved back in SaveAsync) is never written twice.
+        var existing = (await db.PlanEntries.AsNoTracking()
+            .Where(e => e.PersonId == PersonId && e.IsCatering && e.Date >= from && e.Date <= today)
+            .Select(e => e.Date).ToListAsync(ct)).ToHashSet();
+        var added = new List<PlanEntry>();
         for (var day = from; day <= today; day = day.AddDays(1))
         {
-            if (Delivers(c, day)) db.PlanEntries.Add(NewEntry(c, day));
+            if (Delivers(c, day) && !existing.Contains(day)) added.Add(NewEntry(c, day));
         }
+        db.PlanEntries.AddRange(added);
         c.MaterializedThrough = today;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex is DbUpdateConcurrencyException || IsDuplicateCatering(ex))
+        {
+            // Another request materialized these days first: forget our copies, keep theirs.
+            foreach (var entry in added) db.Entry(entry).State = EntityState.Detached;
+            await db.Entry(c).ReloadAsync(ct);
+        }
     }
+
+    public const string OnePerDayIndex = "IX_PlanEntries_PersonId_Date_Catering";
+
+    private static bool IsDuplicateCatering(DbUpdateException ex) =>
+        ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
+        && pg.ConstraintName == OnePerDayIndex;
+
+    /// <summary>True when the person already has a catering entry that day (one per day).</summary>
+    public Task<bool> HasEntryAsync(int personId, DateOnly date, Guid? except = null, CancellationToken ct = default) =>
+        db.PlanEntries.AnyAsync(e => e.PersonId == personId && e.Date == date && e.IsCatering && e.Id != except, ct);
 
     /// <summary>Saves the settings. Days already written keep their old numbers (snapshots).</summary>
     public async Task<Catering> SaveAsync(bool enabled, int kcal, decimal? protein, decimal? fat, decimal? carbs,
@@ -71,6 +104,8 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
     {
         var c = await db.Caterings.AsNoTracking().FirstOrDefaultAsync(x => x.PersonId == PersonId, ct)
             ?? throw new DiaryException("Najpierw ustaw catering.", StatusCodes.Status404NotFound);
+        if (await HasEntryAsync(PersonId, date, ct: ct))
+            throw new DiaryException("Catering na ten dzień jest już wpisany.", StatusCodes.Status409Conflict);
         var entry = NewEntry(c, date);
         db.PlanEntries.Add(entry);
         await db.SaveChangesAsync(ct);
