@@ -12,7 +12,7 @@ public static class RecipesEndpoints
         var g = api.MapGroup("/recipes").WithTags("Recipes");
 
         g.MapGet("/", async (string? source, string? q, string? dishType, string? cuisine,
-            int? maxTime, bool? airFryer, string? sourceName, MiseDbContext db) =>
+            int? maxTime, bool? airFryer, string? sourceName, bool? hasImage, MiseDbContext db) =>
         {
             if (!Mapping.TryParseDishType(dishType, out var dt))
                 return BadDishType();
@@ -48,6 +48,9 @@ public static class RecipesEndpoints
                 query = query.Where(r => r.Cuisine == wantedCuisine);
             if (maxTime is > 0)
                 query = query.Where(r => r.TimeMinutes <= maxTime);
+            // hasImage=false: recipes still waiting for a dish photo (agents fill them in).
+            if (hasImage is bool wantImage)
+                query = query.Where(r => (r.ImagePath != null) == wantImage);
 
             var recipes = await query.ToListAsync();
             // Resolved flag (stored value or heuristic), so this filter runs in memory.

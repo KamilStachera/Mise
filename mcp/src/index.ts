@@ -132,8 +132,9 @@ server.tool(
     cuisine: z.enum(CUISINES).optional().describe('Kuchnia/pochodzenie'),
     maxTime: z.number().int().positive().optional().describe('Maksymalny czas przygotowania w minutach'),
     airFryer: z.boolean().optional().describe('true = tylko dania z frytkownicy, false = tylko bez'),
+    hasImage: z.boolean().optional().describe('false = tylko przepisy bez zdjęcia dania, true = tylko ze zdjęciem'),
   },
-  async ({ q, source, sourceName, dishType, cuisine, maxTime, airFryer }) => {
+  async ({ q, source, sourceName, dishType, cuisine, maxTime, airFryer, hasImage }) => {
     const p = new URLSearchParams()
     if (q) p.set('q', q)
     if (source) p.set('source', source)
@@ -142,6 +143,7 @@ server.tool(
     if (cuisine) p.set('cuisine', cuisine)
     if (maxTime) p.set('maxTime', String(maxTime))
     if (airFryer !== undefined) p.set('airFryer', String(airFryer))
+    if (hasImage !== undefined) p.set('hasImage', String(hasImage))
     const qs = p.toString()
     return text(await get(`/recipes${qs ? '?' + qs : ''}`))
   },

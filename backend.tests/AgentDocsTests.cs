@@ -66,6 +66,25 @@ public class AgentDocsTests
     }
 
     [Fact]
+    public void DishPhotoDocs_ShareOnePromptAcrossAgentsMdSousAndTheCommand()
+    {
+        var agents = AgentDocs.AgentsMd("http://localhost:5080/api");
+        var api = AgentDocs.ApiMd("http://localhost:5080/api");
+        var commands = AgentDocs.CommandFiles("http://localhost:5080/api", "/ctx");
+        var sous = AgentDocs.SousInstructions("Ania");
+
+        // The style lives in one place: AGENTS.md carries the prompt verbatim, the rest point at it.
+        Assert.Contains(AgentDocs.RecipePhotoPrompt, agents, StringComparison.Ordinal);
+        Assert.DoesNotContain("{PHOTO_PROMPT}", agents, StringComparison.Ordinal);
+        Assert.Contains("### Zdjęcie dania, gdy przepis go nie ma", agents, StringComparison.Ordinal);
+        Assert.Contains("„Zdjęcie dania, gdy przepis go nie ma”", sous, StringComparison.Ordinal);
+        Assert.Contains("`hasImage: false`", sous, StringComparison.Ordinal);
+        Assert.Contains("„Zdjęcie dania, gdy przepis go nie ma”", commands["zdjecia-przepisow.md"], StringComparison.Ordinal);
+        Assert.Contains("hasImage=<true|false>", api, StringComparison.Ordinal);
+        Assert.Contains("/zdjecia-przepisow", AgentDocs.CommandsInstall("/ctx"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TrainingPlanDocs_DescribeTheGridPrivacyAndTheCommand()
     {
         var agents = AgentDocs.AgentsMd("http://localhost:5080/api");

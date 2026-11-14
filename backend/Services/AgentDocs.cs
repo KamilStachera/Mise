@@ -12,6 +12,18 @@ public static class AgentDocs
     public const string ContextDirToken = "{{CONTEXT_DIR}}";
     public const string RepoDirToken = "{{REPO_DIR}}";
 
+    /// <summary>
+    /// The one image prompt every agent (Sous, Codex, Claude Code) uses for a missing dish
+    /// photo, so generated photos share one look. Only the bracketed parts change per recipe.
+    /// Shown in AGENTS.md („Zdjęcie dania, gdy przepis go nie ma”).
+    /// </summary>
+    public const string RecipePhotoPrompt =
+        "Realistic food photography of [exact description of the dish from the recipe: main ingredients, " +
+        "colours, texture, how it is served], served on/in [plate / bowl / skillet / baking tray], ingredients " +
+        "clearly visible and appetizing. Bright natural window light, clean neutral tabletop, subtle linen " +
+        "napkin, realistic textures, 45-degree overhead angle or top-down view, shallow depth of field, " +
+        "no people, no hands, no text, no logos, no watermark.";
+
     public static string AgentsMd(string apiBase) => """
         # Pichci — instrukcje dla asystenta kulinarnego
 
@@ -103,6 +115,31 @@ public static class AgentDocs
            pasującą do naszej kuchni albo oznacz do kupienia.
         4. Pokaż mi propozycję. Po akceptacji: `POST {API}/recipes`, a brakujące składniki
            dodaj przez `POST {API}/recipes/{id}/add-missing-to-shopping`.
+
+        ### Zdjęcie dania, gdy przepis go nie ma
+        Przepisy bez zdjęcia: `GET {API}/recipes?hasImage=false` (MCP `search_recipes` z
+        `hasImage: false`). Gdy jest prawdziwe zdjęcie (moje albo ze źródła przepisu) — użyj
+        jego, nie generuj. Wygenerowane zdjęcie ma pokazywać ten konkretny przepis (opis bierz
+        z jego składników i kroków), a nie ogólne stockowe jedzenie, i wszystkie mają mieć
+        jeden, spójny styl:
+        - realistyczna fotografia jedzenia, nie ilustracja; danie od razu rozpoznawalne;
+        - jasne, naturalne światło, najlepiej od okna;
+        - estetyczny talerz, miska, patelnia albo blacha — to, w czym danie się podaje;
+        - widok pod kątem 45° albo lekko z góry;
+        - czyste, neutralne tło: jasny blat, lniana serwetka, subtelne dodatki;
+        - bez ludzi, dłoni i sztućców zasłaniających danie; bez napisów, etykiet, logo
+          i znaków wodnych;
+        - plik JPG/PNG/WebP poniżej 5 MB.
+
+        Prompt dla każdego zdjęcia — uzupełnij tylko nawiasy kwadratowe, resztę zostaw bez zmian:
+
+        ```
+        {PHOTO_PROMPT}
+        ```
+
+        Plik dołącz przez `POST {API}/recipes/{id}/image` (multipart `file`) albo MCP
+        `add_recipe_image` (`filePath`), potem sprawdź, że przepis ma `imageUrl`. Wiele zdjęć
+        naraz (partie, kontaktówka do przeglądu): komenda `/zdjecia-przepisow`.
 
         ### Paragon → spiżarnia + lista zakupów
         1. Wyciągnij surowe nazwy produktów spożywczych z ilościami w jednostkach metrycznych
@@ -219,7 +256,7 @@ public static class AgentDocs
         asystenta" i „Profil szczegółowy (ankieta)". Kalorie i makro przepisu są zawsze **na
         jedną porcję = jedna osoba**; „domyślna liczba porcji” z profilu dotyczy gotowania dla
         całego domu. Przy każdej propozycji wskaż wszystko, co trzeba dokupić.
-        """.Replace("{API}", apiBase);
+        """.Replace("{API}", apiBase).Replace("{PHOTO_PROMPT}", RecipePhotoPrompt);
 
     public static string ApiMd(string apiBase) => """
         # Pichci — REST API dla agentów
@@ -379,8 +416,9 @@ public static class AgentDocs
         („2 x Kromka (70.0 g)").
 
         ### Pozostałe
-        - `GET /recipes?q=<szukaj>&source=<ai|web|manual|all>&sourceName=<źródło>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>` — lista.
-          `q` szuka w tytule i źródle; `sourceName` to dokładne źródło (bez względu na wielkość liter).
+        - `GET /recipes?q=<szukaj>&source=<ai|web|manual|all>&sourceName=<źródło>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>&hasImage=<true|false>` — lista.
+          `q` szuka w tytule i źródle; `sourceName` to dokładne źródło (bez względu na wielkość liter);
+          `hasImage=false` — tylko przepisy bez zdjęcia dania.
         - `GET /recipes/{id}` — szczegóły + które składniki są na stanie / do kupienia
           (uwzględnia ilości: za mało w spiżarni = do kupienia). `selectedServings` to
           zapisany wybór porcji z ekranu przepisu (**domyślnie 1** — jedna osoba) — **ilości
@@ -863,6 +901,27 @@ public static class AgentDocs
                    `replace_training_program`) i krótkim `rationale`. Błąd walidacji wskazuje dzień —
                    popraw go i ponów.
                 """),
+            ["zdjecia-przepisow.md"] = T("""
+                Dodaj zdjęcia dań do przepisów Pichci, które ich nie mają. Zakres: $ARGUMENTS
+                (puste = wszystkie przepisy bez zdjęcia).
+
+                1. Przeczytaj w `{CTX}/AGENTS.md` sekcję „Zdjęcie dania, gdy przepis go nie ma” — styl
+                   i prompt są tam; trzymaj się ich dokładnie, żeby wszystkie zdjęcia były spójne.
+                   Używaj narzędzi MCP `pichci` (sprawdź ich schemat, nie zgaduj parametrów); REST API
+                   tylko, gdy MCP nie ma.
+                2. Znajdź przepisy bez zdjęcia: `search_recipes` z `hasImage: false`
+                   (`GET {API}/recipes?hasImage=false`). Do każdego `get_recipe` — opis dania do promptu
+                   bierz z jego składników i kroków, żeby zdjęcie pokazywało ten przepis.
+                3. Generuj partiami po 6–10. Każdy obraz zapisz w katalogu roboczym pod czytelną
+                   nazwą z tytułu (np. `zdjecia/szakszuka-z-feta.png`); sprawdź, że plik istnieje i ma
+                   mniej niż 5 MB.
+                4. Zrób kontaktówkę partii (miniatury z tytułami) i obejrzyj ją: właściwe danie, jeden
+                   styl, bez tekstu, dłoni i artefaktów. Nieudane wygeneruj ponownie.
+                5. Dopiero potem dołącz zdjęcia: `add_recipe_image` (`id` + `filePath`) albo
+                   `POST {API}/recipes/{id}/image` (multipart `file`).
+                6. Sprawdź `get_recipe` / `search_recipes`, że `imageUrl` jest zapisane.
+                7. Na koniec wypisz, które przepisy dostały zdjęcia i ile zostało bez zdjęcia.
+                """),
         };
     }
 
@@ -888,6 +947,16 @@ public static class AgentDocs
           a zdjęcie dania z `imageUrl` dołącz `add_recipe_image`. Przy wielu przepisach (cały
           PDF) najpierw wypisz ich listę i zapytaj, które dodać; zapisuj po kilka i pomijaj te,
           które już są w książce. Strony z błędem albo skany — powiedz wprost, co nie wyszło.
+        - Zdjęcie dania: przepis bez zdjęcia (`imageUrl` puste; lista: `search_recipes` z
+          `hasImage: false`) dostaje wygenerowane zdjęcie, gdy o nie poproszę — a po zapisaniu
+          nowego przepisu bez zdjęcia zapytaj, czy je zrobić. Generuj wbudowanym narzędziem do
+          obrazów dokładnie wg sekcji „Zdjęcie dania, gdy przepis go nie ma” z AGENTS.md (styl
+          i prompt), z opisem dania ze składników i kroków (`get_recipe`). Plik zapisuje się
+          w `$CODEX_HOME/generated_images/…` — dołącz go `add_recipe_image` z `filePath`.
+          Najwyżej 3 zdjęcia na wiadomość (zużywają limit planu); przy większej liczbie zrób
+          3 i zapytaj, czy dalej. W czacie nie widać obrazków: napisz, które przepisy mają nowe
+          zdjęcie, żebym je obejrzał(a) — nieudane usunę w galerii przepisu. Przepisu, który
+          ma już zdjęcie, nie ruszaj, chyba że wyraźnie poproszę o nowe.
         - Proste dopisanie (zjedzone jedzenie, pozycja na liście zakupów, ważenie) wykonaj od
           razu i potwierdź jednym zdaniem z liczbami (np. ile kcal zostało na dziś).
           Usuwanie, czyszczenie list, podmiana przepisu, zmiana celu i nowy przepis — najpierw
@@ -948,7 +1017,7 @@ public static class AgentDocs
         """;
 
     public static string CommandsInstall(string contextDir) => """
-        # Claude Code (komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien, /wzbogac-cwiczenia, /plan-treningowy)
+        # Claude Code (komendy /dodaj-przepis, /paragon, /zaplanuj-tydzien, /wzbogac-cwiczenia, /plan-treningowy, /zdjecia-przepisow)
         cp "{CTX}/commands/"*.md ~/.claude/commands/
 
         # Codex CLI
