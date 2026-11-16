@@ -1,0 +1,66 @@
+// Validates the Twilight quiz bank (src/zmierzch/questions/*.json): shape, enums, unique ids,
+// sane ABCD options and near-duplicate questions. Run: npm run test:zmierzch
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const dir = fileURLToPath(new URL('../src/zmierzch/questions/', import.meta.url))
+const PARTS = ['zmierzch', 'ksiezyc', 'zacmienie', 'przed-switem', 'saga']
+const SOURCES = ['film', 'ksiazka', 'oba']
+const CATEGORIES = ['fabula', 'postacie', 'cytaty', 'muzyka', 'obsada', 'kulisy', 'roznice', 'miejsca', 'liczby']
+
+const errors = []
+const ids = new Map()
+const texts = new Map()
+const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const nonEmpty = (v) => typeof v === 'string' && v.trim().length > 0
+
+let total = 0
+const perPart = Object.fromEntries(PARTS.map((p) => [p, 0]))
+
+for (const file of readdirSync(dir).filter((f) => f.endsWith('.json')).sort()) {
+  let list
+  try {
+    list = JSON.parse(readFileSync(join(dir, file), 'utf8'))
+  } catch (e) {
+    errors.push(`${file}: invalid JSON — ${e.message}`)
+    continue
+  }
+  if (!Array.isArray(list)) {
+    errors.push(`${file}: top level must be an array`)
+    continue
+  }
+  for (const q of list) {
+    const at = `${file} ${q?.id ?? '(no id)'}`
+    total++
+    if (!nonEmpty(q.id)) errors.push(`${at}: missing id`)
+    else if (ids.has(q.id)) errors.push(`${at}: duplicate id (also in ${ids.get(q.id)})`)
+    else ids.set(q.id, file)
+    if (!PARTS.includes(q.part)) errors.push(`${at}: bad part "${q.part}"`)
+    else perPart[q.part]++
+    if (!SOURCES.includes(q.source)) errors.push(`${at}: bad source "${q.source}"`)
+    if (!CATEGORIES.includes(q.category)) errors.push(`${at}: bad category "${q.category}"`)
+    if (![1, 2, 3].includes(q.difficulty)) errors.push(`${at}: difficulty must be 1, 2 or 3`)
+    if (!nonEmpty(q.q)) errors.push(`${at}: empty question`)
+    if (!nonEmpty(q.answer)) errors.push(`${at}: empty answer`)
+    if (q.note !== undefined && !nonEmpty(q.note)) errors.push(`${at}: note present but empty`)
+    if (!Array.isArray(q.wrong) || q.wrong.length !== 3 || !q.wrong.every(nonEmpty)) {
+      errors.push(`${at}: wrong must be 3 non-empty strings`)
+    } else {
+      const opts = [q.answer, ...q.wrong].map(norm)
+      if (new Set(opts).size !== 4) errors.push(`${at}: answer and wrong options must all differ`)
+    }
+    if (nonEmpty(q.q)) {
+      const key = norm(q.q)
+      if (texts.has(key)) errors.push(`${at}: same question text as ${texts.get(key)}`)
+      else texts.set(key, q.id)
+    }
+  }
+}
+
+if (errors.length) {
+  console.error(errors.join('\n'))
+  console.error(`\n${errors.length} problem(s) in ${total} questions`)
+  process.exit(1)
+}
+console.log(`OK — ${total} questions`, perPart)

@@ -1,0 +1,128 @@
+[
+  {
+    "id": "kn-001", "part": "ksiezyc", "source": "oba", "category": "liczby", "difficulty": 1,
+    "q": "Które urodziny obchodzi Bella na początku Księżyca w nowiu?",
+    "answer": "18.",
+    "wrong": ["17.", "19.", "21."],
+    "note": "Bellę przeraża, że jest teraz „starsza” niż Edward, który ma wiecznie 17 lat."
+  },
+  {
+    "id": "kn-002", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Co wywołuje atak Jaspera na przyjęciu urodzinowym Belli?",
+    "answer": "Bella rozcina sobie palec papierem, otwierając prezent",
+    "wrong": ["Bella skaleczyła się nożem do tortu", "Bella przewraca się na stłuczone szkło", "Emmett żartem szturcha Bellę"],
+    "note": "Edward odpycha ją tak mocno, że wpada na szklane talerze i krwawi jeszcze bardziej. To po tym Edward postanawia odejść."
+  },
+  {
+    "id": "kn-003", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Kogo widzi Bella w śnie, którym otwiera się Księżyc w nowiu?",
+    "answer": "Babcię — która okazuje się nią samą, postarzałą",
+    "wrong": ["Mamę Renée", "Jamesa", "Alice"],
+    "note": "Obok niej stoi wiecznie młody Edward — stąd jej lęk przed starzeniem się."
+  },
+  {
+    "id": "kn-004", "part": "ksiezyc", "source": "oba", "category": "cytaty", "difficulty": 1,
+    "q": "Jaki dramat Szekspira przewija się przez Księżyc w nowiu?",
+    "answer": "„Romeo i Julia”",
+    "wrong": ["„Hamlet”", "„Otello”", "„Sen nocy letniej”"],
+    "note": "Edward mówi Belli, że zazdrości Romeowi łatwości samobójstwa — i potem niemal powtarza jego historię w Volterze."
+  },
+  {
+    "id": "kn-005", "part": "ksiezyc", "source": "oba", "category": "roznice", "difficulty": 3,
+    "q": "W książce miesiące po odejściu Edwarda to puste strony z samymi nazwami miesięcy. Jak pokazano to w filmie?",
+    "answer": "Kamera krąży wokół Belli siedzącej przy oknie, a za oknem zmieniają się pory roku",
+    "wrong": ["Montażem listów Belli do Alice", "Narracją Charliego", "Czarnym ekranem z datami"],
+    "note": "Maile Belli do Alice to wymysł filmu (w książce Bella pisze maile tylko do mamy)."
+  },
+  {
+    "id": "kn-006", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Co dzieje się, gdy Bella robi coś niebezpiecznego po odejściu Edwarda?",
+    "answer": "Słyszy (w filmie widzi) Edwarda, który ją ostrzega",
+    "wrong": ["Alice dzwoni z ostrzeżeniem", "Pojawia się Victoria", "Śni jej się Volterra"],
+    "note": "Dlatego zaczyna szukać adrenaliny: motory, a potem skok z klifu."
+  },
+  {
+    "id": "kn-007", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Z czym Bella przychodzi do Jacoba, co zbliża ich do siebie?",
+    "answer": "Ze starymi motorami do naprawy",
+    "wrong": ["Z zepsutym radiem", "Z rowerem", "Z pickupem po wypadku"],
+    "note": "Jacob naprawia motocykle w swoim garażu."
+  },
+  {
+    "id": "kn-008", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Kto wyciąga Bellę z wody po skoku z klifu w La Push?",
+    "answer": "Jacob",
+    "wrong": ["Sam", "Paul", "Edward"],
+    "note": "Alice widzi skok w wizji, ale nie widzi Jacoba — więc myśli, że Bella się zabiła."
+  },
+  {
+    "id": "kn-009", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Kto umiera na zawał serca w Księżycu w nowiu?",
+    "answer": "Harry Clearwater",
+    "wrong": ["Billy Black", "Waylon Forge", "Embry Call"],
+    "note": "Harry to ojciec Leah i Setha. Waylon Forge ginie z rąk nomadów (James, Victoria, Laurent) w pierwszym filmie. W filmie Harry dostaje zawału na widok Victorii."
+  },
+  {
+    "id": "kn-010", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Kto zabija Laurenta?",
+    "answer": "Wilki z watahy Sama",
+    "wrong": ["Victoria", "Edward", "Volturi"],
+    "note": "Laurent chce zabić Bellę na łące, ale wilki wybiegają z lasu."
+  },
+  {
+    "id": "kn-011", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Kto odbiera telefon od Edwarda i mówi, że Charlie jest na pogrzebie (w filmie: że „zajmuje się pogrzebem”)?",
+    "answer": "Jacob",
+    "wrong": ["Bella", "Billy", "Alice"],
+    "note": "Edward myśli, że chodzi o pogrzeb Belli — a to pogrzeb Harry'ego Clearwatera."
+  },
+  {
+    "id": "kn-012", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 3,
+    "q": "Podczas jakiego święta Edward chce wyjść na słońce w Volterze?",
+    "answer": "Dzień Świętego Marka",
+    "wrong": ["Wielkanoc", "Dzień Świętego Jana", "Dzień Wszystkich Świętych"],
+    "note": "Miasto świętuje legendarne wypędzenie wampirów przez św. Marka — w samym sercu siedziby Volturi."
+  },
+  {
+    "id": "kn-013", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Jakim autem Alice pędzi z Bellą przez Volterrę?",
+    "answer": "Żółtym Porsche 911 Turbo",
+    "wrong": ["Czerwonym Ferrari", "Srebrnym Volvo", "Czarnym Mercedesem"],
+    "note": "Auto było kradzione. W książce Zaćmienie Edward daje Alice żółte Porsche jako „łapówkę” za pilnowanie Belli, gdy on poluje (w filmie tego wątku nie ma)."
+  },
+  {
+    "id": "kn-014", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Który z tych wampirów NIE jest jednym z trzech przywódców Volturi?",
+    "answer": "Demetri",
+    "wrong": ["Aro", "Kajusz", "Marek"],
+    "note": "Demetri to tropiciel straży Volturi."
+  },
+  {
+    "id": "kn-015", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Jaką moc ma Jane?",
+    "answer": "Wywołuje iluzję straszliwego bólu",
+    "wrong": ["Odcina wszystkie zmysły", "Widzi więzi między ludźmi", "Czyta myśli przez dotyk"],
+    "note": "Pozostałe moce: Alec (jej brat bliźniak) odcina zmysły, Marek widzi więzi, Aro czyta myśli przez dotyk."
+  },
+  {
+    "id": "kn-016", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Kto jest przywódcą (alfą) watahy w Księżycu w nowiu?",
+    "answer": "Sam Uley",
+    "wrong": ["Jacob Black", "Paul Lahote", "Billy Black"],
+    "note": "Jacob jest prawnukiem Ephraima Blacka — później okaże się, że to jemu z prawa krwi należy się rola alfy."
+  },
+  {
+    "id": "kn-017", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Kto z Cullenów, oprócz Edwarda, głosuje przeciw przemianie Belli?",
+    "answer": "Rosalie",
+    "wrong": ["Jasper", "Emmett", "Esme"],
+    "note": "Rosalie żałuje utraconego ludzkiego życia i nie chce go odbierać Belli."
+  },
+  {
+    "id": "kn-018", "part": "ksiezyc", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Co w książce Bella dostaje od Carlisle'a i Esme na 18. urodziny?",
+    "answer": "Bilety lotnicze do Jacksonville, do mamy",
+    "wrong": ["Aparat fotograficzny", "Radio samochodowe", "Album na zdjęcia"],
+    "note": "Aparat dał Charlie, album — Renée, radio samochodowe było od Emmetta, Rosalie i Jaspera (zamontował je Emmett), a Edward nagrał płytę ze swoimi kompozycjami."
+  }
+]

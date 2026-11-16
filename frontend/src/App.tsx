@@ -26,6 +26,7 @@ import { History } from './pages/History'
 import { Training } from './pages/Training'
 import { Blocked, Onboarding, Welcome } from './pages/Onboarding'
 import { AdminPage } from './pages/admin/AdminPage'
+import { TwilightQuiz } from './zmierzch/TwilightQuiz'
 
 export default function App() {
   const isMobile = useIsMobile()
@@ -39,6 +40,9 @@ export default function App() {
   useScrollMemory(mainRef)
 
   useEffect(() => registerChatOpener(() => setChatOpen(true)), [])
+
+  // Temporary public quiz trainer — outside the shell and the auth gates (src/zmierzch).
+  if (pathname.startsWith('/zmierzch')) return <TwilightQuiz />
 
   // Before the app: a Google account without a household redeems an invite code; with no
   // public household to browse, an anonymous visitor can only sign in.

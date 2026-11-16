@@ -1,0 +1,121 @@
+[
+  {
+    "id": "za-001", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Kto w imieniu Victorii dowodzi armią nowonarodzonych w Seattle?",
+    "answer": "Riley Biers",
+    "wrong": ["Laurent", "Demetri", "Garrett"],
+    "note": "Riley myśli, że Victoria go kocha — ona go tylko wykorzystuje."
+  },
+  {
+    "id": "za-002", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Jak ma na imię nowonarodzona, która poddaje się Cullenom po bitwie?",
+    "answer": "Bree Tanner",
+    "wrong": ["Leah Clearwater", "Irina", "Maria"],
+    "note": "Stephenie Meyer napisała o niej osobną nowelę „Drugie życie Bree Tanner”."
+  },
+  {
+    "id": "za-003", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 3,
+    "q": "Kto z Volturi zabija Bree na rozkaz Jane?",
+    "answer": "Felix",
+    "wrong": ["Demetri", "Alec", "Kajusz"],
+    "note": "Jane najpierw torturuje Bree swoim darem, by wydobyć informacje."
+  },
+  {
+    "id": "za-004", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "W jakiej armii służył Jasper, zanim stał się wampirem?",
+    "answer": "W armii Konfederacji (wojna secesyjna)",
+    "wrong": ["W armii Unii", "W armii brytyjskiej", "W armii meksykańskiej"],
+    "note": "Był najmłodszym majorem w Teksasie. W Zaćmieniu opowiada Belli tę historię."
+  },
+  {
+    "id": "za-005", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Kto przemienił Jaspera i zrobił z niego dowódcę armii nowonarodzonych na Południu?",
+    "answer": "Maria",
+    "wrong": ["Victoria", "Carlisle", "Alice"],
+    "note": "Jasper uciekł od Marii, a potem znalazła go Alice — w barze w Filadelfii."
+  },
+  {
+    "id": "za-006", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 3,
+    "q": "Jak nazywał się narzeczony Rosalie, przez którego zginęła jako człowiek?",
+    "answer": "Royce King",
+    "wrong": ["Riley Biers", "Edward Masen", "Henry Collins"],
+    "note": "Rosalie zemściła się na nim i jego kolegach już jako wampir. Edward Masen to ludzkie nazwisko Edwarda."
+  },
+  {
+    "id": "za-007", "part": "zacmienie", "source": "oba", "category": "miejsca", "difficulty": 3,
+    "q": "W jakim mieście mieszkała Rosalie jako człowiek?",
+    "answer": "Rochester (stan Nowy Jork)",
+    "wrong": ["Chicago", "Biloxi", "Houston"],
+    "note": "To był rok 1933. Chicago to miasto Edwarda, Biloxi — Alice, a Jasper pochodził z Houston."
+  },
+  {
+    "id": "za-008", "part": "zacmienie", "source": "film", "category": "cytaty", "difficulty": 1,
+    "q": "Kto mówi w namiocie: „Let's face it — I am hotter than you” (przyznaj, jestem gorętszy od ciebie)?",
+    "answer": "Jacob, do Edwarda",
+    "wrong": ["Edward, do Jacoba", "Emmett, do Jaspera", "Seth, do Leah"],
+    "note": "Jacob ogrzewa zmarzniętą Bellę w namiocie w górach, kiedy Edward nie może."
+  },
+  {
+    "id": "za-009", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Jaki pierścionek zaręczynowy Edward daje Belli?",
+    "answer": "Pierścionek swojej matki",
+    "wrong": ["Pierścionek Esme", "Pierścionek babci Belli", "Nowy, kupiony we Włoszech"],
+    "note": "Pierścionek należał do Elizabeth Masen, ludzkiej matki Edwarda."
+  },
+  {
+    "id": "za-010", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Co Bella robi po tym, jak Jacob całuje ją wbrew jej woli?",
+    "answer": "Uderza go w twarz i łamie sobie rękę",
+    "wrong": ["Ucieka do Edwarda bez słowa", "Skarży się Charliemu", "Oddaje pocałunek"],
+    "note": "W książce Charlie, słysząc o pocałunku, mówi Jacobowi „Good for you” — gratuluje mu. Edward grozi, że połamie Jacobowi szczękę, jeśli jeszcze raz pocałuje Bellę wbrew jej woli."
+  },
+  {
+    "id": "za-011", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Który wilk walczy u boku Edwarda z Victorią i Rileyem?",
+    "answer": "Seth Clearwater",
+    "wrong": ["Jacob Black", "Leah Clearwater", "Paul Lahote"],
+    "note": "Seth zostaje z Edwardem i Bellą w obozie w górach, a Jacob walczy na polanie z resztą."
+  },
+  {
+    "id": "za-012", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Kto zabija Victorię?",
+    "answer": "Edward",
+    "wrong": ["Jacob", "Seth", "Alice"],
+    "note": "Seth zajmuje się Rileyem."
+  },
+  {
+    "id": "za-013", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Jaką legendę Quileutów Bella słyszy przy ognisku w La Push, zapowiadającą jej własne poświęcenie?",
+    "answer": "Legendę o trzeciej żonie",
+    "wrong": ["Legendę o wielkim potopie", "Legendę o Dzieciach Księżyca", "Legendę o pierwszym wilku"],
+    "note": "Trzecia żona wbiła sobie nóż, by zapach krwi odwrócił uwagę zimnej kobiety. W książce opowiada ją Stary Quil, w filmie Billy. W filmie Bella rozcina sobie rękę w walce z Victorią; w książce tylko się do tego szykuje."
+  },
+  {
+    "id": "za-014", "part": "zacmienie", "source": "film", "category": "postacie", "difficulty": 2,
+    "q": "Kto wygłasza przemówienie na zakończeniu szkoły w filmie Zaćmienie?",
+    "answer": "Jessica Stanley",
+    "wrong": ["Angela Weber", "Bella Swan", "Mike Newton"],
+    "note": "Jessica była prymuską — przemowa o tym, że to czas na błędy."
+  },
+  {
+    "id": "za-015", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Któremu wilkowi nowonarodzony miażdży kości w bitwie?",
+    "answer": "Jacobowi",
+    "wrong": ["Sethowi", "Samowi", "Leah"],
+    "note": "Jacob ratuje Leah, rzucając się na wampira, którego ona zaatakowała."
+  },
+  {
+    "id": "za-016", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Jaki warunek stawia Edward w zamian za przemianę Belli?",
+    "answer": "Ślub",
+    "wrong": ["Ukończenie college'u", "Zgoda Charliego", "Odczekanie roku"],
+    "note": "Bella długo się wzbrania — rozwód rodziców zniechęcił ją do małżeństwa w młodym wieku."
+  },
+  {
+    "id": "za-017", "part": "zacmienie", "source": "ksiazka", "category": "cytaty", "difficulty": 3,
+    "q": "Jaki wiersz jest mottem Zaćmienia?",
+    "answer": "„Ogień i lód” Roberta Frosta",
+    "wrong": ["„Droga nie wybrana” Roberta Frosta", "„Kruk” Edgara Allana Poe", "„Ballada o starym marynarzu” Coleridge'a"],
+    "note": "Ogień (Jacob) i lód (Edward) — wybór Belli w jednym wierszu."
+  }
+]

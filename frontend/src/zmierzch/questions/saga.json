@@ -1,0 +1,114 @@
+[
+  {
+    "id": "sa-001", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Kogo Carlisle przemienił jako pierwszego?",
+    "answer": "Edwarda",
+    "wrong": ["Esme", "Rosalie", "Emmetta"],
+    "note": "Kolejność: Edward (1918), Esme (1921), Rosalie (1933), Emmett (1935). Alice i Jasper dołączyli sami."
+  },
+  {
+    "id": "sa-002", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Co spotkało Emmetta, zanim Rosalie zaniosła go do Carlisle'a?",
+    "answer": "Zaatakował go niedźwiedź",
+    "wrong": ["Spadł z klifu", "Został postrzelony", "Zachorował na hiszpankę"],
+    "note": "Rosalie niosła go ponad 100 mil, opierając się pokusie jego krwi."
+  },
+  {
+    "id": "sa-003", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Dlaczego Esme znalazła się w kostnicy, gdzie przemienił ją Carlisle?",
+    "answer": "Rzuciła się z klifu po śmierci swojego dziecka",
+    "wrong": ["Zmarła na hiszpankę", "Zginęła w pożarze", "Zaatakował ją wampir"],
+    "note": "Carlisle poznał ją wcześniej, gdy jako nastolatka złamała nogę."
+  },
+  {
+    "id": "sa-004", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Gdzie Alice spędziła ostatnie lata ludzkiego życia?",
+    "answer": "W zakładzie psychiatrycznym",
+    "wrong": ["W klasztorze", "W sierocińcu", "W więzieniu"],
+    "note": "Trafiła tam przez wizje. Ludzkie imię: Mary Alice Brandon. Nie pamięta niczego z tamtego życia."
+  },
+  {
+    "id": "sa-005", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Jak Cullenowie żartobliwie nazywają swoją dietę ze zwierzęcej krwi?",
+    "answer": "Wegetarianizm",
+    "wrong": ["Weganizm", "Post", "Dieta myśliwego"],
+    "note": "Dlatego mają złote oczy — wampiry pijące ludzką krew mają czerwone."
+  },
+  {
+    "id": "sa-006", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Jakie drugie imię ma Edward?",
+    "answer": "Anthony",
+    "wrong": ["Andrew", "Carlisle", "Marie"],
+    "note": "Edward Anthony Masen Cullen."
+  },
+  {
+    "id": "sa-007", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Jakie drugie imię ma Bella?",
+    "answer": "Marie",
+    "wrong": ["Rose", "Anne", "Elizabeth"],
+    "note": "Isabella Marie Swan. Uwaga na pułapkę: Renesmee ma drugie imię Carlie, nie Marie."
+  },
+  {
+    "id": "sa-008", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Jaka jest ulubiona książka Belli, którą czyta wielokrotnie?",
+    "answer": "„Wichrowe Wzgórza”",
+    "wrong": ["„Przeminęło z wiatrem”", "„Romeo i Julia”", "„Dziwne losy Jane Eyre”"],
+    "note": "W Zaćmieniu powieść jest paralelą trójkąta Bella–Edward–Jacob (Cathy, Heathcliff i Edgar). Bella czyta też Austen, więc to łatwo pomylić."
+  },
+  {
+    "id": "sa-009", "part": "saga", "source": "oba", "category": "miejsca", "difficulty": 1,
+    "q": "W jakim stanie USA leży Forks?",
+    "answer": "Waszyngton",
+    "wrong": ["Oregon", "Montana", "Idaho"],
+    "note": "Na półwyspie Olympic — jedno z najbardziej deszczowych miejsc w USA."
+  },
+  {
+    "id": "sa-010", "part": "saga", "source": "oba", "category": "miejsca", "difficulty": 1,
+    "q": "Jak nazywa się rezerwat Quileutów, w którym mieszka Jacob?",
+    "answer": "La Push",
+    "wrong": ["Port Angeles", "Denali", "Makah"],
+    "note": "Port Angeles to miasto, do którego Bella jedzie po zakupy. Denali — na Alasce."
+  },
+  {
+    "id": "sa-011", "part": "saga", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Czego, oprócz wstępu na ziemie Quileutów, zakazuje Cullenom traktat z watahą?",
+    "answer": "Ugryzienia (przemiany) człowieka",
+    "wrong": ["Polowania w lasach wokół Forks", "Chodzenia do szkoły w Forks", "Kontaktów z Volturi"],
+    "note": "Dlatego przemiana Belli w Przed świtem grozi wojną z watahą."
+  },
+  {
+    "id": "sa-012", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Kto z Quileutów zawarł traktat z Cullenami?",
+    "answer": "Ephraim Black, pradziadek Jacoba",
+    "wrong": ["Billy Black, ojciec Jacoba", "Taha Aki", "Harry Clearwater"],
+    "note": "Taha Aki to legendarny pierwszy wilkołak Quileutów."
+  },
+  {
+    "id": "sa-013", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Czym są naprawdę wilki z La Push, według Przed świtem?",
+    "answer": "Zmiennokształtnymi — nie prawdziwymi wilkołakami",
+    "wrong": ["Prawdziwymi wilkołakami (Dziećmi Księżyca)", "Duchami przodków", "Hybrydami wampirów"],
+    "note": "Prawdziwe „Dzieci Księżyca” to inny gatunek, który Volturi prawie wytępili."
+  },
+  {
+    "id": "sa-014", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Która z wilczyc jest jedyną kobietą w watasze?",
+    "answer": "Leah Clearwater",
+    "wrong": ["Emily Young", "Rachel Black", "Kim"],
+    "note": "Emily to narzeczona Sama (i kuzynka Leah) — ma blizny po jego ataku."
+  },
+  {
+    "id": "sa-015", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Który z tych wampirów NIE należy do klanu z Denali?",
+    "answer": "Charlotte",
+    "wrong": ["Tanya", "Eleazar", "Carmen"],
+    "note": "Denali: Tanya, Kate, Irina, Eleazar i Carmen. Charlotte to towarzyszka Petera, starego przyjaciela Jaspera."
+  },
+  {
+    "id": "sa-016", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "W jakim mieście i wieku urodził się Carlisle?",
+    "answer": "W Londynie, w XVII wieku",
+    "wrong": ["W Chicago, w XIX wieku", "W Volterze, w XVI wieku", "W Paryżu, w XVIII wieku"],
+    "note": "Był synem anglikańskiego pastora, który polował na wampiry. Potem spędził kilka dekad z Volturi."
+  }
+]

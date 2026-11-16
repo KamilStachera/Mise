@@ -1,0 +1,156 @@
+[
+  {
+    "id": "ps-001", "part": "przed-switem", "source": "oba", "category": "miejsca", "difficulty": 1,
+    "q": "Gdzie Bella i Edward spędzają miesiąc miodowy?",
+    "answer": "Na Wyspie Esme u wybrzeży Brazylii",
+    "wrong": ["Na Hawajach", "W Volterze", "Na wyspie u wybrzeży Grecji"],
+    "note": "Wyspa to prezent Carlisle'a dla Esme. Lecą przez Rio de Janeiro."
+  },
+  {
+    "id": "ps-002", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Co uświadamia Belli na wyspie, że może być w ciąży?",
+    "answer": "Nieotwarte opakowanie tamponów — spóźnia się jej okres",
+    "wrong": ["Wynik testu, który kupiła w Rio", "Wizja Alice", "Edward słyszy bicie drugiego serca"],
+    "note": "Ciąża rozwija się nienaturalnie szybko — dziecko rośnie w kilka dni."
+  },
+  {
+    "id": "ps-003", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Jakie drugie imię ma Renesmee?",
+    "answer": "Carlie",
+    "wrong": ["Esme", "Marie", "Rose"],
+    "note": "Carlie = Carlisle + Charlie. Pełne imię: Renesmee Carlie Cullen."
+  },
+  {
+    "id": "ps-004", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Z połączenia jakich imion powstało imię Renesmee?",
+    "answer": "Renée i Esme",
+    "wrong": ["Rosalie i Esme", "Renée i Emmett", "Rebecca i Esme"],
+    "note": "Imiona obu „mam” Belli i Edwarda."
+  },
+  {
+    "id": "ps-005", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Jak Bella chciała nazwać dziecko, gdyby był to chłopiec?",
+    "answer": "EJ — Edward Jacob",
+    "wrong": ["Charlie Edward", "Anthony", "Carlisle"],
+    "note": "Anthony to drugie imię Edwarda — dobry dystraktor."
+  },
+  {
+    "id": "ps-006", "part": "przed-switem", "source": "oba", "category": "cytaty", "difficulty": 1,
+    "q": "Za jakie przezwisko Renesmee Bella wścieka się na Jacoba?",
+    "answer": "Nessie — jak potwór z Loch Ness",
+    "wrong": ["Ness", "Renny", "Ruby"],
+    "note": "„You nicknamed my daughter after the Loch Ness monster?!” — Bella rzuca się na Jacoba, a Seth obrywa przy okazji."
+  },
+  {
+    "id": "ps-007", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Co dzieje się, gdy Jacob pierwszy raz patrzy w oczy Renesmee?",
+    "answer": "Wpaja się w nią (imprinting)",
+    "wrong": ["Przemienia się w wilka", "Postanawia ją zabić", "Zaczyna słyszeć jej myśli"],
+    "note": "Wpojenie unieważnia konflikt watahy z Cullenami — nie można zabić obiektu wpojenia."
+  },
+  {
+    "id": "ps-008", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Jaki dar ma Bella jako wampir?",
+    "answer": "Mentalna tarcza, którą umie rozszerzać na innych",
+    "wrong": ["Czyta myśli", "Widzi przyszłość", "Kontroluje emocje"],
+    "note": "Tarcza chroni przed darami Jane, Aleca i Aro — stąd Edward nigdy nie słyszał jej myśli."
+  },
+  {
+    "id": "ps-009", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Jaki dar ma Renesmee?",
+    "answer": "Pokazuje swoje myśli i wspomnienia przez dotyk",
+    "wrong": ["Czyta myśli przez dotyk", "Wywołuje iluzje", "Jest odporna na każdy dar"],
+    "note": "To odwrotność daru Aro (on czyta myśli przez dotyk) i daru Belli (ona blokuje)."
+  },
+  {
+    "id": "ps-010", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Kto donosi Volturi o istnieniu Renesmee?",
+    "answer": "Irina z klanu z Denali",
+    "wrong": ["Tanya z klanu z Denali", "Laurent", "Charlie"],
+    "note": "Irina myślała, że to nieśmiertelne dziecko — i za ten fałszywy donos Volturi ją zabijają."
+  },
+  {
+    "id": "ps-011", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Za co, według donosu, Volturi chcą ukarać Cullenów?",
+    "answer": "Za stworzenie nieśmiertelnego dziecka",
+    "wrong": ["Za ujawnienie się ludziom", "Za sojusz z wilkami", "Za przemianę Belli bez zgody"],
+    "note": "Nieśmiertelne dzieci (przemienione małe dzieci) są surowo zakazane — nie da się ich kontrolować."
+  },
+  {
+    "id": "ps-012", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Jak ma na imię półwampir z Ameryki Południowej, który przekonuje Volturi, że Renesmee nie jest zagrożeniem?",
+    "answer": "Nahuel",
+    "wrong": ["Benjamin", "Garrett", "Eleazar"],
+    "note": "Przyprowadzają go Alice i Jasper. Nahuel ma 150 lat — dowód, że hybrydy przestają rosnąć."
+  },
+  {
+    "id": "ps-013", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 3,
+    "q": "Z jakiej książki Alice wyrywa stronę, zostawiając ukrytą wiadomość dla Belli?",
+    "answer": "„Kupiec wenecki” Szekspira",
+    "wrong": ["„Wichrowe Wzgórza”", "„Romeo i Julia”", "„Duma i uprzedzenie”"],
+    "note": "Na wyrwanej stronie jest pożegnanie Alice; w samym egzemplarzu Bella znajduje ukrytą kartkę z nazwiskiem J. Jenksa z Seattle. „Wichrowe Wzgórza” to ulubiona książka Belli."
+  },
+  {
+    "id": "ps-014", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Do kogo Alice kieruje Bellę, by załatwić fałszywe dokumenty dla Renesmee i Jacoba?",
+    "answer": "Do J. Jenksa",
+    "wrong": ["Do Carlisle'a", "Do Garretta", "Do Arona"],
+    "note": "Prawnik w Seattle, który panicznie boi się Jaspera."
+  },
+  {
+    "id": "ps-015", "part": "przed-switem", "source": "film", "category": "roznice", "difficulty": 1,
+    "q": "Czym okazuje się wielka bitwa w filmie Przed świtem cz. 2?",
+    "answer": "Wizją Alice, którą pokazuje Aro",
+    "wrong": ["Snem Belli", "Iluzją Zafriny", "Halucynacją wywołaną przez Jane"],
+    "note": "W książce bitwy nie ma — wszystko kończy się rozmowami. Film dodał ją jako „co by było, gdyby”."
+  },
+  {
+    "id": "ps-016", "part": "przed-switem", "source": "film", "category": "fabula", "difficulty": 2,
+    "q": "Kto z Cullenów ginie jako pierwszy w wizji bitwy w filmie?",
+    "answer": "Carlisle",
+    "wrong": ["Jasper", "Esme", "Emmett"],
+    "note": "Aro go dekapituje — w kinie widownia głośno reagowała, bo nikt się tego nie spodziewał."
+  },
+  {
+    "id": "ps-017", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Jak Jacob przygotowuje Charliego na to, że Bella się zmieniła?",
+    "answer": "Przemienia się przy nim w wilka",
+    "wrong": ["Mówi mu całą prawdę o wampirach", "Pokazuje mu Renesmee", "Zabiera go do La Push na ognisko"],
+    "note": "Charlie woli nie wiedzieć więcej — przyjmuje zasadę „need to know”."
+  },
+  {
+    "id": "ps-018", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Co pije Bella w ciąży, żeby przeżyć?",
+    "answer": "Ludzką krew (z zapasów do transfuzji)",
+    "wrong": ["Zwierzęcą krew", "Specjalne leki Carlisle'a", "Nic — przestaje jeść"],
+    "note": "Pomysł podsuwa Jacob — dziecko chce krwi, nie jedzenia. Pije ją przez słomkę z kubka."
+  },
+  {
+    "id": "ps-019", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Która wampirzyca tworzy iluzje w umysłach innych (np. dżunglę)?",
+    "answer": "Zafrina z klanu amazońskiego",
+    "wrong": ["Kate z klanu z Denali", "Jane z Volturi", "Tanya z klanu z Denali"],
+    "note": "Kate razi prądem przez dotyk. Zafrina pokazuje Renesmee obrazy dla zabawy."
+  },
+  {
+    "id": "ps-020", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Który z sojuszników Cullenów to egipski wampir panujący nad żywiołami?",
+    "answer": "Benjamin",
+    "wrong": ["Amun", "Garrett", "Eleazar"],
+    "note": "Amun to jego twórca. W filmie zagrał go Rami Malek."
+  },
+  {
+    "id": "ps-021", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Jak wataha dzieli się, gdy Sam chce zabić ciężarną Bellę?",
+    "answer": "Jacob odchodzi i tworzy własną watahę z Sethem i Leah",
+    "wrong": ["Jacob i Paul zakładają osobną watahę", "Cała wataha odwraca się od Sama", "Leah odchodzi sama"],
+    "note": "Jacob jako potomek Ephraima Blacka ma prawo być alfą — dlatego rozkaz Sama go już nie wiąże."
+  },
+  {
+    "id": "ps-022", "part": "przed-switem", "source": "film", "category": "fabula", "difficulty": 2,
+    "q": "Jak kończy się ostatnia scena filmu Przed świtem cz. 2?",
+    "answer": "Bella zdejmuje tarczę i pokazuje Edwardowi wspomnienia z całej ich historii",
+    "wrong": ["Ślubem Jacoba i Renesmee", "Wizytą u Volturi", "Pożegnaniem z Alice i Jasperem"],
+    "note": "Montaż scen z całej sagi, zakończony słowem „forever”. Scena dzieje się na ich łące."
+  }
+]

@@ -1,0 +1,142 @@
+[
+  {
+    "id": "zm-001", "part": "zmierzch", "source": "oba", "category": "miejsca", "difficulty": 1,
+    "q": "Z jakiego miasta Bella przeprowadza się do Forks?",
+    "answer": "Phoenix (Arizona)",
+    "wrong": ["Jacksonville (Floryda)", "Seattle (Waszyngton)", "Los Angeles (Kalifornia)"],
+    "note": "Bella zostawia słoneczne Phoenix, bo mama Renée chce jeździć z Philem po meczach. Jacksonville to miasto, do którego Renée przenosi się później."
+  },
+  {
+    "id": "zm-002", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Jakim autem Bella jeździ po przyjeździe do Forks?",
+    "answer": "Starym czerwonym pickupem Chevroleta",
+    "wrong": ["Srebrnym Volvo", "Zielonym Volkswagenem Garbusem", "Czarnym Mercedesem"],
+    "note": "Charlie odkupił furgonetkę od Billy'ego Blacka. Srebrne Volvo to auto Edwarda."
+  },
+  {
+    "id": "zm-003", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "Na jakiej lekcji Bella pierwszy raz siedzi obok Edwarda?",
+    "answer": "Biologia",
+    "wrong": ["Chemia", "Literatura angielska", "Trygonometria"],
+    "note": "Edward reaguje na nią tak gwałtownie (jej zapach), że potem próbuje przenieść się na inne zajęcia."
+  },
+  {
+    "id": "zm-004", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Co niemal przygniata Bellę na szkolnym parkingu, zanim Edward ją ratuje?",
+    "answer": "Furgonetka Tylera Crowleya",
+    "wrong": ["Samochód Mike'a Newtona", "Radiowóz Charliego", "Ciężarówka z drewnem"],
+    "note": "Wpadająca w poślizg furgonetka na oblodzonym parkingu — Edward zatrzymuje ją ręką, co zostawia wgniecenie."
+  },
+  {
+    "id": "zm-005", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Jak ma na imię wampir-tropiciel, który poluje na Bellę?",
+    "answer": "James",
+    "wrong": ["Laurent", "Riley", "Demetri"],
+    "note": "James podróżuje z Victorią i Laurentem. Demetri to tropiciel Volturi."
+  },
+  {
+    "id": "zm-006", "part": "zmierzch", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Dokąd udaje się Laurent, gdy odłącza się od Jamesa i Victorii?",
+    "answer": "Na Alaskę, do klanu z Denali",
+    "wrong": ["Do Volterry", "Do Seattle", "Do Ameryki Południowej"],
+    "note": "Laurent wraca w Księżycu w nowiu — chce zabić Bellę na łące, ale ginie z łap wilków."
+  },
+  {
+    "id": "zm-007", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 1,
+    "q": "W jaką grę Cullenowie grają tylko podczas burzy?",
+    "answer": "Baseball",
+    "wrong": ["Futbol amerykański", "Koszykówka", "Krykiet"],
+    "note": "Grzmoty zagłuszają uderzenia kijem. To podczas tego meczu pojawiają się James, Victoria i Laurent."
+  },
+  {
+    "id": "zm-008", "part": "zmierzch", "source": "oba", "category": "liczby", "difficulty": 2,
+    "q": "W którym roku Carlisle przemienił Edwarda?",
+    "answer": "1918",
+    "wrong": ["1901", "1921", "1933"],
+    "note": "Edward umierał na hiszpankę w Chicago. Urodził się w 1901, Esme przemieniono w 1921, Rosalie w 1933."
+  },
+  {
+    "id": "zm-009", "part": "zmierzch", "source": "oba", "category": "miejsca", "difficulty": 2,
+    "q": "W jakim mieście Edward żył jako człowiek?",
+    "answer": "Chicago",
+    "wrong": ["Rochester", "Londyn", "Biloxi"],
+    "note": "Rochester to miasto Rosalie, Londyn — Carlisle'a, Biloxi — Alice."
+  },
+  {
+    "id": "zm-010", "part": "zmierzch", "source": "oba", "category": "cytaty", "difficulty": 2,
+    "q": "Edward mówi: „And so the lion fell in love with the lamb” (I tak lew zakochał się w owieczce). Co odpowiada Bella?",
+    "answer": "„What a stupid lamb” (Co za głupia owieczka)",
+    "wrong": ["„What a lucky lamb” (Co za szczęśliwa owieczka)", "„What a hungry lion” (Co za głodny lew)", "„What a brave lamb” (Co za odważna owieczka)"],
+    "note": "Edward kończy: „What a sick, masochistic lion” (Co za chory, masochistyczny lew)."
+  },
+  {
+    "id": "zm-011", "part": "zmierzch", "source": "film", "category": "cytaty", "difficulty": 1,
+    "q": "W lesie Edward naciska: „Say it. Out loud.” Jakie słowo w końcu mówi Bella?",
+    "answer": "„Vampire” (wampir)",
+    "wrong": ["„Monster” (potwór)", "„Werewolf” (wilkołak)", "„Cold one” (zimny)"],
+    "note": "Jedna z najbardziej memicznych scen pierwszego filmu."
+  },
+  {
+    "id": "zm-012", "part": "zmierzch", "source": "film", "category": "cytaty", "difficulty": 2,
+    "q": "Kiedy Edward mówi „Hold on tight, spider monkey”?",
+    "answer": "Gdy z Bellą na plecach wspina się na drzewa",
+    "wrong": ["Przed meczem baseballa", "Gdy uciekają przed Jamesem samochodem", "Gdy tańczą na balu"],
+    "note": "„Spider monkey” = czepiak, mała małpka. Kultowa scena z pierwszego filmu."
+  },
+  {
+    "id": "zm-013", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Kto pierwszy opowiada Belli legendę Quileutów o „Zimnych Ludziach”?",
+    "answer": "Jacob Black",
+    "wrong": ["Billy Black", "Sam Uley", "Angela Weber"],
+    "note": "Jacob opowiada ją na plaży w La Push — to Bella z nim flirtuje, żeby wyciągnąć, kim są Cullenowie."
+  },
+  {
+    "id": "zm-014", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 3,
+    "q": "Co Bella zamawia w restauracji w Port Angeles po tym, jak Edward ratuje ją przed napastnikami?",
+    "answer": "Ravioli z grzybami",
+    "wrong": ["Lasagne", "Spaghetti bolognese", "Pizzę margheritę"],
+    "note": "W książce restauracja to La Bella Italia, w filmie — „Bloated Toad”. Edward nic nie je — tylko patrzy."
+  },
+  {
+    "id": "zm-015", "part": "zmierzch", "source": "oba", "category": "miejsca", "difficulty": 1,
+    "q": "Gdzie James zwabia Bellę w finale?",
+    "answer": "Do studia baletowego w Phoenix",
+    "wrong": ["Do opuszczonego magazynu w Forks", "Na lotnisko w Seattle", "Na łąkę w lesie"],
+    "note": "James udaje, że przetrzymuje tam mamę Belli — w rzeczywistości ma tylko nagranie wideo z jej dzieciństwa."
+  },
+  {
+    "id": "zm-016", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "W którą część ciała James gryzie Bellę?",
+    "answer": "W rękę (dłoń/nadgarstek)",
+    "wrong": ["W szyję", "W ramię", "W nogę"],
+    "note": "Edward wysysa jad. W książce blizna po ugryzieniu jest zimniejsza niż reszta skóry."
+  },
+  {
+    "id": "zm-017", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Czym zajmuje się Phil, nowy mąż Renée?",
+    "answer": "Gra w baseball w niższej lidze",
+    "wrong": ["Jest trenerem piłkarskim", "Jest pilotem", "Uczy w szkole"],
+    "note": "Bo Phil dużo podróżuje, Bella postanawia zamieszkać z Charliem."
+  },
+  {
+    "id": "zm-018", "part": "zmierzch", "source": "film", "category": "postacie", "difficulty": 2,
+    "q": "Kto obserwuje Bellę i Edwarda w ostatniej scenie pierwszego filmu, na balu?",
+    "answer": "Victoria",
+    "wrong": ["Laurent", "Jane", "Jacob"],
+    "note": "Zapowiedź jej zemsty za Jamesa w kolejnych częściach."
+  },
+  {
+    "id": "zm-019", "part": "zmierzch", "source": "ksiazka", "category": "miejsca", "difficulty": 2,
+    "q": "Gdzie w książce Edward pierwszy raz pokazuje Belli, jak jego skóra wygląda w słońcu?",
+    "answer": "Na łące w lesie",
+    "wrong": ["Na plaży w La Push", "Na szkolnym parkingu", "W ogrodzie Cullenów"],
+    "note": "Łąka to też miejsce ze snu Stephenie Meyer, od którego wszystko się zaczęło."
+  },
+  {
+    "id": "zm-020", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 1,
+    "q": "Czyich myśli Edward nie potrafi czytać?",
+    "answer": "Belli",
+    "wrong": ["Jaspera", "Mike'a Newtona", "Jessiki Stanley"],
+    "note": "Później okazuje się, że to zapowiedź jej daru — mentalnej tarczy."
+  }
+]
