@@ -100,5 +100,10 @@ public static class ActivityEndpoints
     private static string StateString(SyncState s) => s.ToString().ToLowerInvariant();
 
     private static WorkoutDto ToDto(Workout w, int? kcal) =>
-        new(w.Id, w.Date, w.StartedAt, w.Minutes, kcal, w.Type, w.Source == MeasurementSource.Manual ? "manual" : "band");
+        new(w.Id, w.Date, w.StartedAt, w.Minutes, kcal, w.Type, w.Source switch
+        {
+            MeasurementSource.Manual => "manual",
+            MeasurementSource.Strava => "strava",
+            _ => "band",
+        });
 }

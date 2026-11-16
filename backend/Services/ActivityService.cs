@@ -241,7 +241,10 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
 
     /// <summary>
     /// Active kcal per day in [from, to]. Band Active samples win; a day with only Total
-    /// samples counts Total − BMR (pro rata for today); manual workouts always add.
+    /// samples counts Total − BMR (pro rata for today); manual workouts always add. Strava
+    /// (watch) workouts add their own kcal unless the band already covered them: Active samples
+    /// inside their window, a Total − BMR day, or the same session also arriving through Health
+    /// Connect (then the Strava copy is hidden).
     /// </summary>
     public async Task<List<ActivityDay>> DaysAsync(DateOnly from, DateOnly to, int? bmr, CancellationToken ct = default)
     {
@@ -257,6 +260,7 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
         {
             var active = samples.Where(s => s.Date == d && s.Kind == EnergyKind.Active).ToList();
             decimal band;
+            var fromTotal = false;
             if (active.Count > 0)
             {
                 band = active.Sum(s => s.Kcal);
@@ -266,23 +270,43 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
                 var total = samples.Where(s => s.Date == d && s.Kind == EnergyKind.Total).Sum(s => s.Kcal);
                 var share = d < today ? 1m : d == today ? (decimal)now.TimeOfDay.TotalHours / 24m : 0m;
                 band = total > 0 && bmr is int b ? Math.Max(0, total - b * share) : 0;
+                fromTotal = band > 0;
             }
-            var list = workouts.Where(w => w.Date == d).Select(w => (w, WorkoutKcal(w, active))).ToList();
-            var manual = list.Where(x => x.w.Source == MeasurementSource.Manual).Sum(x => x.w.Kcal ?? 0);
-            days.Add(new ActivityDay(d, (int)Math.Round(band) + manual, list));
+            var bandWorkouts = workouts.Where(w => w.Date == d && w.Source == MeasurementSource.HealthConnect).ToList();
+            var list = workouts.Where(w => w.Date == d && !DuplicateOfBand(w, bandWorkouts))
+                .Select(w => (w, WorkoutKcal(w, active))).ToList();
+            var own = list.Where(x => x.w.Source == MeasurementSource.Manual
+                    || (x.w.Source == MeasurementSource.Strava && !fromTotal && BandKcal(x.w, active) is null))
+                .Sum(x => x.w.Kcal ?? 0);
+            days.Add(new ActivityDay(d, (int)Math.Round(band) + own, list));
         }
         return days;
     }
 
-    /// <summary>Manual: as entered. Band: the Active samples that start inside the session.</summary>
+    /// <summary>Manual: as entered. Strava: the watch's kcal, else the band's. Band: the Active samples that start inside the session.</summary>
     public static int? WorkoutKcal(Workout w, IReadOnlyCollection<EnergySample> active)
     {
         if (w.Source == MeasurementSource.Manual) return w.Kcal;
+        if (w.Source == MeasurementSource.Strava && w.Kcal is not null) return w.Kcal;
+        return BandKcal(w, active);
+    }
+
+    /// <summary>The band's Active samples that start inside the session; null when there are none.</summary>
+    public static int? BandKcal(Workout w, IReadOnlyCollection<EnergySample> active)
+    {
         if (w.StartedAt is not DateTimeOffset start) return null;
         var end = start.AddMinutes(w.Minutes);
         var inside = active.Where(s => s.Start >= start && s.Start < end).ToList();
         return inside.Count == 0 ? null : (int)Math.Round(inside.Sum(s => s.Kcal));
     }
+
+    /// <summary>
+    /// A Strava workout that is the same session as a band workout (both apps recorded it, e.g. Mi
+    /// Fitness also syncing to Strava): starts within 10 minutes of it.
+    /// </summary>
+    public static bool DuplicateOfBand(Workout w, IEnumerable<Workout> bandWorkouts) =>
+        w.Source == MeasurementSource.Strava && w.StartedAt is DateTimeOffset start
+        && bandWorkouts.Any(b => b.StartedAt is DateTimeOffset s && Math.Abs((s - start).TotalMinutes) <= 10);
 
     public async Task<Dictionary<DateOnly, int>> ActiveKcalAsync(DateOnly from, DateOnly to, int? bmr, CancellationToken ct = default) =>
         (await DaysAsync(from, to, bmr, ct)).ToDictionary(d => d.Date, d => d.ActiveKcal);

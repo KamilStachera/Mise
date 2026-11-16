@@ -51,6 +51,10 @@ services:
       Auth__AllowedEmails: ${AUTH_ALLOWED_EMAILS:-}
       Diary__People: ${DIARY_PEOPLE:-}
       KeysDir: /data/keys
+      # Watch workouts via Strava (README "Strava"). Empty = off. The webhook registers itself
+      # at {PUBLIC_API_BASE}/strava/webhook when that base is https.
+      Strava__ClientId: ${STRAVA_CLIENT_ID:-}
+      Strava__ClientSecret: ${STRAVA_CLIENT_SECRET:-}
       # "Today" for the plan/diary and the day a band sample belongs to are Polish days.
       TZ: Europe/Warsaw
     volumes:

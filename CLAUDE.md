@@ -192,6 +192,18 @@ local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backen
   the day's earliest reading; a reading >5 kg off the person's last month is the other
   person on the shared scale and is dropped. Each person has their own token. Days are Polish days: the api container runs
   `TZ=Europe/Warsaw` (docker-compose) — `DateTime.Today` depends on it.
+- **Watch workouts = Strava** (`Services/Strava/`, `Features/StravaEndpoints.cs`): OAuth
+  per person (`StravaConnection`, tokens DataProtection-encrypted, one athlete ↔ one person),
+  then `POST /api/strava/webhook` events — the second write that bypasses
+  `ApiAccessMiddleware`. Strava doesn't sign events, so **an event is only a hint**: the
+  handler re-reads the activity with the athlete's own token and deletes our copy only when
+  Strava returns 404. Events are answered at once and handled by `StravaWorker` (in-memory
+  queue; it also self-registers the push subscription when `PUBLIC_API_BASE` is https and
+  polls the last 3 days every 3 h). A Strava workout (`Source = Strava`, `ExternalKey =
+  strava:{id}`) carries the watch's kcal and adds it to the day — except when band Active
+  samples cover its window, on a Total − BMR day, or when it duplicates a band workout
+  (±10 min, then it's hidden) (`ActivityService.DaysAsync`). Off unless
+  `STRAVA_CLIENT_ID`/`SECRET` are set; a new Strava app admits only its creator's account.
 - **Recipe import (links, PDFs) only reads.** `Services/Import/`: `/api/import/url` and
   `/api/import/documents` hand agents the source (schema.org JSON-LD → microdata → page text;
   PDF text per page in `ImportDocument`, 14-day scratch rows); the agent normalizes and saves

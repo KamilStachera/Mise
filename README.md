@@ -60,8 +60,10 @@ help plan meals.
   protein budget computed from **Twój cel** (Mifflin-St Jeor). Weigh-ins draw a 7-day
   trend. Packaged food can be **scanned** (phone camera → Open Food Facts). A
   Xiaomi band and scale sync through **Health Connect + the HC Webhook app** (setup
-  steps and the private URL are on Plan → Aktywność); half of the burned kcal is
-  added to the day's budget. Diary, goal, weight and activity need a login even to
+  steps and the private URL are on Plan → Aktywność); a watch that syncs to Strava
+  (Garmin, Polar, Suunto, Coros…) connects with one button (**Połącz ze Stravą**,
+  see *Optional: watch workouts via Strava*); half of the burned kcal is added to the
+  day's budget. Diary, goal, weight and activity need a login even to
   read. Design and roadmap: `docs/weight-loss/`.
 - A **training exercise catalog** (Trening → Ćwiczenia): ~820 exercises from the
   public-domain [free-exercise-db](https://github.com/yuhonas/free-exercise-db), filterable
@@ -310,6 +312,30 @@ OPENAI_MODEL=gpt-4o-mini
 Restart (`docker compose up -d`) and the panel turns on. These stream replies with
 your `cookbook.md` + live pantry injected as the system prompt; they answer but
 can't change anything.
+
+---
+
+## Optional: watch workouts via Strava
+
+For a Garmin (or Polar, Suunto, Coros…) watch: the watch app already uploads every
+workout to Strava, and Pichci reads them from Strava's official API — nothing to install
+on the phone, works with Android and iPhone. Workouts arrive with the watch's kcal; there
+is no all-day activity or weight on this path.
+
+1. On **the watch owner's** Strava account open https://www.strava.com/settings/api and
+   create an app. *Authorization Callback Domain* = your domain (e.g. `pichci.com`;
+   `localhost` works for local testing). A new Strava app accepts **one athlete — the
+   account that created it** — so creating it from the watch owner's account is what
+   makes it work without Strava's review.
+2. Put its *Client ID* / *Client Secret* in `.env` as `STRAVA_CLIENT_ID` /
+   `STRAVA_CLIENT_SECRET` and `docker compose up -d`.
+3. Plan → Aktywność → **Połącz ze Stravą**, as that person. The last 7 days come in at once.
+
+New workouts come by Strava's webhook within a minute or so: the api registers it itself at
+`{PUBLIC_API_BASE}/strava/webhook` when `PUBLIC_API_BASE` is https (look for "Strava webhook
+subscription" in the api log). Without that (local dev) a poll every 3 hours and
+**Pobierz teraz** bring them. A watch workout's kcal adds to the day like a manual one —
+unless band data already covers that time, so a band + watch person isn't counted twice.
 
 ---
 

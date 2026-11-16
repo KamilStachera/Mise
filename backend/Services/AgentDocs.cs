@@ -198,8 +198,8 @@ public static class AgentDocs
         - **Catering** (dieta pudełkowa): w dni dostawy aplikacja sama dopisuje wpis
           „Catering” jako zjedzony — nie dopisuj go drugi raz. Usunięcie wpisu = „dziś bez
           cateringu”.
-        - **Waga**: `log_weight`. **Trening**, którego nie złapała opaska: `log_workout`
-          (najpierw `get_activity`, żeby nie liczyć go dwa razy).
+        - **Waga**: `log_weight`. **Trening**, którego nie złapała opaska ani zegarek (Strava):
+          `log_workout` (najpierw `get_activity`, żeby nie liczyć go dwa razy).
         - Dni są polskie (strefa Europe/Warsaw). „Wczoraj”, „dziś” licz od dzisiejszej daty.
         - Usuwanie wpisów i zmiany celu tylko na wyraźną prośbę. Bądź wspierający, bez
           moralizowania: dzień ponad budżet to informacja, nie porażka.
@@ -662,10 +662,12 @@ public static class AgentDocs
           W dni dostawy wpis „Catering” (`isCatering: true`) dopisuje się sam jako zjedzony;
           usunięty nie wraca. `POST /body/catering/log` — `{ "date" }` dopisuje pudełko
           w dzień bez dostawy.
-        - `GET /activity?days=7` — kcal aktywne na dzień (opaska + ręczne treningi), `bonus`,
-          treningi, `state` (`none`/`connected`/`stale`).
+        - `GET /activity?days=7` — kcal aktywne na dzień (opaska + zegarek przez Stravę + ręczne
+          treningi), `bonus`, treningi (`source`: `band`/`strava`/`manual`), `state` opaski
+          (`none`/`connected`/`stale`). `GET /activity/strava` — czy Strava jest połączona;
+          łączy się ją tylko w aplikacji (Plan → Aktywność).
         - `POST /activity/workouts` — `{ "date", "type", "minutes", "kcal", "time"? ("HH:mm") }`
-          ręczny trening; `DELETE /activity/workouts/{id}`. Treningów z opaski nie dopisuj.
+          ręczny trening; `DELETE /activity/workouts/{id}`. Treningów z opaski ani ze Stravy nie dopisuj.
 
         ## Historia gotowania (cook log)
 

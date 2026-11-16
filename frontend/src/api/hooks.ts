@@ -633,6 +633,36 @@ function useActivityInvalidation() {
   }
 }
 
+export function useStravaStatus(enabled: boolean) {
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['strava', id], queryFn: api.stravaStatus, enabled })
+}
+
+/** Gets Strava's consent URL and leaves for it; Strava comes back to /plan/aktywnosc?strava=…. */
+export function useConnectStrava() {
+  return useMutation({ mutationFn: api.connectStrava, onSuccess: ({ url }) => window.location.assign(url) })
+}
+
+export function useSyncStrava() {
+  const qc = useQueryClient()
+  const onActivity = useActivityInvalidation()
+  return useMutation({
+    mutationFn: api.syncStrava,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['strava'] })
+      onActivity()
+    },
+  })
+}
+
+export function useDisconnectStrava() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: api.disconnectStrava,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['strava'] }),
+  })
+}
+
 export function useAddWorkout() {
   const onSuccess = useActivityInvalidation()
   return useMutation({ mutationFn: (input: WorkoutInput) => api.addWorkout(input), onSuccess })

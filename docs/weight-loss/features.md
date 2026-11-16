@@ -80,6 +80,11 @@ Decisions already made:
   adjustable).
 - Ruled out: Google Fit (shuts down end of 2026), unofficial Xiaomi cloud APIs (break without
   warning). Strava only as a fallback for workouts.
+- **Watch via Strava** (added 2026-11-16, for a Garmin owner): Garmin Connect → Strava →
+  Pichci over Strava's official API + webhook, one "Połącz ze Stravą" button, no phone app,
+  Android and iPhone. Workouts with the watch's kcal only (no all-day kcal, no weight). Garmin's
+  own API was paused for new developers (Sept 2026) and the unofficial Garmin login libraries
+  broke in March 2026, hence Strava. Band data wins where both cover the same time.
 
 ## Order of work
 

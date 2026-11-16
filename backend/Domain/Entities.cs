@@ -484,7 +484,8 @@ public class BodyProfile : IHouseholdOwned, IPersonOwned
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public enum MeasurementSource { Manual, HealthConnect }
+/// <summary>Where a weigh-in or workout came from. Strava = a watch (Garmin, Polar…) via the Strava API.</summary>
+public enum MeasurementSource { Manual, HealthConnect, Strava }
 
 /// <summary>
 /// One weigh-in per person per day. A manual entry always wins; from the scale (Health Connect)
@@ -527,7 +528,8 @@ public class EnergySample : IHouseholdOwned, IPersonOwned
 /// <summary>
 /// A training session. From the band (Health Connect) its kcal is derived from the Active
 /// samples inside its window, so it is never counted twice; a manual one carries its own
-/// <see cref="Kcal"/>, which adds to the day.
+/// <see cref="Kcal"/>, which adds to the day. A Strava one carries the watch's kcal and adds it
+/// too, unless band Active samples already cover its window (then the band counted it).
 /// </summary>
 public class Workout : IHouseholdOwned, IPersonOwned
 {
@@ -537,12 +539,12 @@ public class Workout : IHouseholdOwned, IPersonOwned
     public DateOnly Date { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public int Minutes { get; set; }
-    /// <summary>Manual: the kcal she entered. Health Connect: null (computed from samples).</summary>
+    /// <summary>Manual: the kcal she entered. Strava: the watch's kcal (null if it has none). Health Connect: null (computed from samples).</summary>
     public int? Kcal { get; set; }
     /// <summary>Polish label (Trening siłowy, Spacer…).</summary>
     public string Type { get; set; } = "";
     public MeasurementSource Source { get; set; } = MeasurementSource.Manual;
-    /// <summary>Health Connect identity: start|end instants. Unique per person when set.</summary>
+    /// <summary>Health Connect identity: start|end instants; Strava: <c>strava:{activityId}</c>. Unique per person when set.</summary>
     public string? ExternalKey { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
@@ -559,6 +561,30 @@ public class HealthSync : IHouseholdOwned, IPersonOwned
     public string Token { get; set; } = "";
     public DateTimeOffset? LastSyncAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// One per person: their Strava account, linked by OAuth (Plan → Aktywność → Połącz ze Stravą).
+/// Watches that sync to Strava (Garmin, Polar, Suunto, Coros…) bring workouts with kcal this way,
+/// no phone app needed. Strava pushes "new activity" events to <c>/api/strava/webhook</c>; the
+/// tokens are stored encrypted with ASP.NET DataProtection (the mise-keys volume) — lose the keys
+/// and the person simply connects again. An athlete links to at most one person.
+/// </summary>
+public class StravaConnection : IHouseholdOwned, IPersonOwned
+{
+    public int HouseholdId { get; set; }
+    public int PersonId { get; set; }
+    public long AthleteId { get; set; }
+    public string AthleteName { get; set; } = "";
+    /// <summary>DataProtection-protected.</summary>
+    public string AccessToken { get; set; } = "";
+    /// <summary>DataProtection-protected. Strava may rotate it on every refresh.</summary>
+    public string RefreshToken { get; set; } = "";
+    public DateTimeOffset ExpiresAt { get; set; }
+    public string Scope { get; set; } = "";
+    public DateTimeOffset ConnectedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Last time a workout arrived from Strava.</summary>
+    public DateTimeOffset? LastActivityAt { get; set; }
 }
 
 /// <summary>

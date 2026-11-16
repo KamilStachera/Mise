@@ -1,7 +1,10 @@
-import { useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import type { SyncState, Workout } from '../../api/client'
-import { useActivity, useAuth, useBody, useDeleteWorkout, useHealthConnection, useRotateHealthConnection } from '../../api/hooks'
+import { useEffect, useState, type ReactNode } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ApiError, type StravaStatus, type SyncState, type Workout } from '../../api/client'
+import {
+  useActivity, useAuth, useBody, useConnectStrava, useDeleteWorkout, useDisconnectStrava, useHealthConnection,
+  useRotateHealthConnection, useStravaStatus, useSyncStrava,
+} from '../../api/hooks'
 import { SourceTag } from '../../components/diary/parts'
 import { PersonSwitch } from '../../components/diary/PersonSwitch'
 import { WorkoutSheet } from '../../components/diary/WorkoutSheet'
@@ -14,6 +17,22 @@ import { useIsMobile } from '../../lib/useIsMobile'
 import { PrivateDiary } from './DayView'
 
 const CHAIN = 'Opaska / waga → Mi Fitness → Health Connect → HC Webhook → Pichci'
+const STRAVA_CHAIN = 'Zegarek → Garmin Connect / Polar Flow / … → Strava → Pichci'
+
+/** What the Strava redirect brings back in ?strava=… (StravaEndpoints callback). */
+const STRAVA_RESULT: Record<string, string> = {
+  connected: 'Strava połączona — treningi z ostatniego tygodnia już są',
+  denied: 'Nie połączono ze Stravą',
+  scope: 'Strava: zostaw zaznaczony dostęp do aktywności (także prywatnych) i spróbuj jeszcze raz',
+  taken: 'To konto Strava jest już połączone z inną osobą',
+  error: 'Nie udało się połączyć ze Stravą — spróbuj jeszcze raz',
+}
+
+function workoutsCount(n: number): string {
+  const tens = n % 100
+  const ones = n % 10
+  return `${n} ${n === 1 ? 'trening' : ones >= 2 && ones <= 4 && (tens < 12 || tens > 14) ? 'treningi' : 'treningów'}`
+}
 
 /**
  * Plan → Aktywność (P19–P21): the band connection, today's active kcal and what it adds to the
@@ -29,6 +48,18 @@ export function ActivityView() {
   const del = useDeleteWorkout()
   const [sheet, setSheet] = useState(false)
   const [setupOpen, setSetupOpen] = useState(false)
+  const { data: strava } = useStravaStatus(canEdit)
+  const [params, setParams] = useSearchParams()
+
+  // Back from Strava's consent screen: say how it went once, then drop the parameter.
+  useEffect(() => {
+    const result = params.get('strava')
+    if (!result) return
+    showToast(STRAVA_RESULT[result] ?? STRAVA_RESULT.error)
+    const next = new URLSearchParams(params)
+    next.delete('strava')
+    setParams(next, { replace: true })
+  }, [params, setParams])
 
   if (!canEdit && !isLoading) return <PrivateDiary switcher={null} />
 
@@ -75,10 +106,16 @@ export function ActivityView() {
         Opaska niepodłączona
       </span>
       <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{CHAIN}</span>
+      {strava?.connected && (
+        <button type="button" onClick={() => setSetupOpen(!setupOpen)} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, font: sans(13.5, 600), color: 'var(--text-2)', cursor: 'pointer' }}>
+          {setupOpen ? 'Ukryj ustawienia' : 'Podłącz opaskę ›'}
+        </button>
+      )}
     </div>
   )
 
-  const showSetup = state === 'none' || setupOpen
+  // With a watch on Strava the band steps are optional — keep them folded.
+  const showSetup = (state === 'none' && !strava?.connected) || setupOpen
 
   return (
     <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto' }}>
@@ -94,8 +131,11 @@ export function ActivityView() {
           }
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
+          {/* No band yet: offer the watch first, so a Garmin owner doesn't scroll past the band steps. */}
+          {state === 'none' && strava?.configured && <StravaCard status={strava} divider="bottom" />}
           {connection}
           {showSetup && <Setup />}
+          {state !== 'none' && strava?.configured && <StravaCard status={strava} divider="top" />}
         </div>
 
         {today && (
@@ -130,7 +170,7 @@ export function ActivityView() {
                   </div>
                   {d.workouts.map((w) => (
                     <span key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, font: sans(14), color: 'var(--text-2)' }}>
-                      {w.type} · {w.minutes} min <SourceTag band={w.source === 'band'} />
+                      {w.type} · {w.minutes} min <SourceTag band={w.source === 'band'} strava={w.source === 'strava'} />
                     </span>
                   ))}
                 </div>
@@ -156,7 +196,7 @@ function WorkoutRow({ w, onDelete }: { w: Workout; onDelete: () => void }) {
       <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={{ font: sans(16, 500) }}>{w.type}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, font: mono(12), color: 'var(--text-2)' }}>
-          {w.minutes} min{w.startedAt ? ` · ${hhmm(w.startedAt)}` : ''} <SourceTag band={w.source === 'band'} />
+          {w.minutes} min{w.startedAt ? ` · ${hhmm(w.startedAt)}` : ''} <SourceTag band={w.source === 'band'} strava={w.source === 'strava'} />
         </span>
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -165,6 +205,75 @@ function WorkoutRow({ w, onDelete }: { w: Workout; onDelete: () => void }) {
           <button type="button" aria-label={`Usuń trening ${w.type}`} onClick={onDelete} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16 }}>×</button>
         )}
       </span>
+    </div>
+  )
+}
+
+/**
+ * Watch workouts via Strava (Garmin, Polar…): one button to Strava's consent screen and back.
+ * Workouts then arrive by Strava's webhook (or the server's 3-hourly poll), with the watch's kcal.
+ */
+function StravaCard({ status, divider }: { status: StravaStatus; divider: 'top' | 'bottom' }) {
+  const connect = useConnectStrava()
+  const sync = useSyncStrava()
+  const disconnect = useDisconnectStrava()
+  const fail = (e: unknown) => showToast(e instanceof ApiError && e.detail ? e.detail : 'Strava nie odpowiada — spróbuj za chwilę')
+  const wrap = divider === 'top'
+    ? { display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 14, borderTop: '1px solid var(--border)' } as const
+    : { display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 14, borderBottom: '1px solid var(--border)' } as const
+
+  if (!status.connected) {
+    return (
+      <div style={wrap}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px solid var(--text-2)', boxSizing: 'border-box' }} />
+          Zegarek przez Stravę
+        </span>
+        <span style={{ font: sans(14), lineHeight: 1.45, color: 'var(--text-2)' }}>
+          Garmin, Polar, Suunto, Coros… Jeśli zegarek wysyła treningi do Stravy, trafią tu same, razem z kaloriami — bez dodatkowej aplikacji na telefonie.
+        </span>
+        <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{STRAVA_CHAIN}</span>
+        <Button variant="outline" size="sm" style={{ alignSelf: 'flex-start' }} disabled={connect.isPending} onClick={() => connect.mutate(undefined, { onError: fail })}>
+          {connect.isPending ? 'Otwieram Stravę…' : 'Połącz ze Stravą'}
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={wrap}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)' }} />
+          Strava połączona{status.athleteName ? ` · ${status.athleteName}` : ''}
+        </span>
+        <span style={{ font: mono(12), color: 'var(--text-2)' }}>
+          {status.lastActivityAt ? `ostatni trening ${syncLabel(status.lastActivityAt)}` : 'czeka na pierwszy trening'}
+        </span>
+      </div>
+      <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{STRAVA_CHAIN}</span>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={sync.isPending}
+          onClick={() => sync.mutate(undefined, {
+            onSuccess: (r) => showToast(!r.connected ? 'Strava odłączyła Pichci — połącz ponownie' : r.imported ? `Pobrano: ${workoutsCount(r.imported)}` : 'Brak treningów z ostatniego tygodnia'),
+            onError: fail,
+          })}
+        >
+          {sync.isPending ? 'Pobieram…' : 'Pobierz teraz'}
+        </Button>
+        <Button
+          variant="text"
+          size="sm"
+          style={{ color: 'var(--text-2)' }}
+          disabled={disconnect.isPending}
+          onClick={() => { if (confirm('Odłączyć Stravę? Pobrane treningi zostaną.')) disconnect.mutate(undefined, { onError: fail }) }}
+        >
+          Odłącz
+        </Button>
+      </div>
     </div>
   )
 }

@@ -468,10 +468,10 @@ export interface Workout {
   date: string
   startedAt: string | null
   minutes: number
-  /** Band workouts: derived from the band's active kcal in that window; null until synced. */
+  /** Band workouts: derived from the band's active kcal in that window; null until synced. Strava: the watch's kcal. */
   kcal: number | null
   type: string
-  source: 'band' | 'manual'
+  source: 'band' | 'manual' | 'strava'
 }
 export interface ActivityDay {
   date: string
@@ -510,6 +510,14 @@ export interface HealthConnection {
   token: string
   state: SyncState
   lastSyncAt: string | null
+}
+/** Watch workouts via Strava. configured=false → the server has no Strava app, hide the card. */
+export interface StravaStatus {
+  configured: boolean
+  connected: boolean
+  athleteName: string | null
+  connectedAt: string | null
+  lastActivityAt: string | null
 }
 export interface WorkoutInput {
   date: string
@@ -962,6 +970,10 @@ export const api = {
   activity: (days: number) => http<Activity>(`/activity?days=${days}`),
   healthConnection: () => http<HealthConnection>(`/activity/connection`),
   rotateHealthConnection: () => http<HealthConnection>(`/activity/connection/rotate`, { method: 'POST' }),
+  stravaStatus: () => http<StravaStatus>(`/activity/strava`),
+  connectStrava: () => http<{ url: string }>(`/activity/strava/connect`, { method: 'POST' }),
+  syncStrava: () => http<{ imported: number; connected: boolean }>(`/activity/strava/sync`, { method: 'POST' }),
+  disconnectStrava: () => http<void>(`/activity/strava`, { method: 'DELETE' }),
   addWorkout: (input: WorkoutInput) => http<Workout>(`/activity/workouts`, { method: 'POST', body: JSON.stringify(input) }),
   deleteWorkout: (id: string) => http<void>(`/activity/workouts/${id}`, { method: 'DELETE' }),
   body: () => http<Body>(`/body`),

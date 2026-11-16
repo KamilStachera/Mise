@@ -8,6 +8,7 @@ using Mise.Api.Data;
 using Mise.Api.Features;
 using Mise.Api.Services;
 using Mise.Api.Services.AiChat;
+using Mise.Api.Services.Strava;
 using Mise.Api.Services.Training;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +28,12 @@ builder.Services.AddHouseholdRateLimits();
 builder.Services.AddScoped<DiaryService>();
 builder.Services.AddScoped<BodyService>();
 builder.Services.AddScoped<ActivityService>();
+// Watch workouts via Strava (Garmin, Polar…): on only with STRAVA_CLIENT_ID/SECRET.
+builder.Services.AddSingleton(StravaOptions.From(builder.Configuration));
+builder.Services.AddHttpClient<StravaClient>(c => c.Timeout = TimeSpan.FromSeconds(20));
+builder.Services.AddScoped<StravaService>();
+builder.Services.AddSingleton<StravaEventQueue>();
+builder.Services.AddHostedService<StravaWorker>();
 builder.Services.AddScoped<CateringService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<OpenFoodFacts>();
@@ -146,6 +153,7 @@ api.MapPlan();
 api.MapDiary();
 api.MapBody();
 api.MapActivity();
+api.MapStrava();
 api.MapExercises();
 api.MapTraining();
 api.MapContext();

@@ -40,9 +40,12 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
         var path = ctx.Request.Path;
         // /api/hc/{token}: the phone's HC Webhook posts band/scale data; the endpoint itself
         // checks the secret token in the URL and picks the household from it.
+        // /api/strava/webhook: Strava validates the subscription (GET) and posts events (POST);
+        // events are only hints that StravaService re-checks with the athlete's own token.
         if (!path.StartsWithSegments("/api")
             || path.Equals("/api/health")
-            || (path.StartsWithSegments("/api/hc") && HttpMethods.IsPost(ctx.Request.Method)))
+            || (path.StartsWithSegments("/api/hc") && HttpMethods.IsPost(ctx.Request.Method))
+            || (path.Equals("/api/strava/webhook") && (HttpMethods.IsPost(ctx.Request.Method) || HttpMethods.IsGet(ctx.Request.Method))))
         {
             await next(ctx);
             return;

@@ -48,6 +48,7 @@ public class MiseDbContext : DbContext
     public DbSet<EnergySample> EnergySamples => Set<EnergySample>();
     public DbSet<Workout> Workouts => Set<Workout>();
     public DbSet<HealthSync> HealthSyncs => Set<HealthSync>();
+    public DbSet<StravaConnection> StravaConnections => Set<StravaConnection>();
     public DbSet<Person> People => Set<Person>();
     public DbSet<Catering> Caterings => Set<Catering>();
     public DbSet<ProfileAnswer> ProfileAnswers => Set<ProfileAnswer>();
@@ -307,6 +308,18 @@ public class MiseDbContext : DbContext
             e.Property(x => x.PersonId).ValueGeneratedNever();
             e.Property(x => x.Token).HasMaxLength(64);
             e.HasOne<Person>().WithOne().HasForeignKey<HealthSync>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<StravaConnection>(e =>
+        {
+            e.HasKey(x => x.PersonId);
+            e.Property(x => x.PersonId).ValueGeneratedNever();
+            e.Property(x => x.AthleteName).HasMaxLength(120);
+            e.Property(x => x.AccessToken).HasMaxLength(1000);
+            e.Property(x => x.RefreshToken).HasMaxLength(1000);
+            e.Property(x => x.Scope).HasMaxLength(200);
+            e.HasIndex(x => x.AthleteId).IsUnique();
+            e.HasOne<Person>().WithOne().HasForeignKey<StravaConnection>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<FoodFavorite>(e =>
