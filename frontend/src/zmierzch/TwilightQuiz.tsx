@@ -3,6 +3,7 @@
 // calls; progress lives in localStorage on each phone. Temporary — see types.ts.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button, Eyebrow, PageTitle, SectionHead, Segmented, StatStrip, mono, sans, usePagePad } from '../components/ui'
 import { FiltersPanel } from './FiltersPanel'
 import { FlashRun } from './FlashRun'
@@ -57,6 +58,11 @@ export function TwilightQuiz() {
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
       <div style={{ ...pad, maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
+        {!session && (
+          <Link to="/" style={{ font: sans(14), color: 'var(--text-3)', marginBottom: -8 }}>
+            ← Pichci
+          </Link>
+        )}
         <PageTitle
           title={<>Zmierzch<span style={{ fontStyle: 'italic', color: 'var(--accent)' }}>.</span></>}
           count={QUESTIONS.length}

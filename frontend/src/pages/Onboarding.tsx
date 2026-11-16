@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { errorText, loginUrl } from '../api/client'
 import { useAuth, useLogout, useRedeemInvite } from '../api/hooks'
 import { Button, Eyebrow, Wordmark, inputStyle, mono, sans } from '../components/ui'
+import { ZmierzchLink } from '../zmierzch/ZmierzchLink'
 
 /** Full-page frame for the two screens shown before someone belongs to a household. */
 function Frame({ children }: { children: ReactNode }) {
@@ -29,6 +30,7 @@ export function Welcome() {
         </span>
       </div>
       <Button onClick={() => { window.location.href = loginUrl('/') }}>Zaloguj się przez Google</Button>
+      <ZmierzchLink />
     </Frame>
   )
 }
@@ -114,6 +116,7 @@ export function Onboarding() {
           Zaloguj innym kontem
         </button>
       </span>
+      <ZmierzchLink />
     </Frame>
   )
 }
