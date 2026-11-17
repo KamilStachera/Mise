@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth, useChatHealth, useLogout, useShopping, useSupplies } from '../api/hooks'
 import { loginUrl } from '../api/client'
+import { PLAN_PAGES, TRAINING_PAGES } from '../lib/navModel'
 import { Avatar, Wordmark, mono, sans } from './ui'
 
 /** Everything still to buy across both lists (food + Dom) — the Zakupy badge. */
@@ -105,10 +106,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
           <NavLink active={section === 'plan' && !canEdit} open={section === 'plan'} onClick={() => nav('/plan')}>Plan</NavLink>
           {canEdit && (
             <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 6px 12px', borderLeft: '1px solid var(--border)' }}>
-              <SubLink active={pathname.startsWith('/plan/dzien')} onClick={() => nav('/plan/dzien')}>Dzień</SubLink>
-              <SubLink active={pathname.startsWith('/plan/tydzien')} onClick={() => nav('/plan/tydzien')}>Tydzień</SubLink>
-              <SubLink active={pathname.startsWith('/plan/postepy')} onClick={() => nav('/plan/postepy')}>Postępy</SubLink>
-              <SubLink active={pathname.startsWith('/plan/aktywnosc')} onClick={() => nav('/plan/aktywnosc')}>Aktywność</SubLink>
+              {PLAN_PAGES.map((p) => <SubLink key={p.key} active={p.match(pathname)} onClick={() => nav(p.to)}>{p.label}</SubLink>)}
             </div>
           )}
           <NavLink active={section === 'shopping'} onClick={() => nav('/shopping')}>
@@ -119,9 +117,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
           <NavLink active={section === 'training' && !canEdit} open={section === 'training'} onClick={() => nav('/trening')}>Trening</NavLink>
           {canEdit && (
             <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 6px 12px', borderLeft: '1px solid var(--border)' }}>
-              <SubLink active={pathname.startsWith('/trening/dzis')} onClick={() => nav('/trening/dzis')}>Dziś</SubLink>
-              <SubLink active={pathname.startsWith('/trening/plan') || pathname.startsWith('/trening/ankieta')} onClick={() => nav('/trening/plan')}>Plan</SubLink>
-              <SubLink active={pathname.startsWith('/trening/cwiczenia')} onClick={() => nav('/trening/cwiczenia')}>Ćwiczenia</SubLink>
+              {TRAINING_PAGES.map((p) => <SubLink key={p.key} active={p.match(pathname)} onClick={() => nav(p.to)}>{p.label}</SubLink>)}
             </div>
           )}
         </nav>

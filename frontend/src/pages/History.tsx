@@ -147,9 +147,6 @@ export function History() {
 
   return (
     <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 28 }}>
-      {isMobile && (
-        <button type="button" onClick={() => nav('/profile')} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(14, 600), color: 'var(--text-2)' }}>← Ja</button>
-      )}
       <PageTitle title="Historia gotowania" size={isMobile ? 40 : undefined} sub={summary} />
 
       {total === 0 ? (

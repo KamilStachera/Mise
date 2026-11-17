@@ -39,7 +39,8 @@ export function Plan() {
 
   const go = (v: View, iso: string) => nav(`/plan/${v}${iso === toISO(new Date()) ? '' : `?d=${iso}`}`, { replace: v === view })
 
-  const switcher = (
+  // Phones switch views in the shell's section strip (SectionNav); only whose diary stays here.
+  const switcher = isMobile && canEdit ? <PersonSwitch /> : (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
       <PersonSwitch />
       <Segmented

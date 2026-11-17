@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../api/hooks'
 import { PersonSwitch } from '../diary/PersonSwitch'
 import { Segmented } from '../ui'
+import { useIsMobile } from '../../lib/useIsMobile'
 
 type View = 'dzis' | 'plan' | 'cwiczenia'
 
@@ -13,7 +14,10 @@ export function TrainingNav() {
   const { canEdit } = useAuth()
   const { pathname } = useLocation()
   const nav = useNavigate()
+  const isMobile = useIsMobile()
   if (!canEdit) return null
+  // Phones switch views in the shell's section strip (SectionNav).
+  if (isMobile) return <PersonSwitch />
   const view: View = pathname.startsWith('/trening/plan') ? 'plan'
     : pathname.startsWith('/trening/cwiczenia') ? 'cwiczenia' : 'dzis'
   return (

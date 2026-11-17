@@ -6,6 +6,7 @@ import { useScrollMemory } from './lib/useScrollMemory'
 import { useAuth, useChatHealth } from './api/hooks'
 import { Sidebar } from './components/Sidebar'
 import { TabBar, TAB_BAR_HEIGHT } from './components/TabBar'
+import { SectionNav } from './components/SectionNav'
 import { ChatSidebar } from './components/ChatSidebar'
 import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
@@ -77,6 +78,7 @@ export default function App() {
           paddingBottom: showTabs ? `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))` : undefined,
         }}
       >
+        {showTabs && <SectionNav />}
         <Routes>
           <Route path="/" element={<Library />} />
           <Route path="/random" element={<Random />} />

@@ -120,7 +120,7 @@ export function ActivityView() {
   return (
     <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto' }}>
       <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 22 }}>
-        {back}
+        {!isMobile && back}
         <PageTitle
           title="Aktywność"
           right={

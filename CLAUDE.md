@@ -69,6 +69,9 @@ local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backen
   - Shell: `Sidebar` (desktop) / `TabBar` (≤700px, `useIsMobile`); `<main>` is
     the scroll container. Phone pages that pin an action bar position it
     `fixed` at `TAB_BAR_HEIGHT` + safe area; `/recipe/*` hides the tab bar.
+    Sub-pages (Plan, Trening, and Profil/Cel/Historia under „Ja”) switch on phones in
+    `SectionNav`, a sticky strip at the top of `<main>`. Pages don't add their own view switcher
+    on phones. Sidebar and strip share one list, `lib/navModel.ts`: add new sub-pages there.
   - React gotcha: after `border: 0` on a `<button>`, never pass
     `borderBottom: undefined` — React writes an empty value and the UA button
     border comes back. Use `0`.
