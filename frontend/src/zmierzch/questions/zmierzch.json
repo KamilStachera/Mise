@@ -2,30 +2,30 @@
   {
     "id": "zm-001", "part": "zmierzch", "source": "oba", "category": "miejsca", "difficulty": 1,
     "q": "Z jakiego miasta Bella przeprowadza się do Forks?",
-    "answer": "Phoenix (Arizona)",
-    "wrong": ["Jacksonville (Floryda)", "Seattle (Waszyngton)", "Los Angeles (Kalifornia)"],
-    "note": "Bella zostawia słoneczne Phoenix, bo mama Renée chce jeździć z Philem po meczach. Jacksonville to miasto, do którego Renée przenosi się później."
+    "answer": "Z Phoenix w Arizonie",
+    "wrong": ["Z Jacksonville na Florydzie", "Z Seattle w stanie Waszyngton", "Z Los Angeles w Kalifornii"],
+    "note": "Bella zostawia Phoenix, żeby Renée mogła podróżować z Philem na jego mecze. Renée przenosi się do Jacksonville później."
   },
   {
     "id": "zm-002", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 1,
     "q": "Jakim autem Bella jeździ po przyjeździe do Forks?",
     "answer": "Starym czerwonym pickupem Chevroleta",
     "wrong": ["Srebrnym Volvo", "Zielonym Volkswagenem Garbusem", "Czarnym Mercedesem"],
-    "note": "Charlie odkupił furgonetkę od Billy'ego Blacka. Srebrne Volvo to auto Edwarda."
+    "note": "Charlie odkupił pickupa od Billy’ego Blacka. Srebrne Volvo to samochód Edwarda."
   },
   {
     "id": "zm-003", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 1,
     "q": "Na jakiej lekcji Bella pierwszy raz siedzi obok Edwarda?",
-    "answer": "Biologia",
-    "wrong": ["Chemia", "Literatura angielska", "Trygonometria"],
-    "note": "Edward reaguje na nią tak gwałtownie (jej zapach), że potem próbuje przenieść się na inne zajęcia."
+    "answer": "Na biologii",
+    "wrong": ["Na chemii", "Na literaturze angielskiej", "Na trygonometrii"],
+    "note": "Zapach Belli wywołuje u Edwarda tak silne pragnienie krwi, że próbuje przenieść się do innej grupy."
   },
   {
     "id": "zm-004", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 2,
     "q": "Co niemal przygniata Bellę na szkolnym parkingu, zanim Edward ją ratuje?",
     "answer": "Furgonetka Tylera Crowleya",
     "wrong": ["Samochód Mike'a Newtona", "Radiowóz Charliego", "Ciężarówka z drewnem"],
-    "note": "Wpadająca w poślizg furgonetka na oblodzonym parkingu — Edward zatrzymuje ją ręką, co zostawia wgniecenie."
+    "note": "Furgonetka wpada w poślizg na oblodzonym parkingu. Edward zatrzymuje ją ręką i zostawia wgniecenie w karoserii."
   },
   {
     "id": "zm-005", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 1,
@@ -44,8 +44,8 @@
   {
     "id": "zm-007", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 1,
     "q": "W jaką grę Cullenowie grają tylko podczas burzy?",
-    "answer": "Baseball",
-    "wrong": ["Futbol amerykański", "Koszykówka", "Krykiet"],
+    "answer": "W baseball",
+    "wrong": ["W futbol amerykański", "W koszykówkę", "W krykieta"],
     "note": "Grzmoty zagłuszają uderzenia kijem. To podczas tego meczu pojawiają się James, Victoria i Laurent."
   },
   {
@@ -58,37 +58,37 @@
   {
     "id": "zm-009", "part": "zmierzch", "source": "oba", "category": "miejsca", "difficulty": 2,
     "q": "W jakim mieście Edward żył jako człowiek?",
-    "answer": "Chicago",
-    "wrong": ["Rochester", "Londyn", "Biloxi"],
+    "answer": "W Chicago",
+    "wrong": ["W Rochester", "W Londynie", "W Biloxi"],
     "note": "Rochester to miasto Rosalie, Londyn — Carlisle'a, Biloxi — Alice."
   },
   {
     "id": "zm-010", "part": "zmierzch", "source": "oba", "category": "cytaty", "difficulty": 2,
-    "q": "Edward mówi: „And so the lion fell in love with the lamb” (I tak lew zakochał się w owieczce). Co odpowiada Bella?",
-    "answer": "„What a stupid lamb” (Co za głupia owieczka)",
-    "wrong": ["„What a lucky lamb” (Co za szczęśliwa owieczka)", "„What a hungry lion” (Co za głodny lew)", "„What a brave lamb” (Co za odważna owieczka)"],
-    "note": "Edward kończy: „What a sick, masochistic lion” (Co za chory, masochistyczny lew)."
+    "q": "Edward opisuje ich relację jako miłość lwa do owieczki. Co odpowiada Bella?",
+    "answer": "„Co za głupia owieczka”",
+    "wrong": ["„Co za szczęśliwa owieczka”", "„Co za głodny lew”", "„Co za odważna owieczka”"],
+    "note": "Bella mówi: „What a stupid lamb”. Edward nazywa siebie z kolei chorym, masochistycznym lwem. Polskie odpowiedzi są przekładem pomocniczym, nie cytatem z konkretnego wydania."
   },
   {
     "id": "zm-011", "part": "zmierzch", "source": "film", "category": "cytaty", "difficulty": 1,
-    "q": "W lesie Edward naciska: „Say it. Out loud.” Jakie słowo w końcu mówi Bella?",
-    "answer": "„Vampire” (wampir)",
-    "wrong": ["„Monster” (potwór)", "„Werewolf” (wilkołak)", "„Cold one” (zimny)"],
-    "note": "Jedna z najbardziej memicznych scen pierwszego filmu."
+    "q": "W lesie Edward każe Belli powiedzieć na głos, czym jest. Jakie słowo wypowiada Bella?",
+    "answer": "„Wampir”",
+    "wrong": ["„Potwór”", "„Wilkołak”", "„Zimny człowiek”"],
+    "note": "W oryginale Edward mówi „Say it. Out loud”, czyli „Powiedz to. Na głos”, a Bella odpowiada „Vampire” — „Wampir”. Polski tekst jest przekładem pomocniczym."
   },
   {
     "id": "zm-012", "part": "zmierzch", "source": "film", "category": "cytaty", "difficulty": 2,
-    "q": "Kiedy Edward mówi „Hold on tight, spider monkey”?",
+    "q": "W jakiej sytuacji Edward mówi Belli, żeby mocno się trzymała, nazywając ją „małpką”?",
     "answer": "Gdy z Bellą na plecach wspina się na drzewa",
     "wrong": ["Przed meczem baseballa", "Gdy uciekają przed Jamesem samochodem", "Gdy tańczą na balu"],
-    "note": "„Spider monkey” = czepiak, mała małpka. Kultowa scena z pierwszego filmu."
+    "note": "Oryginał: „Hold on tight, spider monkey” — pomocniczo: „Trzymaj się mocno, małpko”. „Spider monkey” to czepiak; polskie sformułowanie oddaje żartobliwy ton i nie jest cytatem z konkretnej wersji napisów."
   },
   {
     "id": "zm-013", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 1,
-    "q": "Kto pierwszy opowiada Belli legendę Quileutów o „Zimnych Ludziach”?",
+    "q": "Kto pierwszy opowiada Belli legendę Quileutów o „zimnych ludziach”?",
     "answer": "Jacob Black",
     "wrong": ["Billy Black", "Sam Uley", "Angela Weber"],
-    "note": "Jacob opowiada ją na plaży w La Push — to Bella z nim flirtuje, żeby wyciągnąć, kim są Cullenowie."
+    "note": "Jacob opowiada legendę na plaży w La Push. Bella flirtuje z nim, chcąc dowiedzieć się więcej o Cullenach."
   },
   {
     "id": "zm-014", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 3,
@@ -116,7 +116,7 @@
     "q": "Czym zajmuje się Phil, nowy mąż Renée?",
     "answer": "Gra w baseball w niższej lidze",
     "wrong": ["Jest trenerem piłkarskim", "Jest pilotem", "Uczy w szkole"],
-    "note": "Bo Phil dużo podróżuje, Bella postanawia zamieszkać z Charliem."
+    "note": "Phil dużo podróżuje z drużyną, więc Bella postanawia zamieszkać z Charliem, żeby jej mama mogła towarzyszyć mężowi."
   },
   {
     "id": "zm-018", "part": "zmierzch", "source": "film", "category": "postacie", "difficulty": 2,
@@ -136,7 +136,7 @@
     "id": "zm-020", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 1,
     "q": "Czyich myśli Edward nie potrafi czytać?",
     "answer": "Belli",
-    "wrong": ["Jaspera", "Mike'a Newtona", "Jessiki Stanley"],
+    "wrong": ["Jaspera", "Mike’a Newtona", "Jessiki Stanley"],
     "note": "Później okazuje się, że to zapowiedź jej daru — mentalnej tarczy."
   }
 ]

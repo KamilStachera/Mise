@@ -1,7 +1,7 @@
 [
   {
     "id": "ku-001", "part": "zmierzch", "source": "film", "category": "kulisy", "difficulty": 1,
-    "q": "Kto wyreżyserował pierwszy film, Zmierzch (2008)?",
+    "q": "Kto wyreżyserował pierwszy film sagi, „Zmierzch” (2008)?",
     "answer": "Catherine Hardwicke",
     "wrong": ["Chris Weitz", "David Slade", "Bill Condon"],
     "note": "Każda część miała innego reżysera, poza dwiema częściami Przed świtem (obie: Bill Condon)."
@@ -11,7 +11,7 @@
     "q": "Kto wyreżyserował Księżyc w nowiu?",
     "answer": "Chris Weitz",
     "wrong": ["Catherine Hardwicke", "David Slade", "Bill Condon"],
-    "note": "Weitz wcześniej zrobił „Złoty kompas” i — z bratem Paulem, bez nazwiska w napisach — współreżyserował „American Pie”."
+    "note": "Weitz wcześniej wyreżyserował „Złoty kompas”, a z bratem Paulem pracował nad „American Pie”."
   },
   {
     "id": "ku-003", "part": "zacmienie", "source": "film", "category": "kulisy", "difficulty": 2,
@@ -25,14 +25,14 @@
     "q": "Kto wyreżyserował obie części Przed świtem?",
     "answer": "Bill Condon",
     "wrong": ["David Slade", "Chris Weitz", "Catherine Hardwicke"],
-    "note": "Condon zrobił wcześniej „Dreamgirls”, a potem „Piękną i Bestię” z Emmą Watson."
+    "note": "Condon wcześniej wyreżyserował „Dreamgirls”, a później „Piękną i Bestię” z Emmą Watson."
   },
   {
     "id": "ku-005", "part": "saga", "source": "ksiazka", "category": "kulisy", "difficulty": 2,
-    "q": "Z czego wziął się pomysł na Zmierzch?",
-    "answer": "Ze snu Stephenie Meyer o dziewczynie i lśniącym wampirze na łące",
-    "wrong": ["Z zajęć z pisarstwa na studiach", "Z legendy usłyszanej na wakacjach w Forks", "Z konkursu wydawnictwa na powieść o wampirach"],
-    "note": "Sen z 2 czerwca 2003 to dziś rozdział 13 pierwszej książki. Meyer była wtedy mamą trzech synów i nigdy wcześniej nic nie wydała."
+    "q": "Co zainspirowało Stephenie Meyer do napisania „Zmierzchu”?",
+    "answer": "Sen o dziewczynie i lśniącym wampirze na łące",
+    "wrong": ["Zajęcia z pisarstwa na studiach", "Legenda usłyszana na wakacjach w Forks", "Konkurs wydawnictwa na powieść o wampirach"],
+    "note": "Sen z 2 czerwca 2003 roku stał się podstawą sceny z rozdziału 13. pierwszej książki. Meyer była wtedy mamą trzech synów."
   },
   {
     "id": "ku-006", "part": "zacmienie", "source": "film", "category": "obsada", "difficulty": 2,
@@ -64,7 +64,7 @@
   },
   {
     "id": "ku-010", "part": "zmierzch", "source": "film", "category": "obsada", "difficulty": 2,
-    "q": "Która późniejsza gwiazda (m.in. „W chmurach”, „Pitch Perfect”) zagrała Jessicę Stanley?",
+    "q": "Która aktorka, znana później m.in. z „W chmurach” i „Pitch Perfect”, zagrała Jessicę Stanley?",
     "answer": "Anna Kendrick",
     "wrong": ["Emma Stone", "Ashley Greene", "Nikki Reed"],
     "note": "Ashley Greene grała Alice, Nikki Reed — Rosalie."
@@ -78,42 +78,42 @@
   },
   {
     "id": "ku-012", "part": "przed-switem", "source": "film", "category": "obsada", "difficulty": 3,
-    "q": "Kto zagrał Renesmee (w wieku dziecięcym)?",
+    "q": "Która aktorka gra kilkuletnią Renesmee?",
     "answer": "Mackenzie Foy",
     "wrong": ["Dakota Fanning", "Chloë Grace Moretz", "Jodelle Ferland"],
-    "note": "Potem zagrała Murph jako dziecko w „Interstellar”. Niemowlę i starsze etapy Renesmee to mieszanka animatroniki i CGI z twarzą Foy."
+    "note": "Mackenzie Foy zagrała później małą Murph w „Interstellar”. Przy młodszych wersjach Renesmee wykorzystano efekty komputerowe z jej twarzą; animatroniczną lalkę małej dziewczynki odrzucono."
   },
   {
     "id": "ku-013", "part": "ksiezyc", "source": "film", "category": "kulisy", "difficulty": 2,
     "q": "Dlaczego Taylor Lautner o mało nie stracił roli Jacoba przed Księżycem w nowiu?",
-    "answer": "Bo Jacob w książce gwałtownie dorasta — Lautner przybrał kilkanaście kilo mięśni i zatrzymał rolę",
+    "answer": "Twórcy obawiali się, że nie odda gwałtownej przemiany fizycznej Jacoba",
     "wrong": ["Bo nie chciał ściąć włosów", "Bo był zajęty innym filmem", "Bo Stephenie Meyer chciała innego aktora"],
-    "note": "Mówiło się o ok. 30 funtach (ok. 13–14 kg) mięśni."
+    "note": "Lautner utrzymał rolę po intensywnych treningach. W wywiadach mówił o przybraniu około 30 funtów, czyli 13–14 kg, masy mięśniowej."
   },
   {
     "id": "ku-014", "part": "zmierzch", "source": "film", "category": "kulisy", "difficulty": 2,
-    "q": "Gdzie w pierwszym filmie pojawia się Stephenie Meyer (cameo)?",
+    "q": "W jakiej scenie pojawia się Stephenie Meyer w pierwszym filmie?",
     "answer": "W barze, przy ladzie z laptopem, gdy Bella je z Charliem",
-    "wrong": ["Jako nauczycielka biologii", "Na balu jako przyzwoitka", "W szpitalu jako pielęgniarka"],
+    "wrong": ["Na lekcji biologii jako nauczycielka", "Na balu jako opiekunka uczniów", "W szpitalu jako pielęgniarka"],
     "note": "W Przed świtem cz. 1 pojawia się też jako gość weselny."
   },
   {
     "id": "ku-015", "part": "zmierzch", "source": "film", "category": "muzyka", "difficulty": 1,
-    "q": "Jaka piosenka gra podczas meczu baseballa Cullenów?",
+    "q": "Jaka piosenka rozbrzmiewa podczas meczu baseballa Cullenów?",
     "answer": "„Supermassive Black Hole” — Muse",
     "wrong": ["„Decode” — Paramore", "„Uprising” — Muse", "„Leave Out All the Rest” — Linkin Park"],
     "note": "Muse to ulubiony zespół Stephenie Meyer — dziękuje im m.in. w podziękowaniach w Księżycu w nowiu."
   },
   {
     "id": "ku-016", "part": "zmierzch", "source": "film", "category": "muzyka", "difficulty": 2,
-    "q": "Która piosenka Paramore powstała do pierwszego filmu i gra na jego napisach końcowych?",
+    "q": "Która piosenka Paramore powstała do pierwszego filmu i pojawia się podczas napisów końcowych?",
     "answer": "„Decode”",
     "wrong": ["„Misery Business”", "„The Only Exception”", "„Ignorance”"],
-    "note": "Na napisach gra jako trzecia — po „15 Step” Radiohead i „Leave Out All the Rest” Linkin Park. Na soundtracku jest też ich „I Caught Myself”."
+    "note": "Podczas napisów pojawia się po „15 Step” Radiohead i „Leave Out All the Rest” Linkin Park. Na albumie z muzyką z filmu jest też „I Caught Myself” Paramore."
   },
   {
     "id": "ku-017", "part": "przed-switem", "source": "film", "category": "muzyka", "difficulty": 1,
-    "q": "Z której części pochodzi „A Thousand Years” Christiny Perri?",
+    "q": "Na albumie z muzyką do której części po raz pierwszy ukazała się piosenka „A Thousand Years” Christiny Perri?",
     "answer": "Przed świtem cz. 1",
     "wrong": ["Zaćmienie", "Przed świtem cz. 2", "Księżyc w nowiu"],
     "note": "W cz. 2 wraca w wersji „A Thousand Years, Pt. 2” ze Steve'em Kazee."
@@ -130,14 +130,14 @@
     "q": "Który aktor śpiewa w pierwszym filmie dwie piosenki, „Never Think” i „Let Me Sign”?",
     "answer": "Robert Pattinson",
     "wrong": ["Jackson Rathbone", "Taylor Lautner", "Kellan Lutz"],
-    "note": "„Never Think” współnapisał z Samem Bradleyem; „Let Me Sign” napisali Bobby Long i Marcus Foster (bonus na iTunes). Jackson Rathbone też muzykuje (100 Monkeys), ale nie w tym filmie."
+    "note": "Pattinson współtworzył „Never Think” z Samem Bradleyem. „Let Me Sign” napisali Bobby Long i Marcus Foster. Jackson Rathbone również grał w zespole — 100 Monkeys."
   },
   {
     "id": "ku-020", "part": "zmierzch", "source": "film", "category": "muzyka", "difficulty": 3,
     "q": "Kto skomponował muzykę do pierwszego filmu, w tym „Bella's Lullaby”?",
     "answer": "Carter Burwell",
     "wrong": ["Alexandre Desplat", "Howard Shore", "Hans Zimmer"],
-    "note": "Desplat zrobił muzykę do Księżyca w nowiu, Shore do Zaćmienia, a Burwell wrócił do obu części Przed świtem."
+    "note": "Alexandre Desplat skomponował muzykę do „Księżyca w nowiu”, Howard Shore do „Zaćmienia”, a Carter Burwell wrócił przy obu częściach „Przed świtem”."
   },
   {
     "id": "ku-021", "part": "ksiezyc", "source": "film", "category": "kulisy", "difficulty": 3,
@@ -148,9 +148,9 @@
   },
   {
     "id": "ku-022", "part": "zmierzch", "source": "film", "category": "kulisy", "difficulty": 3,
-    "q": "W jakim stanie nakręcono większość pierwszego filmu?",
+    "q": "W którym regionie nakręcono większość zdjęć do pierwszego filmu?",
     "answer": "W Oregonie",
-    "wrong": ["W Waszyngtonie (w Forks)", "W Kolumbii Brytyjskiej (Kanada)", "W Kalifornii"],
+    "wrong": ["W stanie Waszyngton", "W Kolumbii Brytyjskiej w Kanadzie", "W Kalifornii"],
     "note": "Głównie Portland i St. Helens w Oregonie (szkoła m.in. w Kalamie w Waszyngtonie). Księżyc w nowiu i Zaćmienie kręcono głównie w Vancouver, a Przed świtem w Baton Rouge (Luizjana) i Kolumbii Brytyjskiej, z plenerami w Brazylii."
   },
   {
@@ -162,10 +162,10 @@
   },
   {
     "id": "ku-024", "part": "przed-switem", "source": "ksiazka", "category": "kulisy", "difficulty": 2,
-    "q": "Co przedstawia okładka Przed świtem?",
-    "answer": "Szachy — czerwoną królową i biały pionek",
-    "wrong": ["Czerwone jabłko", "Rozerwaną czerwoną wstążkę", "Płatek kwiatu"],
-    "note": "Pionek staje się królową — jak Bella. Wstążka jest na Zaćmieniu, kwiat na Księżycu w nowiu."
+    "q": "Jakie bierki szachowe widać na klasycznej okładce „Przed świtem”?",
+    "answer": "Białą królową (hetmana) i czerwonego pionka",
+    "wrong": ["Czerwoną królową i białego pionka", "Białego króla i czerwoną wieżę", "Czarnego skoczka i białego pionka"],
+    "note": "Według Meyer pionek i królowa symbolizują przemianę Belli: z najsłabszej uczestniczki wydarzeń w osobę, której moc zapewnia Cullenom przewagę."
   },
   {
     "id": "ku-025", "part": "saga", "source": "ksiazka", "category": "kulisy", "difficulty": 2,
@@ -176,9 +176,9 @@
   },
   {
     "id": "ku-026", "part": "ksiezyc", "source": "ksiazka", "category": "cytaty", "difficulty": 3,
-    "q": "Jaki cytat z Szekspira jest mottem Księżyca w nowiu?",
-    "answer": "„Te gwałtowne uciechy mają gwałtowny koniec” — z „Romea i Julii”",
-    "wrong": ["„Być albo nie być” — z „Hamleta”", "„Miłość jest ślepa” — z „Kupca weneckiego”", "„Reszta jest milczeniem” — z „Hamleta”"],
-    "note": "„These violent delights have violent ends” — słowa brata Laurentego."
+    "q": "Jak zaczyna się motto „Księżyca w nowiu” w polskim wydaniu, zaczerpnięte z „Romea i Julii”?",
+    "answer": "„Gwałtownych uciech i koniec gwałtowny”",
+    "wrong": ["„Być albo nie być”", "„Miłość jest ślepa”", "„Reszta jest milczeniem”"],
+    "note": "To słowa ojca Laurentego z aktu II, sceny VI, w przekładzie Józefa Paszkowskiego. Angielski początek brzmi: „These violent delights have violent ends”."
   }
 ]

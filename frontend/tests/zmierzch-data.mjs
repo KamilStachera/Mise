@@ -11,6 +11,7 @@ const CATEGORIES = ['fabula', 'postacie', 'cytaty', 'muzyka', 'obsada', 'kulisy'
 
 const errors = []
 const ids = new Map()
+const questions = new Map()
 const texts = new Map()
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
 const nonEmpty = (v) => typeof v === 'string' && v.trim().length > 0
@@ -35,7 +36,10 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.json')).sort()) {
     total++
     if (!nonEmpty(q.id)) errors.push(`${at}: missing id`)
     else if (ids.has(q.id)) errors.push(`${at}: duplicate id (also in ${ids.get(q.id)})`)
-    else ids.set(q.id, file)
+    else {
+      ids.set(q.id, file)
+      questions.set(q.id, q)
+    }
     if (!PARTS.includes(q.part)) errors.push(`${at}: bad part "${q.part}"`)
     else perPart[q.part]++
     if (!SOURCES.includes(q.source)) errors.push(`${at}: bad source "${q.source}"`)
@@ -56,6 +60,31 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.json')).sort()) {
       else texts.set(key, q.id)
     }
   }
+}
+
+// Editorial regressions found in the 2026-11-16 review. These check facts and
+// translation provenance, not general Polish fluency (which needs manual review).
+// Evidence and scope: docs/zmierzch-review-2026-11-16.md.
+const check = (id, predicate, message) => {
+  const q = questions.get(id)
+  if (!q || !predicate(q)) errors.push(`${id}: ${message}`)
+}
+check('ku-024', q => /białą królową/i.test(q.answer) && /czerwonego pionka/i.test(q.answer),
+  'Breaking Dawn cover has a white queen and a red pawn, not the reverse')
+check('ku-026', q => q.answer === '„Gwałtownych uciech i koniec gwałtowny”' && /Paszkowskiego/.test(q.note ?? ''),
+  'use the published Polish epigraph and identify its translator')
+check('kn-019', q => q.source === 'ksiazka',
+  'Bella’s job at the Newton store is a book question, not a theatrical-film question')
+check('ku-038', q => q.answer === '2005' && /amerykańskie/.test(q.q),
+  'the 2005 publication date must explicitly refer to the US edition')
+check('ps-036', q => /przed napisami/.test(q.q),
+  'the final shot question must exclude the Volturi scene during the credits')
+
+for (const id of ['zm-010', 'zm-011', 'zm-012', 'zm-024', 'za-008', 'sa-027']) {
+  check(id, q => /pomocnicz|parafraz/.test(q.note ?? ''),
+    'an unofficial Polish rendering must be labelled as a translation or paraphrase')
+  check(id, q => !/\b(?:what|how long|say it|hold on|let['’]s|you['’]ve|a while)\b/i.test([q.q, q.answer, ...(Array.isArray(q.wrong) ? q.wrong : [])].join(' ')),
+    'spoken English quotes belong in the explanation; prompts and choices use Polish')
 }
 
 if (errors.length) {

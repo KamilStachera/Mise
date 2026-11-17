@@ -18,7 +18,7 @@
     "q": "Dlaczego Esme znalazła się w kostnicy, gdzie przemienił ją Carlisle?",
     "answer": "Rzuciła się z klifu po śmierci swojego dziecka",
     "wrong": ["Zmarła na hiszpankę", "Zginęła w pożarze", "Zaatakował ją wampir"],
-    "note": "Carlisle poznał ją wcześniej, gdy jako nastolatka złamała nogę."
+    "note": "Po upadku wciąż żyła, choć uznano ją za zmarłą. Carlisle rozpoznał ją — wcześniej leczył jej złamaną nogę, gdy była nastolatką."
   },
   {
     "id": "sa-004", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 2,
@@ -29,9 +29,9 @@
   },
   {
     "id": "sa-005", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 1,
-    "q": "Jak Cullenowie żartobliwie nazywają swoją dietę ze zwierzęcej krwi?",
-    "answer": "Wegetarianizm",
-    "wrong": ["Weganizm", "Post", "Dieta myśliwego"],
+    "q": "Jak Cullenowie żartobliwie nazywają żywienie się krwią zwierząt?",
+    "answer": "Wegetarianizmem",
+    "wrong": ["Weganizmem", "Postem", "Dietą myśliwego"],
     "note": "Dlatego mają złote oczy — wampiry pijące ludzką krew mają czerwone."
   },
   {
@@ -50,16 +50,16 @@
   },
   {
     "id": "sa-008", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 2,
-    "q": "Jaka jest ulubiona książka Belli, którą czyta wielokrotnie?",
-    "answer": "„Wichrowe Wzgórza”",
-    "wrong": ["„Przeminęło z wiatrem”", "„Romeo i Julia”", "„Dziwne losy Jane Eyre”"],
-    "note": "W Zaćmieniu powieść jest paralelą trójkąta Bella–Edward–Jacob (Cathy, Heathcliff i Edgar). Bella czyta też Austen, więc to łatwo pomylić."
+    "q": "Do jakiej powieści Bella wielokrotnie wraca w „Zaćmieniu”?",
+    "answer": "Do „Wichrowych Wzgórz”",
+    "wrong": ["Do „Przeminęło z wiatrem”", "Do „Jane Eyre”", "Do „Rozważnej i romantycznej”"],
+    "note": "W „Zaćmieniu” bohaterowie rozmawiają o „Wichrowych Wzgórzach” Emily Brontë i porównują własne wybory z losami postaci tej powieści."
   },
   {
     "id": "sa-009", "part": "saga", "source": "oba", "category": "miejsca", "difficulty": 1,
     "q": "W jakim stanie USA leży Forks?",
-    "answer": "Waszyngton",
-    "wrong": ["Oregon", "Montana", "Idaho"],
+    "answer": "W stanie Waszyngton",
+    "wrong": ["W Oregonie", "W Montanie", "W Idaho"],
     "note": "Na półwyspie Olympic — jedno z najbardziej deszczowych miejsc w USA."
   },
   {
@@ -67,7 +67,7 @@
     "q": "Jak nazywa się rezerwat Quileutów, w którym mieszka Jacob?",
     "answer": "La Push",
     "wrong": ["Port Angeles", "Denali", "Makah"],
-    "note": "Port Angeles to miasto, do którego Bella jedzie po zakupy. Denali — na Alasce."
+    "note": "Port Angeles to miasto, do którego Bella jedzie na zakupy. Klan z Denali mieszka na Alasce."
   },
   {
     "id": "sa-011", "part": "saga", "source": "oba", "category": "fabula", "difficulty": 2,
@@ -92,7 +92,7 @@
   },
   {
     "id": "sa-014", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 1,
-    "q": "Która z wilczyc jest jedyną kobietą w watasze?",
+    "q": "Która bohaterka jest jedyną kobietą przemieniającą się w wilka?",
     "answer": "Leah Clearwater",
     "wrong": ["Emily Young", "Rachel Black", "Kim"],
     "note": "Emily to narzeczona Sama (i kuzynka Leah) — ma blizny po jego ataku."
@@ -106,7 +106,7 @@
   },
   {
     "id": "sa-016", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
-    "q": "W jakim mieście i wieku urodził się Carlisle?",
+    "q": "W jakim mieście i w którym stuleciu urodził się Carlisle?",
     "answer": "W Londynie, w XVII wieku",
     "wrong": ["W Chicago, w XIX wieku", "W Volterze, w XVI wieku", "W Paryżu, w XVIII wieku"],
     "note": "Był synem anglikańskiego pastora, który polował na wampiry. Potem spędził kilka dekad z Volturi."

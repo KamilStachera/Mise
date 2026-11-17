@@ -32,14 +32,14 @@
     "q": "Kto przemienił Jaspera i zrobił z niego dowódcę armii nowonarodzonych na Południu?",
     "answer": "Maria",
     "wrong": ["Victoria", "Carlisle", "Alice"],
-    "note": "Jasper uciekł od Marii, a potem znalazła go Alice — w barze w Filadelfii."
+    "note": "Jasper odszedł od Marii. Później Alice odnalazła go w barze w Filadelfii."
   },
   {
     "id": "za-006", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 3,
-    "q": "Jak nazywał się narzeczony Rosalie, przez którego zginęła jako człowiek?",
+    "q": "Jak nazywał się narzeczony Rosalie, który wraz z kolegami napadł na nią i pozostawił ją umierającą?",
     "answer": "Royce King",
     "wrong": ["Riley Biers", "Edward Masen", "Henry Collins"],
-    "note": "Rosalie zemściła się na nim i jego kolegach już jako wampir. Edward Masen to ludzkie nazwisko Edwarda."
+    "note": "Carlisle znalazł jeszcze żywą Rosalie i przemienił ją. Już jako wampirzyca zemściła się na napastnikach."
   },
   {
     "id": "za-007", "part": "zacmienie", "source": "oba", "category": "miejsca", "difficulty": 3,
@@ -50,10 +50,10 @@
   },
   {
     "id": "za-008", "part": "zacmienie", "source": "film", "category": "cytaty", "difficulty": 1,
-    "q": "Kto mówi w namiocie: „Let's face it — I am hotter than you” (przyznaj, jestem gorętszy od ciebie)?",
-    "answer": "Jacob, do Edwarda",
-    "wrong": ["Edward, do Jacoba", "Emmett, do Jaspera", "Seth, do Leah"],
-    "note": "Jacob ogrzewa zmarzniętą Bellę w namiocie w górach, kiedy Edward nie może."
+    "q": "Kto w namiocie mówi do Edwarda, że jest od niego „gorętszy”?",
+    "answer": "Jacob",
+    "wrong": ["Emmett", "Jasper", "Seth"],
+    "note": "Oryginał: „Let’s face it — I am hotter than you”. To gra słów: Jacob ma wyższą temperaturę ciała, a „hotter” może też znaczyć „bardziej atrakcyjny”. Polskie brzmienie jest przekładem pomocniczym."
   },
   {
     "id": "za-009", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
@@ -67,7 +67,7 @@
     "q": "Co Bella robi po tym, jak Jacob całuje ją wbrew jej woli?",
     "answer": "Uderza go w twarz i łamie sobie rękę",
     "wrong": ["Ucieka do Edwarda bez słowa", "Skarży się Charliemu", "Oddaje pocałunek"],
-    "note": "W książce Charlie, słysząc o pocałunku, mówi Jacobowi „Good for you” — gratuluje mu. Edward grozi, że połamie Jacobowi szczękę, jeśli jeszcze raz pocałuje Bellę wbrew jej woli."
+    "note": "W książce Charlie gratuluje Jacobowi pocałunku. Edward grozi mu złamaniem szczęki, jeśli jeszcze raz pocałuje Bellę wbrew jej woli."
   },
   {
     "id": "za-011", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 2,
@@ -85,17 +85,17 @@
   },
   {
     "id": "za-013", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
-    "q": "Jaką legendę Quileutów Bella słyszy przy ognisku w La Push, zapowiadającą jej własne poświęcenie?",
+    "q": "Jaką opowieść z legend Quileutów Bella słyszy przy ognisku, a później przywołuje podczas starcia z Victorią?",
     "answer": "Legendę o trzeciej żonie",
     "wrong": ["Legendę o wielkim potopie", "Legendę o Dzieciach Księżyca", "Legendę o pierwszym wilku"],
-    "note": "Trzecia żona wbiła sobie nóż, by zapach krwi odwrócił uwagę zimnej kobiety. W książce opowiada ją Stary Quil, w filmie Billy. W filmie Bella rozcina sobie rękę w walce z Victorią; w książce tylko się do tego szykuje."
+    "note": "Trzecia żona rani się nożem, aby zapach jej krwi odwrócił uwagę wampirzycy. W książce opowiada o tym Stary Quil, a w filmie Billy. Filmowa Bella rozcina sobie rękę podczas walki; książkowa tylko przygotowuje się do zranienia."
   },
   {
     "id": "za-014", "part": "zacmienie", "source": "film", "category": "postacie", "difficulty": 2,
-    "q": "Kto wygłasza przemówienie na zakończeniu szkoły w filmie Zaćmienie?",
+    "q": "Kto wygłasza przemówienie podczas uroczystości zakończenia szkoły w filmie „Zaćmienie”?",
     "answer": "Jessica Stanley",
     "wrong": ["Angela Weber", "Bella Swan", "Mike Newton"],
-    "note": "Jessica była prymuską — przemowa o tym, że to czas na błędy."
+    "note": "Jessica, wyróżniona za wyniki w nauce, mówi o szukaniu własnej drogi i prawie do popełniania błędów."
   },
   {
     "id": "za-015", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 1,
@@ -116,6 +116,6 @@
     "q": "Jaki wiersz jest mottem Zaćmienia?",
     "answer": "„Ogień i lód” Roberta Frosta",
     "wrong": ["„Droga nie wybrana” Roberta Frosta", "„Kruk” Edgara Allana Poe", "„Ballada o starym marynarzu” Coleridge'a"],
-    "note": "Ogień (Jacob) i lód (Edward) — wybór Belli w jednym wierszu."
+    "note": "Zestawienie ognia i lodu można odczytać jako nawiązanie do Jacoba i Edwarda oraz wyboru, przed którym stoi Bella."
   }
 ]

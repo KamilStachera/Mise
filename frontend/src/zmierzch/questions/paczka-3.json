@@ -1,0 +1,422 @@
+[
+  {
+    "id": "zm-033", "part": "zmierzch", "source": "film", "category": "postacie", "difficulty": 3,
+    "q": "Jak nazywa się nauczyciel biologii Belli i Edwarda w pierwszym filmie?",
+    "answer": "Pan Molina",
+    "wrong": ["Pan Banner", "Pan Varner", "Pan Mason"],
+    "note": "W ekranizacji biologii uczy pan Molina. Pan Banner prowadzi ten przedmiot w powieści — to łatwe do pomylenia nazwiska."
+  },
+  {
+    "id": "zm-034", "part": "zmierzch", "source": "oba", "category": "roznice", "difficulty": 3,
+    "q": "Kto sędziuje na początku meczu baseballa Cullenów — odpowiednio w książce i w filmie?",
+    "answer": "Esme w książce, Bella w filmie",
+    "wrong": ["Bella w książce, Esme w filmie", "Carlisle w książce, Alice w filmie", "Alice w książce, Carlisle w filmie"],
+    "note": "W powieści Bella początkowo obserwuje grę obok Esme, która sędziuje. W filmie Esme powierza tę rolę Belli. Pytanie dotyczy początku meczu, przed pojawieniem się obcych wampirów."
+  },
+  {
+    "id": "zm-035", "part": "zmierzch", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Dlaczego wampir pracujący w zakładzie psychiatrycznym przemienił Alice?",
+    "answer": "Chciał ocalić ją przed Jamesem, który na nią polował",
+    "wrong": ["Wykonywał rozkaz Aro, zainteresowanego jej wizjami", "Chciał włączyć ją do armii nowo narodzonych Marii", "Spełniał prośbę Jaspera, który szukał partnerki"],
+    "note": "James opowiada o tym Belli w studiu baletowym. Przemiana odebrała mu ludzką ofiarę, więc zabił wampira, który uratował Alice."
+  },
+  {
+    "id": "zm-036", "part": "zmierzch", "source": "ksiazka", "category": "miejsca", "difficulty": 3,
+    "q": "Gdzie Bella wymyka się opiece Alice i Jaspera, aby samotnie spotkać Jamesa w książkowym Zmierzchu?",
+    "answer": "Na lotnisku w Phoenix",
+    "wrong": ["W hotelu w Phoenix", "W szpitalu w Forks", "Na dworcu autobusowym w Seattle"],
+    "note": "Czekając na przylot Edwarda, Bella prosi Jaspera, by poszedł z nią po śniadanie. Następnie wykorzystuje wyjście do toalety, żeby uciec."
+  },
+  {
+    "id": "zm-037", "part": "zmierzch", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Z którą drużyną baseballową Phil podpisuje kontrakt pod koniec książkowego Zmierzchu?",
+    "answer": "Z Jacksonville Suns",
+    "wrong": ["Z Seattle Mariners", "Z Phoenix Desert Dogs", "Z Portland Beavers"],
+    "note": "Kontrakt z Suns oznacza przeprowadzkę Phila i Renée do Jacksonville. Renée proponuje Belli, żeby zamieszkała z nimi, ale Bella wybiera Forks."
+  },
+  {
+    "id": "zm-038", "part": "zmierzch", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Na jakie zwierzęta Edward najbardziej lubi polować, jak wyjaśnia Belli w pierwszej powieści?",
+    "answer": "Na pumy",
+    "wrong": ["Na niedźwiedzie", "Na jelenie", "Na wilki"],
+    "note": "Edward wskazuje pumy, a Emmett woli niedźwiedzie. Angielskie „mountain lion” oznacza pumę, nie lwa afrykańskiego."
+  },
+  {
+    "id": "zm-039", "part": "zmierzch", "source": "film", "category": "fabula", "difficulty": 2,
+    "q": "Co Rosalie rozbija w kuchni, gdy podczas pierwszej wizyty Belli dowiaduje się, że ta już jadła?",
+    "answer": "Miskę z sałatką",
+    "wrong": ["Kieliszek do wina", "Talerz z makaronem", "Dzbanek z wodą"],
+    "note": "Cullenowie przygotowują dla Belli włoski posiłek. Informacja od Edwarda, że gościni nie jest głodna, wywołuje złość Rosalie."
+  },
+  {
+    "id": "zm-040", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Jaką wersję wydarzeń Renée słyszy w szpitalu, aby wyjaśnić obrażenia Belli po ataku Jamesa?",
+    "answer": "Bella spadła ze schodów i wypadła przez okno",
+    "wrong": ["Bella miała wypadek samochodowy w drodze na lotnisko", "Bellę zaatakowała puma podczas spaceru", "Bella spadła z balkonu podczas ucieczki przed pożarem"],
+    "note": "Upadek ma wyjaśniać złamania i rany od szkła. Renée nie dowiaduje się o Jamesie ani o wampirach."
+  },
+  {
+    "id": "kn-030", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Kto odnajduje Bellę w lesie i przynosi ją do Charliego po odejściu Edwarda?",
+    "answer": "Sam Uley",
+    "wrong": ["Jacob Black", "Harry Clearwater", "Embry Call"],
+    "note": "Bella rusza za Edwardem, gubi się i zostaje w lesie. Odnajduje ją Sam, nie Jacob."
+  },
+  {
+    "id": "kn-031", "part": "ksiezyc", "source": "film", "category": "fabula", "difficulty": 2,
+    "q": "Jaki prezent Jacob wręcza Belli na osiemnaste urodziny w filmowym Księżycu w nowiu?",
+    "answer": "Łapacz snów",
+    "wrong": ["Bransoletkę z drewnianym wilkiem", "Naszyjnik z muszli", "Album ze zdjęciami z La Push"],
+    "note": "Jacob daje jej łapacz snów przed szkołą. Drewniany wilk jest prezentem z innej części sagi — Zaćmienia."
+  },
+  {
+    "id": "kn-032", "part": "ksiezyc", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Za kogo Edward podaje się podczas telefonu do domu Swanów, który w książce odbiera Jacob?",
+    "answer": "Za Carlisle’a Cullena",
+    "wrong": ["Za Emmetta Cullena", "Za Mike’a Newtona", "Za lekarza z Jacksonville"],
+    "note": "Edward dzwoni jako doktor Cullen i pyta o Charliego. Słyszy o pogrzebie Harry’ego, ale błędnie uznaje, że chodzi o pogrzeb Belli."
+  },
+  {
+    "id": "kn-033", "part": "ksiezyc", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Od kogo Bella dostaje dwa niesprawne motocykle, które później naprawia z Jacobem w książce?",
+    "answer": "Od młodszego z braci Marksów",
+    "wrong": ["Od ojca Mike’a Newtona", "Od Harry’ego Clearwatera", "Od kuzyna Tylera Crowleya"],
+    "note": "Bella zauważa motocykle wystawione przed domem Marksów. Młodszy z braci pomaga załadować je na jej pickupa."
+  },
+  {
+    "id": "kn-034", "part": "ksiezyc", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Z jakich pieniędzy Bella zamierza opłacać części potrzebne do naprawy motocykli?",
+    "answer": "Z oszczędności przeznaczonych na studia",
+    "wrong": ["Z pożyczki od Alice", "Z pieniędzy ze sprzedaży pickupa", "Z nagrody za wyniki w nauce"],
+    "note": "Bella deklaruje, że kupi potrzebne części. Jacob zgadza się naprawić motocykle i zachować całą sprawę w tajemnicy przed ich ojcami."
+  },
+  {
+    "id": "kn-035", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Kto przekazuje Edwardowi błędną wiadomość, że Bella nie żyje, zanim Edward dzwoni do Swanów?",
+    "answer": "Rosalie",
+    "wrong": ["Alice", "Carlisle", "Jasper"],
+    "note": "Źródłem nieporozumienia jest wizja Alice dotycząca skoku z klifu. To jednak Rosalie informuje Edwarda o rzekomej śmierci Belli."
+  },
+  {
+    "id": "kn-036", "part": "ksiezyc", "source": "oba", "category": "cytaty", "difficulty": 3,
+    "q": "Do czego nawiązuje Aro, określając Bellę jako „la tua cantante” w rozmowie z Edwardem?",
+    "answer": "Do wyjątkowo silnego wpływu zapachu jej krwi na Edwarda",
+    "wrong": ["Do jej odporności na wszystkie wampirze dary", "Do więzi powstającej między wampirem a osobą, którą przemienił", "Do zdolności przekazywania myśli za pomocą dotyku"],
+    "note": "To włoskie określenie wiąże się z metaforą krwi, która „śpiewa” dla konkretnego wampira. Nie oznacza wpojenia ani odrębnego daru Belli."
+  },
+  {
+    "id": "kn-037", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 3,
+    "q": "Jak ma na imię ludzka recepcjonistka pracująca dla Volturi w Księżycu w nowiu?",
+    "answer": "Gianna",
+    "wrong": ["Heidi", "Chelsea", "Renata"],
+    "note": "Gianna zna prawdę o Volturi i liczy, że kiedyś ją przemienią. Heidi, Chelsea i Renata są już wampirzycami."
+  },
+  {
+    "id": "za-028", "part": "zacmienie", "source": "film", "category": "fabula", "difficulty": 2,
+    "q": "Z czego Renée wykonuje narzutę, którą wręcza Belli z okazji ukończenia szkoły w filmowym Zaćmieniu?",
+    "answer": "Z koszulek przywiezionych ze wspólnych podróży",
+    "wrong": ["Z dziecięcych sukienek Belli", "Z koszul Charliego", "Z fragmentów rodzinnych koców"],
+    "note": "Prezent składa się z pamiątkowych koszulek. Renée wręcza go Belli podczas jej wizyty na Florydzie."
+  },
+  {
+    "id": "za-029", "part": "zacmienie", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Jak ma na imię przyjaciółka Rosalie z czasów jej ludzkiego życia, której rodzinnego szczęścia Rosalie zazdrościła?",
+    "answer": "Vera",
+    "wrong": ["Cynthia", "Emily", "Elizabeth"],
+    "note": "Rosalie opowiada Belli o Verze, jej mężu i dziecku. To wspomnienie pomaga zrozumieć, dlaczego tak wysoko ceni możliwość posiadania rodziny."
+  },
+  {
+    "id": "za-030", "part": "zacmienie", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Która para uciekła z armii Marii, a następnie pomogła Jasperowi odkryć, że wampiry mogą żyć bez ciągłych wojen?",
+    "answer": "Peter i Charlotte",
+    "wrong": ["Eleazar i Carmen", "Garrett i Kate", "Amun i Kebi"],
+    "note": "Peter ratuje Charlotte przed zabiciem i ucieka z nią. Później wraca po Jaspera i przekonuje go do opuszczenia Marii."
+  },
+  {
+    "id": "za-031", "part": "zacmienie", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Który wampir, według opowieści Jaspera, jako pierwszy wykorzystał armię nowo narodzonych do podboju terytoriów?",
+    "answer": "Benito",
+    "wrong": ["Riley", "Stefan", "Amun"],
+    "note": "Jasper przedstawia Benita jako inicjatora tej strategii. Maria i Victoria korzystają z niej później."
+  },
+  {
+    "id": "za-032", "part": "zacmienie", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Kto w legendzie opowiedzianej w Zaćmieniu kradnie ciało Tahy Akiego, gdy ten przebywa poza nim jako duch?",
+    "answer": "Utlapa",
+    "wrong": ["Yut", "Taha Wi", "Yaha Uta"],
+    "note": "Pozbawiony ciała Taha Aki łączy swojego ducha z wilkiem. Chodzi o legendę w świecie powieści, nie opis rzeczywistych wierzeń Quileutów."
+  },
+  {
+    "id": "za-033", "part": "zacmienie", "source": "oba", "category": "miejsca", "difficulty": 2,
+    "q": "W którym stanie znajduje się uczelnia rozważana przez Bellę i Edwarda jako miejsce studiów w Zaćmieniu?",
+    "answer": "Na Alasce",
+    "wrong": ["W Oregonie", "W Arizonie", "Na Florydzie"],
+    "note": "Plany związane z Alaską pojawiają się w rozmowach o przyszłości po szkole. Pytanie dotyczy Zaćmienia — w dalszej części sagi padają także inne propozycje."
+  },
+  {
+    "id": "za-034", "part": "zacmienie", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Dlaczego klan z Denali odmawia Cullenom pomocy w walce z armią nowo narodzonych w powieści Zaćmienie?",
+    "answer": "Z powodu śmierci Laurenta, którego zabiły wilki sprzymierzone z Cullenami",
+    "wrong": ["Ponieważ Aro zakazał Denali opuszczania Alaski", "Ponieważ Maria zagroziła atakiem na Denali", "Ponieważ Denali nie wierzą w istnienie armii nowo narodzonych"],
+    "note": "Irina była związana z Laurentem. Denali chcą odwetu na wilkach, a Carlisle nie zgadza się na taki warunek pomocy."
+  },
+  {
+    "id": "za-035", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Co Rosalie zakłada, gdy po przemianie przychodzi zemścić się na swoim byłym narzeczonym?",
+    "answer": "Suknię ślubną",
+    "wrong": ["Strój pielęgniarki", "Czarną suknię żałobną", "Mundur wojskowy"],
+    "note": "Suknia jest celowym elementem jej zemsty na byłym narzeczonym. Rosalie opowiada o tej nocy Belli."
+  },
+  {
+    "id": "ps-038", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 3,
+    "q": "Jakie imiona i nazwisko widnieją w dokumentach zamówionych przez Bellę dla Jacoba i Renesmee?",
+    "answer": "Jacob Wolfe i Vanessa Wolfe",
+    "wrong": ["Jacob Black i Vanessa Black", "Jason Wolfe i Carlie Wolfe", "Jacob Cullen i Vanessa Cullen"],
+    "note": "Dokumenty przygotowuje J. Jenks. Imię Vanessa nawiązuje do przezwiska Nessie, a nazwisko Wolfe do wilczej natury Jacoba."
+  },
+  {
+    "id": "ps-039", "part": "przed-switem", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Jaki skutek ma morfina podana Belli przed przemianą, według jej relacji w książce?",
+    "answer": "Początkowo uniemożliwia jej ruch, ale nie usuwa bólu przemiany",
+    "wrong": ["Całkowicie pozbawia ją świadomości aż do końca przemiany", "Usuwa ból, lecz pozostawia pełną swobodę ruchów", "Zatrzymuje działanie jadu do czasu podania kolejnej dawki"],
+    "note": "Bella pozostaje świadoma i cierpi. Później świadomie zachowuje bezruch, żeby nie pokazać Edwardowi, jak bardzo boli ją przemiana."
+  },
+  {
+    "id": "ps-040", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Jakie zwierzę Bella zabija jako pierwsze podczas swojego pierwszego polowania po przemianie?",
+    "answer": "Pumę",
+    "wrong": ["Jelenia", "Niedźwiedzia", "Wilka"],
+    "note": "Najpierw pojawia się pokusa zapolowania na człowieka, której Bella się opiera. Jej pierwszą zabitą zdobyczą zostaje puma."
+  },
+  {
+    "id": "ps-041", "part": "przed-switem", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Kto odpowiada za odnowienie leśnego domku, który Bella i Edward dostają od rodziny?",
+    "answer": "Esme",
+    "wrong": ["Rosalie", "Carlisle", "Emmett"],
+    "note": "To Esme zajmuje się renowacją domku. Alice prowadzi Bellę i Edwarda, żeby pokazać im prezent."
+  },
+  {
+    "id": "ps-042", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 3,
+    "q": "Jak miała na imię wampirza matka Tanyi, Kate i Iriny, stracona za stworzenie nieśmiertelnego dziecka?",
+    "answer": "Sasha",
+    "wrong": ["Carmen", "Siobhan", "Kachiri"],
+    "note": "Sasha przemieniła siostry z Denali. Aro darował im życie, ponieważ wiedział, że nie znały jej sekretu."
+  },
+  {
+    "id": "ps-043", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Który sprowadzony przez Cullenów świadek opuszcza ich przed konfrontacją z Volturi?",
+    "answer": "Alistair",
+    "wrong": ["Garrett", "Eleazar", "Benjamin"],
+    "note": "Alistair uważa starcie za nieuniknione i nie wierzy, że Volturi uczciwie wysłuchają świadków. Wycofuje się przed ich przybyciem."
+  },
+  {
+    "id": "ps-044", "part": "przed-switem", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Jak ma na imię ojciec Nahuela, wampir celowo płodzący dzieci z ludzkimi kobietami?",
+    "answer": "Joham",
+    "wrong": ["Amun", "Benito", "Liam"],
+    "note": "Nahuel ujawnia działalność Johama podczas spotkania z Volturi. Jego ludzką matką była Pire."
+  },
+  {
+    "id": "ps-045", "part": "przed-switem", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Jaka różnica między Nahuelem a Renesmee dotyczy ich ukąszenia?",
+    "answer": "Nahuel ma jad zdolny przemienić człowieka, a Renesmee go nie ma",
+    "wrong": ["Renesmee ma jad zdolny przemienić człowieka, a Nahuel go nie ma", "Oboje mają jad, ale działa on wyłącznie na dzieci", "Żadne z nich nie może przemienić człowieka ukąszeniem"],
+    "note": "Nahuel jako noworodek ugryzł Huilen i przemienił ją w wampirzycę. Renesmee nie jest jadowita. Pytanie dotyczy tych dwóch postaci."
+  },
+  {
+    "id": "ps-046", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 3,
+    "q": "Który Cullen korzystał z usług J. Jenksa, zanim Bella zwróciła się do niego po dokumenty?",
+    "answer": "Jasper",
+    "wrong": ["Carlisle", "Emmett", "Edward"],
+    "note": "Jenks zna Jaspera jako wcześniejszego klienta i bardzo się go boi. Alice zostawia Belli wskazówkę prowadzącą do fałszerza."
+  },
+  {
+    "id": "ps-047", "part": "przed-switem", "source": "ksiazka", "category": "postacie", "difficulty": 2,
+    "q": "Do którego klanu dołącza Garrett pod koniec Przed świtem?",
+    "answer": "Do klanu z Denali",
+    "wrong": ["Do klanu egipskiego", "Do klanu irlandzkiego", "Do klanu rumuńskiego"],
+    "note": "Garrett przybywa jako wędrowny wampir. Zbliża się do Kate i ostatecznie odchodzi razem z Denali."
+  },
+  {
+    "id": "ps-048", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
+    "q": "Za kogo Edward przedstawia Renesmee w oficjalnej wersji opowieści przekazanej Charliemu?",
+    "answer": "Za swoją osieroconą siostrzenicę lub bratanicę",
+    "wrong": ["Za młodszą siostrę Jacoba", "Za córkę z poprzedniego związku", "Za przyrodnią siostrę Belli"],
+    "note": "Edward używa angielskiego słowa „niece”, które nie rozstrzyga między siostrzenicą a bratanicą. Dlatego obie polskie możliwości są jedną odpowiedzią."
+  },
+  {
+    "id": "ps-049", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Która wampirzyca pomaga Belli ćwiczyć rozszerzanie tarczy, wykorzystując dar wywoływania bólu dotykiem?",
+    "answer": "Kate",
+    "wrong": ["Tanya", "Carmen", "Maggie"],
+    "note": "Dar Kate działa jak porażenie prądem. Bella uczy się osłaniać przed nim także inne osoby."
+  },
+  {
+    "id": "sa-032", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Która członkini straży Volturi potrafi wzmacniać lub osłabiać więzi między innymi osobami?",
+    "answer": "Chelsea",
+    "wrong": ["Renata", "Corin", "Heidi"],
+    "note": "Jej dar pomaga utrzymywać lojalność straży i rozbijać sojusze przeciwników. To manipulowanie więziami, nie czytanie myśli."
+  },
+  {
+    "id": "sa-033", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Kto osobiście chroni Aro za pomocą daru sprawiającego, że napastnik zmienia kierunek i zapomina, co chciał zrobić?",
+    "answer": "Renata",
+    "wrong": ["Chelsea", "Heidi", "Didyme"],
+    "note": "Tarcza Renaty odwodzi napastnika od ataku. Nie jest tym samym rodzajem ochrony co mentalna tarcza Belli."
+  },
+  {
+    "id": "sa-034", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Co pozwala Demetriemu odnajdywać śledzoną osobę, nawet gdy zwykły trop zapachowy nie wystarcza?",
+    "answer": "Rozpoznawanie charakterystycznej sygnatury jej umysłu",
+    "wrong": ["Oglądanie jej przyszłości po dotknięciu przedmiotu", "Słyszenie jej serca z dowolnej odległości", "Odczytywanie wspomnień z pozostawionych śladów krwi"],
+    "note": "Demetri śledzi umysł. Określenie „sygnatura umysłu” jest opisową parafrazą jego zdolności, a nie cytatem z polskiego przekładu."
+  },
+  {
+    "id": "sa-035", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Który członek klanu z Denali służył wcześniej Volturi i potrafi rozpoznawać nadprzyrodzone dary?",
+    "answer": "Eleazar",
+    "wrong": ["Garrett", "Alistair", "Liam"],
+    "note": "Aro wykorzystywał Eleazara do wyszukiwania osób z wyjątkowymi zdolnościami. Eleazar opuścił Volturi po poznaniu Carmen."
+  },
+  {
+    "id": "sa-036", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Jak mają na imię żony Aro i Kajusza — w tej kolejności?",
+    "answer": "Sulpicia i Athenodora",
+    "wrong": ["Athenodora i Sulpicia", "Didyme i Renata", "Chelsea i Corin"],
+    "note": "Sulpicia jest żoną Aro, a Athenodora żoną Kajusza. Didyme była żoną Marka i siostrą Aro."
+  },
+  {
+    "id": "sa-037", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Jakie nazwisko Esme nosiła po swoim pierwszym, ludzkim mężu?",
+    "answer": "Evenson",
+    "wrong": ["Platt", "Masen", "McCarty"],
+    "note": "Jej pierwszym mężem był Charles Evenson. Platt to nazwisko panieńskie Esme. Ten szczegół biografii pochodzi z materiałów uzupełniających autorki."
+  },
+  {
+    "id": "sa-038", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Jak miała na imię młodsza siostra Alice z czasów jej ludzkiego życia?",
+    "answer": "Cynthia",
+    "wrong": ["Vera", "Rachel", "Rebecca"],
+    "note": "Alice odkrywa informacje o Cynthii, gdy bada swoją przeszłość. To jej biologiczna siostra, nie jedna z Cullenów."
+  },
+  {
+    "id": "sa-039", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Z jaką szczególną zdolnością wiąże się wyjątkowa skuteczność Victorii w wymykaniu się pościgom?",
+    "answer": "Z instynktownym unikaniem zagrożenia",
+    "wrong": ["Z przewidywaniem wszystkich decyzji przeciwników", "Z wymazywaniem wspomnień osób prowadzących pościg", "Z całkowitym ukrywaniem własnego zapachu"],
+    "note": "Jej dar sprzyja przetrwaniu i ucieczce. Nie należy go utożsamiać z wizjami przyszłości Alice."
+  },
+  {
+    "id": "sa-040", "part": "saga", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Co dzieje się ze starzeniem się Quileutów, dopóki regularnie przemieniają się w wilki?",
+    "answer": "Przestają się starzeć; starzenie może wrócić po zaprzestaniu przemian",
+    "wrong": ["Starzeją się dwa razy szybciej niż ludzie", "Starzeją się normalnie wyłącznie podczas pełni", "Pozostają nieśmiertelni także po trwałym zaprzestaniu przemian"],
+    "note": "W legendzie Taha Aki rezygnuje z wilczej postaci, aby móc zestarzeć się z trzecią żoną."
+  },
+  {
+    "id": "sa-041", "part": "saga", "source": "ksiazka", "category": "fabula", "difficulty": 3,
+    "q": "Jak podział watahy na grupy Sama i Jacoba wpływa na telepatyczną łączność między wilkami?",
+    "answer": "Każda wataha słyszy własnych członków, ale nie drugą grupę",
+    "wrong": ["Obie watahy nadal słyszą wszystkie swoje myśli", "Łączność między grupami zachowują wyłącznie Sam i Jacob", "Po podziale wszyscy tracą zdolność telepatycznego porozumiewania się"],
+    "note": "Jacob i Seth odkrywają to zaraz po odejściu od Sama. Rozdzielenie watah rozdziela także ich wspólną przestrzeń myśli."
+  },
+  {
+    "id": "sa-042", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Jaki dar ma Fred z Drugiego życia Bree Tanner?",
+    "answer": "Wywołuje tak silny wstręt, że inni unikają patrzenia na niego i zbliżania się",
+    "wrong": ["Sprawia, że inni bezwarunkowo wierzą w jego słowa", "Odbiera innym wszystkie zmysły za pomocą mgły", "Przenosi własny ból na wybraną osobę"],
+    "note": "Bree wykorzystuje jego obecność, aby unikać agresji innych nowo narodzonych. Pytanie dotyczy dodatkowej powieści o Bree, nie samego filmu Zaćmienie."
+  },
+  {
+    "id": "sa-043", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Z kim Bree odkrywa, że światło słoneczne nie zabija wampirów, w Drugim życiu Bree Tanner?",
+    "answer": "Z Diegiem",
+    "wrong": ["Z Fredem", "Z Rileyem", "Z Peterem"],
+    "note": "Bree i Diego zaczynają podważać to, co mówi im Riley. Ich odkrycie pokazuje, że przywódcy armii celowo utrzymują nowo narodzonych w niewiedzy."
+  },
+  {
+    "id": "sa-044", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 2,
+    "q": "Jak Edward wybierał ludzkie ofiary w okresie buntu przeciw sposobowi życia Carlisle’a?",
+    "answer": "Czytał myśli i polował na ludzi, którzy zamierzali krzywdzić innych",
+    "wrong": ["Wybierał wyłącznie śmiertelnie chorych pacjentów", "Zabijał wyłącznie osoby skazane wcześniej przez sąd", "Polował wyłącznie na ludzi znających tajemnicę wampirów"],
+    "note": "Edward próbował w ten sposób usprawiedliwiać picie ludzkiej krwi. Ostatecznie wrócił do Carlisle’a i Esme. Książka i filmy ujawniają ten epizod w różnych częściach."
+  },
+  {
+    "id": "sa-045", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
+    "q": "Kim był ojciec Carlisle’a, który organizował polowania na domniemane istoty nadprzyrodzone?",
+    "answer": "Pastorem anglikańskim",
+    "wrong": ["Lekarzem wojskowym", "Sędzią królewskim", "Katolickim zakonnikiem"],
+    "note": "Carlisle dorastał w Londynie. Jego ojciec uważał ściganie czarownic, wilkołaków i wampirów za religijną powinność."
+  },
+  {
+    "id": "ku-045", "part": "przed-switem", "source": "film", "category": "kulisy", "difficulty": 3,
+    "q": "Kto zaprojektował suknię Belli na właściwą ceremonię ślubną w Przed świtem — części 1?",
+    "answer": "Carolina Herrera",
+    "wrong": ["Vera Wang", "Reem Acra", "Vivienne Westwood"],
+    "note": "Pytanie dotyczy sukni noszonej podczas ślubu, a nie innego stroju z wcześniejszego koszmaru Belli."
+  },
+  {
+    "id": "ku-046", "part": "przed-switem", "source": "film", "category": "muzyka", "difficulty": 3,
+    "q": "Który wykonawca nagrał Turning Page, utwór obecny w scenach ślubu i miesiąca miodowego Belli i Edwarda?",
+    "answer": "Sleeping At Last",
+    "wrong": ["Iron & Wine", "Bon Iver", "Death Cab for Cutie"],
+    "note": "Soundtrack Przed świtem — części 1 zawiera Turning Page oraz jego wersję instrumentalną. Tytuł utworu i nazwę wykonawcy zachowano w oryginale."
+  },
+  {
+    "id": "ku-047", "part": "zacmienie", "source": "film", "category": "muzyka", "difficulty": 3,
+    "q": "Który zespół wykonuje Eclipse (All Yours) ze ścieżki dźwiękowej Zaćmienia?",
+    "answer": "Metric",
+    "wrong": ["Paramore", "Florence + the Machine", "The Dead Weather"],
+    "note": "Zespół Metric przygotował Eclipse (All Yours) na potrzeby filmu. Nie należy mylić tego utworu z piosenkami Muse obecnymi w sadze."
+  },
+  {
+    "id": "ku-048", "part": "zmierzch", "source": "film", "category": "muzyka", "difficulty": 3,
+    "q": "Kto wykonuje Full Moon, piosenkę towarzyszącą początkowym scenom podróży Belli w pierwszym filmie?",
+    "answer": "The Black Ghosts",
+    "wrong": ["Blue Foundation", "Collective Soul", "Mutemath"],
+    "note": "Full Moon pochodzi ze ścieżki dźwiękowej Zmierzchu. Mimo tytułu nie jest to piosenka przypisana wyłącznie do Księżyca w nowiu."
+  },
+  {
+    "id": "ku-049", "part": "saga", "source": "film", "category": "obsada", "difficulty": 2,
+    "q": "Która aktorka gra Leah Clearwater?",
+    "answer": "Julia Jones",
+    "wrong": ["Tinsel Korey", "Alex Rice", "Mia Maestro"],
+    "note": "Julia Jones wciela się w Leah od Zaćmienia. Tinsel Korey gra Emily, Alex Rice — Sue, a Mia Maestro — Carmen."
+  },
+  {
+    "id": "ku-050", "part": "przed-switem", "source": "film", "category": "obsada", "difficulty": 3,
+    "q": "Kto gra J. Jenksa w Przed świtem — części 2?",
+    "answer": "Wendell Pierce",
+    "wrong": ["Clarke Peters", "Jeffrey Wright", "Giancarlo Esposito"],
+    "note": "Wendell Pierce występuje jako człowiek, który dostarcza Belli fałszywe dokumenty dla Jacoba i Renesmee."
+  },
+  {
+    "id": "ku-051", "part": "przed-switem", "source": "film", "category": "obsada", "difficulty": 2,
+    "q": "Który aktor wciela się w Garretta w Przed świtem — części 2?",
+    "answer": "Lee Pace",
+    "wrong": ["Joe Anderson", "Christian Camargo", "Noel Fisher"],
+    "note": "Lee Pace gra Garretta. Joe Anderson to Alistair, Christian Camargo — Eleazar, a Noel Fisher — Vladimir."
+  },
+  {
+    "id": "ku-052", "part": "przed-switem", "source": "film", "category": "obsada", "difficulty": 3,
+    "q": "Kto gra Nahuela, świadka przyprowadzonego przez Alice w finale Przed świtem — części 2?",
+    "answer": "J. D. Pardo",
+    "wrong": ["Rami Malek", "Omar Metwally", "Alex Meraz"],
+    "note": "J. D. Pardo występuje jako Nahuel. Rami Malek gra Benjamina, Omar Metwally — Amuna, a Alex Meraz — Paula."
+  },
+  {
+    "id": "ku-053", "part": "zmierzch", "source": "film", "category": "kulisy", "difficulty": 3,
+    "q": "Którego aktora Stephenie Meyer wskazywała jako wymarzonego Edwarda, zanim rolę otrzymał Robert Pattinson?",
+    "answer": "Henry’ego Cavilla",
+    "wrong": ["Bena Barnesa", "Toma Sturridge’a", "Gasparda Ulliela"],
+    "note": "Chodzi o preferencję autorki, nie o potwierdzoną ofertę roli. Cavill był jej wyobrażeniem idealnego Edwarda przed powstaniem filmu."
+  },
+  {
+    "id": "ku-054", "part": "zmierzch", "source": "ksiazka", "category": "kulisy", "difficulty": 3,
+    "q": "Jak brzmiał roboczy tytuł Zmierzchu, gdy Stephenie Meyer zaczęła szukać agenta literackiego?",
+    "answer": "Forks",
+    "wrong": ["Edward", "Forever Dawn", "Midnight Sun"],
+    "note": "Meyer podaje ten tytuł w swoim FAQ. Zmiana nastąpiła po rozpoczęciu współpracy z agentką."
+  }
+]

@@ -2,44 +2,44 @@
   {
     "id": "zm-021", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 3,
     "q": "Co Bella i Edward oglądają pod mikroskopem, gdy Edward wraca do szkoły i pierwszy raz z nią rozmawia?",
-    "answer": "Preparaty korzenia cebuli — fazy mitozy",
-    "wrong": ["Krople krwi — grupy krwi", "Komórki liścia — fotosynteza", "Pierwotniaki z wody ze stawu"],
-    "note": "Edward przepuszcza Bellę („Ladies first”). Ona rozpoznaje profazę, on po rzucie oka — anafazę."
+    "answer": "Komórki korzenia cebuli w różnych fazach mitozy",
+    "wrong": ["Krople krwi do oznaczenia grup krwi", "Komórki liścia podczas fotosyntezy", "Pierwotniaki z wody ze stawu"],
+    "note": "Edward pozwala Belli zacząć. Ona rozpoznaje profazę, a on — anafazę."
   },
   {
     "id": "zm-022", "part": "zmierzch", "source": "ksiazka", "category": "fabula", "difficulty": 2,
-    "q": "Dlaczego w książce Bella mdleje na lekcji biologii?",
-    "answer": "Bo klasa oznacza grupy krwi — nie znosi zapachu krwi",
+    "q": "Dlaczego w książce Bella słabnie na lekcji biologii?",
+    "answer": "Nie znosi zapachu krwi, a klasa właśnie oznacza grupy krwi",
     "wrong": ["Bo nic nie jadła od rana", "Bo Edward na nią spojrzał", "Bo uderzyła się w głowę na WF-ie"],
-    "note": "Mike odprowadza ją do pielęgniarki, a Edward przejmuje ją po drodze."
+    "note": "Mike prowadzi ją do pielęgniarki, lecz po drodze spotykają Edwarda, który przejmuje opiekę nad Bellą. Tej lekcji nie ma w filmie."
   },
   {
     "id": "zm-023", "part": "zmierzch", "source": "ksiazka", "category": "miejsca", "difficulty": 3,
-    "q": "Gdzie Edward znika na kilka dni po pierwszej lekcji biologii z Bellą?",
+    "q": "Dokąd Edward wyjeżdża na kilka dni po pierwszej lekcji biologii z Bellą?",
     "answer": "Na Alaskę, do znajomych (klanu z Denali)",
     "wrong": ["Do Volterry", "Do Seattle", "Do Chicago"],
-    "note": "W Zmierzchu pada tylko „Alaska” i „starzy znajomi” — że to Denali, wychodzi w kolejnych tomach. Ucieka od pokusy jej krwi, ale wraca."
+    "note": "W „Zmierzchu” Edward wspomina Alaskę i dawnych znajomych. Dopiero dalsze części wyjaśniają, że chodzi o klan z Denali. Wyjeżdża, by oprzeć się pragnieniu krwi Belli."
   },
   {
     "id": "zm-024", "part": "zmierzch", "source": "oba", "category": "cytaty", "difficulty": 1,
-    "q": "Bella pyta: „How long have you been seventeen?” (Od jak dawna masz siedemnaście lat?). Co odpowiada Edward?",
-    "answer": "„A while” (Od jakiegoś czasu)",
-    "wrong": ["„Forever” (Od zawsze)", "„Since 1918” (Od 1918)", "„Too long” (Zbyt długo)"],
-    "note": "Prawda: od 1918 roku."
+    "q": "Bella pyta Edwarda, od jak dawna ma siedemnaście lat. Co odpowiada?",
+    "answer": "„Od jakiegoś czasu”",
+    "wrong": ["„Od zawsze”", "„Od 1918 roku”", "„Zbyt długo”"],
+    "note": "W oryginale: „How long have you been seventeen?” — „A while”. Polskie odpowiedzi są przekładem pomocniczym, nie cytatem z konkretnego wydania. Edward został przemieniony w 1918 roku."
   },
   {
     "id": "zm-025", "part": "zmierzch", "source": "oba", "category": "cytaty", "difficulty": 1,
-    "q": "Edward mówi Belli, że jest dla niego jak jego własna marka… czego?",
-    "answer": "Heroiny",
-    "wrong": ["Wina", "Czekolady", "Krwi grupy zero"],
-    "note": "Film: „You're like my own personal brand of heroin”. W książce mówi to Bella, a Edward potwierdza: „you are exactly my brand of heroin”."
+    "q": "Do czego Edward porównuje pokusę, jaką stanowi dla niego krew Belli?",
+    "answer": "Do heroiny",
+    "wrong": ["Do wina", "Do czekolady", "Do krwi grupy zero"],
+    "note": "Porównanie podkreśla siłę pragnienia krwi. W filmie Edward mówi o swoim własnym rodzaju heroiny; w książce Bella podsuwa to porównanie, a on je potwierdza."
   },
   {
     "id": "zm-026", "part": "zmierzch", "source": "ksiazka", "category": "postacie", "difficulty": 2,
     "q": "Którzy Cullenowie udają w szkole bliźnięta o nazwisku Hale?",
     "answer": "Rosalie i Jasper",
     "wrong": ["Alice i Jasper", "Rosalie i Emmett", "Alice i Edward"],
-    "note": "Pozostali noszą nazwisko Cullen i uchodzą za adoptowanych; Hale'owie — za dzieci zastępcze (siostrzeńców Esme). W filmie nazwisko Hale nie pada."
+    "note": "Rosalie i Jasper uchodzą za bliźnięta przyjęte pod opiekę Cullenów. Pozostała trójka używa nazwiska Cullen i jest przedstawiana jako adoptowane dzieci."
   },
   {
     "id": "zm-027", "part": "zmierzch", "source": "oba", "category": "miejsca", "difficulty": 2,
@@ -59,36 +59,36 @@
     "id": "zm-029", "part": "zmierzch", "source": "oba", "category": "muzyka", "difficulty": 2,
     "q": "Jaki utwór Debussy'ego Bella rozpoznaje, słuchając muzyki z Edwardem?",
     "answer": "„Clair de lune”",
-    "wrong": ["„Arabeska nr 1”", "„Popołudnie fauna”", "„Światło księżyca” Beethovena"],
-    "note": "W książce leci w jego volvo, a Bella mówi, że mama słucha w domu dużo klasyki. W filmie Edward puszcza go w swoim pokoju."
+    "wrong": ["„Arabeska nr 1”", "„Popołudnie fauna”", "„Sonata księżycowa” Beethovena"],
+    "note": "W książce utwór słychać w Volvo Edwarda, a Bella wspomina, że jej mama często słucha muzyki klasycznej. W filmie Edward odtwarza go w swoim pokoju."
   },
   {
     "id": "zm-030", "part": "zmierzch", "source": "oba", "category": "fabula", "difficulty": 2,
     "q": "Czego brakuje w pokoju Edwarda?",
     "answer": "Łóżka",
     "wrong": ["Lustra", "Okna", "Książek"],
-    "note": "„No bed?” — „No, I don't sleep.” Jest za to czarna skórzana kanapa, ściana-okno i cała ściana płyt."
+    "note": "Edward wyjaśnia Belli, że nie śpi. W jego pokoju znajdują się za to kanapa i kolekcja nagrań."
   },
   {
     "id": "zm-031", "part": "zmierzch", "source": "ksiazka", "category": "fabula", "difficulty": 2,
-    "q": "Jaką wymówką Bella odmawia chłopakom, którzy zapraszają ją na bal?",
+    "q": "Jak Bella uzasadnia, że nie wybiera się na szkolny bal w książce „Zmierzch”?",
     "answer": "Że jedzie tego dnia do Seattle",
     "wrong": ["Że jedzie do mamy do Phoenix", "Że ma szlaban od Charliego", "Że idzie już z Edwardem"],
-    "note": "Bal jest na zasadzie „girls' choice”: Mike i Tyler pytają, czy ich zaprosi, Eric zaprasza ją wprost. W filmie wymówką jest wyjazd do Jacksonville. Potem Edward proponuje, że zawiezie ją do Seattle."
+    "note": "Chodzi o bal, na który to dziewczęta zapraszają partnerów. Edward później proponuje Belli wspólny wyjazd do Seattle. W filmie wymówką jest wyjazd do Jacksonville."
   },
   {
     "id": "zm-032", "part": "zmierzch", "source": "oba", "category": "postacie", "difficulty": 1,
-    "q": "Która z Cullenów od razu traktuje Bellę jak przyszłą przyjaciółkę, bo widziała to w wizji?",
+    "q": "Która z Cullenów od razu traktuje Bellę jak przyszłą przyjaciółkę dzięki swoim wizjom?",
     "answer": "Alice",
     "wrong": ["Rosalie", "Esme", "Jessica"],
-    "note": "Alice od początku wie, że Bella dołączy do rodziny."
+    "note": "Wizje Alice pozwalają jej przewidzieć przyjaźń z Bellą. Przyszłość w jej wizjach zależy jednak od podejmowanych decyzji."
   },
   {
-    "id": "kn-019", "part": "ksiezyc", "source": "oba", "category": "miejsca", "difficulty": 2,
-    "q": "Gdzie Bella pracuje po szkole?",
+    "id": "kn-019", "part": "ksiezyc", "source": "ksiazka", "category": "miejsca", "difficulty": 2,
+    "q": "Gdzie Bella dorabia w książce „Księżyc w nowiu”?",
     "answer": "W sklepie sportowym rodziców Mike'a Newtona",
     "wrong": ["W barze, w którym je Charlie", "W bibliotece szkolnej", "W szpitalu u Carlisle'a"],
-    "note": "Newton's Olympic Outfitters — sklep z wyposażeniem turystycznym."
+    "note": "Newton’s Olympic Outfitters to sklep z wyposażeniem sportowym i turystycznym. Wątek pracy Belli nie pojawia się w kinowej wersji filmu."
   },
   {
     "id": "kn-020", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
@@ -99,17 +99,17 @@
   },
   {
     "id": "kn-021", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
-    "q": "Przed którym wilkiem Jacob broni Bellę, przemieniając się pierwszy raz na jej oczach?",
+    "q": "Przed którym wilkiem Jacob broni Belli, po raz pierwszy przemieniając się na jej oczach?",
     "answer": "Przed Paulem",
     "wrong": ["Przed Samem", "Przed Embrym", "Przed Leah"],
     "note": "W filmie Bella wymierza Paulowi policzek; w książce Paul wybucha, gdy Jacob zasłania Bellę."
   },
   {
     "id": "kn-022", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
-    "q": "Skąd blizny na twarzy Emily Young?",
-    "answer": "Sam stracił panowanie i przemienił się za blisko niej",
+    "q": "Skąd wzięły się blizny na twarzy Emily Young?",
+    "answer": "Sam stracił panowanie nad sobą i przemienił się zbyt blisko niej",
     "wrong": ["Zaatakowała ją Victoria", "Miała wypadek samochodowy", "Zranił ją Paul"],
-    "note": "To przestroga dla Jacoba i Belli, jak niebezpieczny jest wilk tuż po przemianie."
+    "note": "Ta historia pokazuje, jak niebezpieczna dla osoby stojącej obok może być niekontrolowana przemiana."
   },
   {
     "id": "kn-023", "part": "ksiezyc", "source": "film", "category": "kulisy", "difficulty": 3,
@@ -123,13 +123,13 @@
     "q": "Co Edward obiecuje Belli, zostawiając ją w lesie?",
     "answer": "Że będzie tak, jakby nigdy nie istniał",
     "wrong": ["Że wróci po jej osiemnastce", "Że Alice będzie do niej pisać", "Że będzie pilnował jej z daleka"],
-    "note": "„It will be as if I'd never existed.” Cullenowie wyjeżdżają z Forks."
+    "note": "Edward obiecuje usunąć się z życia Belli, jak gdyby nigdy go w nim nie było. Cullenowie wyjeżdżają z Forks."
   },
   {
     "id": "kn-025", "part": "ksiezyc", "source": "ksiazka", "category": "fabula", "difficulty": 2,
     "q": "Gdzie Edward ukrywa zdjęcia, płytę i bilety Belli, zanim odchodzi?",
     "answer": "Pod deską podłogi w jej pokoju",
-    "wrong": ["W swoim pokoju u Cullenów", "W furgonetce Belli", "W szafce w szkole"],
+    "wrong": ["W swoim pokoju u Cullenów", "W pickupie Belli", "W szkolnej szafce"],
     "note": "Obiecał jej spokój bez pamiątek, ale chciał zostawić jej coś po sobie."
   },
   {
@@ -141,45 +141,45 @@
   },
   {
     "id": "kn-027", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
-    "q": "Która wampirzyca z Volturi zwabia turystów do zamku?",
+    "q": "Która wampirzyca zwabia turystów do siedziby Volturi?",
     "answer": "Heidi",
     "wrong": ["Jane", "Chelsea", "Gianna"],
     "note": "Gianna to ludzka recepcjonistka Volturi, która marzy o przemianie."
   },
   {
     "id": "kn-028", "part": "ksiezyc", "source": "oba", "category": "fabula", "difficulty": 1,
-    "q": "Pod jakim warunkiem Volturi pozwalają Belli wyjechać z Volterry żywej?",
-    "answer": "Że zostanie przemieniona w wampira",
-    "wrong": ["Że zapomni o wampirach", "Że Edward dołączy do straży", "Że wyjedzie z Forks"],
+    "q": "Pod jakim warunkiem Volturi pozwalają Belli opuścić Volterrę żywej?",
+    "answer": "Bella ma zostać przemieniona w wampira",
+    "wrong": ["Bella ma zapomnieć o wampirach", "Edward ma dołączyć do straży Volturi", "Bella ma wyjechać z Forks"],
     "note": "Człowiek, który zna sekret, musi zginąć albo stać się jednym z nich."
   },
   {
     "id": "kn-029", "part": "ksiezyc", "source": "oba", "category": "postacie", "difficulty": 2,
-    "q": "Którą z Cullenów, oprócz Edwarda, Aro najchętniej przyjąłby do straży?",
+    "q": "Którą członkinię rodziny Cullenów Aro szczególnie chciałby przyjąć do straży?",
     "answer": "Alice",
-    "wrong": ["Rosalie", "Esme", "Żadnej — interesował go tylko Edward"],
+    "wrong": ["Rosalie", "Esme", "Żadną — interesuje go tylko Edward"],
     "note": "Dar przewidywania przyszłości byłby dla Volturi bezcenny."
   },
   {
     "id": "za-018", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 1,
     "q": "Czego Alice nie widzi w swoich wizjach?",
-    "answer": "Wilków z La Push (i wszystkiego, co z nimi związane)",
+    "answer": "Wilków z La Push ani przyszłości osób znajdujących się w ich towarzystwie",
     "wrong": ["Volturi", "Ludzi", "Nowonarodzonych wampirów"],
-    "note": "Dlatego wizje Belli „znikają”, gdy jest z Jacobem."
+    "note": "Dlatego Alice traci z oczu przyszłość Belli, gdy ta przebywa z Jacobem. Finałowa wizja w filmie „Przed świtem cz. 2” odstępuje od tej zasady."
   },
   {
     "id": "za-019", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
     "q": "Jak Edward próbuje powstrzymać Bellę przed wizytami u Jacoba?",
-    "answer": "Wymontowuje część z silnika jej furgonetki",
+    "answer": "Wymontowuje część z silnika jej pickupa",
     "wrong": ["Zabiera jej kluczyki", "Prosi Charliego o szlaban", "Pilnuje jej w szkole"],
     "note": "W książce Alice potem „porywa” Bellę na noc u Cullenów, żeby nie pojechała do La Push."
   },
   {
     "id": "za-020", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 1,
-    "q": "Co w Zaćmieniu zapowiada armię nowonarodzonych?",
+    "q": "Jakie niepokojące wydarzenia zapowiadają pojawienie się armii nowonarodzonych?",
     "answer": "Seria zaginięć i morderstw w Seattle",
     "wrong": ["Wizja Alice o Volturi", "List od Victorii", "Ataki na zwierzęta w Forks"],
-    "note": "W książce Charlie czyta o tym w gazecie, w filmie to relacja w telewizji. Cullenowie najpierw myślą, że to jeden niekontrolowany nowonarodzony; dopiero później rozumieją, że ktoś tworzy armię."
+    "note": "W książce Charlie czyta o zbrodniach w gazecie, a w filmie ogląda relację w telewizji. Początkowo Cullenowie podejrzewają pojedynczego nowonarodzonego, który nie panuje nad pragnieniem krwi."
   },
   {
     "id": "za-021", "part": "zacmienie", "source": "oba", "category": "postacie", "difficulty": 2,
@@ -204,24 +204,24 @@
   },
   {
     "id": "za-024", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
-    "q": "Jak ukrywają trop Belli przed bitwą z nowonarodzonymi?",
-    "answer": "Jacob niesie ją do kryjówki, a jego zapach maskuje jej",
+    "q": "Jak przed bitwą z nowonarodzonymi zostaje zamaskowany zapach Belli?",
+    "answer": "Jacob niesie Bellę do kryjówki, a jego zapach przykrywa jej woń",
     "wrong": ["Alice spryskuje ją perfumami", "Bella przebiera się w ubrania Edwarda", "Edward niesie ją przez rzekę"],
     "note": "Edward musi się na to zgodzić — choć nie znosi tego pomysłu."
   },
   {
     "id": "za-025", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
-    "q": "Czym Jacob szantażuje Bellę, żeby go pocałowała w górach?",
-    "answer": "Że pójdzie walczyć i da się zabić",
-    "wrong": ["Że powie wszystko Charliemu", "Że wyjedzie na zawsze", "Że zdradzi kryjówkę Victorii"],
+    "q": "Czym Jacob szantażuje Bellę w górach, aby skłonić ją do pocałunku?",
+    "answer": "Groźbą, że pójdzie walczyć i pozwoli się zabić",
+    "wrong": ["Groźbą, że powie wszystko Charliemu", "Groźbą, że wyjedzie na zawsze", "Groźbą, że zdradzi Victorii położenie kryjówki"],
     "note": "Edward i tak się o tym dowiaduje — z myśli Jacoba."
   },
   {
     "id": "za-026", "part": "zacmienie", "source": "oba", "category": "fabula", "difficulty": 2,
     "q": "Jaki prezent na zakończenie szkoły daje Belli Jacob?",
-    "answer": "Wyrzeźbioną przez siebie zawieszkę-wilka do bransoletki",
+    "answer": "Własnoręcznie wyrzeźbioną zawieszkę w kształcie wilka do bransoletki",
     "wrong": ["Łapacz snów", "Naszyjnik z muszli z La Push", "Odnowiony motor"],
-    "note": "W książce Edward dodaje do bransoletki kryształowe serce (diament)."
+    "note": "W książce Edward dodaje do bransoletki serce z diamentu, początkowo przedstawione jako zwykły kryształ."
   },
   {
     "id": "za-027", "part": "zacmienie", "source": "oba", "category": "miejsca", "difficulty": 3,
@@ -232,10 +232,10 @@
   },
   {
     "id": "ps-023", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
-    "q": "Co robi Jacob, gdy dowiaduje się o ślubie Belli i Edwarda?",
+    "q": "Jak Jacob reaguje na zaproszenie na ślub Belli i Edwarda?",
     "answer": "Ucieka w wilczej postaci daleko na północ",
-    "wrong": ["Idzie do Edwarda walczyć", "Wpaja się w kogoś innego", "Wyprowadza się do Seattle"],
-    "note": "Wraca dopiero na wesele."
+    "wrong": ["Idzie walczyć z Edwardem", "Prosi Charliego, by powstrzymał ślub", "Wyprowadza się do Seattle"],
+    "note": "W książkach ucieka w epilogu „Zaćmienia”, a w filmach — na początku „Przed świtem cz. 1”. Wraca na wesele."
   },
   {
     "id": "ps-024", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
@@ -249,7 +249,7 @@
     "q": "Kim jest Kaure?",
     "answer": "Gospodynią na Wyspie Esme, która rozpoznaje, czym jest Edward",
     "wrong": ["Wampirzycą z klanu amazońskiego", "Ciotką Nahuela", "Recepcjonistką Volturi"],
-    "note": "Jest w części z ludu Ticuna. Ich legendy mówią o Libishomenie — demonie pijącym krew, który poluje na piękne kobiety; Ticuna mają też legendy o dzieciach takich jak Renesmee."
+    "note": "Kaure ma przodków z ludu Ticuna. W świecie powieści zna opowieści o istotach pijących krew i obawia się o los ciężarnej Belli."
   },
   {
     "id": "ps-026", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 1,
@@ -269,8 +269,8 @@
     "id": "ps-028", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
     "q": "Jak Edward ratuje Bellę po porodzie?",
     "answer": "Wstrzykuje jej jad prosto w serce",
-    "wrong": ["Ugryzienie w szyję wystarcza", "Carlisle robi transfuzję", "Alice prowadzi przemianę"],
-    "note": "Gryzie ją też w wielu miejscach, żeby jad szybciej się rozszedł."
+    "wrong": ["Ogranicza się do jednego ugryzienia w szyję", "Zleca Carlisle’owi transfuzję krwi", "Prosi Alice, by przeprowadziła przemianę"],
+    "note": "Edward dodatkowo gryzie Bellę w kilku miejscach, aby jad szybciej rozszedł się po jej ciele."
   },
   {
     "id": "ps-029", "part": "przed-switem", "source": "oba", "category": "fabula", "difficulty": 2,
@@ -281,17 +281,17 @@
   },
   {
     "id": "ps-030", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 1,
-    "q": "Kogo Bella pokonuje na rękę jako świeżo przemieniony wampir?",
+    "q": "Kogo Bella pokonuje w siłowaniu się na rękę tuż po przemianie w wampirzycę?",
     "answer": "Emmetta",
     "wrong": ["Jaspera", "Edwarda", "Jacoba"],
     "note": "Nowonarodzeni są silniejsi od starszych wampirów. W filmie Bella przy okazji kruszy skałę."
   },
   {
     "id": "ps-031", "part": "przed-switem", "source": "ksiazka", "category": "fabula", "difficulty": 3,
-    "q": "Jaki samochód „na potem” Edward kupuje Belli?",
+    "q": "Jaki samochód Edward kupuje Belli do jazdy po przemianie w wampirzycę?",
     "answer": "Ferrari",
-    "wrong": ["Porsche 911", "Srebrne Volvo", "Aston Martin"],
-    "note": "Auto „na przedtem” (dopóki jest człowiekiem) to opancerzony Mercedes Guardian."
+    "wrong": ["Porsche 911", "Volvo", "Aston Martin"],
+    "note": "Na czas przed przemianą kupuje jej natomiast opancerzonego Mercedesa Guardian."
   },
   {
     "id": "ps-032", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
@@ -305,27 +305,27 @@
     "q": "Jaki dar ma Maggie z klanu irlandzkiego?",
     "answer": "Wyczuwa kłamstwo",
     "wrong": ["Razi prądem", "Tworzy iluzje", "Wyczuwa dary innych wampirów"],
-    "note": "Wyczuwanie darów to Eleazar, prąd — Kate, iluzje — Zafrina."
+    "note": "Eleazar rozpoznaje dary innych wampirów, Kate wywołuje przez dotyk ból przypominający porażenie prądem, a Zafrina tworzy iluzje wzrokowe."
   },
   {
     "id": "ps-034", "part": "przed-switem", "source": "oba", "category": "postacie", "difficulty": 2,
-    "q": "Kogo Volturi zabijają podczas konfrontacji na polanie?",
+    "q": "Kogo Volturi zabijają na polanie po wyjaśnieniu pomyłki dotyczącej Renesmee?",
     "answer": "Irinę",
     "wrong": ["Garretta", "Kate", "Nahuela"],
-    "note": "Za fałszywe oskarżenie. Zabija ją Kajusz."
+    "note": "Kajusz doprowadza do jej egzekucji pod pretekstem fałszywego donosu. W książce rozszarpują ją strażnicy, a Kajusz podpala szczątki."
   },
   {
     "id": "ps-035", "part": "przed-switem", "source": "oba", "category": "liczby", "difficulty": 2,
     "q": "W jakim wieku Renesmee przestanie rosnąć?",
-    "answer": "Około 7 lat",
-    "wrong": ["Około 3 lat", "Około 17 lat", "Około 21 lat"],
+    "answer": "W wieku około 7 lat",
+    "wrong": ["W wieku około 3 lat", "W wieku około 17 lat", "W wieku około 21 lat"],
     "note": "Tak wynika z historii Nahuela — wtedy osiągnie pełną dojrzałość."
   },
   {
     "id": "ps-036", "part": "przed-switem", "source": "film", "category": "fabula", "difficulty": 1,
-    "q": "Jakim kadrem kończy się film Przed świtem cz. 1?",
-    "answer": "Bella otwiera czerwone oczy wampira",
-    "wrong": ["Jacob trzyma Renesmee", "Jacob wpaja się w Renesmee", "Edward całuje Bellę na łące"],
+    "q": "Jaką sceną kończy się główna część filmu „Przed świtem cz. 1”, przed napisami?",
+    "answer": "Bella otwiera czerwone oczy wampirzycy",
+    "wrong": ["Jacob trzyma Renesmee", "Jacob po raz pierwszy widzi Renesmee", "Edward całuje Bellę na łące"],
     "note": "Scena z Volturi czytającymi list Carlisle'a jest w trakcie napisów."
   },
   {
@@ -337,14 +337,14 @@
   },
   {
     "id": "ku-027", "part": "zmierzch", "source": "film", "category": "obsada", "difficulty": 1,
-    "q": "W jakiej serii grał Robert Pattinson przed Zmierzchem?",
-    "answer": "Harry Potter — jako Cedrik Diggory",
-    "wrong": ["Opowieści z Narnii — jako książę Kaspian", "Piraci z Karaibów — jako Will Turner", "Władca Pierścieni — jako hobbit"],
+    "q": "W jakiej serii filmowej grał Robert Pattinson przed „Zmierzchem”?",
+    "answer": "W serii „Harry Potter” — jako Cedrik Diggory",
+    "wrong": ["W „Opowieściach z Narnii” — jako książę Kaspian", "W „Piratach z Karaibów” — jako Will Turner", "We „Władcy Pierścieni” — jako hobbit"],
     "note": "„Harry Potter i Czara Ognia” (2005)."
   },
   {
     "id": "ku-028", "part": "zmierzch", "source": "film", "category": "obsada", "difficulty": 3,
-    "q": "W którym thrillerze Davida Finchera grała jako dziecko Kristen Stewart?",
+    "q": "W którym thrillerze Davida Finchera Kristen Stewart zagrała jako dziecko?",
     "answer": "„Azyl” (Panic Room)",
     "wrong": ["„Siedem”", "„Gra”", "„Zodiak”"],
     "note": "Grała córkę bohaterki Jodie Foster."
@@ -352,8 +352,8 @@
   {
     "id": "ku-029", "part": "zmierzch", "source": "film", "category": "obsada", "difficulty": 2,
     "q": "Z jakiej roli dziecięcej był znany Taylor Lautner?",
-    "answer": "Rekin (Sharkboy) w filmie „Rekin i Lava: Przygoda w 3D”",
-    "wrong": ["Mały Hulk w „Hulku”", "Dash w „Iniemamocnych”", "Tytułowy bohater „Małego Nicolasa”"],
+    "answer": "Z roli Rekina w filmie „Rekin i Lava: Przygoda w 3D”",
+    "wrong": ["Z roli małego Hulka w „Hulku”", "Z roli Juni Corteza w „Małych agentach”", "Z roli tytułowego bohatera „Mikołajka”"],
     "note": "Film Roberta Rodrigueza z 2005 roku. Lautner trenował też sztuki walki."
   },
   {
@@ -372,10 +372,10 @@
   },
   {
     "id": "ku-032", "part": "zmierzch", "source": "film", "category": "kulisy", "difficulty": 3,
-    "q": "Która aktorka z obsady współnapisała z Catherine Hardwicke scenariusz filmu „Trzynastka” (Thirteen)?",
+    "q": "Która aktorka z obsady sagi wspólnie z Catherine Hardwicke napisała scenariusz „Trzynastki” (Thirteen)?",
     "answer": "Nikki Reed",
     "wrong": ["Kristen Stewart", "Ashley Greene", "Rachelle Lefevre"],
-    "note": "Napisała go jako nastolatka i zagrała w nim (Evie). Hardwicke znała ją wcześniej — do Zmierzchu Reed nie przechodziła castingu."
+    "note": "Nikki Reed była wtedy nastolatką. Zagrała też w „Trzynastce” Evie, więc pracowała z Hardwicke jeszcze przed „Zmierzchem”."
   },
   {
     "id": "ku-033", "part": "zmierzch", "source": "film", "category": "obsada", "difficulty": 3,
@@ -410,69 +410,69 @@
     "q": "Które studio wyprodukowało filmową sagę Zmierzch?",
     "answer": "Summit Entertainment",
     "wrong": ["Warner Bros.", "Universal", "Paramount"],
-    "note": "W styczniu 2012 Summit został kupiony przez Lionsgate."
+    "note": "W styczniu 2012 roku wytwórnię Summit Entertainment kupiła firma Lionsgate."
   },
   {
     "id": "ku-038", "part": "saga", "source": "ksiazka", "category": "liczby", "difficulty": 1,
-    "q": "W którym roku ukazała się pierwsza książka, Zmierzch?",
+    "q": "W którym roku ukazało się pierwsze amerykańskie wydanie powieści „Zmierzch”?",
     "answer": "2005",
     "wrong": ["2003", "2007", "2008"],
-    "note": "Film wszedł do kin w listopadzie 2008. Ostatni film — w 2012."
+    "note": "Oryginał ukazał się w 2005 roku, a polski przekład Joanny Urban — w 2007. Pierwszy film miał premierę w 2008 roku."
   },
   {
     "id": "ku-039", "part": "przed-switem", "source": "film", "category": "muzyka", "difficulty": 2,
-    "q": "Która piosenka Bruno Marsa pochodzi z soundtracku Przed świtem cz. 1?",
+    "q": "Która piosenka Bruno Marsa znalazła się na albumie z muzyką do „Przed świtem cz. 1”?",
     "answer": "„It Will Rain”",
     "wrong": ["„Grenade”", "„Talking to the Moon”", "„Just the Way You Are”"],
-    "note": "Na tym samym soundtracku jest „A Thousand Years” Christiny Perri."
+    "note": "Na tym samym albumie jest „A Thousand Years” Christiny Perri."
   },
   {
     "id": "ku-040", "part": "ksiezyc", "source": "film", "category": "muzyka", "difficulty": 2,
-    "q": "Która piosenka Death Cab for Cutie była pierwszym singlem z Księżyca w nowiu?",
+    "q": "Która piosenka Death Cab for Cutie była pierwszym singlem promującym album z muzyką do „Księżyca w nowiu”?",
     "answer": "„Meet Me on the Equinox”",
     "wrong": ["„I Will Follow You into the Dark”", "„Soul Meets Body”", "„Transatlanticism”"],
-    "note": "Na tym soundtracku są też Muse („I Belong to You”) i Lykke Li („Possibility”)."
+    "note": "Na albumie są też utwory Muse („I Belong to You”) i Lykke Li („Possibility”)."
   },
   {
     "id": "ku-041", "part": "zacmienie", "source": "film", "category": "muzyka", "difficulty": 3,
-    "q": "Która piosenka Muse powstała do Zaćmienia?",
+    "q": "Która piosenka Muse znalazła się na albumie z muzyką do „Zaćmienia”?",
     "answer": "„Neutron Star Collision (Love Is Forever)”",
     "wrong": ["„Supermassive Black Hole”", "„I Belong to You”", "„Starlight”"],
-    "note": "„Supermassive Black Hole” to pierwszy film, „I Belong to You” — Księżyc w nowiu."
+    "note": "„Supermassive Black Hole” znalazło się na albumie do pierwszego filmu, a „I Belong to You” — do „Księżyca w nowiu”."
   },
   {
     "id": "ku-042", "part": "ksiezyc", "source": "film", "category": "muzyka", "difficulty": 3,
-    "q": "Piosenka Lykke Li „Possibility” towarzyszy w filmie której scenie?",
+    "q": "Którym scenom w filmie „Księżyc w nowiu” towarzyszy piosenka Lykke Li „Possibility”?",
     "answer": "Miesiącom samotności Belli po odejściu Edwarda",
     "wrong": ["Meczowi baseballa", "Ślubowi Belli", "Bitwie z nowonarodzonymi"],
     "note": "Kamera krąży wokół Belli przy oknie, a za nim mijają pory roku."
   },
   {
     "id": "ku-043", "part": "saga", "source": "film", "category": "liczby", "difficulty": 3,
-    "q": "Która część sagi zarobiła w kinach najwięcej?",
+    "q": "Która część filmowej sagi uzyskała najwyższe światowe wpływy z kin?",
     "answer": "Przed świtem cz. 2",
     "wrong": ["Zmierzch", "Księżyc w nowiu", "Zaćmienie"],
-    "note": "Ok. 830 mln dolarów na świecie w premierowej dystrybucji (2012); z późniejszymi powrotami do kin — ok. 889 mln."
+    "note": "„Przed świtem cz. 2” zarobiło około 830 mln dolarów na świecie w pierwotnej dystrybucji kinowej. Chodzi o wpływy ze sprzedaży biletów, nie o zysk po odliczeniu kosztów."
   },
   {
     "id": "ku-044", "part": "saga", "source": "ksiazka", "category": "kulisy", "difficulty": 2,
-    "q": "Jaką powieść dla dorosłych Stephenie Meyer wydała w 2008 roku?",
+    "q": "Jaką powieść dla dorosłych Stephenie Meyer wydała po raz pierwszy w USA w 2008 roku?",
     "answer": "„Intruz” (The Host)",
     "wrong": ["„Chemik”", "„Słońce w mroku”", "„Życie i śmierć”"],
-    "note": "Zekranizowany w 2013 z Saoirse Ronan. „Chemik” to jej thriller z 2016."
+    "note": "Ekranizacja z Saoirse Ronan powstała w 2013 roku. „Chemik” to późniejszy thriller Meyer, wydany w 2016 roku."
   },
   {
     "id": "sa-017", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 1,
     "q": "Dlaczego wampiry w sadze unikają słońca?",
     "answer": "Ich skóra lśni w nim jak diamenty",
     "wrong": ["Słońce je spala", "Tracą w nim siły", "Słońce oślepia je na kilka godzin"],
-    "note": "Nie robi im krzywdy — po prostu od razu zdradza, że nie są ludźmi."
+    "note": "Słońce nie szkodzi wampirom — blask skóry zdradza jednak, że nie są ludźmi."
   },
   {
     "id": "sa-018", "part": "saga", "source": "ksiazka", "category": "liczby", "difficulty": 1,
     "q": "Ile mniej więcej trwa przemiana w wampira?",
     "answer": "Około trzech dni",
-    "wrong": ["Jedną noc", "Tydzień", "Miesiąc"],
+    "wrong": ["Około jednej nocy", "Około tygodnia", "Około miesiąca"],
     "note": "Towarzyszy jej palący ból. Przemiana Belli trwa krócej, ok. 2 dni (jad wstrzyknięty prosto w serce); przechodzi ją w milczeniu."
   },
   {
@@ -498,14 +498,14 @@
   },
   {
     "id": "sa-022", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 1,
-    "q": "Co wywołuje przemiany chłopaków z La Push w wilki?",
+    "q": "Co w świecie sagi uruchamia u potomków Quileutów zdolność przemiany w wilki?",
     "answer": "Obecność wampirów w okolicy",
     "wrong": ["Pełnia księżyca", "Ukończenie 16 lat", "Ugryzienie innego wilka"],
-    "note": "Powrót Cullenów i przybycie nomadów obudziły gen w kolejnym pokoleniu."
+    "note": "Obecność wampirów pobudza odziedziczoną zdolność przemiany. Nie jest ona zastrzeżona dla chłopców — przemienia się również Leah."
   },
   {
     "id": "sa-023", "part": "saga", "source": "ksiazka", "category": "liczby", "difficulty": 3,
-    "q": "Jaką temperaturę ciała mają wilki z La Push?",
+    "q": "Jaką temperaturę ciała ma Jacob po ujawnieniu się jego zdolności przemiany?",
     "answer": "Około 42,7°C (108,9°F)",
     "wrong": ["Około 37°C", "Około 39°C", "Około 45°C"],
     "note": "Dlatego Jacob chodzi bez koszulki i grzeje Bellę w namiocie."
@@ -519,41 +519,41 @@
   },
   {
     "id": "sa-025", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
-    "q": "Jak brzmiało ludzkie imię i nazwisko Alice?",
+    "q": "Jak brzmiały pełne imię i nazwisko Alice, zanim została wampirzycą?",
     "answer": "Mary Alice Brandon",
     "wrong": ["Alice Mary Whitlock", "Alice Platt", "Mary Alice Masen"],
     "note": "Sama tego nie pamiętała — dowiedziała się później, szukając śladów swojej przeszłości."
   },
   {
     "id": "sa-026", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 3,
-    "q": "Jakie ludzkie nazwisko nosił Jasper?",
+    "q": "Jakie nazwisko nosił Jasper, zanim został wampirem?",
     "answer": "Whitlock",
     "wrong": ["Hale", "Brandon", "Masen"],
-    "note": "W filmie Zaćmienie przedstawia się: „Major Jasper Whitlock, ma'am”. Hale to nazwisko, którego używa w Forks razem z Rosalie."
+    "note": "W filmie „Zaćmienie” Jasper przedstawia się jako major Jasper Whitlock. Hale to nazwisko, którego używa w Forks razem z Rosalie."
   },
   {
     "id": "sa-027", "part": "saga", "source": "ksiazka", "category": "cytaty", "difficulty": 3,
     "q": "Co Alice mówi Jasperowi przy ich pierwszym spotkaniu w barze w Filadelfii?",
-    "answer": "„You've kept me waiting a long time” (Kazałeś mi długo czekać)",
-    "wrong": ["„I've seen you in my dreams” (Widziałam cię w snach)", "„You're going to love me” (Pokochasz mnie)", "„Let's go home” (Chodźmy do domu)"],
-    "note": "Jasper odpowiada: „I'm sorry, ma'am”. W filmie Zaćmienie: „Kept me waiting long enough” — „My apologies, ma'am”."
+    "answer": "Że kazał jej długo na siebie czekać",
+    "wrong": ["Że widziała go w snach", "Że na pewno ją pokocha", "Że powinni od razu wrócić do domu"],
+    "note": "W książce: „You’ve kept me waiting a long time”. Odpowiedź jest polską parafrazą; Jasper ją przeprasza. W filmie „Zaćmienie” dialog ma nieco inne brzmienie."
   },
   {
     "id": "sa-028", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
-    "q": "Na kim wpoił się Paul?",
-    "answer": "Na Rachel Black, siostrze Jacoba",
-    "wrong": ["Na Leah Clearwater", "Na Emily Young", "Na Rebecce Black"],
-    "note": "Jacob jest wściekły. Rebecca, bliźniaczka Rachel, mieszka na Hawajach."
+    "q": "Z kim Paula łączy wpojenie?",
+    "answer": "Z Rachel Black, siostrą Jacoba",
+    "wrong": ["Z Leah Clearwater", "Z Emily Young", "Z Rebeccą Black"],
+    "note": "Jacob nie jest tym zachwycony. Rebecca, siostra bliźniaczka Rachel, mieszka na Hawajach."
   },
   {
     "id": "sa-029", "part": "saga", "source": "ksiazka", "category": "postacie", "difficulty": 3,
-    "q": "Na kim wpoił się Quil?",
-    "answer": "Na dwuletniej Claire, siostrzenicy Emily",
-    "wrong": ["Na Kim", "Na Rachel", "Na Leah"],
-    "note": "Wpojenie nie musi być romantyczne — Quil jest dla Claire bratem i opiekunem."
+    "q": "Z kim Quila łączy wpojenie?",
+    "answer": "Z dwuletnią Claire, siostrzenicą Emily",
+    "wrong": ["Z Kim", "Z Rachel", "Z Leah"],
+    "note": "Wpojenie nie oznacza w tym przypadku związku romantycznego. Quil pełni wobec małej Claire rolę opiekuna i przyjaciela."
   },
   {
-    "id": "sa-030", "part": "saga", "source": "oba", "category": "postacie", "difficulty": 2,
+    "id": "sa-030", "part": "saga", "source": "oba", "category": "miejsca", "difficulty": 2,
     "q": "W którym włoskim mieście rezydują Volturi?",
     "answer": "W Volterze",
     "wrong": ["W Montepulciano", "W Rzymie", "We Florencji"],
@@ -561,9 +561,9 @@
   },
   {
     "id": "sa-031", "part": "saga", "source": "ksiazka", "category": "liczby", "difficulty": 2,
-    "q": "Którego dnia są urodziny Belli?",
+    "q": "Kiedy Bella obchodzi urodziny?",
     "answer": "13 września",
     "wrong": ["20 czerwca", "1 listopada", "13 października"],
-    "note": "20 czerwca to urodziny Edwarda (1901)."
+    "note": "Edward urodził się 20 czerwca 1901 roku."
   }
 ]
