@@ -42,7 +42,7 @@ export function ActivityView() {
   const isMobile = useIsMobile()
   const pad = usePagePad()
   const nav = useNavigate()
-  const { canEdit, isLoading } = useAuth()
+  const { canEdit, isLoading, data: me } = useAuth()
   const { data: activity, refetch, isFetching } = useActivity(7)
   const { data: body } = useBody()
   const del = useDeleteWorkout()
@@ -132,10 +132,10 @@ export function ActivityView() {
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
           {/* No band yet: offer the watch first, so a Garmin owner doesn't scroll past the band steps. */}
-          {state === 'none' && strava?.configured && <StravaCard status={strava} divider="bottom" />}
+          {state === 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="bottom" />}
           {connection}
           {showSetup && <Setup />}
-          {state !== 'none' && strava?.configured && <StravaCard status={strava} divider="top" />}
+          {state !== 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="top" />}
         </div>
 
         {today && (
@@ -212,8 +212,10 @@ function WorkoutRow({ w, onDelete }: { w: Workout; onDelete: () => void }) {
 /**
  * Watch workouts via Strava (Garmin, Polar…): one button to Strava's consent screen and back.
  * Workouts then arrive by Strava's webhook (or the server's 3-hourly poll), with the watch's kcal.
+ * Shown even before the server has a Strava app (configured=false) — with the button off and
+ * what to set — so the option is discoverable.
  */
-function StravaCard({ status, divider }: { status: StravaStatus; divider: 'top' | 'bottom' }) {
+function StravaCard({ status, isAdmin, divider }: { status: StravaStatus; isAdmin: boolean; divider: 'top' | 'bottom' }) {
   const connect = useConnectStrava()
   const sync = useSyncStrava()
   const disconnect = useDisconnectStrava()
@@ -233,9 +235,20 @@ function StravaCard({ status, divider }: { status: StravaStatus; divider: 'top' 
           Garmin, Polar, Suunto, Coros… Jeśli zegarek wysyła treningi do Stravy, trafią tu same, razem z kaloriami — bez dodatkowej aplikacji na telefonie.
         </span>
         <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{STRAVA_CHAIN}</span>
-        <Button variant="outline" size="sm" style={{ alignSelf: 'flex-start' }} disabled={connect.isPending} onClick={() => connect.mutate(undefined, { onError: fail })}>
+        <Button variant="outline" size="sm" style={{ alignSelf: 'flex-start' }} disabled={!status.configured || connect.isPending} onClick={() => connect.mutate(undefined, { onError: fail })}>
           {connect.isPending ? 'Otwieram Stravę…' : 'Połącz ze Stravą'}
         </Button>
+        {!status.configured && (
+          <span style={{ font: sans(13), lineHeight: 1.5, color: 'var(--text-3)' }}>
+            {isAdmin ? (
+              <>
+                Strava nie jest jeszcze ustawiona na serwerze: dodaj <code style={{ font: mono(12) }}>STRAVA_CLIENT_ID</code> i{' '}
+                <code style={{ font: mono(12) }}>STRAVA_CLIENT_SECRET</code> do <code style={{ font: mono(12) }}>.env</code> i przebuduj api
+                (README → „Optional: watch workouts via Strava”).
+              </>
+            ) : 'Strava nie jest jeszcze ustawiona na serwerze — poproś administratora.'}
+          </span>
+        )}
       </div>
     )
   }
