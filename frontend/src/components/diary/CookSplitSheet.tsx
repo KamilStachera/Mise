@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import type { CookAssignment, PlanEntry, Slot } from '../../api/client'
-import { useAddDiaryEntry, useCook, useCreateCook, useUpdateCook } from '../../api/hooks'
+import type { CookAssignment, PartnerPortionInput, PlanEntry, Slot } from '../../api/client'
+import { useAddDiaryEntry, useCook, useCreateCook, usePerson, useUpdateCook } from '../../api/hooks'
 import { WEEKDAY_SHORT, addDays, parseISODate, toISO } from '../../lib/dates'
 import { SLOTS, plural, slotLabel } from '../../lib/labels'
 import { showToast } from '../../lib/toastBus'
 import { Button, Eyebrow, Sheet, mono, sans } from '../ui'
+import { PartnerSyncToggle, formatAlsoForToast } from './PartnerSyncToggle'
 import { CookMark, PortionDots } from './parts'
 
 /** Where the pot comes from: a fresh plan, an existing planned meal, or an existing pot. */
@@ -26,16 +27,18 @@ function dayLabel(iso: string): string {
  * the cook day (only it buys ingredients); each further row is one leftover portion; whatever
  * is unassigned goes "W lodówce". With one portion and no extra days it is a plain plan entry.
  */
-export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitle = 'Gotuję na kilka dni' }: {
+export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitle = 'Gotuję na kilka dni', initialAlsoFor }: {
   open: boolean
   onClose: () => void
   /** Needed for kind new/entry; an edited pot carries its own. */
   recipe?: { id: string; title: string; kcal: number | null; servings?: number }
   origin: CookOrigin
   title?: string
+  initialAlsoFor?: PartnerPortionInput[]
 }) {
   const today = toISO(new Date())
   const { data: cook } = useCook(open && origin.kind === 'edit' ? origin.cookId : null)
+  const { people } = usePerson()
   const createCook = useCreateCook()
   const updateCook = useUpdateCook()
   const addEntry = useAddDiaryEntry()
@@ -44,6 +47,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
   const [firstSlot, setFirstSlot] = useState<Slot>('dinner')
   const [portions, setPortions] = useState(2)
   const [rows, setRows] = useState<CookAssignment[]>([])
+  const [alsoFor, setAlsoFor] = useState<PartnerPortionInput[]>([])
 
   // Entries of an edited pot that stay as they are: the cook day and leftovers already eaten.
   const fixed = useMemo(() => cook?.entries.filter((e) => !e.isLeftover || e.eaten) ?? [], [cook])
@@ -53,6 +57,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
     : origin.kind === 'entry' ? `entry|${origin.entry.id}` : `edit|${origin.cookId}`
   useEffect(() => {
     if (!open) return
+    setAlsoFor(initialAlsoFor ?? [])
     if (origin.kind === 'new') {
       setFirstDate(origin.date ?? today)
       setFirstSlot(origin.slot ?? 'dinner')
@@ -88,12 +93,19 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
   }
 
   async function save() {
+    const partnerSuffix = formatAlsoForToast(alsoFor, people)
     if (origin.kind === 'edit') {
       await updateCook.mutateAsync({ id: origin.cookId, portions, assignments: rows })
       showToast(`Zapisano: ${title}`)
     } else if (origin.kind === 'new' && portions === 1 && rows.length === 0) {
-      await addEntry.mutateAsync({ date: firstDate, slot: firstSlot, recipeId: recipe!.id, portions: 1 })
-      showToast(`Dodano do planu: ${title}`)
+      await addEntry.mutateAsync({
+        date: firstDate,
+        slot: firstSlot,
+        recipeId: recipe!.id,
+        portions: 1,
+        alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
+      })
+      showToast(`Dodano do planu: ${title}${partnerSuffix}`)
     } else {
       await createCook.mutateAsync({
         recipeId: recipe!.id,
@@ -102,8 +114,9 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
         firstSlot,
         assignments: rows,
         fromEntryId: origin.kind === 'entry' ? origin.entry.id : undefined,
+        alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
       })
-      showToast(`Zaplanowano: ${title} · ${plural(portions, 'porcja', 'porcje', 'porcji')}`)
+      showToast(`Zaplanowano: ${title} · ${plural(portions, 'porcja', 'porcje', 'porcji')}${partnerSuffix}`)
     }
     onClose()
   }
@@ -190,6 +203,10 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
           </span>
           <PortionDots total={portions} left={left} />
         </div>
+        )}
+
+        {origin.kind !== 'edit' && (
+          <PartnerSyncToggle value={alsoFor} onChange={setAlsoFor} labelPrefix="Gotujemy też dla" />
         )}
 
         <Button size="xl" disabled={busy || (origin.kind === 'edit' && !cook)} onClick={save}>

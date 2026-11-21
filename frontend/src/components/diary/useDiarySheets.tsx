@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { PlanEntry, Slot } from '../../api/client'
+import type { PartnerPortionInput, PlanEntry, Slot } from '../../api/client'
 import { useRecipes } from '../../api/hooks'
 import { toISO } from '../../lib/dates'
 import { CookSplitSheet, type CookOrigin } from './CookSplitSheet'
@@ -7,7 +7,11 @@ import { EntrySheet } from './EntrySheet'
 import { PlanMealSheet } from './PlanMealSheet'
 import { QuickAddSheet } from './QuickAddSheet'
 
-type SplitState = { recipe?: { id: string; title: string; kcal: number | null; servings?: number }; origin: CookOrigin }
+type SplitState = {
+  recipe?: { id: string; title: string; kcal: number | null; servings?: number }
+  origin: CookOrigin
+  alsoFor?: PartnerPortionInput[]
+}
 
 /**
  * One place that owns the calendar's sheets, so Dzień and Tydzień behave the same:
@@ -35,9 +39,13 @@ export function useDiarySheets() {
         onClose={() => setAdd(null)}
         date={add?.date ?? ''}
         initialSlot={add?.slot ?? 'lunch'}
-        onSplit={(r, date, slot) => {
+        onSplit={(r, date, slot, alsoFor) => {
           setAdd(null)
-          setSplit({ recipe: { id: r.id, title: r.title, kcal: r.kcal, servings: r.servings }, origin: { kind: 'new', date, slot } })
+          setSplit({
+            recipe: { id: r.id, title: r.title, kcal: r.kcal, servings: r.servings },
+            origin: { kind: 'new', date, slot },
+            alsoFor,
+          })
         }}
       />
       <EntrySheet
@@ -52,7 +60,7 @@ export function useDiarySheets() {
           setSplit({ origin: { kind: 'edit', cookId } })
         }}
       />
-      {split && <CookSplitSheet open onClose={() => setSplit(null)} recipe={split.recipe} origin={split.origin} />}
+      {split && <CookSplitSheet open onClose={() => setSplit(null)} recipe={split.recipe} origin={split.origin} initialAlsoFor={split.alsoFor} />}
     </>
   )
 

@@ -51,6 +51,7 @@ public class MiseDbContext : DbContext
     public DbSet<StravaConnection> StravaConnections => Set<StravaConnection>();
     public DbSet<Person> People => Set<Person>();
     public DbSet<Catering> Caterings => Set<Catering>();
+    public DbSet<CateringPause> CateringPauses => Set<CateringPause>();
     public DbSet<ProfileAnswer> ProfileAnswers => Set<ProfileAnswer>();
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<TrainingProfile> TrainingProfiles => Set<TrainingProfile>();
@@ -204,9 +205,8 @@ public class MiseDbContext : DbContext
             e.HasIndex(x => new { x.HouseholdId, x.Date, x.Slot });
             e.HasIndex(x => x.CookId);
             e.HasIndex(x => new { x.PersonId, x.Date });
-            // At most one catering box per person and day (CateringService races on page load).
-            // A separately named index (an unnamed HasIndex on the same columns would reuse the one above).
-            e.HasIndex(x => new { x.PersonId, x.Date }, Services.CateringService.OnePerDayIndex)
+            // At most one catering box per person, day and meal slot (supports optional 3-meal split while preventing race duplicates).
+            e.HasIndex(x => new { x.PersonId, x.Date, x.Slot }, Services.CateringService.OnePerSlotIndex)
                 .IsUnique().HasFilter("\"IsCatering\"");
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -272,6 +272,13 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Fat).HasPrecision(7, 1);
             e.Property(x => x.Carbs).HasPrecision(7, 1);
             e.HasOne<Person>().WithOne().HasForeignKey<Catering>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<CateringPause>(e =>
+        {
+            e.Property(x => x.Note).HasMaxLength(120);
+            e.HasIndex(x => new { x.PersonId, x.From, x.To });
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<BodyProfile>(e =>

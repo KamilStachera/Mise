@@ -193,10 +193,11 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
     </div>
   )
 
-  // Catering: one eaten box entry per delivery day, written by the server. Unticking it means
-  // „dziś bez cateringu” (the entry goes; the server never brings it back).
+  // Catering: one eaten box entry (or 3 split meals) per delivery day, written by the server.
+  // Unticking means skipping that box (the entry goes; the server never brings it back).
   const cateringOn = catering?.configured === true && catering.enabled
-  const delivers = cateringOn && catering.startDate != null && day >= catering.startDate
+  const activePause = (catering?.pauses ?? []).find((p) => day >= p.from && day <= p.to) ?? null
+  const delivers = cateringOn && activePause == null && catering.startDate != null && day >= catering.startDate
     && (catering.weekdays & (1 << ((date.getDay() + 6) % 7))) !== 0
   const cateringBlock = (boxes.length > 0 || cateringOn) && (
     <section style={{ display: 'flex', flexDirection: 'column' }}>
@@ -217,16 +218,21 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
           entry={e}
           canEdit={canEdit}
           busy={deleteEntry.isPending}
-          onToggleEaten={() => { if (confirm('Dziś bez cateringu?')) deleteEntry.mutate(e.id) }}
+          onToggleEaten={() => {
+            const msg = boxes.length > 1 ? `Pominąć „${e.title}”?` : 'Dziś bez cateringu?'
+            if (confirm(msg)) deleteEntry.mutate(e.id)
+          }}
           onOpen={() => openEntry(e)}
         />
       ))}
       {boxes.length === 0 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderTop: '1px solid var(--border)' }}>
           <span style={{ font: sans(14.5), color: 'var(--text-3)' }}>
-            {future
-              ? delivers ? `Dostawa — ${formatKcal(catering!.kcal)} kcal doliczy się sama.` : 'Bez dostawy tego dnia.'
-              : 'Bez cateringu tego dnia.'}
+            {activePause
+              ? `Pauza cateringu${activePause.note ? ` · ${activePause.note}` : ''}.`
+              : future
+                ? delivers ? `Dostawa — ${formatKcal(catering!.kcal)} kcal doliczy się sama.` : 'Bez dostawy tego dnia.'
+                : 'Bez cateringu tego dnia.'}
           </span>
           {canEdit && !future && cateringOn && (
             <Button variant="outline" size="sm" disabled={logCatering.isPending} onClick={() => logCatering.mutate(day)}>

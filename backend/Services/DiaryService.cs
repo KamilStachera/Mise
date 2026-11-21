@@ -92,10 +92,11 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
 
     // ---- entries ----
 
-    /// <summary>Adds a calendar entry (never replaces); optionally remembers it as a favourite.</summary>
+    /// <summary>Adds a calendar entry (never replaces); optionally clones it for household partners in AlsoFor.</summary>
     public async Task<PlanEntry> AddEntryAsync(DateOnly date, MealSlot slot, Guid? recipeId, string? title,
         string? note, decimal? portions, decimal? grams, int? kcal, decimal? protein, decimal? fat,
-        decimal? carbs, bool eaten, CancellationToken ct = default)
+        decimal? carbs, bool eaten, IReadOnlyList<(int PersonId, decimal? Portions)>? alsoFor = null,
+        CancellationToken ct = default)
     {
         Recipe? recipe = null;
         if (recipeId is Guid rid)
@@ -112,21 +113,44 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
             throw new DiaryException("Makroskładniki poza zakresem.");
         if (grams is < 0 or > 100000) throw new DiaryException("Gramatura poza zakresem.");
 
-        var entry = new PlanEntry
+        var partners = await ResolvePartnersAsync(alsoFor, ct);
+
+        PlanEntry Build(int targetPersonId, decimal targetPortions, bool scaleTyped)
         {
-            PersonId = pid,
-            Date = date,
-            Slot = slot,
-            RecipeId = recipe?.Id,
-            Recipe = recipe,
-            Title = recipe is null ? name : "",
-            Note = note?.Trim() ?? "",
-            Portions = recipe is null ? 1 : ClampPortions(portions),
-            Grams = grams is > 0 ? grams : null,
-        };
-        if (recipe is null) (entry.Kcal, entry.Protein, entry.Fat, entry.Carbs) = (kcal, protein, fat, carbs);
-        if (eaten) SetEaten(entry, true);
+            var e = new PlanEntry
+            {
+                PersonId = targetPersonId,
+                Date = date,
+                Slot = slot,
+                RecipeId = recipe?.Id,
+                Recipe = recipe,
+                Title = recipe is null ? name : "",
+                Note = note?.Trim() ?? "",
+                Portions = recipe is null ? 1 : targetPortions,
+                Grams = grams is > 0 ? (scaleTyped ? Math.Round(grams.Value * targetPortions, 1) : grams) : null,
+            };
+            if (recipe is null)
+            {
+                if (scaleTyped && targetPortions != 1m)
+                {
+                    e.Kcal = kcal is int k ? (int)Math.Round(k * targetPortions, MidpointRounding.AwayFromZero) : null;
+                    e.Protein = Times(protein, targetPortions);
+                    e.Fat = Times(fat, targetPortions);
+                    e.Carbs = Times(carbs, targetPortions);
+                }
+                else
+                {
+                    (e.Kcal, e.Protein, e.Fat, e.Carbs) = (kcal, protein, fat, carbs);
+                }
+            }
+            if (eaten) SetEaten(e, true);
+            return e;
+        }
+
+        var entry = Build(pid, ClampPortions(portions), scaleTyped: false);
         db.PlanEntries.Add(entry);
+        foreach (var (partnerId, partnerPortions) in partners)
+            db.PlanEntries.Add(Build(partnerId, partnerPortions, scaleTyped: true));
         await db.SaveChangesAsync(ct);
         return entry;
     }
@@ -172,14 +196,17 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
 
     /// <summary>
     /// Plans a pot: the cook day (a new entry, or an existing planned one) plus one leftover
-    /// entry per assignment. Portions must cover the cook day and every assignment.
+    /// entry per assignment. Portions must cover the cook day and every assignment. Optionally
+    /// mirrors the pot onto household partners in <paramref name="alsoFor"/> (each with their own portion multiplier).
     /// </summary>
     public async Task<Cook> CreateCookAsync(Guid recipeId, int portions, DateOnly firstDate, MealSlot firstSlot,
-        IReadOnlyList<(DateOnly Date, MealSlot Slot)> assignments, Guid? fromEntryId, CancellationToken ct = default)
+        IReadOnlyList<(DateOnly Date, MealSlot Slot)> assignments, Guid? fromEntryId,
+        IReadOnlyList<(int PersonId, decimal? Portions)>? alsoFor = null, CancellationToken ct = default)
     {
         var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == recipeId, ct)
             ?? throw new DiaryException("Nie ma takiego przepisu.", StatusCodes.Status404NotFound);
         ValidatePot(portions, 1 + assignments.Count);
+        var partners = await ResolvePartnersAsync(alsoFor, ct);
 
         PlanEntry cookDay;
         if (fromEntryId is Guid fid)
@@ -208,7 +235,32 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         cookDay.Portions = 1;
         Snapshot(cookDay);
         cookDay.UpdatedAt = DateTimeOffset.UtcNow;
-        AddLeftovers(cook, recipe, assignments);
+        AddLeftovers(cook, recipe, assignments, portionPerEntry: 1);
+
+        var daysCount = 1 + assignments.Count;
+        foreach (var (partnerId, partnerPortions) in partners)
+        {
+            var potSize = Math.Clamp((int)Math.Ceiling(daysCount * partnerPortions), 1, MaxPotPortions);
+            var partnerCook = new Cook
+            {
+                PersonId = partnerId, RecipeId = recipe.Id, Title = recipe.Title, Date = cookDay.Date, Portions = potSize,
+            };
+            db.Cooks.Add(partnerCook);
+            var partnerDay = new PlanEntry
+            {
+                PersonId = partnerId,
+                Date = cookDay.Date,
+                Slot = cookDay.Slot,
+                RecipeId = recipe.Id,
+                Recipe = recipe,
+                Cook = partnerCook,
+                IsLeftover = false,
+                Portions = partnerPortions,
+            };
+            db.PlanEntries.Add(partnerDay);
+            AddLeftovers(partnerCook, recipe, assignments, partnerPortions);
+        }
+
         await db.SaveChangesAsync(ct);
         return cook;
     }
@@ -293,7 +345,29 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
             throw new DiaryException("Za mało porcji na tyle dni.");
     }
 
-    private void AddLeftovers(Cook cook, Recipe? recipe, IEnumerable<(DateOnly Date, MealSlot Slot)> assignments)
+    private async Task<List<(int PersonId, decimal Portions)>> ResolvePartnersAsync(
+        IReadOnlyList<(int PersonId, decimal? Portions)>? alsoFor, CancellationToken ct)
+    {
+        if (alsoFor is null || alsoFor.Count == 0) return [];
+        var wanted = alsoFor
+            .Where(x => x.PersonId != pid)
+            .GroupBy(x => x.PersonId)
+            .Select(g => (PersonId: g.Key, Portions: ClampPortions(g.Last().Portions)))
+            .ToList();
+        if (wanted.Count == 0) return [];
+        var ids = wanted.Select(x => x.PersonId).ToList();
+        // db.People is already tenant-filtered to the caller's household.
+        var validIds = (await db.People.AsNoTracking()
+            .Where(p => ids.Contains(p.Id) && p.BlockedAt == null)
+            .Select(p => p.Id)
+            .ToListAsync(ct)).ToHashSet();
+        if (validIds.Count != ids.Count)
+            throw new DiaryException("Wybrany domownik nie istnieje albo ma zablokowane konto.");
+        return wanted;
+    }
+
+    private void AddLeftovers(Cook cook, Recipe? recipe, IEnumerable<(DateOnly Date, MealSlot Slot)> assignments,
+        decimal portionPerEntry = 1)
     {
         foreach (var (date, slot) in assignments)
         {
@@ -307,6 +381,7 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
                 Title = recipe is null ? cook.Title : "",
                 Cook = cook,
                 IsLeftover = true,
+                Portions = portionPerEntry,
             };
             cook.Entries.Add(leftover);
             db.PlanEntries.Add(leftover);

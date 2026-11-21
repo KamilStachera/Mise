@@ -12,7 +12,7 @@ import { Button, Chip, Eyebrow, Sheet, sans } from './ui'
 
 export function SupplyShoppingList() {
   const { canEdit } = useAuth()
-  const { data, isLoading } = useSupplies()
+  const { data, isLoading } = useSupplies({ live: true })
   const counts = useShoppingCounts()
   const add = useAddSupply()
   const check = useCheckSupply()
@@ -93,7 +93,7 @@ export function SupplyShoppingList() {
                     key={s.id}
                     checked={s.checked}
                     name={s.name}
-                    onToggle={canEdit ? () => check.mutate(s.id) : undefined}
+                    onToggle={canEdit ? () => check.mutate({ id: s.id, checked: !s.checked }) : undefined}
                     onRemove={canEdit && !s.checked ? () => remove.mutate(s.id) : undefined}
                     last={isChecked && i === g.items.length - 1}
                   />

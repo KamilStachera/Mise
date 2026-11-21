@@ -1,11 +1,11 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { ActivityLevel, Body, BodySex, Catering } from '../api/client'
-import { useAuth, useBody, useCatering, usePerson, useSaveBody, useSaveCatering } from '../api/hooks'
+import { errorText, type ActivityLevel, type Body, type BodySex, type Catering } from '../api/client'
+import { useAddCateringPause, useAuth, useBody, useCatering, useDeleteCateringPause, usePerson, useSaveBody, useSaveCatering } from '../api/hooks'
 import { PersonSwitch } from '../components/diary/PersonSwitch'
 import { TAB_BAR_HEIGHT } from '../components/TabBar'
 import { Button, Chip, Eyebrow, PageTitle, Segmented, StatStrip, Toggle, inputStyle, mono, sans, usePagePad } from '../components/ui'
-import { toISO } from '../lib/dates'
+import { dayShortMonth, parseISODate, toISO } from '../lib/dates'
 import { previewTargets } from '../lib/body'
 import { formatKcal } from '../lib/labels'
 import { showToast } from '../lib/toastBus'
@@ -184,19 +184,35 @@ function GoalForm({ body }: { body: Body }) {
 
 const WEEKDAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd']
 
+function formatPauseRange(from: string, to: string): string {
+  const f = parseISODate(from)
+  const t = parseISODate(to)
+  const sameYear = f.getFullYear() === t.getFullYear() && f.getFullYear() === new Date().getFullYear()
+  const fmt = (d: Date) => (sameYear ? dayShortMonth(d) : `${dayShortMonth(d)} ${d.getFullYear()}`)
+  return from === to ? fmt(f) : `${fmt(f)} – ${fmt(t)}`
+}
+
 /**
  * Dieta pudełkowa: the average box day, counted as eaten on the delivery days from „od kiedy”.
  * Saved on its own (not with the goal); new numbers apply from today, past days keep theirs.
  */
 function CateringSection({ catering }: { catering: Catering }) {
   const save = useSaveCatering()
+  const addPause = useAddCateringPause()
+  const deletePause = useDeleteCateringPause()
+  const today = toISO(new Date())
   const [enabled, setEnabled] = useState(catering.configured ? catering.enabled : false)
   const [kcal, setKcal] = useState(catering.kcal ? String(catering.kcal) : '')
   const [protein, setProtein] = useState(dec(catering.protein))
   const [fat, setFat] = useState(dec(catering.fat))
   const [carbs, setCarbs] = useState(dec(catering.carbs))
   const [weekdays, setWeekdays] = useState(catering.weekdays)
-  const [start, setStart] = useState(catering.startDate ?? toISO(new Date()))
+  const [start, setStart] = useState(catering.startDate ?? today)
+  const [splitMeals, setSplitMeals] = useState(Boolean(catering.splitMeals))
+  const [pauseFrom, setPauseFrom] = useState(today)
+  const [pauseTo, setPauseTo] = useState(today)
+  const [pauseNote, setPauseNote] = useState('')
+  const [pauseError, setPauseError] = useState<string | null>(null)
   // „Ustawienia” on the day's catering block links here.
   useEffect(() => {
     if (window.location.hash === '#catering') document.getElementById('catering')?.scrollIntoView()
@@ -222,9 +238,24 @@ function CateringSection({ catering }: { catering: Catering }) {
       carbs: r(carbs),
       weekdays,
       startDate: start,
+      splitMeals,
     })
     showToast('Zapisano catering')
   }
+
+  async function onAddPause() {
+    if (!pauseFrom || !pauseTo) return
+    setPauseError(null)
+    try {
+      await addPause.mutateAsync({ from: pauseFrom, to: pauseTo, note: pauseNote.trim() || undefined })
+      setPauseNote('')
+      showToast('Dodano pauzę cateringu')
+    } catch (err) {
+      setPauseError(errorText(err, 'Nie udało się dodać pauzy.'))
+    }
+  }
+
+  const pauses = catering.pauses ?? []
 
   return (
     <section id="catering" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -253,11 +284,95 @@ function CateringSection({ catering }: { catering: Catering }) {
             <span style={{ font: sans(15.5) }}>Od kiedy</span>
             <input type="date" value={start} onChange={(e) => setStart(e.target.value)} style={{ ...inputStyle, width: 170, height: 44, font: mono(14), padding: '0 10px' }} />
           </label>
+          <Toggle
+            on={splitMeals}
+            onChange={setSplitMeals}
+            label="Rozbij na 3 posiłki (Śniadanie 30% · Obiad 40% · Kolacja 30%)"
+          />
         </div>
       )}
       <Button variant="outline" style={{ alignSelf: 'flex-start', marginTop: 8 }} disabled={!valid || save.isPending} onClick={onSave}>
         {save.isPending ? 'Zapisywanie…' : 'Zapisz catering'}
       </Button>
+
+      {(enabled || pauses.length > 0) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 22, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <Eyebrow tone="muted">Pauzy / wyjazdy</Eyebrow>
+          <span style={{ font: sans(13.5), lineHeight: 1.5, color: 'var(--text-2)' }}>
+            W dniach pauzy catering nie doliczy się automatycznie do dziennika.
+          </span>
+
+          {pauses.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {pauses.map((p) => (
+                <div
+                  key={p.id}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--border)' }}
+                >
+                  <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ font: mono(13.5, 500) }}>{formatPauseRange(p.from, p.to)}</span>
+                    {p.note && <span style={{ font: sans(14), color: 'var(--text-2)' }}>{p.note}</span>}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Usuń pauzę"
+                    disabled={deletePause.isPending}
+                    onClick={() => deletePause.mutate(p.id)}
+                    style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 15, padding: '4px 6px' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>Od</span>
+              <input
+                type="date"
+                value={pauseFrom}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setPauseFrom(v)
+                  if (pauseTo < v) setPauseTo(v)
+                }}
+                style={{ ...inputStyle, height: 42, font: mono(13.5), padding: '0 10px' }}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>Do</span>
+              <input
+                type="date"
+                value={pauseTo}
+                min={pauseFrom}
+                onChange={(e) => setPauseTo(e.target.value)}
+                style={{ ...inputStyle, height: 42, font: mono(13.5), padding: '0 10px' }}
+              />
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              value={pauseNote}
+              onChange={(e) => setPauseNote(e.target.value)}
+              maxLength={120}
+              placeholder="Notatka (np. Urlop, wyjazd)…"
+              style={{ ...inputStyle, flex: 1, minWidth: 180, height: 42, font: sans(14) }}
+            />
+            <Button
+              variant="quiet"
+              size="md"
+              style={{ height: 42 }}
+              disabled={!pauseFrom || !pauseTo || pauseTo < pauseFrom || addPause.isPending}
+              onClick={onAddPause}
+            >
+              {addPause.isPending ? 'Dodaję…' : 'Dodaj pauzę'}
+            </Button>
+          </div>
+          {pauseError && <span style={{ font: sans(13.5), color: 'var(--accent-text)' }}>{pauseError}</span>}
+        </div>
+      )}
     </section>
   )
 }

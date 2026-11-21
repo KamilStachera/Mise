@@ -570,11 +570,14 @@ public static class AgentDocs
 
         ### Gotowanie na kilka dni (garnek)
         `POST /diary/cooks` — `{ "recipeId": "<guid>", "portions": 4, "firstDate": "2026-07-06",
-        "firstSlot": "dinner", "assignments": [{ "date": "2026-07-07", "slot": "lunch" }] }`.
+        "firstSlot": "dinner", "assignments": [{ "date": "2026-07-07", "slot": "lunch" }],
+        "alsoFor": [{ "personId": 2, "portions": 1.5 }] }`.
         Pierwszy dzień to dzień gotowania; każde przypisanie to jedna porcja resztek
-        (`isLeftover: true`). Zakupy liczą tylko dzień gotowania, przeskalowany do całego
-        garnka — resztek nie kupuje się drugi raz. Planując to samo danie na kilka dni,
-        używaj tego zamiast kilku osobnych `PUT /plan/entry`.
+        (`isLeftover: true`). Opcjonalne `alsoFor` (także na `POST /plan/entries`) dopisuje ten
+        sam posiłek lub garnek atomowo innym domownikom z ich własnym mnożnikiem porcji.
+        Zakupy liczą tylko dzień gotowania, przeskalowany do całego garnka — resztek nie kupuje
+        się drugi raz. Planując to samo danie na kilka dni, używaj tego zamiast kilku osobnych
+        `PUT /plan/entry`.
 
         ### Pozostałe
         - `GET /plan?start=YYYY-MM-DD&days=14` — wpisy (domyślnie od poniedziałku bieżącego

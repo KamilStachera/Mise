@@ -32,8 +32,9 @@ public static class DiaryEndpoints
                 return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
+                var alsoFor = input.AlsoFor?.Select(a => (a.PersonId, a.Portions)).ToList();
                 var cook = await diary.CreateCookAsync(input.RecipeId, input.Portions, input.FirstDate, firstSlot,
-                    assignments, input.FromEntryId);
+                    assignments, input.FromEntryId, alsoFor);
                 export.Schedule();
                 return Results.Ok(Mapping.ToDto((await diary.LoadCookAsync(cook.Id))!));
             }

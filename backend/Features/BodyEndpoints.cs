@@ -153,7 +153,7 @@ public static class BodyEndpoints
 
         // Diet catering: the average box day, counted as eaten on delivery days (CateringService).
         g.MapGet("/catering", async (CateringService catering) =>
-            Results.Ok(ToDto(await catering.GetAsync())));
+            Results.Ok(ToDto(await catering.GetAsync(), await catering.GetPausesAsync())));
 
         g.MapPut("/catering", async (CateringInput input, CateringService catering) =>
         {
@@ -161,13 +161,28 @@ public static class BodyEndpoints
             try
             {
                 var c = await catering.SaveAsync(input.Enabled, input.Kcal, input.Protein, input.Fat, input.Carbs,
-                    input.Weekdays, input.StartDate ?? today, today);
-                return Results.Ok(ToDto(c));
+                    input.Weekdays, input.StartDate ?? today, today, splitMeals: input.SplitMeals);
+                return Results.Ok(ToDto(c, await catering.GetPausesAsync()));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
         });
 
-        // A box on a day without delivery (weekend order), or one deleted by mistake.
+        g.MapPost("/catering/pauses", async (CateringPauseInput input, CateringService catering) =>
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            try
+            {
+                var pause = await catering.AddPauseAsync(input.From, input.To, input.Note, today);
+                return Results.Created($"/api/body/catering/pauses/{pause.Id}",
+                    new CateringPauseDto(pause.Id, pause.From, pause.To, pause.Note));
+            }
+            catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
+        });
+
+        g.MapDelete("/catering/pauses/{id:guid}", async (Guid id, CateringService catering) =>
+            await catering.DeletePauseAsync(id) ? Results.NoContent() : Results.NotFound());
+
+        // A box (or 3 split meals) on a day without delivery (weekend order), or one deleted by mistake.
         g.MapPost("/catering/log", async (CateringLogInput input, CateringService catering) =>
         {
             try
@@ -176,6 +191,13 @@ public static class BodyEndpoints
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
+        });
+
+        // Remove all catering entries for a single day (clean undo for both single-box and 3-meal split days).
+        g.MapDelete("/catering/day/{date}", async (DateOnly date, CateringService catering) =>
+        {
+            await catering.DeleteDayAsync(date);
+            return Results.NoContent();
         });
 
         return api;
@@ -190,9 +212,13 @@ public static class BodyEndpoints
         return Enum.TryParse(trimmed, ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
     }
 
-    private static CateringDto ToDto(Catering? c) => c is null
-        ? new CateringDto(false, false, 0, null, null, null, 0b0011111, null)
-        : new CateringDto(true, c.Enabled, c.Kcal, c.Protein, c.Fat, c.Carbs, c.Weekdays, c.StartDate);
+    private static CateringDto ToDto(Catering? c, List<CateringPause> pauses)
+    {
+        var pauseDtos = pauses.Select(p => new CateringPauseDto(p.Id, p.From, p.To, p.Note)).ToList();
+        return c is null
+            ? new CateringDto(false, false, 0, null, null, null, 0b0011111, null, false, pauseDtos)
+            : new CateringDto(true, c.Enabled, c.Kcal, c.Protein, c.Fat, c.Carbs, c.Weekdays, c.StartDate, c.SplitMeals, pauseDtos);
+    }
 
     private static BodyDto ToDto(BodyProfile? p, decimal? currentKg, DateOnly today)
     {

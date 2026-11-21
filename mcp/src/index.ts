@@ -642,6 +642,13 @@ server.tool(
       }))
       .optional()
       .describe('kolejne dni z resztkami'),
+    alsoFor: z
+      .array(z.object({
+        personId: z.number().int().positive(),
+        portions: z.number().min(0.25).max(10).optional().describe('Porcje dla partnera na posiłek (domyślnie 1)'),
+      }))
+      .optional()
+      .describe('Opcjonalnie: dodaj ten sam garnek także dla innego domownika z niezależnym mnożnikiem porcji'),
   },
   async (input) => text(await post('/diary/cooks', input)),
 )
@@ -780,6 +787,13 @@ server.tool(
       })
       .optional()
       .describe('opcjonalnie zapisz ten produkt jako ulubiony (Ulubione)'),
+    alsoFor: z
+      .array(z.object({
+        personId: z.number().int().positive(),
+        portions: z.number().min(0.25).max(10).optional().describe('Porcje dla partnera (domyślnie 1)'),
+      }))
+      .optional()
+      .describe('Opcjonalnie: dopisz ten sam posiłek atomowo także innemu domownikowi z niezależnym mnożnikiem porcji'),
   },
   async (input) => text(await post('/plan/entries', input)),
 )

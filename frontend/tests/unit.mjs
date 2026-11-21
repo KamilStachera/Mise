@@ -22,6 +22,7 @@ async function importTs(relPath) {
 const dates = await importTs('lib/dates.ts')
 const labels = await importTs('lib/labels.ts')
 const recipeParsing = await importTs('lib/recipeParsing.ts')
+const offlineQueue = await importTs('lib/offlineQueue.ts')
 
 test('dates: parseISODate and toISO round-trip across leap years and month boundaries', () => {
   for (const iso of ['2024-02-29', '2026-01-01', '2026-03-29', '2026-10-25', '2026-12-31']) {
@@ -114,4 +115,19 @@ test('recipeParsing: normalizeTag, nutrition & yield parsers handle Polish forma
     displayText: '200 g mąki pszennej',
     alternativeGroup: '',
   })
+})
+
+test('offlineQueue: appendOfflineAction coalesces repeated checks per item while preserving adds', () => {
+  let q = []
+  q = offlineQueue.appendOfflineAction(q, { kind: 'shopping-check', id: 'a', checked: true })
+  q = offlineQueue.appendOfflineAction(q, { kind: 'shopping-add', name: 'Mleko' })
+  q = offlineQueue.appendOfflineAction(q, { kind: 'shopping-check', id: 'b', checked: true })
+  q = offlineQueue.appendOfflineAction(q, { kind: 'shopping-check', id: 'a', checked: false })
+  q = offlineQueue.appendOfflineAction(q, { kind: 'supply-check', id: 'a', checked: true })
+  assert.deepEqual(q, [
+    { kind: 'shopping-add', name: 'Mleko' },
+    { kind: 'shopping-check', id: 'b', checked: true },
+    { kind: 'shopping-check', id: 'a', checked: false },
+    { kind: 'supply-check', id: 'a', checked: true },
+  ])
 })

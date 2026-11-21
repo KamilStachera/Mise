@@ -125,6 +125,17 @@ export interface ShoppingItem {
   unit: Unit | null
   /** Recipes this row is for (from recipe buttons or the plan); empty for manual rows. */
   recipes: ShoppingRecipeRef[]
+  pantryItemId?: string | null
+}
+export interface PantryAdjustItem {
+  name: string
+  quantity: number
+  unit?: Unit
+  pantryItemId?: string
+}
+export interface PantryAdjustResult {
+  updated: PantryItem[]
+  notInCatalog: { name: string; hint: string }[]
 }
 export interface ShoppingRecipeRef {
   id: string
@@ -369,6 +380,10 @@ export interface Cook {
   kcalPerPortion: number | null
   entries: PlanEntry[]
 }
+export interface PartnerPortionInput {
+  personId: number
+  portions?: number
+}
 export interface CookAssignment {
   date: string
   slot: Slot
@@ -381,6 +396,7 @@ export interface CookInput {
   assignments: CookAssignment[]
   /** Turn this existing planned entry into the cook day. */
   fromEntryId?: string
+  alsoFor?: PartnerPortionInput[]
 }
 /** kcal is per portion, or per 100 g when per100g; chipKcal = what one tap logs. */
 export interface FoodFavorite {
@@ -423,6 +439,7 @@ export interface DiaryEntryInput {
   carbs?: number | null
   eaten?: boolean
   favorite?: FoodFavoriteInput
+  alsoFor?: PartnerPortionInput[]
 }
 export type BodySex = 'female' | 'male'
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'high'
@@ -539,6 +556,12 @@ export interface Activity {
   addBackPercent: number
   days: ActivityDay[]
 }
+export interface CateringPause {
+  id: string
+  from: string
+  to: string
+  note: string | null
+}
 /** Diet catering: the average box day. weekdays = bitmask, bit 0 = Monday … bit 6 = Sunday. */
 export interface Catering {
   configured: boolean
@@ -549,6 +572,8 @@ export interface Catering {
   carbs: number | null
   weekdays: number
   startDate: string | null
+  splitMeals?: boolean
+  pauses?: CateringPause[]
 }
 export interface CateringInput {
   enabled: boolean
@@ -558,6 +583,12 @@ export interface CateringInput {
   carbs?: number | null
   weekdays: number
   startDate?: string
+  splitMeals?: boolean
+}
+export interface CateringPauseInput {
+  from: string
+  to: string
+  note?: string | null
 }
 export interface HealthConnection {
   token: string
@@ -961,10 +992,16 @@ export const api = {
     http<PantryItem>(`/pantry/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   addPantry: (input: PantryItemInput) =>
     http<PantryItem>(`/pantry`, { method: 'POST', body: JSON.stringify(input) }),
+  adjustPantry: (items: PantryAdjustItem[], merchant?: string) =>
+    http<PantryAdjustResult>(`/pantry/adjust`, { method: 'POST', body: JSON.stringify({ items, merchant }) }),
   deletePantry: (id: string) => http<void>(`/pantry/${id}`, { method: 'DELETE' }),
 
   shopping: () => http<ShoppingList>(`/shopping`),
-  checkShopping: (id: string) => http<ShoppingItem>(`/shopping/${id}/check`, { method: 'PATCH' }),
+  checkShopping: (id: string, checked?: boolean) =>
+    http<ShoppingItem>(`/shopping/${id}/check`, {
+      method: 'PATCH',
+      body: checked !== undefined ? JSON.stringify({ checked }) : undefined,
+    }),
   addShopping: (name: string, category?: string) =>
     http<ShoppingItem>(`/shopping`, { method: 'POST', body: JSON.stringify({ name, category }) }),
   deleteShopping: (id: string) => http<void>(`/shopping/${id}`, { method: 'DELETE' }),
@@ -976,7 +1013,11 @@ export const api = {
   allHotSupplies: () => http<HotSupply[]>(`/supplies/hot?all=true`),
   addSupply: (name: string, category?: SupplyCategory) =>
     http<SupplyItem>(`/supplies`, { method: 'POST', body: JSON.stringify({ name, category }) }),
-  checkSupply: (id: string) => http<SupplyItem>(`/supplies/${id}/check`, { method: 'PATCH' }),
+  checkSupply: (id: string, checked?: boolean) =>
+    http<SupplyItem>(`/supplies/${id}/check`, {
+      method: 'PATCH',
+      body: checked !== undefined ? JSON.stringify({ checked }) : undefined,
+    }),
   deleteSupply: (id: string) => http<void>(`/supplies/${id}`, { method: 'DELETE' }),
   clearCheckedSupplies: () =>
     http<{ removed: number }>(`/supplies/clear-checked`, { method: 'POST' }),
@@ -1064,8 +1105,12 @@ export const api = {
   catering: () => http<Catering>(`/body/catering`),
   saveCatering: (input: CateringInput) =>
     http<Catering>(`/body/catering`, { method: 'PUT', body: JSON.stringify(input) }),
+  addCateringPause: (input: CateringPauseInput) =>
+    http<CateringPause>(`/body/catering/pauses`, { method: 'POST', body: JSON.stringify(input) }),
+  deleteCateringPause: (id: string) => http<void>(`/body/catering/pauses/${id}`, { method: 'DELETE' }),
   logCatering: (date: string) =>
     http<PlanEntry>(`/body/catering/log`, { method: 'POST', body: JSON.stringify({ date }) }),
+  deleteCateringDay: (date: string) => http<void>(`/body/catering/day/${date}`, { method: 'DELETE' }),
   setFavoriteFlags: (id: string, flags: { pinned?: boolean; hidden?: boolean }) =>
     http<FoodFavorite>(`/diary/favorites/${id}`, { method: 'PATCH', body: JSON.stringify(flags) }),
 

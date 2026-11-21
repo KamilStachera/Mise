@@ -737,6 +737,273 @@ public class AuditRegressionTests
         Assert.Equal(["jesień", "do pudełka"], copied.Tags);
     }
 
+    // ---- 6. Batch B — Couples Sync, Live/Offline Shopping, Bought→Pantry, Catering Pauses & Split ----
+
+    [Fact]
+    public async Task CouplesSync_PlanEntriesAndCooks_ScaleMacrosAndCombineShoppingDemand()
+    {
+        await using var host = await BuildTestAppAsync();
+
+        // Pantry + recipe with 100 g Ryż per serving
+        var pRes = await host.SendAsync(HttpMethod.Post, "/api/pantry", email: AdminEmail, body: new
+        {
+            name = "Ryż", category = "Pantry", unit = "g", quantity = 0m,
+        });
+        Assert.Equal(HttpStatusCode.Created, pRes.StatusCode);
+
+        var rRes = await host.SendAsync(HttpMethod.Post, "/api/recipes", email: AdminEmail, body: new
+        {
+            title = "Bowl z ryżem",
+            source = "manual",
+            time = 15,
+            servings = 1,
+            kcal = 500,
+            protein = 30,
+            fat = 10,
+            carbs = 70,
+            ingredients = new[] { new { name = "Ryż", quantity = "100 g", amountValue = 100m, amountUnit = "g" } },
+            steps = new[] { "Ugotuj ryż." },
+        });
+        Assert.Equal(HttpStatusCode.Created, rRes.StatusCode);
+        var recipeId = JsonDocument.Parse(await rRes.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        // 1. Typed meal synced to ActivePartner (person 4) at 1.5× portion
+        var mealDate = new DateOnly(2026, 12, 1);
+        var addTyped = await host.SendAsync(HttpMethod.Post, "/api/plan/entries", email: AdminEmail, body: new
+        {
+            date = mealDate,
+            slot = "breakfast",
+            title = "Owsianka",
+            kcal = 400,
+            protein = 20m,
+            fat = 8m,
+            carbs = 60m,
+            grams = 80m,
+            eaten = true,
+            alsoFor = new[] { new { personId = 4, portions = 1.5m } },
+        });
+        Assert.Equal(HttpStatusCode.OK, addTyped.StatusCode);
+
+        var partnerPlan = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, $"/api/plan?start={mealDate:yyyy-MM-dd}&days=2",
+            email: AdminEmail, xPerson: "4")).Content.ReadAsStringAsync());
+        var syncedEntry = Assert.Single(partnerPlan.RootElement.GetProperty("entries").EnumerateArray());
+        Assert.Equal("Owsianka", syncedEntry.GetProperty("title").GetString());
+        Assert.Equal(600, syncedEntry.GetProperty("kcal").GetInt32());
+        Assert.Equal(30m, syncedEntry.GetProperty("protein").GetDecimal());
+        Assert.Equal(120m, syncedEntry.GetProperty("grams").GetDecimal());
+        Assert.Equal(1m, syncedEntry.GetProperty("portions").GetDecimal());
+        Assert.True(syncedEntry.GetProperty("eaten").GetBoolean());
+
+        // Single recipe entry synced to ActivePartner preserves partner portions (1.5×) and scales recipe kcal (500 × 1.5 = 750)
+        var addRecipeEntry = await host.SendAsync(HttpMethod.Post, "/api/plan/entries", email: AdminEmail, body: new
+        {
+            date = mealDate,
+            slot = "dinner",
+            recipeId,
+            portions = 1m,
+            eaten = true,
+            alsoFor = new[] { new { personId = 4, portions = 1.5m } },
+        });
+        Assert.Equal(HttpStatusCode.OK, addRecipeEntry.StatusCode);
+        var partnerAfterRecipe = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, $"/api/plan?start={mealDate:yyyy-MM-dd}&days=2",
+            email: AdminEmail, xPerson: "4")).Content.ReadAsStringAsync());
+        var syncedDinner = partnerAfterRecipe.RootElement.GetProperty("entries").EnumerateArray()
+            .Single(e => e.GetProperty("slot").GetString() == "dinner");
+        Assert.Equal(1.5m, syncedDinner.GetProperty("portions").GetDecimal());
+        Assert.Equal(750, syncedDinner.GetProperty("kcal").GetInt32());
+
+        // 2. Security guards: cross-household (person 3) and blocked member (person 2) must be rejected with 400
+        var crossHouse = await host.SendAsync(HttpMethod.Post, "/api/plan/entries", email: AdminEmail, body: new
+        {
+            date = mealDate, slot = "snack", title = "Jabłko", kcal = 80, eaten = true,
+            alsoFor = new[] { new { personId = 3, portions = 1m } },
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, crossHouse.StatusCode);
+
+        var blockedPartner = await host.SendAsync(HttpMethod.Post, "/api/plan/entries", email: AdminEmail, body: new
+        {
+            date = mealDate, slot = "snack", title = "Jabłko", kcal = 80, eaten = true,
+            alsoFor = new[] { new { personId = 2, portions = 1m } },
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, blockedPartner.StatusCode);
+
+        // 3. Batch cook synced to ActivePartner (2 days: Admin 2 portions, ActivePartner 1.5×/day → 3-portion pot)
+        var cookRes = await host.SendAsync(HttpMethod.Post, "/api/diary/cooks", email: AdminEmail, body: new
+        {
+            recipeId,
+            portions = 2,
+            firstDate = mealDate,
+            firstSlot = "lunch",
+            assignments = new[] { new { date = mealDate.AddDays(1), slot = "lunch" } },
+            alsoFor = new[] { new { personId = 4, portions = 1.5m } },
+        });
+        Assert.Equal(HttpStatusCode.OK, cookRes.StatusCode);
+
+        var partnerAfterCook = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, $"/api/plan?start={mealDate:yyyy-MM-dd}&days=2",
+            email: AdminEmail, xPerson: "4")).Content.ReadAsStringAsync());
+        var cookEntries = partnerAfterCook.RootElement.GetProperty("entries").EnumerateArray()
+            .Where(e => e.GetProperty("cookId").ValueKind == JsonValueKind.String)
+            .OrderBy(e => e.GetProperty("date").GetString())
+            .ToList();
+        Assert.Equal(2, cookEntries.Count);
+        Assert.False(cookEntries[0].GetProperty("isLeftover").GetBoolean());
+        Assert.True(cookEntries[1].GetProperty("isLeftover").GetBoolean());
+        Assert.Equal(1.5m, cookEntries[0].GetProperty("portions").GetDecimal());
+        Assert.Equal(1.5m, cookEntries[1].GetProperty("portions").GetDecimal());
+
+        // Plan shopping preview sums both people's cook-day pots (2 + 3 = 5 portions × 100 g = 500 g, no leftover double-count)
+        var preview = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get,
+            $"/api/plan/shopping-preview?start={mealDate:yyyy-MM-dd}&days=2", email: AdminEmail)).Content.ReadAsStringAsync());
+        var rice = Assert.Single(preview.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal(500m, rice.GetProperty("requiredQuantity").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Shopping_ExposesPantryItemId_IdempotentCheck_AndOptInAdjustAddsDelta()
+    {
+        await using var host = await BuildTestAppAsync();
+
+        var pRes = await host.SendAsync(HttpMethod.Post, "/api/pantry", email: AdminEmail, body: new
+        {
+            name = "Mleko", category = "Fridge", unit = "ml", quantity = 200m,
+        });
+        Assert.Equal(HttpStatusCode.Created, pRes.StatusCode);
+        var milkId = JsonDocument.Parse(await pRes.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        var addShop = await host.SendAsync(HttpMethod.Post, "/api/shopping", email: AdminEmail, body: new { name = "Mleko" });
+        Assert.Equal(HttpStatusCode.Created, addShop.StatusCode);
+        var shopId = JsonDocument.Parse(await addShop.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        // Explicit checked=true is idempotent across repeated offline/live replays
+        var check1 = await host.SendAsync(HttpMethod.Patch, $"/api/shopping/{shopId}/check", email: AdminEmail, body: new { @checked = true });
+        var check2 = await host.SendAsync(HttpMethod.Patch, $"/api/shopping/{shopId}/check", email: AdminEmail, body: new { @checked = true });
+        Assert.Equal(HttpStatusCode.OK, check1.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, check2.StatusCode);
+        Assert.True(JsonDocument.Parse(await check2.Content.ReadAsStringAsync()).RootElement.GetProperty("checked").GetBoolean());
+
+        // GET /api/shopping exposes pantryItemId, and checking off never mutates pantry stock silently
+        var list = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/shopping", email: AdminEmail)).Content.ReadAsStringAsync());
+        var row = Assert.Single(list.RootElement.GetProperty("items").EnumerateArray());
+        Assert.Equal(milkId, row.GetProperty("pantryItemId").GetGuid());
+
+        var pantryBefore = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/pantry", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(200m, pantryBefore.RootElement[0].GetProperty("items")[0].GetProperty("quantity").GetDecimal());
+
+        // Opt-in BoughtToPantrySheet posts one /pantry/adjust delta
+        var adj = await host.SendAsync(HttpMethod.Post, "/api/pantry/adjust", email: AdminEmail, body: new
+        {
+            items = new[] { new { name = "Mleko", quantity = 1000m, unit = "ml", pantryItemId = milkId } },
+        });
+        Assert.Equal(HttpStatusCode.OK, adj.StatusCode);
+        var adjDoc = JsonDocument.Parse(await adj.Content.ReadAsStringAsync());
+        Assert.Equal(1200m, Assert.Single(adjDoc.RootElement.GetProperty("updated").EnumerateArray()).GetProperty("quantity").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Catering_PausesSkipAutoMaterialization_AndDropTodayBoxImmediately()
+    {
+        await using var host = await BuildTestAppAsync();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        var save = await host.SendAsync(HttpMethod.Put, "/api/body/catering", email: AdminEmail, body: new
+        {
+            enabled = true,
+            kcal = 2000,
+            weekdays = CateringService.AllWeekdays,
+            startDate = today.AddDays(-1),
+            splitMeals = false,
+        });
+        Assert.Equal(HttpStatusCode.OK, save.StatusCode);
+
+        // Invalid range (to < from) rejected
+        var badPause = await host.SendAsync(HttpMethod.Post, "/api/body/catering/pauses", email: AdminEmail, body: new
+        {
+            from = today.AddDays(3), to = today.AddDays(1), note = "Zły zakres",
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, badPause.StatusCode);
+
+        // Adding pause covering today..today+2 drops today's box immediately
+        var pauseRes = await host.SendAsync(HttpMethod.Post, "/api/body/catering/pauses", email: AdminEmail, body: new
+        {
+            from = today, to = today.AddDays(2), note = "Urlop",
+        });
+        Assert.Equal(HttpStatusCode.Created, pauseRes.StatusCode);
+        var pauseId = JsonDocument.Parse(await pauseRes.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        var getCat = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/body/catering", email: AdminEmail)).Content.ReadAsStringAsync());
+        var pauseDto = Assert.Single(getCat.RootElement.GetProperty("pauses").EnumerateArray());
+        Assert.Equal("Urlop", pauseDto.GetProperty("note").GetString());
+
+        // EnsureAsync on paused day (today+1) skips it; day after pause (today+3) is materialized
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseHousehold(1);
+            var svc = new CateringService(db, new PersonScope(1));
+            await svc.EnsureAsync(today.AddDays(1));
+            await svc.EnsureAsync(today.AddDays(3));
+            var dates = await db.PlanEntries.Where(e => e.IsCatering && e.PersonId == 1)
+                .OrderBy(e => e.Date).Select(e => e.Date).ToListAsync();
+            Assert.Contains(today.AddDays(-1), dates);
+            Assert.DoesNotContain(today, dates);
+            Assert.DoesNotContain(today.AddDays(1), dates);
+            Assert.DoesNotContain(today.AddDays(2), dates);
+            Assert.Contains(today.AddDays(3), dates);
+        }
+
+        var delPause = await host.SendAsync(HttpMethod.Delete, $"/api/body/catering/pauses/{pauseId}", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.NoContent, delPause.StatusCode);
+    }
+
+    [Fact]
+    public async Task Catering_SplitMeals_DividesIntoExact30_40_30AcrossThreeSlots_AndDeleteDayClearsAll()
+    {
+        await using var host = await BuildTestAppAsync();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        var save = await host.SendAsync(HttpMethod.Put, "/api/body/catering", email: AdminEmail, body: new
+        {
+            enabled = true,
+            kcal = 2001,
+            protein = 120.5m,
+            fat = 65.3m,
+            carbs = 210.7m,
+            weekdays = CateringService.AllWeekdays,
+            startDate = today,
+            splitMeals = true,
+        });
+        Assert.Equal(HttpStatusCode.OK, save.StatusCode);
+
+        var planDoc = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get,
+            $"/api/plan?start={today:yyyy-MM-dd}&days=1", email: AdminEmail)).Content.ReadAsStringAsync());
+        var boxes = planDoc.RootElement.GetProperty("entries").EnumerateArray()
+            .Where(e => e.GetProperty("isCatering").GetBoolean())
+            .ToList();
+        Assert.Equal(3, boxes.Count);
+        Assert.Equal(["breakfast", "dinner", "lunch"], boxes.Select(b => b.GetProperty("slot").GetString()!).OrderBy(s => s).ToArray());
+        Assert.Equal(2001, boxes.Sum(b => b.GetProperty("kcal").GetInt32()));
+        Assert.Equal(120.5m, boxes.Sum(b => b.GetProperty("protein").GetDecimal()));
+        Assert.Equal(65.3m, boxes.Sum(b => b.GetProperty("fat").GetDecimal()));
+        Assert.Equal(210.7m, boxes.Sum(b => b.GetProperty("carbs").GetDecimal()));
+
+        // DELETE /api/body/catering/day/{today} removes all 3 split meals cleanly
+        var delDay = await host.SendAsync(HttpMethod.Delete, $"/api/body/catering/day/{today:yyyy-MM-dd}", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.NoContent, delDay.StatusCode);
+
+        var afterDel = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get,
+            $"/api/plan?start={today:yyyy-MM-dd}&days=1", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.DoesNotContain(afterDel.RootElement.GetProperty("entries").EnumerateArray(),
+            e => e.GetProperty("isCatering").GetBoolean());
+
+        // POST /api/body/catering/log re-creates all 3 split meals for the day
+        var relog = await host.SendAsync(HttpMethod.Post, "/api/body/catering/log", email: AdminEmail, body: new { date = today });
+        Assert.Equal(HttpStatusCode.OK, relog.StatusCode);
+        var afterRelog = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get,
+            $"/api/plan?start={today:yyyy-MM-dd}&days=1", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(3, afterRelog.RootElement.GetProperty("entries").EnumerateArray()
+            .Count(e => e.GetProperty("isCatering").GetBoolean()));
+    }
+
     // ---- Test host harness ----
 
     private static MiseDbContext NewInMemoryDb() =>
@@ -839,6 +1106,7 @@ public class AuditRegressionTests
         api.MapCookLog();
         api.MapPlan();
         api.MapDiary();
+        api.MapBody();
         api.MapActivity();
         api.MapExercises();
         api.MapTraining();

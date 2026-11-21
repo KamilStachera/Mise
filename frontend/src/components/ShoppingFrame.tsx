@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useShopping, useSupplies } from '../api/hooks'
+import { readOfflineQueue, subscribeOfflineQueue } from '../lib/offlineQueue'
 import { useIsMobile } from '../lib/useIsMobile'
 import { TAB_BAR_HEIGHT } from './TabBar'
 import { Eyebrow, PageTitle, Segmented, Sheet, mono, sans, usePagePad } from './ui'
@@ -13,6 +14,59 @@ export interface ListAction {
 
 /** Height of the phone's pinned add bar (52px field + padding). */
 const ADD_BAR = 72
+
+/** Subtle live-sync / offline indicator for the supermarket shopping screen. */
+function LiveSyncBadge() {
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
+  const [queued, setQueued] = useState(() => readOfflineQueue().length)
+
+  useEffect(() => {
+    const onOnline = () => setOnline(true)
+    const onOffline = () => setOnline(false)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    const unsub = subscribeOfflineQueue(() => setQueued(readOfflineQueue().length))
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+      unsub()
+    }
+  }, [])
+
+  const offlineOrQueued = !online || queued > 0
+  const label = !online
+    ? queued > 0 ? `Offline · ${queued} w kolejce` : 'Offline'
+    : queued > 0 ? `Synchronizacja · ${queued}` : 'Na żywo'
+
+  return (
+    <span
+      title={online ? 'Lista odświeża się automatycznie co kilka sekund' : 'Brak zasięgu — zmiany zapiszą się po powrocie sieci'}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: offlineOrQueued ? '4px 10px' : '2px 0',
+        borderRadius: 999,
+        border: offlineOrQueued ? '1px solid var(--gold)' : '1px solid transparent',
+        background: offlineOrQueued ? 'var(--surface)' : 'transparent',
+        font: mono(11, 500),
+        color: offlineOrQueued ? 'var(--gold-text)' : 'var(--text-3)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          background: offlineOrQueued ? 'var(--gold)' : 'var(--sage)',
+          flexShrink: 0,
+        }}
+      />
+      {label}
+    </span>
+  )
+}
 
 /**
  * Page frame shared by both shopping lists (Jedzenie / Dom). Desktop: the list
@@ -53,11 +107,14 @@ export function ShoppingFrame({ counts, addBar, actions, aside, hint, children }
         <PageTitle
           title="Zakupy"
           right={
-            actions.length > 0 && (
-              <button type="button" aria-label="Więcej" onClick={() => setMenu(true)} style={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 16, letterSpacing: 1, color: 'var(--text)' }}>
-                ···
-              </button>
-            )
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <LiveSyncBadge />
+              {actions.length > 0 && (
+                <button type="button" aria-label="Więcej" onClick={() => setMenu(true)} style={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 16, letterSpacing: 1, color: 'var(--text)' }}>
+                  ···
+                </button>
+              )}
+            </div>
           }
         />
         {tabs}
@@ -78,7 +135,15 @@ export function ShoppingFrame({ counts, addBar, actions, aside, hint, children }
   return (
     <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 56, alignItems: 'start' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 720 }}>
-        <PageTitle title="Zakupy" right={tabs} />
+        <PageTitle
+          title="Zakupy"
+          right={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <LiveSyncBadge />
+              {tabs}
+            </div>
+          }
+        />
         {addBar}
         {children}
       </div>
@@ -160,10 +225,15 @@ export function Progress({ done, total, right }: { done: number; total: number; 
 }
 
 /** Group of check rows under a mono caps label. */
-export function CheckGroup({ label, thin, children }: { label: ReactNode; thin?: boolean; children: ReactNode }) {
+export function CheckGroup({ label, right, thin, children }: { label: ReactNode; right?: ReactNode; thin?: boolean; children: ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {label && <Eyebrow style={{ paddingBottom: 8, borderBottom: `1px solid ${thin ? 'var(--border)' : 'var(--rule)'}` }}>{label}</Eyebrow>}
+      {(label || right) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 8, borderBottom: `1px solid ${thin ? 'var(--border)' : 'var(--rule)'}` }}>
+          {label ? <Eyebrow>{label}</Eyebrow> : <span />}
+          {right}
+        </div>
+      )}
       {children}
     </div>
   )

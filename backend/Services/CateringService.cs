@@ -16,6 +16,7 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
 {
     public const string Title = "Catering";
     public const int AllWeekdays = 0b1111111;
+    public const int MaxPausesPerPerson = 50;
     public int PersonId { get; } = (person ?? PersonScope.Default).Id;
 
     /// <summary>Bit for a weekday in <see cref="Catering.Weekdays"/> (bit 0 = Monday).</summary>
@@ -23,14 +24,23 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
 
     public static bool Delivers(Catering c, DateOnly date) => (c.Weekdays & Bit(date.DayOfWeek)) != 0;
 
+    public static bool IsPaused(IEnumerable<CateringPause> pauses, DateOnly date) =>
+        pauses.Any(p => date >= p.From && date <= p.To);
+
     public Task<Catering?> GetAsync(CancellationToken ct = default) =>
         db.Caterings.AsNoTracking().FirstOrDefaultAsync(c => c.PersonId == PersonId, ct);
+
+    public Task<List<CateringPause>> GetPausesAsync(CancellationToken ct = default) =>
+        db.CateringPauses.AsNoTracking()
+            .Where(p => p.PersonId == PersonId)
+            .OrderBy(p => p.From).ThenBy(p => p.To)
+            .ToListAsync(ct);
 
     /// <summary>
     /// Writes the missing catering days up to today. Cheap no-op once today is done. Pages load
     /// /plan, /body/budget and /body/progress in parallel and each calls this, so several requests
     /// race for the same backlog: <see cref="Catering.MaterializedThrough"/> is a concurrency token
-    /// (and a unique index allows one catering entry per person and day), so only the first save
+    /// (and a unique index allows one catering entry per person, day and slot), so only the first save
     /// lands and the others drop their copies.
     /// </summary>
     public async Task EnsureAsync(DateOnly today, CancellationToken ct = default)
@@ -41,6 +51,9 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
 
         var from = c.MaterializedThrough is DateOnly d ? d.AddDays(1) : c.StartDate;
         if (from < c.StartDate) from = c.StartDate;
+        var pauses = await db.CateringPauses.AsNoTracking()
+            .Where(p => p.PersonId == PersonId && p.To >= from && p.From <= today)
+            .ToListAsync(ct);
         // Idempotent: a day that already has its box (written by a parallel request, or before the
         // start date was moved back in SaveAsync) is never written twice.
         var existing = (await db.PlanEntries.AsNoTracking()
@@ -49,7 +62,8 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
         var added = new List<PlanEntry>();
         for (var day = from; day <= today; day = day.AddDays(1))
         {
-            if (Delivers(c, day) && !existing.Contains(day)) added.Add(NewEntry(c, day));
+            if (Delivers(c, day) && !IsPaused(pauses, day) && !existing.Contains(day))
+                added.AddRange(NewEntries(c, day));
         }
         db.PlanEntries.AddRange(added);
         c.MaterializedThrough = today;
@@ -65,19 +79,20 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
         }
     }
 
-    public const string OnePerDayIndex = "IX_PlanEntries_PersonId_Date_Catering";
+    public const string OnePerSlotIndex = "IX_PlanEntries_PersonId_Date_Slot_Catering";
+    public const string OnePerDayIndex = OnePerSlotIndex;
 
     private static bool IsDuplicateCatering(DbUpdateException ex) =>
         ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pg
-        && pg.ConstraintName == OnePerDayIndex;
+        && pg.ConstraintName is OnePerSlotIndex or "IX_PlanEntries_PersonId_Date_Catering";
 
-    /// <summary>True when the person already has a catering entry that day (one per day).</summary>
+    /// <summary>True when the person already has any catering entry that day.</summary>
     public Task<bool> HasEntryAsync(int personId, DateOnly date, Guid? except = null, CancellationToken ct = default) =>
         db.PlanEntries.AnyAsync(e => e.PersonId == personId && e.Date == date && e.IsCatering && e.Id != except, ct);
 
     /// <summary>Saves the settings. Days already written keep their old numbers (snapshots).</summary>
     public async Task<Catering> SaveAsync(bool enabled, int kcal, decimal? protein, decimal? fat, decimal? carbs,
-        int weekdays, DateOnly startDate, DateOnly today, CancellationToken ct = default)
+        int weekdays, DateOnly startDate, DateOnly today, CancellationToken ct = default, bool splitMeals = false)
     {
         if (kcal is < 0 or > 10000) throw new DiaryException("Kcal poza zakresem.");
         if (enabled && kcal == 0) throw new DiaryException("Podaj kcal cateringu.");
@@ -99,6 +114,7 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
         (c.Enabled, c.Kcal, c.Protein, c.Fat, c.Carbs) = (enabled, kcal, protein, fat, carbs);
         c.Weekdays = weekdays & AllWeekdays;
         c.StartDate = startDate;
+        c.SplitMeals = splitMeals;
         c.UpdatedAt = DateTimeOffset.UtcNow;
 
         if (!enabled)
@@ -121,12 +137,16 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
             if (backfillEnd > today) backfillEnd = today;
             if (startDate <= backfillEnd)
             {
+                var pauses = await db.CateringPauses.AsNoTracking()
+                    .Where(p => p.PersonId == PersonId && p.To >= startDate && p.From <= backfillEnd)
+                    .ToListAsync(ct);
                 var existing = (await db.PlanEntries.AsNoTracking()
                     .Where(e => e.PersonId == PersonId && e.IsCatering && e.Date >= startDate && e.Date <= backfillEnd)
                     .Select(e => e.Date).ToListAsync(ct)).ToHashSet();
                 for (var day = startDate; day <= backfillEnd; day = day.AddDays(1))
                 {
-                    if (Delivers(c, day) && !existing.Contains(day)) backfillAdded.Add(NewEntry(c, day));
+                    if (Delivers(c, day) && !IsPaused(pauses, day) && !existing.Contains(day))
+                        backfillAdded.AddRange(NewEntries(c, day));
                 }
                 db.PlanEntries.AddRange(backfillAdded);
             }
@@ -145,8 +165,60 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
         return c;
     }
 
-    /// <summary>Logs the box on a day without delivery (a weekend order) or one deleted by mistake.</summary>
+    public async Task<CateringPause> AddPauseAsync(DateOnly from, DateOnly to, string? note, DateOnly today,
+        CancellationToken ct = default)
+    {
+        if (to < from) throw new DiaryException("Data końcowa musi być późniejsza lub równa początkowej.");
+        if (to.DayNumber - from.DayNumber > 365) throw new DiaryException("Pauza może trwać maksymalnie rok.");
+        if (from < today.AddYears(-1) || to > today.AddYears(2))
+            throw new DiaryException("Zakres dat pauzy poza dozwolonym przedziałem.");
+        var cleanNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        if (cleanNote is { Length: > 120 }) throw new DiaryException("Notatka może mieć maks. 120 znaków.");
+        var count = await db.CateringPauses.CountAsync(p => p.PersonId == PersonId, ct);
+        if (count >= MaxPausesPerPerson) throw new DiaryException($"Maks. {MaxPausesPerPerson} pauz cateringu.");
+
+        var pause = new CateringPause { PersonId = PersonId, From = from, To = to, Note = cleanNote };
+        db.CateringPauses.Add(pause);
+        // If the pause covers today, drop today's auto-materialized box immediately (past days stay untouched).
+        if (today >= from && today <= to)
+        {
+            var todays = await db.PlanEntries
+                .Where(e => e.PersonId == PersonId && e.IsCatering && e.Date == today)
+                .ToListAsync(ct);
+            if (todays.Count > 0) db.PlanEntries.RemoveRange(todays);
+        }
+        await db.SaveChangesAsync(ct);
+        return pause;
+    }
+
+    public async Task<bool> DeletePauseAsync(Guid id, CancellationToken ct = default)
+    {
+        var pause = await db.CateringPauses.FirstOrDefaultAsync(p => p.Id == id && p.PersonId == PersonId, ct);
+        if (pause is null) return false;
+        db.CateringPauses.Remove(pause);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<int> DeleteDayAsync(DateOnly date, CancellationToken ct = default)
+    {
+        var rows = await db.PlanEntries
+            .Where(e => e.PersonId == PersonId && e.IsCatering && e.Date == date)
+            .ToListAsync(ct);
+        if (rows.Count == 0) return 0;
+        db.PlanEntries.RemoveRange(rows);
+        await db.SaveChangesAsync(ct);
+        return rows.Count;
+    }
+
+    /// <summary>Logs the box (or 3 split meals) on a day without delivery (a weekend order) or one deleted by mistake.</summary>
     public async Task<PlanEntry> LogAsync(DateOnly date, CancellationToken ct = default)
+    {
+        var entries = await LogDayAsync(date, ct);
+        return entries[0];
+    }
+
+    public async Task<List<PlanEntry>> LogDayAsync(DateOnly date, CancellationToken ct = default)
     {
         var c = await db.Caterings.AsNoTracking().FirstOrDefaultAsync(x => x.PersonId == PersonId, ct)
             ?? throw new DiaryException("Najpierw ustaw catering.", StatusCodes.Status404NotFound);
@@ -154,8 +226,8 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
             throw new DiaryException("Najpierw ustaw kcal cateringu.");
         if (await HasEntryAsync(PersonId, date, ct: ct))
             throw new DiaryException("Catering na ten dzień jest już wpisany.", StatusCodes.Status409Conflict);
-        var entry = NewEntry(c, date);
-        db.PlanEntries.Add(entry);
+        var entries = NewEntries(c, date);
+        db.PlanEntries.AddRange(entries);
         try
         {
             await db.SaveChangesAsync(ct);
@@ -164,22 +236,55 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
         {
             throw new DiaryException("Catering na ten dzień jest już wpisany.", StatusCodes.Status409Conflict);
         }
-        return entry;
+        return entries;
     }
 
-    private static PlanEntry NewEntry(Catering c, DateOnly day)
+    private static List<PlanEntry> NewEntries(Catering c, DateOnly day)
+    {
+        if (!c.SplitMeals)
+            return [BuildEntry(c, day, MealSlot.Breakfast, Title, c.Kcal, c.Protein, c.Fat, c.Carbs)];
+
+        var (bk, lk, dk) = SplitInt(c.Kcal);
+        var (bp, lp, dp) = SplitDec(c.Protein);
+        var (bf, lf, df) = SplitDec(c.Fat);
+        var (bc, lc, dc) = SplitDec(c.Carbs);
+        return
+        [
+            BuildEntry(c, day, MealSlot.Breakfast, $"{Title} — Śniadanie", bk, bp, bf, bc),
+            BuildEntry(c, day, MealSlot.Lunch, $"{Title} — Obiad", lk, lp, lf, lc),
+            BuildEntry(c, day, MealSlot.Dinner, $"{Title} — Kolacja", dk, dp, df, dc),
+        ];
+    }
+
+    private static (int B, int L, int D) SplitInt(int total)
+    {
+        var b = (int)Math.Round(total * 0.30m, MidpointRounding.AwayFromZero);
+        var l = (int)Math.Round(total * 0.40m, MidpointRounding.AwayFromZero);
+        return (b, l, Math.Max(0, total - b - l));
+    }
+
+    private static (decimal? B, decimal? L, decimal? D) SplitDec(decimal? total)
+    {
+        if (total is not decimal v) return (null, null, null);
+        var b = Math.Round(v * 0.30m, 1, MidpointRounding.AwayFromZero);
+        var l = Math.Round(v * 0.40m, 1, MidpointRounding.AwayFromZero);
+        return (b, l, Math.Max(0m, Math.Round(v - b - l, 1, MidpointRounding.AwayFromZero)));
+    }
+
+    private static PlanEntry BuildEntry(Catering c, DateOnly day, MealSlot slot, string title,
+        int kcal, decimal? protein, decimal? fat, decimal? carbs)
     {
         var entry = new PlanEntry
         {
             PersonId = c.PersonId,
             Date = day,
-            Slot = MealSlot.Breakfast,
-            Title = Title,
+            Slot = slot,
+            Title = title,
             IsCatering = true,
-            Kcal = c.Kcal,
-            Protein = c.Protein,
-            Fat = c.Fat,
-            Carbs = c.Carbs,
+            Kcal = kcal,
+            Protein = protein,
+            Fat = fat,
+            Carbs = carbs,
         };
         DiaryService.SetEaten(entry, true);
         return entry;

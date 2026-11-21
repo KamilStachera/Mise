@@ -4,12 +4,14 @@ import {
   api,
   type BodyInput,
   type CateringInput,
+  type CateringPauseInput,
   type CookAssignment,
   type CookInput,
   type CookLogInput,
   type CookLogUpdateInput,
   type DiaryEntryInput,
   type InviteStatus,
+  type PantryAdjustItem,
   type PantryItemInput,
   type PantryConfirmation,
   type PlanEntryInput,
@@ -20,11 +22,16 @@ import {
   type RecipeListItem,
   type RecipeNutritionInput,
   type Role,
+  type ShoppingItem,
+  type ShoppingList,
   type Slot,
   type SupplyCategory,
+  type SupplyItem,
+  type SupplyList,
   type WorkoutInput,
 } from './client'
 import { pickPerson, usePickedPerson } from './person'
+import { clearOfflineQueue, clearSwApiCache, enqueueOfflineAction, isNetworkError, readOfflineQueue } from '../lib/offlineQueue'
 
 // Session state; the react-query cache is the shared auth state (no context needed).
 // staleTime: Infinity — refreshed only by explicit invalidation (logout, 401 backstop).
@@ -169,8 +176,10 @@ export function useLogout() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => api.logout(),
-    // Everything cached (and any persisted X-Person pick) belonged to that session's household.
+    // Everything cached (and any persisted X-Person pick or offline queue) belonged to that session's household.
     onSuccess: () => {
+      clearOfflineQueue()
+      clearSwApiCache()
       pickPerson(null)
       qc.clear()
       qc.invalidateQueries({ queryKey: ['auth'] })
@@ -196,14 +205,37 @@ export function usePantry() {
   return useQuery({ queryKey: ['pantry'], queryFn: api.pantry, enabled: canEdit })
 }
 
-export function useShopping() {
+const livePollOptions = {
+  refetchInterval: () =>
+    typeof document !== 'undefined' &&
+    document.visibilityState === 'visible' &&
+    navigator.onLine &&
+    readOfflineQueue().length === 0
+      ? 6_000
+      : false,
+  refetchIntervalInBackground: false,
+  refetchOnWindowFocus: true,
+  refetchOnReconnect: true,
+} as const
+
+export function useShopping(opts?: { live?: boolean }) {
   const { canEdit } = useAuth()
-  return useQuery({ queryKey: ['shopping'], queryFn: api.shopping, enabled: canEdit })
+  return useQuery({
+    queryKey: ['shopping'],
+    queryFn: api.shopping,
+    enabled: canEdit,
+    ...(opts?.live ? livePollOptions : undefined),
+  })
 }
 
-export function useSupplies() {
+export function useSupplies(opts?: { live?: boolean }) {
   const { canEdit } = useAuth()
-  return useQuery({ queryKey: ['supplies'], queryFn: api.supplies, enabled: canEdit })
+  return useQuery({
+    queryKey: ['supplies'],
+    queryFn: api.supplies,
+    enabled: canEdit,
+    ...(opts?.live ? livePollOptions : undefined),
+  })
 }
 
 /** Only fetched while the "Zarządzaj częstymi" panel is open. */
@@ -286,7 +318,7 @@ export function useCookProposal(recipeId: string | undefined, enabled: boolean) 
 /** Mutations whose call site shows its own failure message; the global "nie udało się" toast skips them. */
 const OWN_ERRORS = { ownErrors: true }
 
-function usePantryMutation<TArgs>(mutationFn: (args: TArgs) => Promise<unknown>, meta?: typeof OWN_ERRORS) {
+function usePantryMutation<TArgs, TData = unknown>(mutationFn: (args: TArgs) => Promise<TData>, meta?: typeof OWN_ERRORS) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn,
@@ -315,6 +347,13 @@ export function useAddPantry() {
   return usePantryMutation((input: PantryItemInput) => api.addPantry(input), OWN_ERRORS)
 }
 
+export function useAdjustPantry() {
+  return usePantryMutation(
+    ({ items, merchant }: { items: PantryAdjustItem[]; merchant?: string }) => api.adjustPantry(items, merchant),
+    OWN_ERRORS,
+  )
+}
+
 export function useDeletePantry() {
   return usePantryMutation((id: string) => api.deletePantry(id))
 }
@@ -322,8 +361,50 @@ export function useDeletePantry() {
 export function useCheckShopping() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.checkShopping(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping'] }),
+    onMutate: async (input: string | { id: string; checked: boolean }) => {
+      const id = typeof input === 'string' ? input : input.id
+      await qc.cancelQueries({ queryKey: ['shopping'] })
+      const prev = qc.getQueryData<ShoppingList>(['shopping'])
+      if (prev) {
+        const items = prev.items.map((item) => {
+          if (item.id !== id) return item
+          const checked = typeof input === 'string' ? !item.checked : input.checked
+          return { ...item, checked }
+        })
+        qc.setQueryData<ShoppingList>(['shopping'], {
+          ...prev,
+          items,
+          checkedCount: items.filter((i) => i.checked).length,
+        })
+      }
+      return { prev }
+    },
+    mutationFn: async (input: string | { id: string; checked: boolean }) => {
+      const id = typeof input === 'string' ? input : input.id
+      const targetChecked = typeof input === 'string'
+        ? qc.getQueryData<ShoppingList>(['shopping'])?.items.find((s) => s.id === id)?.checked
+        : input.checked
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        enqueueOfflineAction({ kind: 'shopping-check', id, checked: targetChecked ?? true })
+        return { queued: true as const }
+      }
+      try {
+        const item = await api.checkShopping(id, targetChecked)
+        return { queued: false as const, item }
+      } catch (err) {
+        if (isNetworkError(err)) {
+          enqueueOfflineAction({ kind: 'shopping-check', id, checked: targetChecked ?? true })
+          return { queued: true as const }
+        }
+        throw err
+      }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['shopping'], ctx.prev)
+    },
+    onSuccess: (res) => {
+      if (!res.queued) qc.invalidateQueries({ queryKey: ['shopping'] })
+    },
   })
 }
 
@@ -354,8 +435,52 @@ export function useDeleteShopping() {
 export function useAddShopping() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ name, category }: { name: string; category?: string }) => api.addShopping(name, category),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping'] }),
+    onMutate: async ({ name, category }: { name: string; category?: string }) => {
+      await qc.cancelQueries({ queryKey: ['shopping'] })
+      const prev = qc.getQueryData<ShoppingList>(['shopping'])
+      if (prev) {
+        const optimistic: ShoppingItem = {
+          id: `offline-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name,
+          category: category ?? 'Other',
+          reason: 'Dodane ręcznie',
+          checked: false,
+          origin: 'manual',
+          quantity: null,
+          unit: null,
+          recipes: [],
+          pantryItemId: null,
+        }
+        qc.setQueryData<ShoppingList>(['shopping'], {
+          ...prev,
+          items: [optimistic, ...prev.items],
+          total: prev.total + 1,
+        })
+      }
+      return { prev }
+    },
+    mutationFn: async ({ name, category }: { name: string; category?: string }) => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        enqueueOfflineAction({ kind: 'shopping-add', name, category })
+        return { queued: true as const }
+      }
+      try {
+        const item = await api.addShopping(name, category)
+        return { queued: false as const, item }
+      } catch (err) {
+        if (isNetworkError(err)) {
+          enqueueOfflineAction({ kind: 'shopping-add', name, category })
+          return { queued: true as const }
+        }
+        throw err
+      }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['shopping'], ctx.prev)
+    },
+    onSuccess: (res) => {
+      if (!res.queued) qc.invalidateQueries({ queryKey: ['shopping'] })
+    },
   })
 }
 
@@ -371,12 +496,99 @@ function useSupplyMutation<TArgs>(mutationFn: (args: TArgs) => Promise<unknown>)
 }
 
 export function useAddSupply() {
-  return useSupplyMutation(({ name, category }: { name: string; category?: SupplyCategory }) =>
-    api.addSupply(name, category))
+  const qc = useQueryClient()
+  return useMutation({
+    onMutate: async ({ name, category }: { name: string; category?: SupplyCategory }) => {
+      await qc.cancelQueries({ queryKey: ['supplies'] })
+      const prev = qc.getQueryData<SupplyList>(['supplies'])
+      if (prev) {
+        const optimistic: SupplyItem = {
+          id: `offline-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name,
+          category: category ?? 'other',
+          checked: false,
+        }
+        qc.setQueryData<SupplyList>(['supplies'], {
+          ...prev,
+          items: [optimistic, ...prev.items],
+          total: prev.total + 1,
+        })
+      }
+      return { prev }
+    },
+    mutationFn: async ({ name, category }: { name: string; category?: SupplyCategory }) => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        enqueueOfflineAction({ kind: 'supply-add', name, category })
+        return { queued: true as const }
+      }
+      try {
+        const item = await api.addSupply(name, category)
+        return { queued: false as const, item }
+      } catch (err) {
+        if (isNetworkError(err)) {
+          enqueueOfflineAction({ kind: 'supply-add', name, category })
+          return { queued: true as const }
+        }
+        throw err
+      }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['supplies'], ctx.prev)
+    },
+    onSuccess: (res) => {
+      if (!res.queued) qc.invalidateQueries({ queryKey: ['supplies'] })
+    },
+  })
 }
 
 export function useCheckSupply() {
-  return useSupplyMutation((id: string) => api.checkSupply(id))
+  const qc = useQueryClient()
+  return useMutation({
+    onMutate: async (input: string | { id: string; checked: boolean }) => {
+      const id = typeof input === 'string' ? input : input.id
+      await qc.cancelQueries({ queryKey: ['supplies'] })
+      const prev = qc.getQueryData<SupplyList>(['supplies'])
+      if (prev) {
+        const items = prev.items.map((item) => {
+          if (item.id !== id) return item
+          const checked = typeof input === 'string' ? !item.checked : input.checked
+          return { ...item, checked }
+        })
+        qc.setQueryData<SupplyList>(['supplies'], {
+          ...prev,
+          items,
+          checkedCount: items.filter((i) => i.checked).length,
+        })
+      }
+      return { prev }
+    },
+    mutationFn: async (input: string | { id: string; checked: boolean }) => {
+      const id = typeof input === 'string' ? input : input.id
+      const targetChecked = typeof input === 'string'
+        ? qc.getQueryData<SupplyList>(['supplies'])?.items.find((s) => s.id === id)?.checked
+        : input.checked
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        enqueueOfflineAction({ kind: 'supply-check', id, checked: targetChecked ?? true })
+        return { queued: true as const }
+      }
+      try {
+        const item = await api.checkSupply(id, targetChecked)
+        return { queued: false as const, item }
+      } catch (err) {
+        if (isNetworkError(err)) {
+          enqueueOfflineAction({ kind: 'supply-check', id, checked: targetChecked ?? true })
+          return { queued: true as const }
+        }
+        throw err
+      }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['supplies'], ctx.prev)
+    },
+    onSuccess: (res) => {
+      if (!res.queued) qc.invalidateQueries({ queryKey: ['supplies'] })
+    },
+  })
 }
 
 export function useDeleteSupply() {
@@ -823,9 +1035,48 @@ export function useSaveCatering() {
   })
 }
 
+export function useAddCateringPause() {
+  const qc = useQueryClient()
+  const diary = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: (input: CateringPauseInput) => api.addCateringPause(input),
+    meta: OWN_ERRORS,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catering'] })
+      qc.invalidateQueries({ queryKey: ['budget'] })
+      diary()
+    },
+  })
+}
+
+export function useDeleteCateringPause() {
+  const qc = useQueryClient()
+  const diary = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteCateringPause(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catering'] })
+      qc.invalidateQueries({ queryKey: ['budget'] })
+      diary()
+    },
+  })
+}
+
 export function useLogCatering() {
   const onSuccess = useDiaryInvalidation()
   return useMutation({ mutationFn: (date: string) => api.logCatering(date), onSuccess })
+}
+
+export function useDeleteCateringDay() {
+  const qc = useQueryClient()
+  const diary = useDiaryInvalidation()
+  return useMutation({
+    mutationFn: (date: string) => api.deleteCateringDay(date),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget'] })
+      diary()
+    },
+  })
 }
 
 /** Everything a diary write can touch: the calendar, pots, chips, the cook reminder, progress. */

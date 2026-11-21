@@ -670,10 +670,24 @@ public class Catering : IHouseholdOwned, IPersonOwned
     public int Weekdays { get; set; } = 0b0011111;
     /// <summary>First day the boxes count.</summary>
     public DateOnly StartDate { get; set; }
+    /// <summary>When true, each delivery day materializes as 3 split slots (Breakfast 30% / Lunch 40% / Dinner 30%).</summary>
+    public bool SplitMeals { get; set; }
     /// <summary>Days up to here are done (written, or skipped on purpose); null = nothing yet.</summary>
     [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
     public DateOnly? MaterializedThrough { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>Scheduled vacation/pause window during which catering boxes are not materialized.</summary>
+public class CateringPause : IHouseholdOwned, IPersonOwned
+{
+    public int HouseholdId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; }
+    public DateOnly From { get; set; }
+    public DateOnly To { get; set; }
+    public string? Note { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 /// <summary>

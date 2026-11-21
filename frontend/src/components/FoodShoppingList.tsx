@@ -5,6 +5,7 @@ import type { ShoppingItem, ShoppingRecipeRef } from '../api/client'
 import { formatQty } from '../lib/labels'
 import { alphabeticalShoppingGroups, lidlShoppingGroups, shoppingListAsText, type ShoppingLayout } from '../lib/shoppingAisles'
 import { showToast } from '../lib/toastBus'
+import { BoughtToPantrySheet } from './BoughtToPantrySheet'
 import { AddBar, CheckGroup, CheckRow, Progress, ShoppingFrame, useShoppingCounts, type ListAction } from './ShoppingFrame'
 import { RecipeThumb } from './RecipeThumb'
 import { mono, sans } from './ui'
@@ -28,7 +29,7 @@ function rowSub(s: ShoppingItem): string | null {
 export function FoodShoppingList() {
   const nav = useNavigate()
   const { canEdit } = useAuth()
-  const { data, isLoading } = useShopping()
+  const { data, isLoading } = useShopping({ live: true })
   const counts = useShoppingCounts()
   const check = useCheckShopping()
   const clear = useClearChecked()
@@ -37,6 +38,7 @@ export function FoodShoppingList() {
   const remove = useDeleteShopping()
   const [name, setName] = useState('')
   const [layout, setLayout] = useState<ShoppingLayout>(savedLayout)
+  const [toPantryOpen, setToPantryOpen] = useState(false)
 
   const items = useMemo(() => data?.items ?? [], [data])
   const total = data?.total ?? 0
@@ -81,6 +83,7 @@ export function FoodShoppingList() {
   }
 
   const actions: ListAction[] = [
+    ...(canEdit && checked.length > 0 ? [{ label: 'Dopisz kupione do spiżarni', onClick: () => setToPantryOpen(true) }] : []),
     ...(unchecked.length > 0 ? [{ label: 'Kopiuj listę', onClick: copyList }] : []),
     ...(canEdit && done > 0 ? [{ label: 'Usuń odhaczone', onClick: () => clear.mutate() }] : []),
     ...(canEdit && total > 0
@@ -151,14 +154,28 @@ export function FoodShoppingList() {
                   name={s.name}
                   sub={rowSub(s)}
                   qty={s.quantity != null && s.unit ? formatQty(s.quantity, s.unit) : null}
-                  onToggle={canEdit ? () => check.mutate(s.id) : undefined}
+                  onToggle={canEdit ? () => check.mutate({ id: s.id, checked: true }) : undefined}
                   onRemove={canEdit ? () => remove.mutate(s.id) : undefined}
                 />
               ))}
             </CheckGroup>
           ))}
           {checked.length > 0 && (
-            <CheckGroup thin label={`W koszyku · ${checked.length}`}>
+            <CheckGroup
+              thin
+              label={`W koszyku · ${checked.length}`}
+              right={
+                canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setToPantryOpen(true)}
+                    style={{ border: 0, background: 'transparent', padding: 0, font: sans(13, 600), color: 'var(--accent-text)', cursor: 'pointer' }}
+                  >
+                    Dopisz do spiżarni ›
+                  </button>
+                )
+              }
+            >
               {checked.map((s, i) => (
                 <CheckRow
                   key={s.id}
@@ -166,7 +183,7 @@ export function FoodShoppingList() {
                   name={s.name}
                   sub={rowSub(s)}
                   qty={s.quantity != null && s.unit ? formatQty(s.quantity, s.unit) : null}
-                  onToggle={canEdit ? () => check.mutate(s.id) : undefined}
+                  onToggle={canEdit ? () => check.mutate({ id: s.id, checked: false }) : undefined}
                   last={i === checked.length - 1}
                 />
               ))}
@@ -174,6 +191,7 @@ export function FoodShoppingList() {
           )}
         </>
       )}
+      <BoughtToPantrySheet open={toPantryOpen} onClose={() => setToPantryOpen(false)} checkedItems={checked} />
     </ShoppingFrame>
   )
 }

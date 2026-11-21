@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { RecipeListItem, Slot } from '../../api/client'
-import { useAddDiaryEntry } from '../../api/hooks'
+import type { PartnerPortionInput, RecipeListItem, Slot } from '../../api/client'
+import { useAddDiaryEntry, usePerson } from '../../api/hooks'
 import { DIARY_SLOTS, slotLabel, slotTo } from '../../lib/labels'
 import { showToast } from '../../lib/toastBus'
 import { Button, Segmented, Sheet, inputStyle } from '../ui'
+import { PartnerSyncToggle, formatAlsoForToast } from './PartnerSyncToggle'
 import { RecipePicker } from './RecipePicker'
 
 /**
@@ -15,14 +16,16 @@ export function PlanMealSheet({ open, onClose, date, initialSlot, onSplit }: {
   onClose: () => void
   date: string
   initialSlot: Slot
-  onSplit: (recipe: RecipeListItem, date: string, slot: Slot) => void
+  onSplit: (recipe: RecipeListItem, date: string, slot: Slot, alsoFor?: PartnerPortionInput[]) => void
 }) {
   const add = useAddDiaryEntry()
+  const { people } = usePerson()
   const [slot, setSlot] = useState<Slot>(initialSlot)
   const [mode, setMode] = useState<'recipe' | 'text'>('recipe')
   const [recipe, setRecipe] = useState<RecipeListItem | null>(null)
   const [title, setTitle] = useState('')
   const [note, setNote] = useState('')
+  const [alsoFor, setAlsoFor] = useState<PartnerPortionInput[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -31,6 +34,7 @@ export function PlanMealSheet({ open, onClose, date, initialSlot, onSplit }: {
     setRecipe(null)
     setTitle('')
     setNote('')
+    setAlsoFor([])
   }, [open, initialSlot])
 
   const canSave = mode === 'recipe' ? !!recipe : title.trim().length > 0
@@ -42,8 +46,9 @@ export function PlanMealSheet({ open, onClose, date, initialSlot, onSplit }: {
       recipeId: mode === 'recipe' ? recipe!.id : null,
       title: mode === 'text' ? title.trim() : undefined,
       note: note.trim(),
+      alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
     })
-    showToast(`Zaplanowano ${slotTo[slot]}: ${mode === 'recipe' ? recipe!.title : title.trim()}`)
+    showToast(`Zaplanowano ${slotTo[slot]}: ${mode === 'recipe' ? recipe!.title : title.trim()}${formatAlsoForToast(alsoFor, people)}`)
     onClose()
   }
 
@@ -62,12 +67,13 @@ export function PlanMealSheet({ open, onClose, date, initialSlot, onSplit }: {
           <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="np. Pizza na mieście…" autoFocus />
         )}
         <input style={inputStyle} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notatka (opcjonalnie)…" />
+        <PartnerSyncToggle value={alsoFor} onChange={setAlsoFor} labelPrefix="Zaplanuj też dla" showPortions={mode === 'recipe'} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button size="xl" style={{ flex: 1 }} disabled={!canSave || add.isPending} onClick={save}>
             {add.isPending ? 'Zapisywanie…' : `Zaplanuj ${slotTo[slot]}`}
           </Button>
           {mode === 'recipe' && recipe && slot !== 'snack' && (
-            <Button size="xl" variant="outline" onClick={() => onSplit(recipe, date, slot)}>Na kilka dni…</Button>
+            <Button size="xl" variant="outline" onClick={() => onSplit(recipe, date, slot, alsoFor)}>Na kilka dni…</Button>
           )}
         </div>
       </div>

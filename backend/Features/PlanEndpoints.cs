@@ -90,8 +90,9 @@ public static class PlanEndpoints
                 return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
+                var alsoFor = input.AlsoFor?.Select(a => (a.PersonId, a.Portions)).ToList();
                 var entry = await diary.AddEntryAsync(input.Date, slot, input.RecipeId, input.Title, input.Note,
-                    input.Portions, input.Grams, input.Kcal, input.Protein, input.Fat, input.Carbs, input.Eaten);
+                    input.Portions, input.Grams, input.Kcal, input.Protein, input.Fat, input.Carbs, input.Eaten, alsoFor);
                 if (input.Favorite is { } f)
                     await diary.RememberAsync(f.Name, f.Kcal, f.Protein, f.Fat, f.Carbs, f.Per100g, f.LastGrams, f.Barcode);
                 if (entry.Slot != MealSlot.Snack && (entry.RecipeId is not null || entry.Kcal is null))
@@ -116,8 +117,8 @@ public static class PlanEndpoints
             if (input.Date is DateOnly date)
             {
                 if (entry.IsCatering && date != entry.Date && await db.PlanEntries.AnyAsync(
-                        e => e.PersonId == entry.PersonId && e.Date == date && e.IsCatering && e.Id != entry.Id))
-                    return Results.Conflict(new { error = "Na ten dzień catering jest już wpisany." });
+                        e => e.PersonId == entry.PersonId && e.Date == date && e.Slot == entry.Slot && e.IsCatering && e.Id != entry.Id))
+                    return Results.Conflict(new { error = "Na ten dzień i posiłek catering jest już wpisany." });
                 entry.Date = date;
                 if (entry.Cook is not null && !entry.IsLeftover) entry.Cook.Date = date;
             }

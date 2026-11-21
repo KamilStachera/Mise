@@ -3,7 +3,9 @@ import ReactDOM from 'react-dom/client'
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
-import { ApiError } from './api/client'
+import { ApiError, api, type SupplyCategory } from './api/client'
+import { flushOfflineQueue, type OfflineAction } from './lib/offlineQueue'
+import { plural } from './lib/labels'
 import { showToast } from './lib/toastBus'
 import './theme/tokens.css'
 
@@ -40,6 +42,44 @@ const queryClient = new QueryClient({
     },
   }),
 })
+
+async function runOfflineAction(action: OfflineAction): Promise<void> {
+  switch (action.kind) {
+    case 'shopping-check':
+      await api.checkShopping(action.id, action.checked)
+      return
+    case 'shopping-add':
+      await api.addShopping(action.name, action.category)
+      return
+    case 'supply-check':
+      await api.checkSupply(action.id, action.checked)
+      return
+    case 'supply-add':
+      await api.addSupply(action.name, action.category as SupplyCategory | undefined)
+      return
+  }
+}
+
+async function syncOfflineQueue() {
+  const synced = await flushOfflineQueue(runOfflineAction)
+  if (synced > 0) {
+    queryClient.invalidateQueries({ queryKey: ['shopping'] })
+    queryClient.invalidateQueries({ queryKey: ['supplies'] })
+    showToast(`Zsynchronizowano ${plural(synced, 'zmianę', 'zmiany', 'zmian')} z trybu offline.`)
+  }
+}
+
+window.addEventListener('online', () => { void syncOfflineQueue() })
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && navigator.onLine) void syncOfflineQueue()
+})
+if (navigator.onLine) void syncOfflineQueue()
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* ignore registration errors */ })
+  })
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

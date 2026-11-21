@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import { api, type BarcodeProduct, type RecipeListItem, type Slot } from '../../api/client'
-import { useAddDiaryEntry, useCatering, useDeletePlanEntry, useFeminine, useFoodFavorites, useLogCatering, useLogFavorite, usePlan } from '../../api/hooks'
+import { api, type BarcodeProduct, type PartnerPortionInput, type RecipeListItem, type Slot } from '../../api/client'
+import { useAddDiaryEntry, useCatering, useDeleteCateringDay, useDeletePlanEntry, useFeminine, useFoodFavorites, useLogCatering, useLogFavorite, usePerson, usePlan } from '../../api/hooks'
 import { mondayOf, parseISODate, toISO } from '../../lib/dates'
 import { DIARY_SLOTS, formatKcal, slotLabel, slotTo } from '../../lib/labels'
 import { showToast } from '../../lib/toastBus'
 import { Button, Chip, Eyebrow, Segmented, Sheet, Toggle, inputStyle, mono, sans } from '../ui'
 import { BarcodeScanner, canScanBarcodes } from './BarcodeScanner'
+import { PartnerSyncToggle, formatAlsoForToast } from './PartnerSyncToggle'
 import { RecipePicker } from './RecipePicker'
 import { ScannedProduct } from './ScannedProduct'
 
@@ -35,6 +36,8 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
   const logFavorite = useLogFavorite()
   const add = useAddDiaryEntry()
   const del = useDeletePlanEntry()
+  const deleteCateringDay = useDeleteCateringDay()
+  const { people } = usePerson()
   const feminine = useFeminine()
   // Catering chip: a box on a day without delivery (or one removed by mistake), never twice a day.
   const { data: catering } = useCatering()
@@ -54,6 +57,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
   const [remember, setRemember] = useState(true)
   const [recipe, setRecipe] = useState<RecipeListItem | null>(null)
   const [portions, setPortions] = useState(1)
+  const [alsoFor, setAlsoFor] = useState<PartnerPortionInput[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -61,7 +65,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
     setView('main')
     setScanning(false); setCode(''); setProduct(null); setLookupError(null)
     setName(''); setKcal(''); setPer100(false); setGrams(''); setProtein(''); setFat(''); setCarbs('')
-    setRemember(true); setRecipe(null); setPortions(1)
+    setRemember(true); setRecipe(null); setPortions(1); setAlsoFor([])
   }, [open, initialSlot])
 
   const kcalValue = num(kcal)
@@ -82,9 +86,12 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
   }
 
   async function onCatering() {
-    const entry = await logCatering.mutateAsync(date)
+    await logCatering.mutateAsync(date)
     onClose()
-    showToast(`Catering · ${formatKcal(entry.kcal ?? 0)} kcal`, { label: 'Cofnij', run: () => del.mutate(entry.id) })
+    showToast(`Catering · ${formatKcal(catering!.kcal)} kcal`, {
+      label: 'Cofnij',
+      run: () => deleteCateringDay.mutate(date),
+    })
   }
 
   async function onAddTyped() {
@@ -102,15 +109,23 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
       favorite: remember
         ? { name: name.trim(), kcal: kcalValue!, protein: num(protein), fat: num(fat), carbs: num(carbs), per100g: per100, lastGrams: per100 ? gramsValue : null }
         : undefined,
+      alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
     })
-    showToast(`Dodano ${slotTo[slot]}: ${name.trim()}`)
+    showToast(`Dodano ${slotTo[slot]}: ${name.trim()}${formatAlsoForToast(alsoFor, people)}`)
     onClose()
   }
 
   async function onAddRecipe() {
     if (!recipe) return
-    await add.mutateAsync({ date, slot, recipeId: recipe.id, portions, eaten: true })
-    showToast(`Dodano ${slotTo[slot]}: ${recipe.title}`)
+    await add.mutateAsync({
+      date,
+      slot,
+      recipeId: recipe.id,
+      portions,
+      eaten: true,
+      alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
+    })
+    showToast(`Dodano ${slotTo[slot]}: ${recipe.title}${formatAlsoForToast(alsoFor, people)}`)
     onClose()
   }
 
@@ -175,6 +190,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
         ) : view === 'recipe' ? (
           <>
             <RecipePicker selected={recipe} onSelect={(r) => { setRecipe(r); setPortions(1) }} portions={portions} onPortions={setPortions} />
+            <PartnerSyncToggle value={alsoFor} onChange={setAlsoFor} labelPrefix="Dodaj też dla" />
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="quiet" size="xl" onClick={() => setView('main')}>‹</Button>
               <Button size="xl" style={{ flex: 1 }} disabled={!recipe || busy} onClick={onAddRecipe}>
@@ -247,6 +263,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
                 ))}
               </div>
               <Toggle on={remember} onChange={setRemember} label="Zapamiętaj jako ulubione" />
+              <PartnerSyncToggle value={alsoFor} onChange={setAlsoFor} labelPrefix="Dodaj też dla" />
               <Button size="xl" disabled={!canTyped || busy} onClick={onAddTyped}>
                 Dodaj {slotTo[slot]}{total != null ? ` · ${formatKcal(total)} kcal` : ''}
               </Button>

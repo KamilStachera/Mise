@@ -45,7 +45,8 @@ public record ReceiptNameMappingDto(Guid Id, string Merchant, string RawName,
 
 /// <summary>Recipes is resolved from the row's contributions (recipe buttons and plan entries); empty for manual rows.</summary>
 public record ShoppingItemDto(Guid Id, string Name, string Category, string Reason, bool Checked,
-    string Origin, decimal? Quantity, string? Unit, List<ShoppingRecipeRefDto> Recipes);
+    string Origin, decimal? Quantity, string? Unit, List<ShoppingRecipeRefDto> Recipes,
+    Guid? PantryItemId = null);
 /// <summary>A recipe a shopping row is for; ImageUrl is its default photo (null = none).</summary>
 public record ShoppingRecipeRefDto(Guid Id, string Title, string? ImageUrl);
 public record ShoppingListDto(List<ShoppingItemDto> Items, int Total, int CheckedCount);
@@ -122,9 +123,10 @@ public record ActivityDayDto(DateOnly Date, int ActiveKcal, int Bonus, List<Work
 public record ActivityDto(string State, DateTimeOffset? LastSyncAt, int AddBackPercent, List<ActivityDayDto> Days);
 /// <summary>Token is the secret path segment of the webhook URL: POST /api/hc/{token}.</summary>
 public record HealthConnectionDto(string Token, string State, DateTimeOffset? LastSyncAt);
+public record CateringPauseDto(Guid Id, DateOnly From, DateOnly To, string? Note);
 /// <summary>Configured=false → never set up (other fields are defaults). Weekdays: bit 0 = Monday … bit 6 = Sunday.</summary>
 public record CateringDto(bool Configured, bool Enabled, int Kcal, decimal? Protein, decimal? Fat, decimal? Carbs,
-    int Weekdays, DateOnly? StartDate);
+    int Weekdays, DateOnly? StartDate, bool SplitMeals = false, List<CateringPauseDto>? Pauses = null);
 /// <summary>OFF product, or a product remembered under this barcode. Nutrition per 100 g; Found=false → type it in.</summary>
 public record BarcodeProductDto(string Barcode, bool Found, string Source, string? Name, string? Brand,
     int? KcalPer100g, decimal? Protein, decimal? Fat, decimal? Carbs, decimal? ServingGrams, string? ServingLabel,
@@ -197,22 +199,25 @@ public record CookLogInput(Guid? RecipeId, string? DishName, int? Rating, string
 public record CookLogUpdateInput(string? DishName, int? Rating, string? Note, DateOnly? CookedAt);
 /// <summary>Upsert onto the slot's first planned meal (not a leftover); creates one when there is none.</summary>
 public record PlanEntryInput(DateOnly Date, string Slot, Guid? RecipeId, string? Title, string? Note);
+public record PartnerPortionInput(int PersonId, decimal? Portions = null);
 /// <summary>
 /// A new calendar entry — always added, never replaces. Recipe entries take Portions;
 /// anything else is typed: Kcal etc. are TOTALS (the UI multiplies per-100 g values by Grams).
 /// Favorite = also remember it as an "Ulubione" chip (with these values, per portion).
+/// AlsoFor = optionally mirror this meal onto household partners with their own portion multiplier.
 /// </summary>
 public record DiaryEntryInput(DateOnly Date, string Slot, Guid? RecipeId = null, string? Title = null,
     string? Note = null, decimal? Portions = null, decimal? Grams = null, int? Kcal = null,
     decimal? Protein = null, decimal? Fat = null, decimal? Carbs = null, bool Eaten = false,
-    FoodFavoriteInput? Favorite = null);
+    FoodFavoriteInput? Favorite = null, List<PartnerPortionInput>? AlsoFor = null);
 /// <summary>Partial update: only present fields change. Eaten false→true snapshots recipe nutrition.</summary>
 public record PlanEntryPatch(DateOnly? Date = null, string? Slot = null, decimal? Portions = null,
     decimal? Grams = null, int? Kcal = null, decimal? Protein = null, decimal? Fat = null,
     decimal? Carbs = null, bool? Eaten = null, string? Note = null, string? Title = null);
 /// <summary>Assignments after the cook day, each one portion; the cook day itself is FirstDate/FirstSlot.</summary>
 public record CookInput(Guid RecipeId, int Portions, DateOnly FirstDate, string FirstSlot,
-    List<CookAssignmentInput>? Assignments = null, Guid? FromEntryId = null);
+    List<CookAssignmentInput>? Assignments = null, Guid? FromEntryId = null,
+    List<PartnerPortionInput>? AlsoFor = null);
 public record CookAssignmentInput(DateOnly Date, string Slot);
 /// <summary>Replaces the planned leftovers (eaten ones stay) and the pot size.</summary>
 public record CookUpdateInput(int Portions, List<CookAssignmentInput>? Assignments = null);
@@ -229,7 +234,8 @@ public record BodyInput(string Sex, int BirthYear, int HeightCm, decimal GoalKg,
 public record WeightInput(decimal Kg);
 /// <summary>Full replace; StartDate defaults to today.</summary>
 public record CateringInput(bool Enabled, int Kcal, decimal? Protein = null, decimal? Fat = null, decimal? Carbs = null,
-    int Weekdays = 0b0011111, DateOnly? StartDate = null);
+    int Weekdays = 0b0011111, DateOnly? StartDate = null, bool SplitMeals = false);
+public record CateringPauseInput(DateOnly From, DateOnly To, string? Note = null);
 public record CateringLogInput(DateOnly Date);
 /// <summary>Time = "HH:mm" local, optional.</summary>
 public record WorkoutInput(DateOnly Date, string Type, int Minutes, int Kcal, string? Time = null);
@@ -306,7 +312,7 @@ public static class Mapping
 
     public static ShoppingItemDto ToDto(ShoppingItem s, List<ShoppingRecipeRefDto> recipes) => new(s.Id, s.Name,
         s.Category, s.Reason, s.Checked, s.Origin.ToString().ToLowerInvariant(), s.Quantity,
-        s.Unit is PantryUnit u ? UnitString(u) : null, recipes);
+        s.Unit is PantryUnit u ? UnitString(u) : null, recipes, s.PantryItemId);
 
     public static string SupplyCategoryString(SupplyCategory c) => c.ToString().ToLowerInvariant();
 

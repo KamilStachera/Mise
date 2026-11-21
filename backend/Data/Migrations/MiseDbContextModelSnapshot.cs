@@ -194,6 +194,9 @@ namespace Mise.Api.Data.Migrations
                         .HasPrecision(7, 1)
                         .HasColumnType("numeric(7,1)");
 
+                    b.Property<bool>("SplitMeals")
+                        .HasColumnType("boolean");
+
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
@@ -208,6 +211,40 @@ namespace Mise.Api.Data.Migrations
                     b.HasIndex("HouseholdId");
 
                     b.ToTable("Caterings");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.CateringPause", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("From")
+                        .HasColumnType("date");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("To")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("PersonId", "From", "To");
+
+                    b.ToTable("CateringPauses");
                 });
 
             modelBuilder.Entity("Mise.Api.Domain.ChatMessage", b =>
@@ -953,7 +990,7 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasIndex("HouseholdId", "Date", "Slot");
 
-                    b.HasIndex(new[] { "PersonId", "Date" }, "IX_PlanEntries_PersonId_Date_Catering")
+                    b.HasIndex(new[] { "PersonId", "Date", "Slot" }, "IX_PlanEntries_PersonId_Date_Slot_Catering")
                         .IsUnique()
                         .HasFilter("\"IsCatering\"");
 
@@ -1879,6 +1916,21 @@ namespace Mise.Api.Data.Migrations
                         .WithOne()
                         .HasForeignKey("Mise.Api.Domain.Catering", "PersonId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.CateringPause", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
