@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -14,13 +14,13 @@
   <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.*">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.*" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.*" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.*" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.*" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
     <!-- PDF text for recipe import (Apache-2.0) -->
     <PackageReference Include="PdfPig" Version="0.1.16" />
     <!-- schema.org microdata on recipe pages (MIT) -->

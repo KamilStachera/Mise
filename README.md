@@ -100,7 +100,7 @@ help plan meals.
   or a PDF, or attach a PDF (the "PDF" button), and Sous proposes the recipes in
   Pichci's format and saves the ones you approve, with the dish photo.
 
-Stack: ASP.NET Core (.NET 9, minimal APIs) + EF Core + PostgreSQL · React + Vite +
+Stack: ASP.NET Core (.NET 10, minimal APIs) + EF Core + PostgreSQL · React + Vite +
 TypeScript · all containerized with Docker Compose.
 
 The UI and all content (seed recipes, pantry, exported AI context) are in **Polish**;

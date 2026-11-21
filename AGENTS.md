@@ -22,7 +22,7 @@ and untracked files. Do not assume a dirty worktree belongs to the current task.
 
 ## Repository map
 
-- `backend/` — .NET 9 minimal API, EF Core, PostgreSQL.
+- `backend/` — .NET 10 minimal API, EF Core, PostgreSQL.
 - `backend.tests/` — backend regression and unit tests.
 - `frontend/` — React, Vite, and TypeScript.
 - `mcp/` — stdio MCP server that proxies the REST API.

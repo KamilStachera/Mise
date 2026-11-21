@@ -34,25 +34,19 @@ recipes/profile only on a brand-new DB; the pantry catalog reseeds whenever
 Frontend dev loop: `docker compose up db api` then `cd frontend && npm run dev`
 (Vite :5173 proxies `/api` → :5080).
 
-**Host .NET SDK may not match `global.json` (9.0.304).** Build, test and add
-migrations in the SDK image instead (Git Bash; `MSYS_NO_PATHCONV=1` keeps the
-paths intact):
+**Host .NET SDK must match `global.json` (10.0.100+, rollForward latestFeature).** If building
+in Docker instead of the host SDK (Git Bash; `MSYS_NO_PATHCONV=1` keeps the paths intact):
 
 ```bash
 MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/root/.nuget/packages \
-  -w /src mcr.microsoft.com/dotnet/sdk:9.0 sh -c "dotnet test backend.tests"
-# migrations: -w /src/backend … sh -c "dotnet tool install -g dotnet-ef --version '9.*' \
+  -w /src mcr.microsoft.com/dotnet/sdk:10.0 sh -c "dotnet test backend.tests"
+# migrations: -w /src/backend … sh -c "dotnet tool install -g dotnet-ef --version '10.*' \
 #   && export PATH=\$PATH:/root/.dotnet/tools && dotnet ef migrations add <Name>"
 ```
 
-Without Docker: a newer host SDK (10.x) builds and tests the net9.0 projects when run from
-a folder *outside* the repo (so `global.json` doesn't apply), e.g.
-`dotnet test E:/Repos/CukBuk/backend.tests/Mise.Api.Tests.csproj`; for migrations use a
-local `dotnet-ef` 9.x tool manifest in that folder plus `--project <repo>/backend/Mise.Api.csproj`.
-
 ## Layout
 
-- `backend/` — .NET 9 minimal APIs. `Features/<X>Endpoints.cs` (one file per
+- `backend/` — .NET 10 minimal APIs. `Features/<X>Endpoints.cs` (one file per
   resource, grouped under `/api`), `Domain/Entities.cs` (single file, XML-doc
   comments carry the invariants — read it first), `Services/` (matcher, parsers,
   context export), `Data/` (EF Core, migrations, seed).

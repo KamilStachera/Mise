@@ -33,7 +33,7 @@ jobs:
         env:
           ConnectionStrings__Default: Host=localhost;Port=5432;Database=mise_ci;Username=mise;Password=mise_ci_password
         run: |
-          dotnet tool install -g dotnet-ef --version '9.*'
+          dotnet tool install -g dotnet-ef --version '10.*'
           export PATH="$PATH:$HOME/.dotnet/tools"
           dotnet ef database update --project backend/Mise.Api.csproj
           dotnet ef migrations has-pending-model-changes --project backend/Mise.Api.csproj

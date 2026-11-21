@@ -122,7 +122,7 @@ var forwarded = new ForwardedHeadersOptions
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
     ForwardLimit = 2,
 };
-forwarded.KnownNetworks.Clear();
+forwarded.KnownIPNetworks.Clear();
 forwarded.KnownProxies.Clear();
 app.UseForwardedHeaders(forwarded);
 
