@@ -91,6 +91,13 @@ public sealed class CookbookMarkdownBuilder
             .ToList();
         if (origins.Count > 0)
             sb.AppendLine($"Źródła (`sourceName`): {string.Join(", ", origins)}.");
+        var allTags = recipes.SelectMany(r => r.Tags)
+            .GroupBy(t => t, Pl.Comparer)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, Pl.Comparer)
+            .Select(g => $"#{g.Key} ({g.Count()})")
+            .ToList();
+        if (allTags.Count > 0)
+            sb.AppendLine($"Tagi (`tags`): {string.Join(", ", allTags)}.");
         foreach (var r in recipes.OrderBy(r => r.Title, Pl.Comparer))
         {
             var meta = new List<string> { $"{r.TimeMinutes} min", ServingsLabel(r.Servings) };
@@ -98,7 +105,9 @@ public sealed class CookbookMarkdownBuilder
             if (r.Cuisine is Cuisine c) meta.Add($"kuchnia {CuisineLabel(c)}");
             if (AirFryer.Uses(r)) meta.Add("frytkownica");
             if (r.KcalPerServing is int kcal) meta.Add($"~{kcal} kcal/porcja");
-            sb.AppendLine($"- {r.Title} — {string.Join(", ", meta)} ({SourceLabel(r.Source)}{(r.SourceName is { } sn ? $": {sn}" : "")}). Zobacz `recipes/`.");
+            if (r.Tags.Count > 0) meta.Add(string.Join(" ", r.Tags.Select(t => $"#{t}")));
+            var star = r.IsFavorite ? "★ " : "";
+            sb.AppendLine($"- {star}{r.Title} — {string.Join(", ", meta)} ({SourceLabel(r.Source)}{(r.SourceName is { } sn ? $": {sn}" : "")}). Zobacz `recipes/`.");
         }
 
         return sb.ToString().TrimEnd() + "\n";

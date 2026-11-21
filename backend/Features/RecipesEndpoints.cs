@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Data;
 using Mise.Api.Domain;
@@ -7,12 +8,17 @@ namespace Mise.Api.Features;
 
 public static class RecipesEndpoints
 {
+    public const int MaxTagsPerRecipe = 15;
+    public const int MaxTagLength = 40;
+
     public static RouteGroupBuilder MapRecipes(this RouteGroupBuilder api)
     {
         var g = api.MapGroup("/recipes").WithTags("Recipes");
 
         g.MapGet("/", async (string? source, string? q, string? dishType, string? cuisine,
-            int? maxTime, bool? airFryer, string? sourceName, bool? hasImage, MiseDbContext db) =>
+            int? maxTime, bool? airFryer, string? sourceName, bool? hasImage,
+            string? ingredient, bool? favorite, string? tag, int? maxKcal, decimal? minProtein,
+            MiseDbContext db) =>
         {
             if (!Mapping.TryParseDishType(dishType, out var dt))
                 return BadDishType();
@@ -30,12 +36,6 @@ public static class RecipesEndpoints
                 .AsQueryable();
             if (!string.IsNullOrWhiteSpace(source) && source != "all")
                 query = query.Where(r => r.Source == Mapping.ParseSource(source));
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var term = q.Trim().ToLower();
-                query = query.Where(r => r.Title.ToLower().Contains(term)
-                    || (r.SourceName != null && r.SourceName.ToLower().Contains(term)));
-            }
             // Exact origin, case-insensitive ("blond kuchara" finds "Blond Kuchara").
             if (!string.IsNullOrWhiteSpace(sourceName))
             {
@@ -51,28 +51,58 @@ public static class RecipesEndpoints
             // hasImage=false: recipes still waiting for a dish photo (agents fill them in).
             if (hasImage is bool wantImage)
                 query = query.Where(r => (r.ImagePath != null) == wantImage);
+            if (favorite is bool wantFav)
+                query = query.Where(r => r.IsFavorite == wantFav);
+            if (maxKcal is > 0)
+                query = query.Where(r => r.KcalPerServing != null && r.KcalPerServing <= maxKcal);
+            if (minProtein is > 0)
+                query = query.Where(r => r.ProteinGrams != null && r.ProteinGrams >= minProtein);
 
             var recipes = await query.ToListAsync();
-            // Resolved flag (stored value or heuristic), so this filter runs in memory.
+            // Resolved flag (stored value or heuristic) + Polish diacritic-aware search run in memory.
             if (airFryer is bool wantAirFryer)
                 recipes = recipes.Where(r => AirFryer.Uses(r) == wantAirFryer).ToList();
+            if (!string.IsNullOrWhiteSpace(tag))
+            {
+                var wantedTag = Pl.Fold(tag.Trim().TrimStart('#'));
+                recipes = recipes.Where(r => r.Tags.Any(t => Pl.Fold(t) == wantedTag)).ToList();
+            }
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var tokens = SplitSearchTokens(q);
+                if (tokens.Length > 0)
+                    recipes = recipes.Where(r => MatchesQuery(r, tokens)).ToList();
+            }
+            if (!string.IsNullOrWhiteSpace(ingredient))
+            {
+                var ingTokens = SplitSearchTokens(ingredient);
+                if (ingTokens.Length > 0)
+                    recipes = recipes.Where(r => MatchesIngredients(r, ingTokens)).ToList();
+            }
+
             var list = recipes.OrderBy(r => r.Title, Pl.Comparer).Select(r =>
             {
                 // Saved portion scaling changes the amounts, so it changes what's short.
                 var toBuy = Mapping.IngredientRequirementGroups(RecipeScaling.ScaledIngredients(r))
                     .Count(group => Mapping.RequirementNeedsPurchase(group, pantryById));
+                var ingredientNames = r.Ingredients.OrderBy(i => i.Order)
+                    .Select(i => i.Name)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .Distinct(Pl.Comparer)
+                    .ToList();
                 return new RecipeListItemDto(r.Id, r.Title, Mapping.SourceString(r.Source),
                     r.TimeMinutes, r.Servings, r.Difficulty, r.Tint, r.Blurb,
                     Mapping.ImageUrl(r.ImagePath), toBuy,
                     Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
                     AirFryer.Uses(r), r.CreatedAt,
-                    r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams, r.SourceName);
+                    r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams, r.SourceName,
+                    r.IsFavorite, r.Tags.ToList(), ingredientNames);
             });
             return Results.Ok(list);
         });
 
-        // ?base=true serves the amounts as written (for agents about to PUT the recipe
-        // back); the default serves them scaled to the saved portion choice.
+        // ?base=true serves the amounts as written (for agents and the editor about to PUT
+        // the recipe back); the default serves them scaled to the saved portion choice.
         g.MapGet("/{id:guid}", async (Guid id, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "base")] bool? asWritten,
             MiseDbContext db) =>
         {
@@ -92,7 +122,9 @@ public static class RecipesEndpoints
             var ingredients = scaledIngredients.OrderBy(i => i.Order)
                 .Select(i => new IngredientDto(i.Name, i.Quantity, i.DisplayText,
                     i.AlternativeGroup,
-                    Mapping.IngredientAvailability(i, pantryById).Status))
+                    Mapping.IngredientAvailability(i, pantryById).Status,
+                    i.AmountValue,
+                    i.AmountUnit is PantryUnit u ? Mapping.UnitString(u) : null))
                 .ToList();
             var requirements = Mapping.IngredientRequirementGroups(scaledIngredients);
             var missing = requirements
@@ -108,7 +140,8 @@ public static class RecipesEndpoints
                 ingredients, steps, requirements.Count - missing.Count, requirements.Count, missing,
                 Mapping.DishTypeString(r.DishType), Mapping.CuisineString(r.Cuisine),
                 AirFryer.Uses(r), GalleryDto(r),
-                r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams, r.SourceName));
+                r.KcalPerServing, r.ProteinGrams, r.FatGrams, r.CarbGrams, r.SourceName,
+                r.IsFavorite, r.Tags.ToList()));
         });
 
         g.MapPost("/", async (RecipeInput input, MiseDbContext db, RecipeIngredientNormalizer ingredientNormalizer,
@@ -124,9 +157,11 @@ public static class RecipesEndpoints
                 return badUnit;
             if (BadIngredientAlternatives(input) is IResult badAlternatives)
                 return badAlternatives;
+            if (!TryNormalizeTags(input.Tags, out var tags, out var tagError))
+                return Results.BadRequest(new { error = tagError });
 
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
-            var recipe = ApplyInput(new Recipe(), input, dt, cu, pantry, ingredientNormalizer);
+            var recipe = ApplyInput(new Recipe(), input, dt, cu, tags, pantry, ingredientNormalizer);
             db.Recipes.Add(recipe);
             await db.SaveChangesAsync();
             export.Schedule();
@@ -146,6 +181,8 @@ public static class RecipesEndpoints
                 return badUnit;
             if (BadIngredientAlternatives(input) is IResult badAlternatives)
                 return badAlternatives;
+            if (!TryNormalizeTags(input.Tags, out var tags, out var tagError))
+                return Results.BadRequest(new { error = tagError });
 
             var recipe = await db.Recipes
                 .Include(r => r.Ingredients)
@@ -160,7 +197,7 @@ public static class RecipesEndpoints
             recipe.Steps.Clear();
 
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
-            ApplyInput(recipe, input, dt, cu, pantry, ingredientNormalizer);
+            ApplyInput(recipe, input, dt, cu, input.Tags is null ? null : tags, pantry, ingredientNormalizer);
             // SelectedServings survives: it counts people eating, not a ratio to the base.
             if (recipe.SelectedServings > Math.Max(RecipeScaling.MaxServings, recipe.Servings))
                 recipe.SelectedServings = null;
@@ -413,6 +450,34 @@ public static class RecipesEndpoints
             });
         });
 
+        // Lightweight favorite toggle (avoids full-replace PUT).
+        g.MapPut("/{id:guid}/favorite", async (Guid id, RecipeFavoriteInput input, MiseDbContext db,
+            ContextExportService export) =>
+        {
+            var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == id);
+            if (recipe is null) return Results.NotFound();
+            recipe.IsFavorite = input.Favorite;
+            recipe.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+            export.Schedule();
+            return Results.Ok(new { id = recipe.Id, isFavorite = recipe.IsFavorite });
+        });
+
+        // Lightweight tag replacement (normalized lowercase Polish tokens, max 15 tags × 40 chars).
+        g.MapPut("/{id:guid}/tags", async (Guid id, RecipeTagsInput input, MiseDbContext db,
+            ContextExportService export) =>
+        {
+            if (!TryNormalizeTags(input.Tags ?? [], out var tags, out var error))
+                return Results.BadRequest(new { error });
+            var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == id);
+            if (recipe is null) return Results.NotFound();
+            recipe.Tags = tags;
+            recipe.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+            export.Schedule();
+            return Results.Ok(new { id = recipe.Id, tags = recipe.Tags });
+        });
+
         return api;
     }
 
@@ -562,8 +627,68 @@ public static class RecipesEndpoints
         return null;
     }
 
+    public static bool TryNormalizeTags(IEnumerable<string>? raw, out List<string> tags, out string? error)
+    {
+        tags = [];
+        error = null;
+        if (raw is null) return true;
+        var seen = new HashSet<string>(Pl.Comparer);
+        foreach (var item in raw)
+        {
+            if (string.IsNullOrWhiteSpace(item)) continue;
+            var clean = Regex.Replace(item.Trim().TrimStart('#').Trim(), @"\s+", " ").ToLower(Pl.Culture);
+            if (clean.Length == 0) continue;
+            if (clean.Length > MaxTagLength)
+            {
+                error = $"Tag „{clean[..20]}…” może mieć maks. {MaxTagLength} znaków.";
+                return false;
+            }
+            if (seen.Add(clean))
+            {
+                if (tags.Count >= MaxTagsPerRecipe)
+                {
+                    error = $"Maks. {MaxTagsPerRecipe} tagów na przepis.";
+                    return false;
+                }
+                tags.Add(clean);
+            }
+        }
+        return true;
+    }
+
+    private static readonly char[] SearchSeparators = [' ', '\t', '\r', '\n', ',', ';'];
+
+    private static string[] SplitSearchTokens(string input) =>
+        Pl.Fold(input).Split(SearchSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static bool MatchesQuery(Recipe r, string[] tokens)
+    {
+        var title = Pl.Fold(r.Title);
+        var sourceName = Pl.Fold(r.SourceName);
+        var tags = r.Tags.Select(Pl.Fold).ToList();
+        var ingredients = r.Ingredients.Select(i => Pl.Fold(i.Name)).ToList();
+        foreach (var t in tokens)
+        {
+            var hit = title.Contains(t, StringComparison.Ordinal)
+                || sourceName.Contains(t, StringComparison.Ordinal)
+                || tags.Any(tag => tag.Contains(t, StringComparison.Ordinal))
+                || ingredients.Any(ing => ing.Contains(t, StringComparison.Ordinal));
+            if (!hit) return false;
+        }
+        return true;
+    }
+
+    private static bool MatchesIngredients(Recipe r, string[] tokens)
+    {
+        var ingredients = r.Ingredients.Select(i => Pl.Fold(i.Name)).ToList();
+        foreach (var t in tokens)
+            if (!ingredients.Any(ing => ing.Contains(t, StringComparison.Ordinal)))
+                return false;
+        return true;
+    }
+
     private static Recipe ApplyInput(Recipe recipe, RecipeInput input,
-        DishType? dishType, Cuisine? cuisine,
+        DishType? dishType, Cuisine? cuisine, List<string>? tags,
         IReadOnlyList<PantryItem> pantry, RecipeIngredientNormalizer ingredientNormalizer)
     {
         recipe.Title = input.Title.Trim();
@@ -580,6 +705,8 @@ public static class RecipesEndpoints
         recipe.Tint = string.IsNullOrWhiteSpace(input.Tint) ? "#c0552d" : input.Tint!.Trim();
         recipe.Blurb = input.Blurb?.Trim() ?? "";
         recipe.Tip = string.IsNullOrWhiteSpace(input.Tip) ? null : input.Tip!.Trim();
+        if (input.IsFavorite is bool fav) recipe.IsFavorite = fav;
+        if (tags is not null) recipe.Tags = tags;
         // Per-serving estimates; 0 g is valid for macros (e.g. 0 g carbs in eggs/meat).
         recipe.KcalPerServing = input.Kcal is > 0 ? input.Kcal : null;
         recipe.ProteinGrams = input.Protein is >= 0 ? input.Protein : null;

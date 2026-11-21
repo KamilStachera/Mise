@@ -29,6 +29,7 @@ function lazyNamed<T extends Record<string, ComponentType<any>>, K extends keyof
 const ChatSidebar = lazyNamed(() => import('./components/ChatSidebar'), 'ChatSidebar')
 const Profile = lazyNamed(() => import('./pages/Profile'), 'Profile')
 const AddRecipe = lazyNamed(() => import('./pages/AddRecipe'), 'AddRecipe')
+const EditRecipe = lazyNamed(() => import('./pages/EditRecipe'), 'EditRecipe')
 const Plan = lazyNamed(() => import('./pages/Plan'), 'Plan')
 const Goal = lazyNamed(() => import('./pages/Goal'), 'Goal')
 const Questionnaire = lazyNamed(() => import('./pages/Questionnaire'), 'Questionnaire')
@@ -129,6 +130,7 @@ export default function App() {
               <Route path="/random" element={<Random />} />
               <Route path="/history" element={<History />} />
               <Route path="/recipe/:id" element={<RecipeDetail />} />
+              <Route path="/recipe/:id/edit" element={<EditRecipe />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/plan/dzien" element={<Plan />} />
               <Route path="/plan/tydzien" element={<Plan />} />

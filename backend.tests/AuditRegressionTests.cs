@@ -595,6 +595,148 @@ public class AuditRegressionTests
         Assert.Equal("Pichci API", doc.RootElement.GetProperty("info").GetProperty("title").GetString());
     }
 
+    // ---- 5. Batch A — Cookbook Superpowers (#1, #6, #9) ----
+
+    [Fact]
+    public async Task Recipes_FavoritesTagsIngredientSearchBudgetAndPutPreservation()
+    {
+        await using var host = await BuildTestAppAsync();
+
+        var create1 = await host.SendAsync(HttpMethod.Post, "/api/recipes", email: AdminEmail, body: new
+        {
+            title = "Naleśniki białkowe",
+            source = "manual",
+            time = 20,
+            servings = 2,
+            kcal = 420,
+            protein = 35,
+            fat = 10,
+            carbs = 42,
+            tags = new[] { "Do Pudełka", "#szybkie", "szybkie" },
+            ingredients = new[]
+            {
+                new { name = "Twaróg chudy", quantity = "200 g", amountValue = 200m, amountUnit = "g" },
+                new { name = "Szpinak", quantity = "100 g", amountValue = 100m, amountUnit = "g" },
+            },
+            steps = new[] { "Wymieszaj i usmaż." },
+        });
+        Assert.Equal(HttpStatusCode.Created, create1.StatusCode);
+        var id1 = JsonDocument.Parse(await create1.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        var create2 = await host.SendAsync(HttpMethod.Post, "/api/recipes", email: AdminEmail, body: new
+        {
+            title = "Makaron carbonara",
+            source = "web",
+            time = 25,
+            servings = 2,
+            kcal = 720,
+            protein = 22,
+            fat = 32,
+            carbs = 78,
+            ingredients = new[]
+            {
+                new { name = "Makaron", quantity = "200 g" },
+                new { name = "Guanciale", quantity = "100 g" },
+            },
+            steps = new[] { "Ugotuj makaron." },
+        });
+        Assert.Equal(HttpStatusCode.Created, create2.StatusCode);
+
+        // Favorite toggle + filter
+        var fav = await host.SendAsync(HttpMethod.Put, $"/api/recipes/{id1}/favorite", email: AdminEmail, body: new { favorite = true });
+        Assert.Equal(HttpStatusCode.OK, fav.StatusCode);
+        var favList = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/recipes?favorite=true", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(id1, Assert.Single(favList.RootElement.EnumerateArray()).GetProperty("id").GetGuid());
+
+        // Tag normalization + diacritic-insensitive tag filter + >15 validation
+        var detail1 = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, $"/api/recipes/{id1}?base=true", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(["do pudełka", "szybkie"], detail1.RootElement.GetProperty("tags").EnumerateArray().Select(x => x.GetString()!).ToArray());
+        Assert.True(detail1.RootElement.GetProperty("isFavorite").GetBoolean());
+        // Base detail exposes structured amountValue/amountUnit for editor round-trip!
+        var firstIng = detail1.RootElement.GetProperty("ingredients")[0];
+        Assert.Equal(200m, firstIng.GetProperty("amountValue").GetDecimal());
+        Assert.Equal("g", firstIng.GetProperty("amountUnit").GetString());
+
+        var byTag = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/recipes?tag=do+pudelka", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(id1, Assert.Single(byTag.RootElement.EnumerateArray()).GetProperty("id").GetGuid());
+
+        var tooManyTags = await host.SendAsync(HttpMethod.Put, $"/api/recipes/{id1}/tags", email: AdminEmail,
+            body: new { tags = Enumerable.Range(1, 16).Select(i => $"tag{i}").ToArray() });
+        Assert.Equal(HttpStatusCode.BadRequest, tooManyTags.StatusCode);
+
+        // Multi-word diacritic-insensitive ingredient search via both ?q= and ?ingredient=
+        var byQ = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/recipes?q=twarog+szpinak", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(id1, Assert.Single(byQ.RootElement.EnumerateArray()).GetProperty("id").GetGuid());
+
+        var byIng = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/recipes?ingredient=twaróg,szpinak", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(id1, Assert.Single(byIng.RootElement.EnumerateArray()).GetProperty("id").GetGuid());
+
+        // Budget filter (?maxKcal=500&minProtein=30)
+        var byBudget = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/recipes?maxKcal=500&minProtein=30", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.Equal(id1, Assert.Single(byBudget.RootElement.EnumerateArray()).GetProperty("id").GetGuid());
+
+        // PUT omitting isFavorite & tags preserves both; PUT with tags: [] clears tags while keeping isFavorite.
+        var putKeep = await host.SendAsync(HttpMethod.Put, $"/api/recipes/{id1}", email: AdminEmail, body: new
+        {
+            title = "Naleśniki białkowe v2",
+            source = "manual",
+            time = 20,
+            servings = 2,
+            kcal = 420,
+            protein = 35,
+            fat = 10,
+            carbs = 42,
+            ingredients = new[] { new { name = "Twaróg chudy", quantity = "200 g" } },
+            steps = new[] { "Wymieszaj." },
+        });
+        Assert.Equal(HttpStatusCode.NoContent, putKeep.StatusCode);
+        var afterKeep = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, $"/api/recipes/{id1}", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.True(afterKeep.RootElement.GetProperty("isFavorite").GetBoolean());
+        Assert.Equal(["do pudełka", "szybkie"], afterKeep.RootElement.GetProperty("tags").EnumerateArray().Select(x => x.GetString()!).ToArray());
+
+        var putClearTags = await host.SendAsync(HttpMethod.Put, $"/api/recipes/{id1}", email: AdminEmail, body: new
+        {
+            title = "Naleśniki białkowe v3",
+            source = "manual",
+            time = 20,
+            servings = 2,
+            tags = Array.Empty<string>(),
+            ingredients = new[] { new { name = "Twaróg chudy", quantity = "200 g" } },
+            steps = new[] { "Wymieszaj." },
+        });
+        Assert.Equal(HttpStatusCode.NoContent, putClearTags.StatusCode);
+        var afterClear = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, $"/api/recipes/{id1}", email: AdminEmail)).Content.ReadAsStringAsync());
+        Assert.True(afterClear.RootElement.GetProperty("isFavorite").GetBoolean());
+        Assert.Empty(afterClear.RootElement.GetProperty("tags").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task HouseholdProvisioner_StarterCopy_ResetsFavoriteAndClonesTags()
+    {
+        await using var host = await BuildTestAppAsync();
+        using var scope = host.App.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+        var provisioner = scope.ServiceProvider.GetRequiredService<HouseholdProvisioner>();
+
+        db.Tenant.UseHousehold(1);
+        db.Recipes.Add(new Recipe
+        {
+            Title = "Zupa dyniowa",
+            Source = RecipeSource.Manual,
+            IsFavorite = true,
+            Tags = ["jesień", "do pudełka"],
+            Ingredients = [new RecipeIngredient { Name = "Dynia", Quantity = "500 g", Order = 0 }],
+            Steps = [new RecipeStep { Text = "Ugotuj.", Order = 0 }],
+        });
+        await db.SaveChangesAsync();
+
+        var newHouse = await provisioner.CreateAsync("Dom 3", StarterMode.All, [], sourceHouseholdId: 1);
+        db.Tenant.UseHousehold(newHouse.Id);
+        var copied = await db.Recipes.SingleAsync(r => r.Title == "Zupa dyniowa");
+        Assert.False(copied.IsFavorite);
+        Assert.Equal(["jesień", "do pudełka"], copied.Tags);
+    }
+
     // ---- Test host harness ----
 
     private static MiseDbContext NewInMemoryDb() =>

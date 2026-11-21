@@ -17,6 +17,8 @@ import {
   type Preferences,
   type RecipeDetail,
   type RecipeInput,
+  type RecipeListItem,
+  type RecipeNutritionInput,
   type Role,
   type Slot,
   type SupplyCategory,
@@ -182,6 +184,11 @@ export function useRecipes(source: string, q: string) {
 
 export function useRecipe(id: string | undefined) {
   return useQuery({ queryKey: ['recipe', id], queryFn: () => api.recipe(id!), enabled: !!id })
+}
+
+/** Unscaled base recipe (?base=true) for the edit screen so edits never save scaled portions as base. */
+export function useRecipeBase(id: string | undefined) {
+  return useQuery({ queryKey: ['recipe', id, 'base'], queryFn: () => api.recipeBase(id!), enabled: !!id, staleTime: 0 })
 }
 
 export function usePantry() {
@@ -423,10 +430,94 @@ export function useCreateRecipe() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: RecipeInput) => api.createRecipe(input),
+    meta: OWN_ERRORS,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['recipes'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
     },
+  })
+}
+
+export function useUpdateRecipe() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RecipeInput }) => api.updateRecipe(id, input),
+    meta: OWN_ERRORS,
+    onSuccess: (_res, { id }) => {
+      qc.invalidateQueries({ queryKey: ['recipe', id] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
+      qc.invalidateQueries({ queryKey: ['cookProposal', id] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
+    },
+  })
+}
+
+export function useSetRecipeNutrition() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: RecipeNutritionInput }) => api.setRecipeNutrition(id, input),
+    meta: OWN_ERRORS,
+    onSuccess: (_res, { id }) => {
+      qc.invalidateQueries({ queryKey: ['recipe', id] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
+      qc.invalidateQueries({ queryKey: ['plan'] })
+    },
+  })
+}
+
+export function useSetRecipeFavorite() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, favorite }: { id: string; favorite: boolean }) => api.setRecipeFavorite(id, favorite),
+    onMutate: ({ id, favorite }) => {
+      qc.setQueryData<RecipeDetail>(['recipe', id], (old) => (old ? { ...old, isFavorite: favorite } : old))
+      qc.setQueriesData<RecipeListItem[]>({ queryKey: ['recipes'] }, (old) =>
+        old?.map((r) => (r.id === id ? { ...r, isFavorite: favorite } : r)),
+      )
+    },
+    onError: (_e, { id }) => {
+      qc.invalidateQueries({ queryKey: ['recipe', id] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+    },
+    onSuccess: (_res, { id }) => {
+      qc.invalidateQueries({ queryKey: ['recipe', id] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
+    },
+  })
+}
+
+export function useSetRecipeTags() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, tags }: { id: string; tags: string[] }) => api.setRecipeTags(id, tags),
+    meta: OWN_ERRORS,
+    onSuccess: (_res, { id }) => {
+      qc.invalidateQueries({ queryKey: ['recipe', id] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
+    },
+  })
+}
+
+export function useUploadRecipeImageFromUrl() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, url }: { id: string; url: string }) => api.uploadRecipeImageFromUrl(id, url),
+    meta: OWN_ERRORS,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['recipe'] })
+    },
+  })
+}
+
+export function useImportUrl() {
+  return useMutation({
+    mutationFn: (url: string) => api.importUrl(url),
+    meta: OWN_ERRORS,
   })
 }
 

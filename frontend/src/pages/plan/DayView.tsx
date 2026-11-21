@@ -87,6 +87,24 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
   )
 
   const over = !future && dayBudget != null && totals.eaten > dayBudget.budget ? totals.eaten - dayBudget.budget : 0
+  // Remaining budget for the "Co zjeść w moim budżecie?" bridge to Library.
+  const remainingKcal = dayBudget == null
+    ? 0
+    : future
+      ? dayBudget.budget - totals.planned
+      : (dayBudget.budget - totals.eaten - totals.planned >= 100
+        ? dayBudget.budget - totals.eaten - totals.planned
+        : dayBudget.budget - totals.eaten)
+  const remainingProtein = budget?.proteinTarget != null
+    ? Math.max(0, Math.round(budget.proteinTarget - totals.protein))
+    : 0
+  const showBudgetBridge = canEdit && dayBudget != null && remainingKcal >= 100
+  const openBudgetRecipes = () => {
+    const p = new URLSearchParams({ budgetKcal: String(Math.round(remainingKcal)) })
+    if (remainingProtein > 0) p.set('budgetProtein', String(remainingProtein))
+    nav(`/?${p.toString()}`)
+  }
+
   const meter = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <BudgetMeter
@@ -95,11 +113,37 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
         activityBonus={dayBudget?.bonus ?? 0}
         proteinTarget={budget?.proteinTarget}
         mode={future ? 'plan' : 'day'}
-        footer={budget && budget.target == null && (
-          <button type="button" onClick={() => nav('/profile/cel')} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, font: sans(14, 600), color: 'var(--accent-text)', cursor: 'pointer' }}>
-            Ustaw dzienny cel i białko ›
-          </button>
-        )}
+        footer={
+          budget && budget.target == null ? (
+            <button type="button" onClick={() => nav('/profile/cel')} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, font: sans(14, 600), color: 'var(--accent-text)', cursor: 'pointer' }}>
+              Ustaw dzienny cel i białko ›
+            </button>
+          ) : showBudgetBridge ? (
+            <button
+              type="button"
+              onClick={openBudgetRecipes}
+              style={{
+                alignSelf: 'flex-start',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '7px 12px',
+                borderRadius: 999,
+                border: '1px solid var(--border-2)',
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                font: sans(13, 600),
+              }}
+            >
+              <span>
+                Zostało {formatKcal(remainingKcal)} kcal
+                {remainingProtein > 0 ? ` · ${remainingProtein} g białka` : ''}
+              </span>
+              <span style={{ color: 'var(--accent-text)' }}>→ znajdź przepis</span>
+            </button>
+          ) : undefined
+        }
       />
       {over > 0 && (
         <p style={{ margin: 0, font: sans(14.5), lineHeight: 1.5, color: 'var(--text-2)' }}>

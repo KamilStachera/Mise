@@ -18,7 +18,7 @@ namespace Mise.Api.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.23")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1229,6 +1229,9 @@ namespace Mise.Api.Data.Migrations
                     b.Property<string>("ImagePath")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsFavorite")
+                        .HasColumnType("boolean");
+
                     b.Property<int?>("KcalPerServing")
                         .HasColumnType("integer");
 
@@ -1249,6 +1252,12 @@ namespace Mise.Api.Data.Migrations
                     b.Property<string>("SourceName")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
+
+                    b.PrimitiveCollection<List<string>>("Tags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("'{}'::text[]");
 
                     b.Property<int>("TimeMinutes")
                         .HasColumnType("integer");
@@ -1274,9 +1283,13 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("HouseholdId");
-
                     b.HasIndex("ImagePath");
+
+                    b.HasIndex("Tags");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Tags"), "gin");
+
+                    b.HasIndex("HouseholdId", "IsFavorite");
 
                     b.ToTable("Recipes");
                 });

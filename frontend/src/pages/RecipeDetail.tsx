@@ -1,16 +1,19 @@
-import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
-  useAuth, useChatHealth, useRecipe, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
+  useAuth, useChatHealth, useRecipe, useRecipes, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
   useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage, useSetRecipeServings,
+  useSetRecipeFavorite, useSetRecipeTags, useSetRecipeNutrition,
 } from '../api/hooks'
-import type { CookProposalItem, RecipeDetail as Recipe, RecipeImage } from '../api/client'
+import { errorText, type CookProposalItem, type RecipeDetail as Recipe, type RecipeImage } from '../api/client'
 import { dishLine, formatGrams, formatQty, plural, sourceEyebrow, unitLabel } from '../lib/labels'
 import { IMAGE_ACCEPT } from '../lib/images'
 import { requestChat } from '../lib/chatBus'
+import { normalizeTag, parseOptionalDecimal } from '../lib/recipeParsing'
+import { showToast } from '../lib/toastBus'
 import { RecipeThumb } from '../components/RecipeThumb'
 import { AddToPlanSheet } from '../components/AddToPlanSheet'
-import { Button, Eyebrow, SectionHead, Sheet, StatusDot, inputStyle, mono, sans } from '../components/ui'
+import { Button, Chip, Eyebrow, SectionHead, Sheet, StatusDot, inputStyle, mono, sans } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { ingredientDetailText } from '../lib/ingredients'
 
@@ -30,9 +33,12 @@ export function RecipeDetail() {
   const addMissing = useAddMissingToShopping()
   const del = useDeleteRecipe()
   const upload = useUploadRecipeImage()
+  const setFav = useSetRecipeFavorite()
   const fileRef = useRef<HTMLInputElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [planOpen, setPlanOpen] = useState(false)
+  const [nutritionOpen, setNutritionOpen] = useState(false)
+  const [tagsOpen, setTagsOpen] = useState(false)
 
   // "Ugotuj ponownie" (History) lands here with { cook: true } in router state.
   // Capture it before clearing — CookLogSection mounts only after the recipe
@@ -104,14 +110,44 @@ export function RecipeDetail() {
   const canCook = r.steps.length > 0
   const showAddMissing = canEdit && r.missing.length > 0
   const eyebrow = [dishLine(r), r.usesAirFryer ? 'frytkownica' : ''].filter(Boolean).join(' · ')
+  const recipeTags = r.tags ?? []
+  const toggleFav = () => setFav.mutate({ id: r.id, favorite: !r.isFavorite })
 
   const title = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 18 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 16 }}>
       {eyebrow && <Eyebrow tone="accent">{eyebrow}</Eyebrow>}
       <h1 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 32 : 44, lineHeight: isMobile ? 1.05 : 1.02, letterSpacing: '-0.025em', textWrap: 'balance' as never }}>
+        {r.isFavorite && !canEdit && <span style={{ color: 'var(--gold)', marginRight: 8 }} aria-label="Ulubiony">★</span>}
         {r.title}
       </h1>
       {r.blurb && <p style={{ margin: 0, font: sans(15), lineHeight: 1.5, color: 'var(--text-2)', textWrap: 'pretty' as never }}>{r.blurb}</p>}
+      {(recipeTags.length > 0 || canEdit) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+          {recipeTags.map((t) => (
+            <Chip key={t} onClick={() => nav(`/?tag=${encodeURIComponent(t)}`)}>
+              #{t}
+            </Chip>
+          ))}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setTagsOpen(true)}
+              style={{
+                height: 30,
+                padding: '0 10px',
+                border: '1px dashed var(--border-2)',
+                borderRadius: 999,
+                background: 'transparent',
+                color: 'var(--text-3)',
+                cursor: 'pointer',
+                font: sans(12.5, 500),
+              }}
+            >
+              {recipeTags.length > 0 ? 'Edytuj tagi' : '+ Dodaj tag'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 
@@ -128,7 +164,7 @@ export function RecipeDetail() {
           Przepis oryginalnie na {plural(r.servings, 'porcję', 'porcje', 'porcji')} — ilości i kcal przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')}.
         </span>
       )}
-      <MacroBar r={r} />
+      <MacroBar r={r} canEdit={canEdit} onEdit={() => setNutritionOpen(true)} />
     </div>
   )
 
@@ -198,6 +234,8 @@ export function RecipeDetail() {
 
   const cookLog = <CookLogSection recipeId={r.id} initialOpen={cookRequested && canEdit} canEdit={canEdit} />
   const planSheet = canEdit && <AddToPlanSheet open={planOpen} onClose={() => setPlanOpen(false)} recipe={r} />
+  const nutritionSheet = canEdit && <NutritionSheet open={nutritionOpen} onClose={() => setNutritionOpen(false)} recipe={r} />
+  const tagsSheet = canEdit && <TagsSheet open={tagsOpen} onClose={() => setTagsOpen(false)} recipe={r} />
   const cook = cookMode && (
     <Suspense fallback={null}>
       <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} servings={r.selectedServings} onClose={() => setCookMode(false)} />
@@ -214,6 +252,17 @@ export function RecipeDetail() {
           <div style={{ position: 'absolute', top: 'calc(12px + env(safe-area-inset-top))', left: 16, right: 16, display: 'flex', justifyContent: 'space-between' }}>
             <button type="button" aria-label="Wróć" onClick={goBack} style={roundBtn}>←</button>
             <div style={{ display: 'flex', gap: 8 }}>
+              {canEdit && (
+                <button
+                  type="button"
+                  aria-label={r.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+                  aria-pressed={r.isFavorite}
+                  onClick={toggleFav}
+                  style={{ ...roundBtn, color: r.isFavorite ? 'var(--gold)' : 'var(--text-3)' }}
+                >
+                  {r.isFavorite ? '★' : '☆'}
+                </button>
+              )}
               {canEdit && (
                 <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={{ ...roundBtn, width: 'auto', padding: '0 16px', borderRadius: 999, font: sans(13, 600) }}>
                   {upload.isPending ? '…' : 'Zdjęcie'}
@@ -246,12 +295,17 @@ export function RecipeDetail() {
         )}
         <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Przepis">
           <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <MenuRow onClick={() => { setMenuOpen(false); nav(`/recipe/${r.id}/edit`) }}>Edytuj przepis</MenuRow>
+            <MenuRow onClick={() => { setMenuOpen(false); setNutritionOpen(true) }}>Edytuj kcal i makro</MenuRow>
+            <MenuRow onClick={() => { setMenuOpen(false); setTagsOpen(true) }}>Edytuj tagi</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); setPlanOpen(true) }}>Dodaj do planu</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); pickPhoto() }}>{photoLabel}</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); onDelete() }} danger>Usuń przepis</MenuRow>
           </div>
         </Sheet>
         {planSheet}
+        {nutritionSheet}
+        {tagsSheet}
         {cook}
       </div>
     )
@@ -263,7 +317,16 @@ export function RecipeDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', font: sans(14, 600), color: 'var(--text-2)' }}>
         <button type="button" onClick={goBack} style={linkBtn}>← Wszystkie przepisy</button>
         {canEdit && (
-          <span style={{ display: 'flex', gap: 20 }}>
+          <span style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+            <button
+              type="button"
+              aria-pressed={r.isFavorite}
+              onClick={toggleFav}
+              style={{ ...linkBtn, color: r.isFavorite ? 'var(--gold-text)' : 'inherit' }}
+            >
+              {r.isFavorite ? '★ Ulubiony' : '☆ Ulubiony'}
+            </button>
+            <button type="button" onClick={() => nav(`/recipe/${r.id}/edit`)} style={linkBtn}>Edytuj</button>
             <button type="button" onClick={() => setPlanOpen(true)} style={linkBtn}>Dodaj do planu</button>
             <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={linkBtn}>{photoLabel}</button>
             <button type="button" onClick={onDelete} style={linkBtn}>Usuń</button>
@@ -292,6 +355,8 @@ export function RecipeDetail() {
       </div>
       {cookLog}
       {planSheet}
+      {nutritionSheet}
+      {tagsSheet}
       {cook}
     </div>
   )
@@ -326,7 +391,7 @@ function Fact({ value, label, first }: { value: ReactNode; label: string; first?
  * gram, fat 9) with the grams underneath. The bar renders only when all three
  * are estimated; partial data shows just the numbers.
  */
-function MacroBar({ r }: { r: Recipe }) {
+function MacroBar({ r, canEdit, onEdit }: { r: Recipe; canEdit: boolean; onEdit: () => void }) {
   const isMobile = useIsMobile()
   const n = r.selectedServings
   const defs = [
@@ -336,7 +401,18 @@ function MacroBar({ r }: { r: Recipe }) {
   ]
     .filter((d): d is typeof d & { grams: number } => d.grams != null)
     .map((d) => ({ ...d, grams: d.grams * n }))
-  if (defs.length === 0) return null
+  if (defs.length === 0) {
+    if (!canEdit) return null
+    return (
+      <button
+        type="button"
+        onClick={onEdit}
+        style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)' }}
+      >
+        + Uzupełnij kcal i makro
+      </button>
+    )
+  }
   const total = defs.reduce((sum, d) => sum + d.grams * d.kcalPerGram, 0)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -345,14 +421,25 @@ function MacroBar({ r }: { r: Recipe }) {
           {defs.map((d) => <span key={d.key} style={{ width: `${((d.grams * d.kcalPerGram) / total) * 100}%`, background: d.color }} />)}
         </div>
       )}
-      <div style={{ display: 'flex', gap: 14, font: mono(12), color: 'var(--text-2)', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', font: mono(12), color: 'var(--text-2)' }}>
         {defs.map((d) => (
-          <span key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.color }} />
             {d.key} {formatGrams(d.grams)}
           </span>
         ))}
-        <span style={{ marginLeft: 'auto' }}>na {plural(n, 'porcję', 'porcje', 'porcji')}{isMobile ? '' : ' · szacunkowo'}</span>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>na {plural(n, 'porcję', 'porcje', 'porcji')}{isMobile ? '' : ' · szacunkowo'}</span>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              style={{ border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(12, 600), color: 'var(--accent-text)' }}
+            >
+              Edytuj
+            </button>
+          )}
+        </span>
       </div>
     </div>
   )
@@ -660,5 +747,186 @@ function DeductionRowView({ item, row, onChange }: {
         </span>
       )}
     </div>
+  )
+}
+
+/** Lightweight PATCH /recipes/{id}/nutrition editor — edits macros per 1 serving without touching ingredients/steps. */
+function NutritionSheet({ open, onClose, recipe }: { open: boolean; onClose: () => void; recipe: Recipe }) {
+  const save = useSetRecipeNutrition()
+  const [kcal, setKcal] = useState('')
+  const [protein, setProtein] = useState('')
+  const [fat, setFat] = useState('')
+  const [carbs, setCarbs] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setKcal(recipe.kcal != null ? String(recipe.kcal) : '')
+    setProtein(recipe.protein != null ? String(recipe.protein).replace('.', ',') : '')
+    setFat(recipe.fat != null ? String(recipe.fat).replace('.', ',') : '')
+    setCarbs(recipe.carbs != null ? String(recipe.carbs).replace('.', ',') : '')
+    setError(null)
+  }, [open, recipe.kcal, recipe.protein, recipe.fat, recipe.carbs])
+
+  async function submit() {
+    setError(null)
+    const k = parseOptionalDecimal(kcal)
+    const p = parseOptionalDecimal(protein)
+    const f = parseOptionalDecimal(fat)
+    const c = parseOptionalDecimal(carbs)
+    if (k == null || k <= 0 || p == null || p < 0 || f == null || f < 0 || c == null || c < 0) {
+      setError('Podaj komplet: kcal > 0 oraz białko, tłuszcz i węglowodany ≥ 0 (na jedną porcję).')
+      return
+    }
+    try {
+      await save.mutateAsync({
+        id: recipe.id,
+        input: { kcal: Math.round(k), protein: p, fat: f, carbs: c },
+      })
+      showToast('Zapisano wartości odżywcze')
+      onClose()
+    } catch (e) {
+      setError(errorText(e, 'Nie udało się zapisać wartości odżywczych.'))
+    }
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Kcal i makro (1 porcja)">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <span style={{ font: sans(13.5), color: 'var(--text-2)', lineHeight: 1.45 }}>
+          Podaj wartości szacunkowe dla <strong>jednej porcji</strong> (1 osoba). Aplikacja automatycznie mnoży je przez wybraną liczbę porcji.
+        </span>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Eyebrow>Kalorie (kcal)</Eyebrow>
+            <input style={{ ...inputStyle, font: mono(15) }} inputMode="numeric" value={kcal} onChange={(e) => setKcal(e.target.value)} placeholder="np. 480" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Eyebrow>Białko (g)</Eyebrow>
+            <input style={{ ...inputStyle, font: mono(15) }} inputMode="decimal" value={protein} onChange={(e) => setProtein(e.target.value)} placeholder="np. 32" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Eyebrow>Tłuszcz (g)</Eyebrow>
+            <input style={{ ...inputStyle, font: mono(15) }} inputMode="decimal" value={fat} onChange={(e) => setFat(e.target.value)} placeholder="np. 16" />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <Eyebrow>Węglowodany (g)</Eyebrow>
+            <input style={{ ...inputStyle, font: mono(15) }} inputMode="decimal" value={carbs} onChange={(e) => setCarbs(e.target.value)} placeholder="np. 45" />
+          </label>
+        </div>
+        {error && <span role="alert" style={{ font: sans(13.5, 500), color: 'var(--accent-text)' }}>{error}</span>}
+        <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+          <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={onClose}>Anuluj</Button>
+          <Button size="xl" style={{ flex: 1.4 }} onClick={submit} disabled={save.isPending}>
+            {save.isPending ? 'Zapisywanie…' : 'Zapisz'}
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
+/** Lightweight PUT /recipes/{id}/tags editor with suggestions from existing household tags. */
+function TagsSheet({ open, onClose, recipe }: { open: boolean; onClose: () => void; recipe: Recipe }) {
+  const { data: allRecipes } = useRecipes('all', '')
+  const save = useSetRecipeTags()
+  const [tags, setTags] = useState<string[]>([])
+  const [draft, setDraft] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setTags(recipe.tags ?? [])
+    setDraft('')
+    setError(null)
+  }, [open, recipe.tags])
+
+  const suggestions = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const r of allRecipes ?? []) {
+      for (const t of r.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pl-PL'))
+      .map(([t]) => t)
+      .filter((t) => !tags.includes(t))
+      .slice(0, 12)
+  }, [allRecipes, tags])
+
+  function add(raw: string) {
+    const clean = normalizeTag(raw)
+    if (!clean) return
+    if (tags.length >= 15 || tags.includes(clean)) {
+      setDraft('')
+      return
+    }
+    setTags((prev) => [...prev, clean])
+    setDraft('')
+  }
+
+  async function submit() {
+    setError(null)
+    const pending = normalizeTag(draft)
+    const finalTags = pending && !tags.includes(pending) && tags.length < 15 ? [...tags, pending] : tags
+    try {
+      await save.mutateAsync({ id: recipe.id, tags: finalTags })
+      showToast('Zapisano tagi')
+      onClose()
+    } catch (e) {
+      setError(errorText(e, 'Nie udało się zapisać tagów.'))
+    }
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Tagi i kolekcje">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            style={{ ...inputStyle, flex: 1 }}
+            value={draft}
+            maxLength={40}
+            placeholder="np. do pudełka, szybkie, na gości"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault()
+                add(draft)
+              }
+            }}
+          />
+          <Button variant="outline" size="md" onClick={() => add(draft)} disabled={!normalizeTag(draft) || tags.length >= 15}>
+            + Dodaj
+          </Button>
+        </div>
+        {tags.length > 0 ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {tags.map((t) => (
+              <Chip key={t} active onClick={() => setTags((prev) => prev.filter((x) => x !== t))}>
+                #{t} ✕
+              </Chip>
+            ))}
+          </div>
+        ) : (
+          <span style={{ font: sans(13.5), color: 'var(--text-3)' }}>Brak przypisanych tagów.</span>
+        )}
+        {suggestions.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Eyebrow>Twoje tagi</Eyebrow>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {suggestions.map((t) => (
+                <Chip key={t} onClick={() => add(t)}>+ #{t}</Chip>
+              ))}
+            </div>
+          </div>
+        )}
+        {error && <span role="alert" style={{ font: sans(13.5, 500), color: 'var(--accent-text)' }}>{error}</span>}
+        <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+          <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={onClose}>Anuluj</Button>
+          <Button size="xl" style={{ flex: 1.4 }} onClick={submit} disabled={save.isPending}>
+            {save.isPending ? 'Zapisywanie…' : 'Zapisz tagi'}
+          </Button>
+        </div>
+      </div>
+    </Sheet>
   )
 }

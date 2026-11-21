@@ -67,6 +67,10 @@ public class Recipe : IHouseholdOwned
     /// <summary>Null = not yet categorised (older recipes; agents backfill via PUT).</summary>
     public DishType? DishType { get; set; }
     public Cuisine? Cuisine { get; set; }
+    /// <summary>Household-level star ("Ulubione"); preserved by PUT unless explicitly sent.</summary>
+    public bool IsFavorite { get; set; }
+    /// <summary>Custom lowercase Polish tags/collections (e.g. "do pudełka", "szybkie", "na gości").</summary>
+    public List<string> Tags { get; set; } = new();
 
     /// <summary>
     /// Estimated nutrition PER SERVING. Null = not yet estimated (older recipes;

@@ -9,6 +9,8 @@ const recipes = Array.from({ length: 300 }, (_, index) => ({
   difficulty: 'Łatwe', tint: '#c0552d', blurb: '', imageUrl: `/api/images/${index}.png`,
   toBuyCount: index % 3, dishType: 'main', cuisine: 'polish', usesAirFryer: false,
   createdAt: new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(), kcal: null,
+  protein: null, fat: null, carbs: null, sourceName: null,
+  isFavorite: false, tags: [], ingredients: ['Kurczak', 'Ryż'],
 }))
 const base = 'http://127.0.0.1:5184'
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', '5184', '--strictPort'], {
@@ -50,10 +52,10 @@ try {
     await page.waitForFunction(() => document.querySelectorAll('main h3').length === 48)
 
     // Search must find recipes that have never been mounted, and reset the batch.
-    await page.getByPlaceholder('Szukaj po nazwie lub źródle').fill('Przepis 000')
+    await page.getByPlaceholder('Szukaj po nazwie, składniku, tagu lub źródle').fill('Przepis 000')
     await page.waitForFunction(() => document.querySelectorAll('main h3').length === 1)
     assert.equal(await cards.first().textContent(), 'Przepis 000')
-    await page.getByPlaceholder('Szukaj po nazwie lub źródle').fill('')
+    await page.getByPlaceholder('Szukaj po nazwie, składniku, tagu lub źródle').fill('')
     await page.waitForFunction(() => document.querySelectorAll('main h3').length === 24)
     // Desktop: sort dropdown; phone: the sort chip opens the filter sheet.
     await page.getByRole('button', { name: 'Najnowsze', exact: true }).click()

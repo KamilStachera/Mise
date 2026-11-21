@@ -30,6 +30,10 @@ export interface RecipeListItem {
   carbs: number | null
   /** Free-text origin (book, site, diet plan) — the card eyebrow; null = just the source bucket. */
   sourceName: string | null
+  isFavorite: boolean
+  tags: string[]
+  /** Distinct canonical ingredient names, used for instant client-side ingredient search. */
+  ingredients: string[]
 }
 
 export interface Ingredient {
@@ -38,6 +42,8 @@ export interface Ingredient {
   displayText: string | null
   alternativeGroup: string | null
   status: Status
+  amountValue?: number | null
+  amountUnit?: Unit | null
 }
 
 /** One gallery photo; the default one is shown on cards and the hero. */
@@ -77,6 +83,8 @@ export interface RecipeDetail {
   carbs: number | null
   /** Free-text origin (book, site, diet plan) — the card eyebrow; null = just the source bucket. */
   sourceName: string | null
+  isFavorite: boolean
+  tags: string[]
 }
 
 export interface PantryItem {
@@ -229,6 +237,51 @@ export interface RecipeInput {
   protein?: number
   fat?: number
   carbs?: number
+  /** Custom lowercase Polish tags; omitted (undefined) on PUT preserves existing tags, [] clears them. */
+  tags?: string[]
+  isFavorite?: boolean
+}
+
+export interface RecipeNutritionInput {
+  kcal: number
+  protein: number
+  fat: number
+  carbs: number
+  servings?: number
+}
+
+export interface ImportedNutrition {
+  calories: string | null
+  protein: string | null
+  fat: string | null
+  carbs: string | null
+  servingSize: string | null
+}
+
+export interface ImportedRecipe {
+  name: string
+  description: string | null
+  yield: string | null
+  prepMinutes: number | null
+  cookMinutes: number | null
+  totalMinutes: number | null
+  ingredients: string[]
+  steps: string[]
+  imageUrl: string | null
+  cuisine: string | null
+  category: string | null
+  author: string | null
+  nutrition: ImportedNutrition | null
+}
+
+export interface UrlImportResult {
+  kind: 'page' | 'pdf'
+  url: string
+  title: string | null
+  imageUrl: string | null
+  recipes: ImportedRecipe[]
+  text: string | null
+  textTruncated: boolean
 }
 
 export interface CookLogEntry {
@@ -842,8 +895,33 @@ export const api = {
     return http<RecipeListItem[]>(`/recipes${qs ? '?' + qs : ''}`)
   },
   recipe: (id: string) => http<RecipeDetail>(`/recipes/${id}`),
+  recipeBase: (id: string) => http<RecipeDetail>(`/recipes/${id}?base=true`),
   createRecipe: (input: RecipeInput) =>
     http<{ id: string }>(`/recipes`, { method: 'POST', body: JSON.stringify(input) }),
+  updateRecipe: (id: string, input: RecipeInput) =>
+    http<void>(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+  setRecipeNutrition: (id: string, input: RecipeNutritionInput) =>
+    http<{ id: string; servings: number; kcal: number; protein: number; fat: number; carbs: number }>(
+      `/recipes/${id}/nutrition`,
+      { method: 'PATCH', body: JSON.stringify(input) },
+    ),
+  setRecipeFavorite: (id: string, favorite: boolean) =>
+    http<{ id: string; isFavorite: boolean }>(`/recipes/${id}/favorite`, {
+      method: 'PUT',
+      body: JSON.stringify({ favorite }),
+    }),
+  setRecipeTags: (id: string, tags: string[]) =>
+    http<{ id: string; tags: string[] }>(`/recipes/${id}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tags }),
+    }),
+  uploadRecipeImageFromUrl: (id: string, url: string) =>
+    http<{ imageId: string; imageUrl: string; images: RecipeImage[] }>(`/recipes/${id}/image-from-url`, {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+  importUrl: (url: string) =>
+    http<UrlImportResult>(`/import/url`, { method: 'POST', body: JSON.stringify({ url }) }),
   deleteRecipe: (id: string) => http<void>(`/recipes/${id}`, { method: 'DELETE' }),
   setRecipeServings: (id: string, servings: number) =>
     http<{ servings: number; selectedServings: number }>(`/recipes/${id}/servings`, {

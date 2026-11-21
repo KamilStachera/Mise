@@ -416,9 +416,14 @@ public static class AgentDocs
         („2 x Kromka (70.0 g)").
 
         ### Pozostałe
-        - `GET /recipes?q=<szukaj>&source=<ai|web|manual|all>&sourceName=<źródło>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>&hasImage=<true|false>` — lista.
-          `q` szuka w tytule i źródle; `sourceName` to dokładne źródło (bez względu na wielkość liter);
+        - `GET /recipes?q=<szukaj>&ingredient=<składniki>&tag=<tag>&favorite=<true|false>&maxKcal=<kcal>&minProtein=<g>&source=<ai|web|manual|all>&sourceName=<źródło>&dishType=<słownik>&cuisine=<słownik>&maxTime=<minuty>&airFryer=<true|false>&hasImage=<true|false>` — lista.
+          `q` szuka wielowyrazowo (bez uwzględniania polskich znaków) w tytule, źródle, tagach i składnikach;
+          `ingredient` filtruje po składnikach (np. `twaróg,szpinak`); `tag` po dokładnym tagu;
+          `favorite=true` — tylko ulubione (`★`); `maxKcal`/`minProtein` — filtr budżetu (na 1 porcję);
+          `sourceName` to dokładne źródło (bez względu na wielkość liter);
           `hasImage=false` — tylko przepisy bez zdjęcia dania.
+        - `PUT /recipes/{id}/favorite` — body `{ "favorite": true }`: oznacz lub odznacz przepis jako ulubiony (`★`).
+        - `PUT /recipes/{id}/tags` — body `{ "tags": ["do pudełka", "szybkie"] }`: ustaw tagi/kolekcje przepisu (małe litery, maks. 15 tagów po 40 znaków; `[]` czyści).
         - `GET /recipes/{id}` — szczegóły + które składniki są na stanie / do kupienia
           (uwzględnia ilości: za mało w spiżarni = do kupienia). `selectedServings` to
           zapisany wybór porcji z ekranu przepisu (**domyślnie 1** — jedna osoba) — **ilości
@@ -437,7 +442,7 @@ public static class AgentDocs
         - `PUT /recipes/{id}` — pełna podmiana (to samo body co POST). **Uwaga:** pominięcie
           `dishType`/`cuisine`/`usesAirFryer`/`sourceName`/`kcal`/`protein`/`fat`/`carbs` czyści te pola —
           przy edycji starszego przepisu bez nich uzupełnij je (sklasyfikuj danie, oszacuj
-          makro na porcję), zamiast pomijać. Treść ingrediencji bierz z
+          makro na porcję), zamiast pomijać. `isFavorite` oraz pominięte (`null`) `tags` są zachowywane (przekaż `tags: []`, żeby wyczyścić). Treść składników bierz z
           `GET /recipes/{id}?base=true`.
         - `PATCH /recipes/{id}/nutrition` — body `{ "kcal": 450, "protein": 30, "fat": 15,
           "carbs": 40, "servings": 2 }`: zmienia **tylko** wartości odżywcze (na jedną porcję,

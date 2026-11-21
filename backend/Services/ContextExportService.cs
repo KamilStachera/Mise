@@ -312,7 +312,10 @@ public sealed class ContextExportService
         };
         if (r.DishType is DishType d) header.Add(CookbookMarkdownBuilder.DishTypeLabel(d));
         if (r.Cuisine is Cuisine c) header.Add($"Kuchnia {CookbookMarkdownBuilder.CuisineLabel(c)}");
+        if (r.IsFavorite) header.Add("★ Ulubiony");
         sb.AppendLine($"> {string.Join(" · ", header)}");
+        if (r.Tags.Count > 0)
+            sb.AppendLine($"> Tagi: {string.Join(", ", r.Tags.Select(t => $"#{t}"))}");
         if (CookbookMarkdownBuilder.MacroSummary(r) is string macros)
             sb.AppendLine($"> Wartości odżywcze (na porcję): {macros}");
         sb.AppendLine();

@@ -67,6 +67,11 @@ const recipeInputShape = {
   tip: z.string().optional().describe(
     'Wskazówka (opcjonalna), ale precyzyjna: bez „odrobiny”, „kilku minut” i innych wartości bez liczby',
   ),
+  tags: z
+    .array(z.string())
+    .max(15)
+    .optional()
+    .describe('Tagi/kolekcje przepisu, np. ["do pudełka", "szybkie", "na gości"] (małe litery, maks. 15); pominięte na update_recipe zachowują obecne'),
   ingredients: z
     .array(
       z.object({
@@ -123,9 +128,14 @@ server.tool(
 
 server.tool(
   'search_recipes',
-  'Szukaj zapisanych przepisów po tytule, źródle (np. „Blond Kuchara”, „Daily Dieta” — lista źródeł w cookbook.md), rodzaju dania, kuchni i/lub maksymalnym czasie.',
+  'Szukaj zapisanych przepisów po tytule, składnikach (np. „twaróg szpinak”), tagach, ulubionych (★), budżecie kcal/białka, źródle (np. „Blond Kuchara”, „Daily Dieta”), rodzaju dania, kuchni i/lub maksymalnym czasie.',
   {
-    q: z.string().optional().describe('Fragment tytułu lub źródła'),
+    q: z.string().optional().describe('Szukanie wielowyrazowe w tytule, składnikach, tagach i źródle'),
+    ingredient: z.string().optional().describe('Składniki, które przepis musi zawierać (np. "twaróg, szpinak")'),
+    tag: z.string().optional().describe('Dokładny tag/kolekcja, np. "do pudełka"'),
+    favorite: z.boolean().optional().describe('true = tylko ulubione przepisy (★)'),
+    maxKcal: z.number().int().positive().optional().describe('Maksymalne kcal na jedną porcję'),
+    minProtein: z.number().min(0).optional().describe('Minimalne białko (g) na jedną porcję'),
     source: z.enum(['ai', 'web', 'manual']).optional(),
     sourceName: z.string().optional().describe('Dokładne źródło przepisu, np. "Blond Kuchara" (wielkość liter bez znaczenia)'),
     dishType: z.enum(DISH_TYPES).optional().describe('Rodzaj dania'),
@@ -134,9 +144,14 @@ server.tool(
     airFryer: z.boolean().optional().describe('true = tylko dania z frytkownicy, false = tylko bez'),
     hasImage: z.boolean().optional().describe('false = tylko przepisy bez zdjęcia dania, true = tylko ze zdjęciem'),
   },
-  async ({ q, source, sourceName, dishType, cuisine, maxTime, airFryer, hasImage }) => {
+  async ({ q, ingredient, tag, favorite, maxKcal, minProtein, source, sourceName, dishType, cuisine, maxTime, airFryer, hasImage }) => {
     const p = new URLSearchParams()
     if (q) p.set('q', q)
+    if (ingredient) p.set('ingredient', ingredient)
+    if (tag) p.set('tag', tag)
+    if (favorite !== undefined) p.set('favorite', String(favorite))
+    if (maxKcal) p.set('maxKcal', String(maxKcal))
+    if (minProtein !== undefined) p.set('minProtein', String(minProtein))
     if (source) p.set('source', source)
     if (sourceName) p.set('sourceName', sourceName)
     if (dishType) p.set('dishType', dishType)
@@ -187,6 +202,26 @@ server.tool(
     servings: z.number().int().min(1).describe('Wybrana liczba porcji'),
   },
   async ({ id, servings }) => text(await put(`/recipes/${id}/servings`, { servings })),
+)
+
+server.tool(
+  'set_recipe_favorite',
+  'Oznacz lub odznacz przepis jako ulubiony (★). Bezpieczne — nie rusza składników ani kroków.',
+  {
+    id: z.string().uuid().describe('Id przepisu'),
+    favorite: z.boolean().describe('true = ulubiony, false = usuń z ulubionych'),
+  },
+  async ({ id, favorite }) => text(await put(`/recipes/${id}/favorite`, { favorite })),
+)
+
+server.tool(
+  'set_recipe_tags',
+  'Ustaw tagi/kolekcje przepisu (np. ["do pudełka", "szybkie", "na gości"]). Maks. 15 tagów, małe litery; pusta tablica czyści tagi.',
+  {
+    id: z.string().uuid().describe('Id przepisu'),
+    tags: z.array(z.string()).max(15).describe('Lista tagów przepisu'),
+  },
+  async ({ id, tags }) => text(await put(`/recipes/${id}/tags`, { tags })),
 )
 
 server.tool(

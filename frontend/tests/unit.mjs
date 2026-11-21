@@ -21,6 +21,7 @@ async function importTs(relPath) {
 
 const dates = await importTs('lib/dates.ts')
 const labels = await importTs('lib/labels.ts')
+const recipeParsing = await importTs('lib/recipeParsing.ts')
 
 test('dates: parseISODate and toISO round-trip across leap years and month boundaries', () => {
   for (const iso of ['2024-02-29', '2026-01-01', '2026-03-29', '2026-10-25', '2026-12-31']) {
@@ -81,4 +82,36 @@ test('DayEditorSheet rep-range parsing supports typing intermediate "10-" and ra
   assert.deepEqual(parseRepsRange('12'), { repsMin: 12, repsMax: 12 })
   assert.deepEqual(parseRepsRange('10-'), { repsMin: 10, repsMax: 10 })
   assert.deepEqual(parseRepsRange(''), { repsMin: null, repsMax: null })
+})
+
+test('recipeParsing: matchesRecipeQuery supports multi-word diacritic-insensitive ingredient & tag search', () => {
+  const r = {
+    title: 'Naleśniki białkowe',
+    sourceName: 'Daily Dieta',
+    tags: ['do pudełka', 'szybkie'],
+    ingredients: ['Twaróg chudy', 'Szpinak', 'Jajka'],
+  }
+  assert.equal(recipeParsing.matchesRecipeQuery(r, 'twarog szpinak'), true)
+  assert.equal(recipeParsing.matchesRecipeQuery(r, 'pudelka jajka'), true)
+  assert.equal(recipeParsing.matchesRecipeQuery(r, 'daily dieta'), true)
+  assert.equal(recipeParsing.matchesRecipeQuery(r, 'twarog kurczak'), false)
+  assert.equal(recipeParsing.matchesRecipeQuery(r, '   '), true)
+})
+
+test('recipeParsing: normalizeTag, nutrition & yield parsers handle Polish formats', () => {
+  assert.equal(recipeParsing.normalizeTag('  #Do   Pudełka  '), 'do pudełka')
+  assert.equal(recipeParsing.normalizeTag('###'), '')
+  assert.equal(recipeParsing.parseNutritionNumber('420 kcal'), 420)
+  assert.equal(recipeParsing.parseNutritionNumber('18,5 g'), 18.5)
+  assert.equal(recipeParsing.parseNutritionNumber('0 g'), 0)
+  assert.equal(recipeParsing.parseNutritionNumber(null), null)
+  assert.equal(recipeParsing.parseYieldServings('4 porcje'), 4)
+  assert.equal(recipeParsing.parseYieldServings('2-4 servings'), 2)
+  assert.equal(recipeParsing.parseYieldServings('0'), null)
+  assert.deepEqual(recipeParsing.parseIngredient('200 g mąki pszennej'), {
+    name: 'mąki pszennej',
+    quantity: '200 g',
+    displayText: '200 g mąki pszennej',
+    alternativeGroup: '',
+  })
 })

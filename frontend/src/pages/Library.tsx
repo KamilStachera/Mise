@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth, useRecipes } from '../api/hooks'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useAuth, useChatHealth, useRecipes, useSetRecipeFavorite } from '../api/hooks'
 import { FirstStepsCard } from '../components/FirstStepsCard'
 import { ZmierzchLink } from '../zmierzch/ZmierzchLink'
 import type { Cuisine, DishType, RecipeListItem, Source } from '../api/client'
-import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishLine, dishTypeLabel, sourceEyebrow, sourceLabel } from '../lib/labels'
+import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishLine, dishTypeLabel, formatGrams, formatKcal, plural, sourceEyebrow, sourceLabel } from '../lib/labels'
+import { requestChat } from '../lib/chatBus'
+import { matchesRecipeQuery, normalizeTag } from '../lib/recipeParsing'
 import { FilterDropdown } from '../components/FilterDropdown'
 import { RecipeThumb, StockNote } from '../components/RecipeThumb'
 import { Button, Chip, Eyebrow, PageTitle, SearchField, Sheet, UnderlineTabs, mono, sans, usePagePad } from '../components/ui'
@@ -65,6 +67,17 @@ function originOptions(recipes: RecipeListItem[]): { key: string; label: string;
   )
 }
 
+/** Tags present across the household's recipes, most-used first. */
+function tagOptions(recipes: RecipeListItem[]): { tag: string; count: number }[] {
+  const byTag = new Map<string, number>()
+  for (const r of recipes) {
+    for (const t of r.tags ?? []) byTag.set(t, (byTag.get(t) ?? 0) + 1)
+  }
+  return [...byTag.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, 'pl-PL'))
+}
+
 function inTimeBucket(time: number, bucket: TimeBucket | null): boolean {
   if (bucket === null) return true
   if (bucket === '60plus') return time > 60
@@ -81,11 +94,16 @@ function pickHero(recipes: RecipeListItem[]): RecipeListItem | null {
   return [...pool].sort((a, b) => a.id.localeCompare(b.id))[seed % pool.length]
 }
 
+const isNullablePosInt = (v: unknown) => v === null || (typeof v === 'number' && Number.isFinite(v) && v > 0)
+
 export function Library() {
   const nav = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const isMobile = useIsMobile()
   const pad = usePagePad()
   const { canEdit } = useAuth()
+  const { data: chatHealth } = useChatHealth()
+  const setFav = useSetRecipeFavorite()
   const { data: recipes = EMPTY_RECIPES, isLoading, isError, refetch } = useRecipes('all', '')
   // Filters live in sessionStorage so opening a recipe and coming back keeps them.
   const [filter, setFilter] = useSessionState<Filter>(`${KEY}source`, 'all', oneOf('all', 'ai', 'web', 'manual'))
@@ -93,13 +111,48 @@ export function Library() {
   const [dish, setDish] = useSessionState<DishType | 'all'>(`${KEY}dish`, 'all', oneOf('all', ...DISH_TYPES))
   const [cuisine, setCuisine] = useSessionState<Cuisine | 'all'>(`${KEY}cuisine`, 'all', oneOf('all', ...CUISINES))
   const [origin, setOrigin] = useSessionState<string | null>(`${KEY}origin`, null, (v) => v === null || isString(v))
+  const [tag, setTag] = useSessionState<string | null>(`${KEY}tag`, null, (v) => v === null || isString(v))
+  const [favoriteOnly, setFavoriteOnly] = useSessionState(`${KEY}favorite`, false, (v) => typeof v === 'boolean')
   const [timeBucket, setTimeBucket] = useSessionState<TimeBucket | null>(`${KEY}time`, null, oneOf(null, ...TIME_BUCKETS.map((b) => b.key)))
   const [difficulty, setDifficulty] = useSessionState(`${KEY}difficulty`, 'all', oneOf('all', ...DIFFICULTIES))
   const [stock, setStock] = useSessionState<Stock>(`${KEY}stock`, 'any', oneOf(...STOCK_OPTIONS.map((o) => o.key)))
   const [airFryerOnly, setAirFryerOnly] = useSessionState(`${KEY}airFryer`, false, (v) => typeof v === 'boolean')
+  const [budgetKcal, setBudgetKcal] = useSessionState<number | null>(`${KEY}budgetKcal`, null, isNullablePosInt)
+  const [budgetProtein, setBudgetProtein] = useSessionState<number | null>(`${KEY}budgetProtein`, null, isNullablePosInt)
+  const [highProteinOnly, setHighProteinOnly] = useSessionState(`${KEY}highProtein`, false, (v) => typeof v === 'boolean')
   const [sort, setSort] = useSessionState<SortMode>(`${KEY}sort`, 'newest', oneOf(...SORT_OPTIONS.map((o) => o.key)))
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [filterSheet, setFilterSheet] = useState(false)
+
+  // Deep links from DayView (/?budgetKcal=520&budgetProtein=42) or RecipeDetail (/?tag=szybkie).
+  useEffect(() => {
+    const rawBudget = searchParams.get('budgetKcal')
+    const rawProt = searchParams.get('budgetProtein')
+    const rawTag = searchParams.get('tag')
+    if (rawBudget === null && rawTag === null) return
+    if (rawBudget !== null) {
+      const k = Number(rawBudget)
+      if (Number.isFinite(k) && k > 0) {
+        setBudgetKcal(Math.round(k))
+        const p = rawProt !== null ? Number(rawProt) : NaN
+        setBudgetProtein(Number.isFinite(p) && p > 0 ? Math.round(p) : null)
+        setHighProteinOnly(false)
+        setFilter('all')
+        setQuery('')
+      }
+    }
+    if (rawTag !== null) {
+      const clean = normalizeTag(rawTag)
+      if (clean) {
+        setTag(clean)
+        setBudgetKcal(null)
+        setBudgetProtein(null)
+        setHighProteinOnly(false)
+      }
+    }
+    setSearchParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // One menu open at a time; any click outside a [data-dd] wrapper closes it.
   useEffect(() => {
@@ -116,26 +169,42 @@ export function Library() {
       ai: recipes.filter((r) => r.source === 'ai').length,
       web: recipes.filter((r) => r.source === 'web').length,
       manual: recipes.filter((r) => r.source === 'manual').length,
+      favorites: recipes.filter((r) => r.isFavorite).length,
     }),
     [recipes],
   )
 
   const origins = useMemo(() => originOptions(recipes), [recipes])
   const originLabel = origins.find((o) => o.key === origin)?.label
+  const allTags = useMemo(() => tagOptions(recipes), [recipes])
+  const proteinFloor = budgetProtein != null ? Math.min(25, budgetProtein) : 25
 
   const view = useMemo(() => {
-    const q = query.trim().toLowerCase()
     const filtered = recipes
       .filter((r) => filter === 'all' || r.source === filter)
       .filter((r) => dish === 'all' || r.dishType === dish)
       .filter((r) => cuisine === 'all' || r.cuisine === cuisine)
       .filter((r) => origin === null || originKey(r) === origin)
+      .filter((r) => tag === null || (r.tags ?? []).includes(tag))
+      .filter((r) => !favoriteOnly || r.isFavorite)
       .filter((r) => inTimeBucket(r.time, timeBucket))
       .filter((r) => difficulty === 'all' || r.difficulty === difficulty)
       .filter((r) => stock !== 'have' || r.toBuyCount === 0)
       .filter((r) => stock !== 'almost' || (r.toBuyCount >= 1 && r.toBuyCount <= 2))
       .filter((r) => !airFryerOnly || r.usesAirFryer)
-      .filter((r) => !q || r.title.toLowerCase().includes(q) || (r.sourceName ?? '').toLowerCase().includes(q))
+      .filter((r) => budgetKcal === null || (r.kcal != null && r.kcal <= budgetKcal))
+      .filter((r) => !highProteinOnly || (r.protein ?? 0) >= proteinFloor)
+      .filter((r) => matchesRecipeQuery(r, query))
+    // In budget mode, surface the most cookable, highest-protein dishes fitting the remaining kcal first.
+    if (budgetKcal !== null) {
+      filtered.sort(
+        (a, b) =>
+          a.toBuyCount - b.toBuyCount ||
+          (b.protein ?? -1) - (a.protein ?? -1) ||
+          (b.kcal ?? 0) - (a.kcal ?? 0),
+      )
+      return filtered
+    }
     // 'alpha' keeps the server order — it is already Polish-collated.
     if (sort === 'newest') filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     if (sort === 'quickest') filtered.sort((a, b) => a.time - b.time)
@@ -146,15 +215,15 @@ export function Library() {
       // Unnamed ones go last, grouped by the bucket their eyebrow shows.
       filtered.sort((a, b) => Number(!a.sourceName) - Number(!b.sourceName) || sourceEyebrow(a).localeCompare(sourceEyebrow(b), 'pl-PL', { sensitivity: 'base' }))
     return filtered
-  }, [recipes, filter, dish, cuisine, origin, timeBucket, difficulty, stock, airFryerOnly, query, sort])
+  }, [recipes, filter, dish, cuisine, origin, tag, favoriteOnly, timeBucket, difficulty, stock, airFryerOnly, budgetKcal, highProteinOnly, proteinFloor, query, sort])
 
-  const resetKey = JSON.stringify([filter, query.trim(), dish, cuisine, origin, timeBucket, difficulty, stock, airFryerOnly, sort])
+  const resetKey = JSON.stringify([filter, query.trim(), dish, cuisine, origin, tag, favoriteOnly, timeBucket, difficulty, stock, airFryerOnly, budgetKcal, highProteinOnly, sort])
   const { visibleItems, sentinel, hasMore, loadMore } = useInfiniteScroll(view, resetKey, `${KEY}page`)
 
   const toolbarCount =
-    Number(dish !== 'all') + Number(cuisine !== 'all') + Number(origin !== null) + Number(timeBucket !== null) +
-    Number(difficulty !== 'all') + Number(stock !== 'any') + Number(airFryerOnly)
-  const filtersActive = toolbarCount > 0 || filter !== 'all' || query.trim() !== ''
+    Number(dish !== 'all') + Number(cuisine !== 'all') + Number(origin !== null) + Number(tag !== null) +
+    Number(favoriteOnly) + Number(timeBucket !== null) + Number(difficulty !== 'all') + Number(stock !== 'any') + Number(airFryerOnly)
+  const filtersActive = toolbarCount > 0 || filter !== 'all' || query.trim() !== '' || budgetKcal !== null
   // The editorial block (hero, shortcuts, newest) only shows while browsing everything.
   const browsing = !filtersActive && !isLoading && recipes.length > 0
 
@@ -164,10 +233,18 @@ export function Library() {
     [recipes, hero],
   )
 
+  function clearBudget() {
+    setBudgetKcal(null)
+    setBudgetProtein(null)
+    setHighProteinOnly(false)
+  }
+
   function clearToolbarFilters() {
     setDish('all')
     setCuisine('all')
     setOrigin(null)
+    setTag(null)
+    setFavoriteOnly(false)
     setTimeBucket(null)
     setDifficulty('all')
     setStock('any')
@@ -177,6 +254,7 @@ export function Library() {
 
   function clearAllFilters() {
     clearToolbarFilters()
+    clearBudget()
     setFilter('all')
     setQuery('')
   }
@@ -190,7 +268,8 @@ export function Library() {
   const menu = (key: string) => ({ open: openMenu === key, onToggle: () => setOpenMenu((m) => (m === key ? null : key)) })
 
   const open = (r: RecipeListItem) => nav(`/recipe/${r.id}`)
-  const shortfall = stock === 'almost' || sort === 'missing'
+  const toggleFav = canEdit ? (r: RecipeListItem) => setFav.mutate({ id: r.id, favorite: !r.isFavorite }) : undefined
+  const shortfall = stock === 'almost' || sort === 'missing' || budgetKcal !== null
 
   const tabs = (
     <UnderlineTabs
@@ -259,6 +338,20 @@ export function Library() {
         active={stock !== 'any'}
         options={STOCK_OPTIONS.map((o) => ({ label: o.label, selected: stock === o.key, onSelect: () => pick(setStock)(o.key) }))}
       />
+      <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>
+        ★ Ulubione{counts.favorites > 0 && !favoriteOnly ? ` (${counts.favorites})` : ''}{favoriteOnly && ' ✕'}
+      </Chip>
+      {(allTags.length > 0 || tag !== null) && (
+        <FilterDropdown
+          {...menu('tag')}
+          label={tag ? `#${tag}` : 'Tag'}
+          active={tag !== null}
+          options={[
+            { label: 'Wszystkie tagi', selected: tag === null, onSelect: () => pick(setTag)(null) },
+            ...allTags.map((t) => ({ label: `#${t.tag} (${t.count})`, selected: tag === t.tag, onSelect: () => pick(setTag)(t.tag) })),
+          ]}
+        />
+      )}
       <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>
         Frytkownica{airFryerOnly && ' ✕'}
       </Chip>
@@ -272,8 +365,8 @@ export function Library() {
         muted
         align="right"
         active={false}
-        label={SORT_OPTIONS.find((o) => o.key === sort)!.label}
-        options={SORT_OPTIONS.map((o) => ({ label: o.label, selected: sort === o.key, onSelect: () => pick(setSort)(o.key) }))}
+        label={budgetKcal !== null ? 'Dopasowanie do budżetu' : SORT_OPTIONS.find((o) => o.key === sort)!.label}
+        options={SORT_OPTIONS.map((o) => ({ label: o.label, selected: sort === o.key && budgetKcal === null, onSelect: () => { clearBudget(); pick(setSort)(o.key) } }))}
       />
     </div>
   )
@@ -283,10 +376,69 @@ export function Library() {
       <Chip active={toolbarCount > 0} onClick={() => setFilterSheet(true)}>
         Filtry{toolbarCount > 0 ? ` · ${toolbarCount}` : ''}
       </Chip>
+      <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>★ Ulubione</Chip>
       <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
       <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
       <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
       <Chip onClick={() => setFilterSheet(true)}>{SORT_OPTIONS.find((o) => o.key === sort)!.label} <span aria-hidden>▾</span></Chip>
+    </div>
+  )
+
+  const budgetBanner = budgetKcal !== null && (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        padding: isMobile ? 14 : 16,
+        borderRadius: 14,
+        background: 'var(--surface)',
+        border: '1px solid var(--border-2)',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Eyebrow tone="accent">W Twoim budżecie</Eyebrow>
+          <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 21 : 24, lineHeight: 1.15 }}>
+            Do {formatKcal(budgetKcal)} kcal
+            {budgetProtein != null && budgetProtein > 0 && ` · brakuje ${budgetProtein} g białka`}
+          </span>
+          <span style={{ font: sans(13), color: 'var(--text-2)' }}>
+            Pokazujemy {plural(view.length, 'przepis', 'przepisy', 'przepisów')} (posortowane wg dostępnych składników i białka).
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={clearBudget}
+          aria-label="Zamknij filtr budżetu"
+          style={{ border: 0, background: 'transparent', cursor: 'pointer', font: sans(13, 600), color: 'var(--text-3)', padding: '2px 4px', whiteSpace: 'nowrap' }}
+        >
+          Zamknij ✕
+        </button>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <Chip onClick={() => setBudgetKcal(Math.max(100, budgetKcal - 100))}>−100 kcal</Chip>
+        <Chip onClick={() => setBudgetKcal(Math.min(4000, budgetKcal + 100))}>+100 kcal</Chip>
+        <Chip active={highProteinOnly} onClick={() => setHighProteinOnly(!highProteinOnly)}>
+          Białko ≥ {proteinFloor} g{highProteinOnly && ' ✕'}
+        </Chip>
+        <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>
+          Mam wszystko{stock === 'have' && ' ✕'}
+        </Chip>
+        {canEdit && chatHealth?.enabled && (
+          <Button
+            variant="dark"
+            size="sm"
+            onClick={() =>
+              requestChat(
+                `Zostało mi dziś ${budgetKcal} kcal${budgetProtein ? ` i ${budgetProtein} g białka` : ''} — zaproponuj coś z naszych przepisów albo ze spiżarni.`,
+              )
+            }
+          >
+            ✦ Zapytaj Sous
+          </Button>
+        )}
+      </div>
     </div>
   )
 
@@ -296,6 +448,8 @@ export function Library() {
       <Tile eyebrow="Bez zakupów" title="Z tego, co mam →" onClick={() => setStock('have')} />
     </div>
   )
+
+  const searchPlaceholder = 'Szukaj po nazwie, składniku, tagu lub źródle'
 
   return (
     <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 28 }}>
@@ -307,7 +461,7 @@ export function Library() {
             canEdit && <Button variant="outline" size="sm" onClick={() => nav('/add')}>+ Dodaj</Button>
           ) : (
             <div style={{ display: 'flex', gap: 10 }}>
-              <SearchField value={query} onChange={setQuery} placeholder="Szukaj po nazwie lub źródle" style={{ width: 340 }} />
+              <SearchField value={query} onChange={setQuery} placeholder={searchPlaceholder} style={{ width: 380 }} />
               {canEdit && <Button onClick={() => nav('/add')}>+ Dodaj przepis</Button>}
             </div>
           )
@@ -319,7 +473,7 @@ export function Library() {
 
       {isMobile ? (
         <>
-          <SearchField value={query} onChange={setQuery} placeholder="Szukaj po nazwie lub źródle" />
+          <SearchField value={query} onChange={setQuery} placeholder={searchPlaceholder} />
           {browsing && tiles}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tabs}
@@ -332,6 +486,8 @@ export function Library() {
           {desktopFilters}
         </div>
       )}
+
+      {budgetBanner}
 
       {isError ? (
         <div role="alert" style={{ color: 'var(--text-2)', padding: '40px 0' }}>
@@ -374,7 +530,7 @@ export function Library() {
           {isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {visibleItems.map((r, i) => (
-                <Row key={r.id} r={r} first={i === 0} shortfall={shortfall} onOpen={() => open(r)} />
+                <Row key={r.id} r={r} first={i === 0} shortfall={shortfall} showProtein={budgetKcal !== null} onOpen={() => open(r)} onToggleFav={toggleFav} />
               ))}
             </div>
           ) : (
@@ -382,7 +538,7 @@ export function Library() {
               {browsing && <Eyebrow>Wszystkie przepisy · {view.length}</Eyebrow>}
               {!browsing && <Eyebrow>{view.length} z {counts.all}</Eyebrow>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', columnGap: 24, rowGap: 32 }}>
-                {visibleItems.map((r) => <GridCard key={r.id} r={r} shortfall={shortfall} onOpen={() => open(r)} />)}
+                {visibleItems.map((r) => <GridCard key={r.id} r={r} shortfall={shortfall} showProtein={budgetKcal !== null} onOpen={() => open(r)} onToggleFav={toggleFav} />)}
               </div>
             </div>
           )}
@@ -396,6 +552,16 @@ export function Library() {
 
       <Sheet open={filterSheet} onClose={() => setFilterSheet(false)} title="Filtry">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <ChipGroup label="Szybkie">
+            <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>★ Ulubione</Chip>
+            <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
+          </ChipGroup>
+          {allTags.length > 0 && (
+            <ChipGroup label="Tagi">
+              <Chip active={tag === null} onClick={() => setTag(null)}>Wszystkie</Chip>
+              {allTags.map((t) => <Chip key={t.tag} active={tag === t.tag} onClick={() => setTag(t.tag)}>#{t.tag} · {t.count}</Chip>)}
+            </ChipGroup>
+          )}
           <ChipGroup label="Kategoria">
             <Chip active={dish === 'all'} onClick={() => setDish('all')}>Wszystkie</Chip>
             {DISH_TYPES.map((d) => <Chip key={d} active={dish === d} onClick={() => setDish(d)}>{dishTypeLabel[d]}</Chip>)}
@@ -418,7 +584,6 @@ export function Library() {
           </ChipGroup>
           <ChipGroup label="Składniki">
             {STOCK_OPTIONS.map((o) => <Chip key={o.key} active={stock === o.key} onClick={() => setStock(o.key)}>{o.label}</Chip>)}
-            <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
           </ChipGroup>
           <ChipGroup label="Sortowanie">
             {SORT_OPTIONS.map((o) => <Chip key={o.key} active={sort === o.key} onClick={() => setSort(o.key)}>{o.label}</Chip>)}
@@ -516,10 +681,19 @@ function Hero({ r, onOpen }: { r: RecipeListItem; onOpen: () => void }) {
 }
 
 /** Thumbnail list row (desktop "Ostatnio dodane", the whole list on phones). */
-function Row({ r, onOpen, first, shortfall, heading = true }: { r: RecipeListItem; onOpen: () => void; first?: boolean; shortfall?: boolean; heading?: boolean }) {
+function Row({ r, onOpen, first, shortfall, showProtein, heading = true, onToggleFav }: {
+  r: RecipeListItem
+  onOpen: () => void
+  first?: boolean
+  shortfall?: boolean
+  showProtein?: boolean
+  heading?: boolean
+  onToggleFav?: (r: RecipeListItem) => void
+}) {
   const Title = heading ? 'h3' : 'span'
   const isMobile = useIsMobile()
   const size = isMobile ? 76 : 84
+  const tags = r.tags ?? []
   return (
     <div
       onClick={onOpen}
@@ -528,35 +702,118 @@ function Row({ r, onOpen, first, shortfall, heading = true }: { r: RecipeListIte
         gap: isMobile ? 14 : 16,
         padding: '14px 0',
         cursor: 'pointer',
+        alignItems: 'center',
         borderBottom: isMobile ? undefined : '1px solid var(--border)',
         borderTop: isMobile && !first ? '1px solid var(--border)' : undefined,
       }}
     >
       <RecipeThumb r={r} letterSize={30} style={{ width: size, height: size, borderRadius: 10 }} />
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, minWidth: 0 }}>
         <Eyebrow size={10.5}>{sourceEyebrow(r)}</Eyebrow>
-        <Title style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 19 : 20, lineHeight: 1.15 }}>{r.title}</Title>
-        <span style={{ display: 'flex', gap: 10, font: mono(12), color: 'var(--text-2)' }}>
+        <Title style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 19 : 20, lineHeight: 1.15 }}>
+          {r.isFavorite && !onToggleFav && <span style={{ color: 'var(--gold)', marginRight: 5 }}>★</span>}
+          {r.title}
+        </Title>
+        <span style={{ display: 'flex', flexWrap: 'wrap', gap: 10, font: mono(12), color: 'var(--text-2)' }}>
           <span>{r.time} min</span>
+          {showProtein && r.kcal != null && <span>~{r.kcal} kcal</span>}
+          {showProtein && r.protein != null && <span>B {formatGrams(r.protein)}</span>}
           <StockNote toBuy={r.toBuyCount} short={shortfall} />
         </span>
+        {tags.length > 0 && (
+          <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, font: mono(11), color: 'var(--text-3)' }}>
+            {tags.slice(0, 3).map((t) => <span key={t}>#{t}</span>)}
+          </span>
+        )}
       </div>
+      {onToggleFav && (
+        <button
+          type="button"
+          aria-label={r.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+          aria-pressed={r.isFavorite}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleFav(r)
+          }}
+          style={{
+            flex: '0 0 auto',
+            width: 36,
+            height: 36,
+            border: 0,
+            background: 'transparent',
+            color: r.isFavorite ? 'var(--gold)' : 'var(--border-2)',
+            cursor: 'pointer',
+            fontSize: 18,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {r.isFavorite ? '★' : '☆'}
+        </button>
+      )}
     </div>
   )
 }
 
-function GridCard({ r, onOpen, shortfall }: { r: RecipeListItem; onOpen: () => void; shortfall?: boolean }) {
+function GridCard({ r, onOpen, shortfall, showProtein, onToggleFav }: {
+  r: RecipeListItem
+  onOpen: () => void
+  shortfall?: boolean
+  showProtein?: boolean
+  onToggleFav?: (r: RecipeListItem) => void
+}) {
+  const tags = r.tags ?? []
   return (
     <div onClick={onOpen} style={{ display: 'flex', flexDirection: 'column', gap: 10, cursor: 'pointer', minWidth: 0 }}>
-      <RecipeThumb r={r} letterSize={56} style={{ height: 170, borderRadius: 12 }} />
+      <div style={{ position: 'relative' }}>
+        <RecipeThumb r={r} letterSize={56} style={{ height: 170, borderRadius: 12 }} />
+        {(onToggleFav || r.isFavorite) && (
+          <button
+            type="button"
+            disabled={!onToggleFav}
+            aria-label={r.isFavorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'}
+            aria-pressed={r.isFavorite}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleFav?.(r)
+            }}
+            style={{
+              position: 'absolute',
+              right: 10,
+              top: 10,
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              border: 0,
+              background: 'var(--surface)',
+              color: r.isFavorite ? 'var(--gold)' : 'var(--text-3)',
+              opacity: r.isFavorite ? 0.96 : 0.78,
+              cursor: onToggleFav ? 'pointer' : 'default',
+              fontSize: 15,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {r.isFavorite ? '★' : '☆'}
+          </button>
+        )}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         <Eyebrow size={10.5}>{sourceEyebrow(r)}</Eyebrow>
         <h3 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 19, lineHeight: 1.2 }}>{r.title}</h3>
         <span style={{ display: 'flex', flexWrap: 'wrap', columnGap: 10, font: mono(12), color: 'var(--text-2)' }}>
           <span>{r.time} min</span>
           {r.kcal != null && <span>~{r.kcal} kcal</span>}
+          {showProtein && r.protein != null && <span>B {formatGrams(r.protein)}</span>}
           <StockNote toBuy={r.toBuyCount} short={shortfall} />
         </span>
+        {tags.length > 0 && (
+          <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, font: mono(11), color: 'var(--text-3)' }}>
+            {tags.slice(0, 3).map((t) => <span key={t}>#{t}</span>)}
+          </span>
+        )}
       </div>
     </div>
   )

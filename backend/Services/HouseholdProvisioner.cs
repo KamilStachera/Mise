@@ -74,6 +74,8 @@ public sealed class HouseholdProvisioner(MiseDbContext db, IngredientMatcher mat
         copy.Id = Guid.NewGuid();
         copy.HouseholdId = 0;
         copy.SelectedServings = null;
+        copy.IsFavorite = false;
+        copy.Tags = [..source.Tags];
         copy.CreatedAt = copy.UpdatedAt = DateTimeOffset.UtcNow;
         copy.Ingredients = source.Ingredients.Select(i =>
         {
