@@ -25,7 +25,7 @@ public enum CallerKind
     Unlinked,
     /// <summary>Signed in and a member of a household.</summary>
     Member,
-    /// <summary>A personal API key (agents/MCP): acts strictly as the key's person.</summary>
+    /// <summary>A personal API key (agents/MCP): acts as the key's person, or the <c>X-Person</c> it names within the household.</summary>
     PersonalKey,
     /// <summary>A short-lived per-turn token minted by the API for Sous: pinned to one (household, person).</summary>
     SousToken,
@@ -149,8 +149,9 @@ public static class People
             caller.Kind = CallerKind.PersonalKey;
             caller.ApiKeyId = personal.KeyId;
             caller.Self = personal.Person;
-            // A personal key acts strictly as its owner (ignores X-Person).
-            caller.Acting = personal.Person;
+            // Like a Google session: X-Person may pick another active person of the key's own
+            // household (one key serves a couple's diaries); anyone else falls back to the owner.
+            caller.Acting = await PickWithinAsync(db, personal.Person, picked, ct);
         }
         else if (key.Length > 0 && access.IsSystemKey(key) && IsInternalRequest(ctx))
         {

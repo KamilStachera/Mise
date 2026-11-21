@@ -101,7 +101,7 @@ public class AuditRegressionTests
     }
 
     [Fact]
-    public async Task PersonalKey_IgnoresXPersonHeaderWithinSameHousehold()
+    public async Task PersonalKey_XPersonPicksActiveHouseholdMember_ElseFallsBackToOwner()
     {
         await using var host = await BuildTestAppAsync();
         var key = AccessControl.NewPersonalKey();
@@ -120,22 +120,28 @@ public class AuditRegressionTests
             await db.SaveChangesAsync();
         }
 
-        // Person 4 is an active partner in Household 1; a personal key for Person 1 must NOT impersonate Person 4.
-        var log = await host.SendAsync(HttpMethod.Post, "/api/plan/entries", apiKey: key, xPerson: "4", body: new
+        // X-Person 4 = active partner in household 1 → their diary (one key serves a couple, as documented).
+        // X-Person 2 = blocked partner, X-Person 3 = another household → silently the key's owner.
+        foreach (var (pick, title) in new[] { ("4", "Partner"), ("2", "Zablokowana"), ("3", "Obcy dom") })
         {
-            date = "2026-11-20",
-            slot = "breakfast",
-            title = "Owsianka",
-            kcal = 350,
-        });
-        Assert.True(log.IsSuccessStatusCode, $"Expected 2xx, got {(int)log.StatusCode}: {await log.Content.ReadAsStringAsync()}");
+            var log = await host.SendAsync(HttpMethod.Post, "/api/plan/entries", apiKey: key, xPerson: pick, body: new
+            {
+                date = "2026-11-20",
+                slot = "breakfast",
+                title,
+                kcal = 350,
+            });
+            Assert.True(log.IsSuccessStatusCode, $"Expected 2xx, got {(int)log.StatusCode}: {await log.Content.ReadAsStringAsync()}");
+        }
 
         using (var scope = host.App.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
             db.Tenant.UseHousehold(1);
-            var entry = await db.PlanEntries.SingleAsync();
-            Assert.Equal(1, entry.PersonId);
+            var owners = await db.PlanEntries.ToDictionaryAsync(e => e.Title, e => e.PersonId);
+            Assert.Equal(4, owners["Partner"]);
+            Assert.Equal(1, owners["Zablokowana"]);
+            Assert.Equal(1, owners["Obcy dom"]);
         }
     }
 

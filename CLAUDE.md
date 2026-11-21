@@ -101,9 +101,11 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   `Exercise.HouseholdId` null = shared catalog, set = an agent's custom exercise.
 - **Who is calling** is resolved once per request by `People.ResolveAsync` into the
   scoped `Caller` (kind, own person, acting person, household, admin) and the tenant.
-  Order: dev bypass → personal key (`ApiKeys`, SHA-256) → system key (`MISE_API_KEY`,
-  sous only, must send `X-Person`) → Google email → anonymous. `X-Person` is honoured
-  only within the caller's household. A Google account with no person is `Unlinked`:
+  Order: dev bypass → Sous turn token (`st_…`, minted per chat turn by `AccessControl`,
+  pinned to one person, ignores `X-Person`) → personal key (`ApiKeys`, SHA-256) → system key
+  (`MISE_API_KEY`, internal network only, must send `X-Person`) → Google email → anonymous.
+  `X-Person` is honoured only for active people within the caller's household. Sous tokens
+  and the system key can't reach account endpoints (keys, invites, people, export, admin). A Google account with no person is `Unlinked`:
   only `/api/auth` and `/api/onboarding` work (403 `needsOnboarding` elsewhere).
   Invites (`InviteCode`, hashed, single use, soft-revoked via `RevokedAt`, rate-limited
   redeem) and new-household provisioning (`HouseholdProvisioner`: per-household seed with an

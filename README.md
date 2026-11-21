@@ -223,8 +223,9 @@ diary, goal, weight, band and training.
   (off for new ones).
 - **Anonymous visitors** may browse one household read-only when
   `PUBLIC_HOUSEHOLD_ID` is set; otherwise they only see the sign-in screen.
-- `MISE_API_KEY` in `.env` is the internal key of the `sous` container (it must
-  name a person with `X-Person`), not an agent key.
+- `MISE_API_KEY` in `.env` is an internal key (internal network only; it must
+  name a person with `X-Person`), not an agent key. The `sous` container authenticates
+  to the API with `X-Sous-Secret`, and its tools use short-lived per-turn tokens.
 
 ## MCP server
 

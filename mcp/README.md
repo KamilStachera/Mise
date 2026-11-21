@@ -31,7 +31,7 @@ cookbook REST API as first-class tools for Claude Code and Codex:
 
 Tools act as the owner of the API key, in their household. `MISE_PERSON=<id>`
 picks another person of the same household (ids: `GET /api/auth/me` → `people`).
-The in-app Sous uses the internal key and sets it to the signed-in person.
+The in-app Sous gets a short-lived per-turn token pinned to the signed-in person.
 
 The exported `./context` folder stays the primary **read** path (open it in your
 agent); MCP is the **write / quick-query** path that works from any directory.
