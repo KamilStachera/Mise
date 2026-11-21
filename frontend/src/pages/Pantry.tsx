@@ -4,6 +4,7 @@ import { useIsMobile } from '../lib/useIsMobile'
 import type { PantryItem, Unit } from '../api/client'
 import { categoryLabel, formatQty, plural, unitLabel, UNITS } from '../lib/labels'
 import { showToast } from '../lib/toastBus'
+import { LoginPrompt } from '../components/LoginPrompt'
 import { Button, Chip, Eyebrow, PageTitle, SearchField, SectionHead, Sheet, StatStrip, StatusDot, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
 const CATS = ['Produce', 'Fridge', 'Pantry', 'Spices']
@@ -22,7 +23,7 @@ function norm(s: string): string {
 }
 
 export function Pantry() {
-  const { canEdit } = useAuth()
+  const { canEdit, isLoading: authLoading } = useAuth()
   const isMobile = useIsMobile()
   const pad = usePagePad()
   const { data: groups = [], isLoading } = usePantry()
@@ -71,6 +72,8 @@ export function Pantry() {
     setActiveCat(category)
     document.getElementById(`pantry-${category}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+
+  if (!authLoading && !canEdit) return <LoginPrompt title="Spiżarnia" />
 
   const strip = (
     <StatStrip

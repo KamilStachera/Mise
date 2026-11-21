@@ -74,8 +74,11 @@ public static partial class RecipeScaling
         }).ToList();
 
     /// <summary>Multiply before dividing — 3 szt at 3→2 servings must come out exactly 2.</summary>
-    private static decimal Scale(decimal value, decimal selected, int servings) =>
-        Math.Round(value * selected / servings, 2);
+    private static decimal Scale(decimal value, decimal selected, int servings)
+    {
+        try { return Math.Round(value * selected / servings, 2); }
+        catch (OverflowException) { return value; }
+    }
 
     /// <summary>
     /// Rewrites every number in a display string ("100 g" ×2 → "200 g",
@@ -90,7 +93,7 @@ public static partial class RecipeScaling
         {
             var next = m.Index + m.Length < text.Length ? text[m.Index + m.Length] : '\0';
             if (next is '%' or '°') return m.Value;
-            if (!TryParseNumber(m.Value, out var value)) return m.Value;
+            if (!TryParseNumber(m.Value, out var value) || Math.Abs(value) > 1_000_000_000m) return m.Value;
             return Scale(value, selected, servings).ToString("0.##", Pl);
         });
     }
@@ -107,7 +110,8 @@ public static partial class RecipeScaling
                 || !decimal.TryParse(b, NumberStyles.Number, CultureInfo.InvariantCulture, out var denominator)
                 || denominator == 0)
                 return false;
-            value = numerator / denominator;
+            try { value = numerator / denominator; }
+            catch (OverflowException) { return false; }
             return true;
         }
         return decimal.TryParse(token.Replace(',', '.'), NumberStyles.Number,

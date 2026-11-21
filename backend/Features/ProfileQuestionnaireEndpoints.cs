@@ -33,6 +33,8 @@ public static class ProfileQuestionnaireEndpoints
             foreach (var (key, rawValue) in incoming)
             {
                 var value = rawValue?.Trim() ?? "";
+                if (value.Length > 2000)
+                    return Results.BadRequest(new { error = $"Odpowiedź dla '{key}' może mieć maks. 2000 znaków." });
                 var row = rows.FirstOrDefault(r => r.Key == key);
                 if (value.Length == 0)
                 {
@@ -49,7 +51,7 @@ public static class ProfileQuestionnaireEndpoints
                 }
             }
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(new { answers = await LoadAnswersAsync(db) });
         });
 

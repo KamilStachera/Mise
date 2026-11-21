@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useBudget, usePantry, usePlan, usePlanAddMissing, usePlanShoppingPreview, useRecipes } from '../../api/hooks'
 import type { PantryConfirmation, PantryItem, PlanEntry, ShoppingPreviewItem, Slot } from '../../api/client'
-import { DAY_NAMES_PL, DIARY_SLOTS, SLOTS, formatKcal, formatQty, slotLabel, unitLabel } from '../../lib/labels'
+import { DAY_NAMES_PL, DIARY_SLOTS, SLOTS, formatKcal, formatQty, plural, slotLabel, unitLabel } from '../../lib/labels'
 import { MONTHS_SHORT, WEEKDAY_SHORT, addDays, dayShortMonth, mondayOf, parseISODate, toISO } from '../../lib/dates'
 import { useIsMobile } from '../../lib/useIsMobile'
 import { showToast } from '../../lib/toastBus'
@@ -224,7 +224,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                         </span>
                         {row.length === 1 && row[0].cookId && (
                           <span style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 13.5, color: 'var(--text-2)' }}>
-                            {row[0].isLeftover ? leftoverLabel(row[0]) : `gotuję ${row[0].cookPortions} porcje`}
+                            {row[0].isLeftover ? leftoverLabel(row[0]) : `gotuję ${plural(row[0].cookPortions ?? 0, 'porcja', 'porcje', 'porcji')}`}
                           </span>
                         )}
                       </span>
@@ -374,7 +374,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
               {pots.map((p, i) => (
                 <div key={p.cookId} style={{ gridColumn: `${p.from + 2} / ${p.to + 3}`, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderTop: i === 0 ? '1px solid var(--rule)' : 0, minWidth: 0 }}>
                   <CookMark letter={p.letter} filled />
-                  <span style={{ font: mono(11.5, 500), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title} · {p.portions} porcje</span>
+                  <span style={{ font: mono(11.5, 500), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title} · {plural(p.portions, 'porcja', 'porcje', 'porcji')}</span>
                   <span style={{ flex: 1, minWidth: 16, height: 1.5, background: 'var(--text)' }} />
                   <span style={{ font: mono(11.5), color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{p.left > 0 ? `zostaje ${p.left}` : 'bez reszty'}</span>
                   <CookMark letter={p.letter} filled={false} />

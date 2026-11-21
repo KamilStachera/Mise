@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
@@ -12,12 +13,15 @@ public enum StravaConnectOutcome { Connected, MissingScope, Taken }
 public enum StravaEventOutcome { Ignored, UnknownAthlete, Upserted, Deleted, StillAuthorized, Disconnected }
 
 /// <summary>Who started the OAuth dance; carried through Strava inside the protected <c>state</c>.</summary>
-public sealed record StravaState(int PersonId, int HouseholdId);
+public sealed record StravaState(int PersonId, int HouseholdId, string Nonce);
 
 public sealed record StravaStatus(bool Configured, bool Connected, string? AthleteName, DateTimeOffset? ConnectedAt, DateTimeOffset? LastActivityAt);
 
-/// <summary>Strava no longer accepts this person's tokens (they disconnected Pichci on Strava, or our keys are gone).</summary>
+/// <summary>Strava no longer accepts this person's tokens (they disconnected Pichci on Strava).</summary>
 public sealed class StravaRevokedException(string message) : Exception(message);
+
+/// <summary>Stored tokens could not be decrypted (DataProtection keys missing/rotated); keep the row so it isn't silently wiped.</summary>
+public sealed class StravaDecryptException(string message) : Exception(message);
 
 /// <summary>
 /// Workouts from a watch via Strava (Garmin → Strava → Pichci). Each Strava activity becomes one
@@ -40,18 +44,21 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
 
     private static readonly TimeSpan StateLifetime = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan RefreshMargin = TimeSpan.FromMinutes(5);
+    private static readonly ConcurrentDictionary<int, SemaphoreSlim> RefreshLocks = new();
 
     private IDataProtector Tokens => protection.CreateProtector("Pichci.Strava.Tokens.v1");
     private ITimeLimitedDataProtector States => protection.CreateProtector("Pichci.Strava.OAuthState.v1").ToTimeLimitedDataProtector();
 
     // ---- connect ----
 
-    public string AuthorizeUrl(string redirectUri, int householdId)
+    public (string Url, string Nonce) AuthorizeStart(string redirectUri, int householdId)
     {
-        var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(8));
+        var nonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         var state = States.Protect($"{PersonId}:{householdId}:{nonce}", StateLifetime);
-        return StravaClient.AuthorizeUrl(options.ClientId!, redirectUri, state);
+        return (StravaClient.AuthorizeUrl(options.ClientId!, redirectUri, state), nonce);
     }
+
+    public string AuthorizeUrl(string redirectUri, int householdId) => AuthorizeStart(redirectUri, householdId).Url;
 
     /// <summary>Null when the state is missing, forged or older than 15 minutes.</summary>
     public StravaState? ReadState(string? state)
@@ -60,7 +67,10 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
         try
         {
             var parts = States.Unprotect(state).Split(':');
-            return parts.Length == 3 && int.TryParse(parts[0], out var p) && int.TryParse(parts[1], out var h) ? new StravaState(p, h) : null;
+            return parts.Length == 3 && int.TryParse(parts[0], out var p) && int.TryParse(parts[1], out var h)
+                && parts[2].Length > 0
+                ? new StravaState(p, h, parts[2])
+                : null;
         }
         catch (CryptographicException)
         {
@@ -91,8 +101,9 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
             db.StravaConnections.Add(conn);
         }
         conn.AthleteId = athlete.Id;
-        conn.AthleteName = $"{athlete.FirstName} {athlete.LastName}".Trim();
-        conn.Scope = scope;
+        var fullName = $"{athlete.FirstName} {athlete.LastName}".Trim();
+        conn.AthleteName = fullName.Length > 120 ? fullName[..120] : fullName;
+        conn.Scope = scope.Length > 200 ? scope[..200] : scope;
         conn.ConnectedAt = DateTimeOffset.UtcNow;
         Store(conn, token);
         await db.SaveChangesAsync(ct);
@@ -127,7 +138,7 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
         {
             await client.DeauthorizeAsync(await AccessTokenAsync(conn, ct), ct);
         }
-        catch (Exception e) when (e is StravaApiException or StravaRevokedException or HttpRequestException or TaskCanceledException)
+        catch (Exception e) when (e is StravaApiException or StravaRevokedException or StravaDecryptException or HttpRequestException or TaskCanceledException)
         {
             logger?.LogInformation(e, "Strava deauthorize for person {Person} failed; forgetting the tokens anyway", conn.PersonId);
         }
@@ -160,11 +171,17 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
             {
                 if (known.Contains(Key(summary.Id))) continue;
                 if (await client.GetActivityAsync(token, summary.Id, ct) is not { } activity) continue;
+                if (activity.Athlete is { Id: > 0 } a && a.Id != conn.AthleteId) continue;
                 await UpsertAsync(conn, activity, ct);
                 written++;
             }
             await db.SaveChangesAsync(ct);
             return written;
+        }
+        catch (StravaDecryptException e)
+        {
+            logger?.LogError("Strava sync skipped for person {Person}: {Reason}", conn.PersonId, e.Message);
+            return 0;
         }
         catch (Exception e) when (IsRevoked(e))
         {
@@ -179,6 +196,7 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
         // Events carry no tenant: find the athlete in every household, then work inside theirs.
         var conn = await db.StravaConnections.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.AthleteId == e.OwnerId, ct);
         if (conn is null) return StravaEventOutcome.UnknownAthlete;
+        if (await IsPersonBlockedAsync(conn.PersonId, ct)) return StravaEventOutcome.Ignored;
         db.Tenant.UseHousehold(conn.HouseholdId);
         try
         {
@@ -202,9 +220,17 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
                 await db.SaveChangesAsync(ct);
                 return StravaEventOutcome.Deleted;
             }
+            // Strava tokens can read other athletes' public activities by numeric id: verify ownership!
+            if (activity.Athlete is { Id: > 0 } owner && owner.Id != conn.AthleteId)
+                return StravaEventOutcome.Ignored;
             await UpsertAsync(conn, activity, ct);
             await db.SaveChangesAsync(ct);
             return StravaEventOutcome.Upserted;
+        }
+        catch (StravaDecryptException x)
+        {
+            logger?.LogError("Strava event skipped for person {Person}: {Reason}", conn.PersonId, x.Message);
+            return StravaEventOutcome.Ignored;
         }
         catch (Exception x) when (IsRevoked(x))
         {
@@ -212,6 +238,10 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
             return StravaEventOutcome.Disconnected;
         }
     }
+
+    public Task<bool> IsPersonBlockedAsync(int personId, CancellationToken ct = default) =>
+        db.People.IgnoreQueryFilters().AsNoTracking()
+            .AnyAsync(p => p.Id == personId && (p.BlockedAt != null || db.Households.Any(h => h.Id == p.HouseholdId && h.BlockedAt != null)), ct);
 
     private async Task UpsertAsync(StravaConnection conn, StravaActivity a, CancellationToken ct)
     {
@@ -272,12 +302,32 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
         conn.ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(token.ExpiresAt);
     }
 
-    /// <summary>A valid access token, refreshed (and the new pair saved) when it is about to expire.</summary>
+    /// <summary>
+    /// A valid access token, refreshed (and the new pair saved) when it is about to expire.
+    /// Serialized per person so overlapping webhook/poll/manual syncs never race on Strava's
+    /// refresh-token rotation and accidentally drop the connection.
+    /// </summary>
     private async Task<string> AccessTokenAsync(StravaConnection conn, CancellationToken ct)
     {
+        if (conn.ExpiresAt - RefreshMargin > DateTimeOffset.UtcNow)
+        {
+            try { return Tokens.Unprotect(conn.AccessToken); }
+            catch (CryptographicException)
+            {
+                throw new StravaDecryptException("Stored Strava tokens can't be decrypted (DataProtection keys changed).");
+            }
+        }
+
+        var gate = RefreshLocks.GetOrAdd(conn.PersonId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
         try
         {
-            if (conn.ExpiresAt - RefreshMargin > DateTimeOffset.UtcNow) return Tokens.Unprotect(conn.AccessToken);
+            // Reload inside the lock in case another concurrent request just refreshed and rotated the token.
+            if (db.Entry(conn).State != EntityState.Detached)
+                await db.Entry(conn).ReloadAsync(ct);
+            if (conn.ExpiresAt - RefreshMargin > DateTimeOffset.UtcNow)
+                return Tokens.Unprotect(conn.AccessToken);
+
             var token = await client.RefreshAsync(options, Tokens.Unprotect(conn.RefreshToken), ct);
             Store(conn, token);
             await db.SaveChangesAsync(ct);
@@ -285,11 +335,15 @@ public class StravaService(MiseDbContext db, StravaClient client, StravaOptions 
         }
         catch (CryptographicException)
         {
-            throw new StravaRevokedException("Stored Strava tokens can't be decrypted (DataProtection keys changed).");
+            throw new StravaDecryptException("Stored Strava tokens can't be decrypted (DataProtection keys changed).");
         }
         catch (StravaApiException e) when (e.Status is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
             throw new StravaRevokedException("Strava refused the refresh token: " + e.Message);
+        }
+        finally
+        {
+            gate.Release();
         }
     }
 

@@ -34,8 +34,10 @@ public sealed class ExerciseEnrichment(MiseDbContext db, ISousJobs sous, YouTube
         var inPlans = (await db.ProgramExercises
             .Where(x => x.Day!.Program!.Status == ProgramStatus.Active)
             .Select(x => x.ExerciseId).Distinct().ToListAsync(ct)).ToHashSet();
+        // Shared catalog only (HouseholdId == null) — never spend the owner's ChatGPT plan on
+        // tenant-authored custom exercises (especially from households with SousEnabled = false).
         var candidates = await db.Exercises
-            .Where(e => !e.Hidden && (e.EnrichedAt == null || e.YoutubeId == null))
+            .Where(e => e.HouseholdId == null && !e.Hidden && (e.EnrichedAt == null || e.YoutubeId == null))
             .ToListAsync(ct);
         return candidates
             .Where(e => state.Attempts(e.Id) < MaxAttempts)
@@ -55,7 +57,7 @@ public sealed class ExerciseEnrichment(MiseDbContext db, ISousJobs sous, YouTube
         if (batch.Count == 0) return new(0, 0, 0, 0);
 
         var text = await sous.RunAsync(BuildPrompt(batch), OutputSchema, ct);
-        var items = Parse(text).ToDictionary(i => i.Id);
+        var items = Parse(text).GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
         int described = 0, videos = 0, failed = 0;
 
         foreach (var e in batch)
@@ -229,21 +231,30 @@ public sealed class EnrichmentState
     private readonly SemaphoreSlim kick = new(0, 1);
     private readonly object gate = new();
 
-    public bool Enabled { get; set; }
-    public bool Running { get; set; }
-    public DateTimeOffset? LastRunAt { get; set; }
-    public string? LastError { get; set; }
-    public DateTimeOffset? PausedUntil { get; set; }
+    private bool enabled;
+    private bool running;
+    private DateTimeOffset? lastRunAt;
+    private string? lastError;
+    private DateTimeOffset? pausedUntil;
+
+    public bool Enabled { get { lock (gate) return enabled; } set { lock (gate) enabled = value; } }
+    public bool Running { get { lock (gate) return running; } set { lock (gate) running = value; } }
+    public DateTimeOffset? LastRunAt { get { lock (gate) return lastRunAt; } set { lock (gate) lastRunAt = value; } }
+    public string? LastError { get { lock (gate) return lastError; } set { lock (gate) lastError = value; } }
+    public DateTimeOffset? PausedUntil { get { lock (gate) return pausedUntil; } set { lock (gate) pausedUntil = value; } }
 
     public int Attempts(Guid id) { lock (gate) return attempts.GetValueOrDefault(id); }
 
     public void Fail(Guid id) { lock (gate) attempts[id] = attempts.GetValueOrDefault(id) + 1; }
 
-    /// <summary>Wake the worker now (e.g. a new program was saved).</summary>
+    /// <summary>Wake the worker now (e.g. a new program was saved), unless paused on a usage limit.</summary>
     public void Kick()
     {
         lock (gate)
+        {
+            if (pausedUntil is DateTimeOffset until && until > DateTimeOffset.UtcNow) return;
             if (kick.CurrentCount == 0) kick.Release();
+        }
     }
 
     /// <summary>Sleep up to <paramref name="delay"/>, or until kicked.</summary>

@@ -3,6 +3,7 @@ import type { CreatedInvite, InviteStatus, Role } from '../../api/client'
 import { useAdminActions, useAdminHouseholds, useAdminInvites, useAdminOverview } from '../../api/hooks'
 import { Badge, FreshCode, TextButton } from '../../components/HouseholdCards'
 import { Button, Chip, Eyebrow, Segmented, Sheet, inputStyle, sans } from '../../components/ui'
+import { plural } from '../../lib/labels'
 import { Empty, ErrorLine, Row, day, when } from './shared'
 
 const STATUSES: { key: InviteStatus | 'all'; label: string }[] = [
@@ -122,7 +123,7 @@ function NewCode() {
             </div>
           )}
           <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>
-            {count > 0 ? `${count} przepisów zostanie skopiowanych (ze zdjęciami) — potem to już ich własne kopie.` : 'Dostanie tylko kilka przykładowych przepisów.'}
+            {count > 0 ? `${plural(count, 'przepis', 'przepisy', 'przepisów')} do skopiowania (ze zdjęciami) — potem to już ich własne kopie.` : 'Dostanie tylko kilka przykładowych przepisów.'}
           </span>
         </>
       ) : (

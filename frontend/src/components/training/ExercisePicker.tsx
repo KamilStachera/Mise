@@ -15,10 +15,13 @@ export function ExercisePicker({ open, onClose, onPick, homeFirst }: {
   const [muscle, setMuscle] = useState<Muscle | null>(null)
   const [home, setHome] = useState(!!homeFirst)
   useEffect(() => {
+    if (open) setHome(!!homeFirst)
+  }, [open, homeFirst])
+  useEffect(() => {
     const t = window.setTimeout(() => setQ(query), 200)
     return () => window.clearTimeout(t)
   }, [query])
-  const { data, isLoading } = useExercises({ q, muscle, location: home ? 'home' : null })
+  const { data, isLoading } = useExercises({ q, muscle, location: home ? 'home' : null }, undefined, open)
   const items = (data?.items ?? []).slice(0, 60)
 
   return (

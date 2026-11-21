@@ -16,21 +16,31 @@ export function SousFab({ onOpen }: { onOpen: () => void }) {
 
   useEffect(() => {
     let frame = 0
+    let ro: ResizeObserver | null = null
     const measure = () => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         const bar = document.querySelector('[data-pinned-bar]')
         setBarHeight(bar ? Math.round(bar.getBoundingClientRect().height) : 0)
+        ro?.disconnect()
+        if (bar && typeof ResizeObserver !== 'undefined') {
+          ro = new ResizeObserver(() => {
+            setBarHeight(Math.round(bar.getBoundingClientRect().height))
+          })
+          ro.observe(bar)
+        }
       })
     }
     measure()
-    // Bars come and go with page state (loaded data, open review), not only with the route.
-    const observer = new MutationObserver(measure)
-    observer.observe(document.body, { childList: true, subtree: true })
+    // Pinned bars on lazy routes or data-dependent pages (Shopping, Add, Goal, Random) may mount after first paint.
+    const t1 = window.setTimeout(measure, 120)
+    const t2 = window.setTimeout(measure, 500)
     window.addEventListener('resize', measure)
     return () => {
       cancelAnimationFrame(frame)
-      observer.disconnect()
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+      ro?.disconnect()
       window.removeEventListener('resize', measure)
     }
   }, [pathname])

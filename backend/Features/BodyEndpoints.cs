@@ -30,7 +30,9 @@ public static class BodyEndpoints
             if (input.GoalKg is < 30 or > 300) return Results.BadRequest(new { error = "Waga docelowa poza zakresem." });
             if (input.PaceKg is < 0 or > 1) return Results.BadRequest(new { error = "Tempo od 0 do 1 kg na tydzień." });
             if (input.TargetOverride is < 800 or > 5000) return Results.BadRequest(new { error = "Cel kcal poza zakresem." });
-            if (!Enum.TryParse<BodySex>(input.Sex, true, out var sex) || !Enum.TryParse<ActivityLevel>(input.ActivityLevel, true, out var level))
+            if (input.ProteinOverride is < 0 or > 1000) return Results.BadRequest(new { error = "Cel białka poza zakresem." });
+            if (input.CurrentKg is < 25 or > 350) return Results.BadRequest(new { error = "Waga poza zakresem (25–350 kg)." });
+            if (!TryParseEnum(input.Sex, out BodySex sex) || !TryParseEnum(input.ActivityLevel, out ActivityLevel level))
                 return Results.BadRequest(new { error = "Nieznana płeć albo poziom aktywności." });
 
             var p = await db.BodyProfiles.FirstOrDefaultAsync(x => x.PersonId == body.PersonId);
@@ -105,9 +107,10 @@ public static class BodyEndpoints
 
             WeekSummaryDto? week = null;
             var streak = BodyService.Streak(await body.LoggedDaysAsync(today), today);
-            if (profile is not null && trend.Count > 0)
+            var currentKg = weights.Count > 0 ? weights[^1].Kg : (await body.LatestWeightAsync())?.Kg;
+            if (profile is not null && currentKg is decimal kgNow)
             {
-                var t = BodyService.Targets(profile, weights[^1].Kg, today);
+                var t = BodyService.Targets(profile, kgNow, today);
                 var monday = PlanEndpoints.StartOfWeek(today);
                 var active = await activity.ActiveKcalAsync(monday, today, t.Bmr);
                 var intake = await body.IntakeAsync(monday, today, t.Target, profile.ActivityAddBackPercent, active);
@@ -123,7 +126,7 @@ public static class BodyEndpoints
             }
 
             return Results.Ok(new ProgressDto(profile is not null, profile?.GoalWeightKg,
-                weights.Count > 0 ? weights[^1].Kg : null, trendNow, weekly,
+                currentKg, trendNow, weekly,
                 trendNow is decimal tr && first is not null ? Math.Round(tr - first.Kg, 1) : null, eta,
                 visible.Select(p => new WeightPointDto(p.Date, p.Kg, p.Trend, sourceByDate[p.Date].ToString().ToLowerInvariant())).ToList(),
                 week, streak));
@@ -152,32 +155,39 @@ public static class BodyEndpoints
         g.MapGet("/catering", async (CateringService catering) =>
             Results.Ok(ToDto(await catering.GetAsync())));
 
-        g.MapPut("/catering", async (CateringInput input, CateringService catering, ContextExportService export) =>
+        g.MapPut("/catering", async (CateringInput input, CateringService catering) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             try
             {
                 var c = await catering.SaveAsync(input.Enabled, input.Kcal, input.Protein, input.Fat, input.Carbs,
                     input.Weekdays, input.StartDate ?? today, today);
-                await export.ExportAsync();
                 return Results.Ok(ToDto(c));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
         });
 
         // A box on a day without delivery (weekend order), or one deleted by mistake.
-        g.MapPost("/catering/log", async (CateringLogInput input, CateringService catering, ContextExportService export) =>
+        g.MapPost("/catering/log", async (CateringLogInput input, CateringService catering) =>
         {
             try
             {
                 var entry = await catering.LogAsync(input.Date);
-                await export.ExportAsync();
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
         });
 
         return api;
+    }
+
+    private static bool TryParseEnum<TEnum>(string? value, out TEnum parsed) where TEnum : struct, Enum
+    {
+        parsed = default;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var trimmed = value.Trim();
+        if (trimmed.Any(char.IsDigit)) return false;
+        return Enum.TryParse(trimmed, ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
     }
 
     private static CateringDto ToDto(Catering? c) => c is null

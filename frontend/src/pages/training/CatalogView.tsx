@@ -34,6 +34,7 @@ export function CatalogView() {
   const [videoOnly, setVideoOnly] = useSessionState(`${KEY}video`, false, (v) => typeof v === 'boolean')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [mapSheet, setMapSheet] = useState(false)
+  const [filterSheet, setFilterSheet] = useState<'equipment' | 'level' | null>(null)
   const q = useDebounced(query, 200)
 
   useEffect(() => {
@@ -44,11 +45,16 @@ export function CatalogView() {
     return () => document.removeEventListener('click', onDocClick)
   }, [])
 
-  const { data: enrichment } = useEnrichmentStatus()
+  const [enrichmentDone, setEnrichmentDone] = useState(false)
+  const { data: enrichment } = useEnrichmentStatus(!enrichmentDone)
+  const shouldPoll = enrichment?.enabled && !enrichmentDone
   const { data, isLoading, isError } = useExercises({
     q, muscle, level, equipment: equipment ? [equipment] : undefined,
     location: homeOnly ? 'home' : null, video: videoOnly,
-  }, enrichment?.enabled ? 120_000 : undefined)
+  }, shouldPoll ? 120_000 : undefined)
+  useEffect(() => {
+    if (data && data.catalogTotal > 0 && data.enrichedTotal >= data.catalogTotal) setEnrichmentDone(true)
+  }, [data])
   const items = data?.items ?? EMPTY
   const resetKey = JSON.stringify([q, muscle, equipment, level, homeOnly, videoOnly])
   const { visibleItems, sentinel, hasMore } = useInfiniteScroll(items, resetKey, `${KEY}page`)
@@ -88,24 +94,37 @@ export function CatalogView() {
       )}
       <Chip active={homeOnly} onClick={() => setHomeOnly(!homeOnly)}>Do domu</Chip>
       <Chip active={videoOnly} onClick={() => setVideoOnly(!videoOnly)}>Z filmem</Chip>
-      <FilterDropdown
-        {...menu('equipment')}
-        label={equipment ? equipmentLabel[equipment] : 'Sprzęt'}
-        active={!!equipment}
-        options={[
-          { label: 'Dowolny sprzęt', selected: equipment === null, onSelect: () => pick(setEquipment)(null) },
-          ...EQUIPMENT.map((e) => ({ label: equipmentLabel[e], selected: equipment === e, onSelect: () => pick(setEquipment)(e) })),
-        ]}
-      />
-      <FilterDropdown
-        {...menu('level')}
-        label={level ? exerciseLevelLabel[level] : 'Poziom'}
-        active={!!level}
-        options={[
-          { label: 'Każdy poziom', selected: level === null, onSelect: () => pick(setLevel)(null) },
-          ...EXERCISE_LEVELS.map((l) => ({ label: exerciseLevelLabel[l], selected: level === l, onSelect: () => pick(setLevel)(l) })),
-        ]}
-      />
+      {isMobile ? (
+        <>
+          <Chip active={!!equipment} onClick={() => setFilterSheet('equipment')}>
+            {equipment ? `${equipmentLabel[equipment]} ▾` : 'Sprzęt ▾'}
+          </Chip>
+          <Chip active={!!level} onClick={() => setFilterSheet('level')}>
+            {level ? `${exerciseLevelLabel[level]} ▾` : 'Poziom ▾'}
+          </Chip>
+        </>
+      ) : (
+        <>
+          <FilterDropdown
+            {...menu('equipment')}
+            label={equipment ? equipmentLabel[equipment] : 'Sprzęt'}
+            active={!!equipment}
+            options={[
+              { label: 'Dowolny sprzęt', selected: equipment === null, onSelect: () => pick(setEquipment)(null) },
+              ...EQUIPMENT.map((e) => ({ label: equipmentLabel[e], selected: equipment === e, onSelect: () => pick(setEquipment)(e) })),
+            ]}
+          />
+          <FilterDropdown
+            {...menu('level')}
+            label={level ? exerciseLevelLabel[level] : 'Poziom'}
+            active={!!level}
+            options={[
+              { label: 'Każdy poziom', selected: level === null, onSelect: () => pick(setLevel)(null) },
+              ...EXERCISE_LEVELS.map((l) => ({ label: exerciseLevelLabel[l], selected: level === l, onSelect: () => pick(setLevel)(l) })),
+            ]}
+          />
+        </>
+      )}
       {filtersOn > 0 && (
         <button type="button" onClick={clear} style={{ border: 0, background: 'transparent', cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)', padding: '7px 4px', flexShrink: 0 }}>
           Wyczyść
@@ -179,6 +198,28 @@ export function CatalogView() {
             ))}
           </div>
         </div>
+      </Sheet>
+
+      <Sheet
+        open={filterSheet != null}
+        onClose={() => setFilterSheet(null)}
+        title={filterSheet === 'equipment' ? 'Sprzęt' : 'Poziom'}
+      >
+        {filterSheet === 'equipment' ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <Chip active={equipment === null} onClick={() => { setEquipment(null); setFilterSheet(null) }}>Dowolny sprzęt</Chip>
+            {EQUIPMENT.map((e) => (
+              <Chip key={e} active={equipment === e} onClick={() => { setEquipment(e); setFilterSheet(null) }}>{equipmentLabel[e]}</Chip>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <Chip active={level === null} onClick={() => { setLevel(null); setFilterSheet(null) }}>Każdy poziom</Chip>
+            {EXERCISE_LEVELS.map((l) => (
+              <Chip key={l} active={level === l} onClick={() => { setLevel(l); setFilterSheet(null) }}>{exerciseLevelLabel[l]}</Chip>
+            ))}
+          </div>
+        )}
       </Sheet>
 
       <ExerciseSheet id={openId} onClose={() => open(null)} />

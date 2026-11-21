@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
 using Mise.Api.Data;
 using Mise.Api.Features;
 using Mise.Api.Services;
@@ -40,6 +39,8 @@ builder.Services.AddScoped<OpenFoodFacts>();
 builder.Services.AddScoped<StockReliability>();
 builder.Services.AddSingleton<CookbookMarkdownBuilder>();
 builder.Services.AddSingleton<RecipeImageStore>();
+builder.Services.AddSingleton<ContextExportQueue>();
+builder.Services.AddHostedService<ContextExportWorker>();
 builder.Services.AddScoped<ContextExportService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<Mise.Api.Services.Import.SafeWebFetcher>();
@@ -52,7 +53,9 @@ builder.Services.AddSingleton<ISousJobs, SousJobs>();
 builder.Services.AddScoped<ExerciseEnrichment>();
 builder.Services.AddHostedService<ExerciseEnrichmentWorker>();
 builder.Services.AddScoped<IChatProvider>(sp =>
-    ChatProviderFactory.Create(sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<IHttpClientFactory>()));
+    ChatProviderFactory.Create(sp.GetRequiredService<IConfiguration>(),
+        sp.GetRequiredService<IHttpClientFactory>(),
+        sp.GetRequiredService<AccessControl>()));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -99,42 +102,50 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["Auth:Google:ClientId"]))
 var app = builder.Build();
 
 var accessControl = app.Services.GetRequiredService<AccessControl>();
+var publicBase = app.Configuration["PUBLIC_API_BASE"] ?? "";
+if (accessControl.DevBypass
+    && publicBase.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+    && !app.Configuration.GetValue("ALLOW_INSECURE_DEV_BYPASS", false))
+{
+    throw new InvalidOperationException(
+        "Refusing to start with AUTH_DEV_BYPASS=true while PUBLIC_API_BASE is https://. Set AUTH_DEV_BYPASS=false.");
+}
 if (!accessControl.SystemKeyEnabled && !accessControl.DevBypass)
-    app.Logger.LogWarning("MISE_API_KEY is not set — the Sous container can't call the API (fail closed).");
+    app.Logger.LogWarning("MISE_API_KEY is not set — internal Sous authentication is disabled (fail closed).");
 
 await DbInitializer.InitAsync(app.Services, app.Logger);
 
-// nginx/cloudflared terminate TLS; without the forwarded proto Google would get an
-// http:// redirect_uri and reject it. Docker-network proxies aren't in the default
-// allowlist, hence the Clear() calls.
+// nginx + cloudflared terminate TLS (2 proxy hops); without ForwardLimit = 2 RemoteIpAddress
+// would collapse to cloudflared's container IP for every internet caller.
 var forwarded = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    ForwardLimit = 2,
 };
 forwarded.KnownNetworks.Clear();
 forwarded.KnownProxies.Clear();
 app.UseForwardedHeaders(forwarded);
 
 app.UseAuthentication();
-// Before static files and swagger on purpose — the guard must cover them too.
+// Before swagger and endpoints on purpose — the guard must cover them too.
 app.UseMiddleware<ApiAccessMiddleware>();
 app.UseRateLimiter();
 
-// Recipe photos live outside wwwroot (a docker volume in production).
-app.UseStaticFiles(new StaticFileOptions
+// Swagger only in Development unless explicitly opted in via ENABLE_SWAGGER=true.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("ENABLE_SWAGGER", false))
 {
-    FileProvider = new PhysicalFileProvider(app.Services.GetRequiredService<RecipeImageStore>().Root),
-    RequestPath = "/api/images",
-});
+    app.UseSwagger(c => c.RouteTemplate = "api/swagger/{documentName}/swagger.json");
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "Pichci API v1");
+        c.RoutePrefix = "api/swagger";
+    });
+}
 
-app.UseSwagger(c => c.RouteTemplate = "api/swagger/{documentName}/swagger.json");
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "Pichci API v1");
-    c.RoutePrefix = "api/swagger";
-});
-
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/health", async (MiseDbContext db, CancellationToken ct) =>
+    await db.Database.CanConnectAsync(ct)
+        ? Results.Ok(new { status = "ok" })
+        : Results.Json(new { status = "unhealthy" }, statusCode: StatusCodes.Status503ServiceUnavailable));
 
 var api = app.MapGroup("/api");
 api.MapImages();

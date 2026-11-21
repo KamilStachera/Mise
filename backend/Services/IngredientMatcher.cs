@@ -21,16 +21,21 @@ public sealed class IngredientMatcher
     };
 
     // Common Polish inflectional endings, tried longest-first; a match is only
-    // stripped when it leaves a stem of at least 3 characters.
+    // stripped when it leaves a stem of at least 3 characters. Derivational
+    // diminutive suffixes (-ka/-ki/-ko/-ku) are deliberately NOT stripped so
+    // distinct products (Oliwa/Oliwki, Pesto/Pestki, Ciasto/Ciastka, Woda/Wódka)
+    // keep distinct stems.
     private static readonly string[] Endings = new[]
     {
         "iami", "iach", "iego", "iemu", "owie",
         "ami", "ach", "owi", "ego", "emu", "ych", "ich", "ymi", "imi", "iej", "iom", "iow", "iem",
-        "ej", "om", "ow", "em", "ie", "ia", "iu", "io", "ii", "ek", "ka", "ki", "ko", "ku",
+        "ej", "om", "ow", "em", "ie", "ia", "iu", "io", "ii",
         "a", "e", "i", "o", "u", "y",
     }.OrderByDescending(s => s.Length).ToArray();
 
     private readonly record struct Token(string Raw, string Stem);
+
+    private readonly record struct Candidate(PantryItem Item, Token[][] NameTokens);
 
     public static string Normalize(string s)
     {
@@ -59,11 +64,18 @@ public sealed class IngredientMatcher
 
     private static string Stem(string w)
     {
+        // Epenthetic -e- before -k in Polish genitive/nominative ("czosnek" ↔ "czosnku",
+        // "jajek" ↔ "jajka"/"jajko", "bułek" ↔ "bułka"): fold "-ek" → "k" while keeping
+        // the "-k" so "-k-" words never collapse into unrelated base nouns.
+        if (w.Length >= 5 && w.EndsWith("ek", StringComparison.Ordinal))
+            return string.Concat(w.AsSpan(0, w.Length - 2), "k");
+
         foreach (var end in Endings)
             if (w.Length - end.Length >= 3 && w.EndsWith(end, StringComparison.Ordinal))
                 return w[..^end.Length];
-        // English plural fallback ("tomatoes" -> "tomatoe" -> prefix-matches "tomato")
-        if (w.Length > 3 && w.EndsWith('s') && !w.EndsWith("ss")) return w[..^1];
+        // English plural fallback ("tomatoes" -> "tomato", "bananas" -> "banana")
+        if (w.Length > 4 && w.EndsWith("oes", StringComparison.Ordinal)) return w[..^2];
+        if (w.Length > 3 && w.EndsWith('s') && !w.EndsWith("ss", StringComparison.Ordinal)) return w[..^1];
         return w;
     }
 
@@ -74,11 +86,7 @@ public sealed class IngredientMatcher
                     .ToArray();
 
     private static bool TokenMatch(Token a, Token b) =>
-        a.Raw == b.Raw
-        || a.Stem == b.Stem
-        // stems related by inflection: shorter one is a prefix of the longer
-        || (a.Stem.Length >= 4 && b.Stem.StartsWith(a.Stem, StringComparison.Ordinal))
-        || (b.Stem.Length >= 4 && a.Stem.StartsWith(b.Stem, StringComparison.Ordinal));
+        a.Raw == b.Raw || a.Stem == b.Stem;
 
     /// <summary>
     /// Score for a full match in both directions ("jajek" ↔ "Jajka"). Quantity
@@ -97,64 +105,120 @@ public sealed class IngredientMatcher
         if (ing.Length == 0) return null;
 
         PantryItem? best = null;
-        var bestRaw = -1;   // exact-surface matches outrank fuzzy ones
         var bestScore = 0;
+        var bestRaw = -1;
 
         foreach (var p in pantry)
         {
-            // An item matches through its name or any alias; take its best score.
             foreach (var candidate in NamesOf(p))
             {
                 var pt = Tokens(candidate);
                 if (pt.Length == 0) continue;
+                Evaluate(ing, pt, minScore, p, ref best, ref bestScore, ref bestRaw);
+            }
+        }
 
-                var pantryMatched = pt.Count(t => ing.Any(i => TokenMatch(i, t)));
-                var ingMatched = ing.Count(i => pt.Any(t => TokenMatch(i, t)));
-                var rawMatches = pt.Count(t => ing.Any(i => i.Raw == t.Raw));
+        return best;
+    }
 
-                int score;
-                if (rawMatches == pt.Length && rawMatches == ing.Length) score = 100;                 // identical
-                else if (pantryMatched == pt.Length && ingMatched == ing.Length) score = 85;          // same thing, inflected
-                else if (pantryMatched == pt.Length) score = 70 + pt.Length;   // "czosnek" ⊆ "ząbki czosnku"
-                else if (ingMatched == ing.Length) score = 60 + ing.Length;    // "ciecierzyca" ⊆ "ciecierzyca (z puszki)"
-                else continue;
+    private static void Evaluate(Token[] ing, Token[] pt, int minScore, PantryItem p,
+        ref PantryItem? best, ref int bestScore, ref int bestRaw)
+    {
+        // 1-to-1 token pairing: exact raw tokens first, then inflected stem matches.
+        var usedIng = new bool[ing.Length];
+        var usedPt = new bool[pt.Length];
+        var matched = 0;
+        var rawMatches = 0;
 
-                if (rawMatches > bestRaw || (rawMatches == bestRaw && score > bestScore))
+        for (var i = 0; i < ing.Length; i++)
+        {
+            for (var j = 0; j < pt.Length; j++)
+            {
+                if (!usedPt[j] && ing[i].Raw == pt[j].Raw)
                 {
-                    bestRaw = rawMatches;
-                    bestScore = score;
-                    best = p;
+                    usedIng[i] = usedPt[j] = true;
+                    matched++;
+                    rawMatches++;
+                    break;
+                }
+            }
+        }
+        for (var i = 0; i < ing.Length; i++)
+        {
+            if (usedIng[i]) continue;
+            for (var j = 0; j < pt.Length; j++)
+            {
+                if (!usedPt[j] && TokenMatch(ing[i], pt[j]))
+                {
+                    usedIng[i] = usedPt[j] = true;
+                    matched++;
+                    break;
                 }
             }
         }
 
-        return bestScore >= minScore ? best : null;
+        int score;
+        if (rawMatches == pt.Length && rawMatches == ing.Length) score = 100;           // identical
+        else if (matched == pt.Length && matched == ing.Length) score = 85;             // same thing, inflected
+        else if (matched == pt.Length) score = 70 + pt.Length;                          // "czosnek" ⊆ "ząbki czosnku"
+        else if (matched == ing.Length) score = 60 + ing.Length;                        // "ciecierzyca" ⊆ "ciecierzyca (z puszki)"
+        else return;
+
+        if (score < minScore) return;
+        if (score > bestScore || (score == bestScore && rawMatches > bestRaw))
+        {
+            bestScore = score;
+            bestRaw = rawMatches;
+            best = p;
+        }
     }
 
     /// <summary>
-    /// Recomputes recipe ingredient links against the current pantry catalog.
-    /// The current link is evaluated first, so an equally good candidate does
-    /// not cause churn, while a stronger match (especially an exact one) wins.
+    /// Recomputes recipe ingredient links against the current pantry catalog using
+    /// strict <see cref="ExactishScore"/> matching (consistent with
+    /// <see cref="RecipeIngredientNormalizer"/>). The current link is evaluated first,
+    /// so an equally good candidate does not cause churn, while a stronger match wins.
     /// </summary>
     public int RelinkIngredients(IEnumerable<RecipeIngredient> ingredients,
         IReadOnlyList<PantryItem> pantry)
     {
-        var pantryById = pantry.ToDictionary(p => p.Id);
-        var changed = 0;
+        var prepared = new List<Candidate>(pantry.Count);
+        var byId = new Dictionary<Guid, Candidate>(pantry.Count);
+        foreach (var p in pantry)
+        {
+            var tokenSets = NamesOf(p)
+                .Select(Tokens)
+                .Where(t => t.Length > 0)
+                .ToArray();
+            var cand = new Candidate(p, tokenSets);
+            prepared.Add(cand);
+            byId[p.Id] = cand;
+        }
 
+        var changed = 0;
         foreach (var ingredient in ingredients)
         {
-            IEnumerable<PantryItem> candidates = pantry;
-            if (ingredient.PantryItemId is Guid currentId
-                && pantryById.TryGetValue(currentId, out var current))
+            var ing = Tokens(ingredient.Name);
+            PantryItem? bestMatch = null;
+            if (ing.Length > 0)
             {
-                // FindMatch keeps the first candidate when scores tie.
-                candidates = new[] { current }.Concat(pantry.Where(p => p.Id != currentId));
+                var bestScore = 0;
+                var bestRaw = -1;
+                Guid? currentId = ingredient.PantryItemId;
+                if (currentId is Guid cid && byId.TryGetValue(cid, out var current))
+                {
+                    foreach (var pt in current.NameTokens)
+                        Evaluate(ing, pt, ExactishScore, current.Item, ref bestMatch, ref bestScore, ref bestRaw);
+                }
+                foreach (var cand in prepared)
+                {
+                    if (cand.Item.Id == currentId) continue;
+                    foreach (var pt in cand.NameTokens)
+                        Evaluate(ing, pt, ExactishScore, cand.Item, ref bestMatch, ref bestScore, ref bestRaw);
+                }
             }
 
-            var bestMatch = FindMatch(ingredient.Name, candidates);
             if (ingredient.PantryItemId == bestMatch?.Id) continue;
-
             ingredient.PantryItemId = bestMatch?.Id;
             changed++;
         }

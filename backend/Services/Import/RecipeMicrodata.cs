@@ -10,10 +10,15 @@ namespace Mise.Api.Services.Import;
 /// </summary>
 public static partial class RecipeMicrodata
 {
+    public const int MaxHtmlChars = 3_000_000;
+    private const int MaxDepth = 64;
+
     public static List<ImportedRecipe> Parse(string html, Func<string?, string?> absolute)
     {
-        var doc = new HtmlDocument();
-        doc.LoadHtml(html);
+        if (html.Length > MaxHtmlChars) html = html[..MaxHtmlChars];
+        var doc = new HtmlDocument { OptionMaxNestedChildNodes = 512 };
+        try { doc.LoadHtml(html); }
+        catch (Exception) { return []; }
         var scopes = doc.DocumentNode.SelectNodes("//*[@itemscope and contains(@itemtype, 'schema.org/Recipe')]");
         if (scopes is null) return [];
 
@@ -85,14 +90,15 @@ public static partial class RecipeMicrodata
     }
 
     /// <summary>itemprop descendants that belong to this scope, not to a nested itemscope.</summary>
-    private static IEnumerable<HtmlNode> OwnProps(HtmlNode scope)
+    private static IEnumerable<HtmlNode> OwnProps(HtmlNode scope, int depth = 0)
     {
+        if (depth >= MaxDepth) yield break;
         foreach (var child in scope.ChildNodes)
         {
             if (child.NodeType != HtmlNodeType.Element) continue;
             if (Attr(child, "itemprop") is not null) yield return child;
             if (!IsScope(child))
-                foreach (var p in OwnProps(child)) yield return p;
+                foreach (var p in OwnProps(child, depth + 1)) yield return p;
         }
     }
 

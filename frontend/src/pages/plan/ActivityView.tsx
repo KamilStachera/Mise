@@ -147,7 +147,7 @@ export function ActivityView() {
               stacked
               items={[
                 { value: today.activeKcal > 0 ? formatKcal(today.activeKcal) : '—', label: 'kcal aktywnych' },
-                { value: String(today.workouts.length), label: today.workouts.length === 1 ? 'trening' : 'treningi' },
+                { value: String(today.workouts.length), label: workoutsCount(today.workouts.length).replace(/^\d+\s+/, '') },
                 { value: `+${formatKcal(today.bonus)}`, label: 'do budżetu', highlight: true },
               ]}
             />
@@ -325,7 +325,7 @@ function Setup() {
       ))}
       <Eyebrow style={{ paddingTop: 8 }}>Adres dla tego telefonu</Eyebrow>
       <div style={{ display: 'flex', gap: 8, paddingTop: 8 }}>
-        <span style={{ flex: 1, minWidth: 0, height: 50, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', font: mono(13), overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }} title={url}>
+        <span style={{ flex: 1, minWidth: 0, height: 50, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', font: mono(13), overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {short}
         </span>
         <Button variant="dark" disabled={!conn} onClick={copy}>Kopiuj</Button>

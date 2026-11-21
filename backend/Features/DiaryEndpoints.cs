@@ -34,7 +34,7 @@ public static class DiaryEndpoints
             {
                 var cook = await diary.CreateCookAsync(input.RecipeId, input.Portions, input.FirstDate, firstSlot,
                     assignments, input.FromEntryId);
-                await export.ExportAsync();
+                export.Schedule();
                 return Results.Ok(Mapping.ToDto((await diary.LoadCookAsync(cook.Id))!));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
@@ -47,7 +47,7 @@ public static class DiaryEndpoints
             try
             {
                 await diary.UpdateCookAsync(id, input.Portions, assignments);
-                await export.ExportAsync();
+                export.Schedule();
                 return Results.Ok(Mapping.ToDto((await diary.LoadCookAsync(id))!));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
@@ -60,7 +60,7 @@ public static class DiaryEndpoints
             try
             {
                 var entry = await diary.EatFromCookAsync(id, input.Date, slot);
-                await export.ExportAsync();
+                export.Schedule();
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
@@ -78,17 +78,17 @@ public static class DiaryEndpoints
 
         // Scanned barcode: a product she already logged under this code wins (her own values,
         // her usual grams), otherwise Open Food Facts. Found=false → the UI asks for the label.
-        g.MapGet("/barcode/{code}", async (string code, MiseDbContext db, OpenFoodFacts off, PersonScope person) =>
+        g.MapGet("/barcode/{code}", async (string code, MiseDbContext db, OpenFoodFacts off, PersonScope person, CancellationToken ct) =>
         {
             code = code.Trim();
             if (!OpenFoodFacts.IsBarcode(code)) return Results.BadRequest(new { error = "Kod kreskowy to 8–14 cyfr." });
             // Own product first, then the other person's — the label is the same for both.
             var mine = await db.FoodFavorites.AsNoTracking().Where(f => f.Barcode == code && f.Per100g)
-                .OrderByDescending(f => f.PersonId == person.Id).FirstOrDefaultAsync();
+                .OrderByDescending(f => f.PersonId == person.Id).FirstOrDefaultAsync(ct);
             if (mine is not null)
                 return Results.Ok(new BarcodeProductDto(code, true, "favorite", mine.Name, null, mine.Kcal, mine.Protein,
                     mine.Fat, mine.Carbs, null, null, mine.LastGrams));
-            var p = await off.LookupAsync(code);
+            var p = await off.LookupAsync(code, ct);
             return Results.Ok(p is null
                 ? new BarcodeProductDto(code, false, "none", null, null, null, null, null, null, null, null, null)
                 : new BarcodeProductDto(code, p.KcalPer100g is not null, "openfoodfacts", p.Name, p.Brand, p.KcalPer100g,
@@ -114,22 +114,21 @@ public static class DiaryEndpoints
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
         });
 
-        g.MapPost("/favorites/{id:guid}/log", async (Guid id, FoodFavoriteLogInput input, DiaryService diary, ContextExportService export) =>
+        g.MapPost("/favorites/{id:guid}/log", async (Guid id, FoodFavoriteLogInput input, DiaryService diary) =>
         {
             if (Mapping.TryParseSlot(input.Slot) is not MealSlot slot)
                 return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
                 var entry = await diary.LogFavoriteAsync(id, input.Date, slot, input.Grams);
-                await export.ExportAsync();
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
         });
 
-        g.MapPatch("/favorites/{id:guid}", async (Guid id, FoodFavoriteFlagsInput input, MiseDbContext db) =>
+        g.MapPatch("/favorites/{id:guid}", async (Guid id, FoodFavoriteFlagsInput input, MiseDbContext db, PersonScope person) =>
         {
-            var f = await db.FoodFavorites.FindAsync(id);
+            var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.Id == id && x.PersonId == person.Id);
             if (f is null) return Results.NotFound();
             if (input.Pinned is bool pinned) f.Pinned = pinned;
             if (input.Hidden is bool hidden) f.Hidden = hidden;

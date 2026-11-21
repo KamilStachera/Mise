@@ -33,7 +33,7 @@ try {
         images.push(path)
         return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="640" height="400" fill="#c0552d"/></svg>' })
       }
-      return route.fulfill({ json: path === '/api/recipes' ? recipes : path === '/api/auth/me' ? { authenticated: false } : [] })
+      return route.fulfill({ json: path === '/api/recipes' ? recipes : path === '/api/auth/me' ? { authenticated: false, publicHousehold: true } : [] })
     })
     await page.goto(base)
     const cards = page.locator('main h3')
@@ -81,7 +81,7 @@ try {
   const fallback = await browser.newPage()
   await fallback.addInitScript(() => { window.IntersectionObserver = undefined })
   await fallback.route(`${base}/api/**`, (route) => route.fulfill({ json: new URL(route.request().url()).pathname === '/api/recipes'
-    ? recipes.map((r) => ({ ...r, imageUrl: null })) : { authenticated: false } }))
+    ? recipes.map((r) => ({ ...r, imageUrl: null })) : { authenticated: false, publicHousehold: true } }))
   await fallback.goto(base)
   await fallback.waitForFunction(() => document.querySelectorAll('main h3').length === 24)
   await fallback.getByRole('button', { name: 'Pokaż więcej' }).click()

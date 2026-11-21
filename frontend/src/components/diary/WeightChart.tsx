@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WeightPoint } from '../../api/client'
-import { MONTHS_SHORT, addDays, parseISODate, toISO } from '../../lib/dates'
+import { MONTHS_SHORT, addDays, parseISODate, toISO, todayIso } from '../../lib/dates'
 import { mono } from '../ui'
 
 const kgText = (kg: number) => kg.toFixed(1).replace('.', ',')
@@ -31,7 +31,7 @@ export function WeightChart({ points, goalKg, days, height }: {
   const [ref, width] = useWidth<HTMLDivElement>()
   const [hover, setHover] = useState<number | null>(null)
 
-  const today = new Date()
+  const today = parseISODate(todayIso())
   const start = addDays(today, -days + 1)
   const pad = { l: 30, r: 46, t: 10, b: 26 }
   const w = Math.max(0, width - pad.l - pad.r)

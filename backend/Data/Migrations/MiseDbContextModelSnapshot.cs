@@ -108,6 +108,8 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasIndex("At");
 
+                    b.HasIndex("Kind");
+
                     b.ToTable("AuditEvents");
                 });
 
@@ -238,9 +240,11 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("HouseholdId");
+                    b.HasIndex("CreatedAt");
 
                     b.HasIndex("SessionId", "CreatedAt");
+
+                    b.HasIndex("HouseholdId", "SessionId", "CreatedAt");
 
                     b.ToTable("ChatMessages");
                 });
@@ -283,9 +287,9 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasIndex("HouseholdId");
 
-                    b.HasIndex("PersonId");
-
                     b.HasIndex("RecipeId");
+
+                    b.HasIndex("PersonId", "Date");
 
                     b.ToTable("Cooks");
                 });
@@ -367,6 +371,8 @@ namespace Mise.Api.Data.Migrations
                     b.HasIndex("HouseholdId");
 
                     b.HasIndex("PersonId", "Date");
+
+                    b.HasIndex("PersonId", "Start");
 
                     b.HasIndex("PersonId", "Kind", "Start", "End")
                         .IsUnique();
@@ -507,8 +513,18 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasIndex("HouseholdId");
 
+                    b.HasIndex("PrimaryMuscles");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("PrimaryMuscles"), "gin");
+
+                    b.HasIndex("SecondaryMuscles");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SecondaryMuscles"), "gin");
+
                     b.HasIndex("SourceId")
                         .IsUnique();
+
+                    b.HasIndex("Hidden", "EnrichedAt");
 
                     b.ToTable("Exercises");
                 });
@@ -577,7 +593,7 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasIndex("Barcode");
 
-                    b.HasIndex("HouseholdId");
+                    b.HasIndex("HouseholdId", "Barcode");
 
                     b.HasIndex("PersonId", "NormalizedName")
                         .IsUnique();
@@ -607,6 +623,10 @@ namespace Mise.Api.Data.Migrations
                     b.HasKey("PersonId");
 
                     b.HasIndex("HouseholdId");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasFilter("\"Token\" <> ''");
 
                     b.ToTable("HealthSyncs");
                 });
@@ -1256,6 +1276,8 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasIndex("HouseholdId");
 
+                    b.HasIndex("ImagePath");
+
                     b.ToTable("Recipes");
                 });
 
@@ -1277,6 +1299,8 @@ namespace Mise.Api.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Path");
 
                     b.HasIndex("RecipeId");
 
@@ -1446,9 +1470,9 @@ namespace Mise.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("HouseholdId");
-
                     b.HasIndex("PantryItemId");
+
+                    b.HasIndex("HouseholdId", "Checked");
 
                     b.ToTable("ShoppingItems");
                 });

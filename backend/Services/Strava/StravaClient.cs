@@ -57,7 +57,8 @@ public sealed record StravaActivity(
     [property: JsonPropertyName("start_date")] DateTimeOffset StartDate,
     [property: JsonPropertyName("elapsed_time")] int ElapsedTime,
     [property: JsonPropertyName("moving_time")] int MovingTime,
-    [property: JsonPropertyName("calories")] decimal? Calories);
+    [property: JsonPropertyName("calories")] decimal? Calories,
+    [property: JsonPropertyName("athlete")] StravaAthlete? Athlete = null);
 
 public sealed record StravaActivitySummary(
     [property: JsonPropertyName("id")] long Id,

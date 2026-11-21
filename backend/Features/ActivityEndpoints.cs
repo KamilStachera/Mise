@@ -19,7 +19,7 @@ public static class ActivityEndpoints
             if (await activity.AuthorizeAsync(token) is not { } sync) return Results.NotFound();
             var r = await activity.IngestAsync(sync, payload);
             return Results.Ok(new { ok = true, energy = r.Energy, workouts = r.Workouts, weights = r.Weights, weightsIgnored = r.WeightsIgnored });
-        }).WithTags("Activity");
+        }).WithTags("Activity").RequireRateLimiting(HouseholdEndpoints.WebhookRateLimit);
 
         var g = api.MapGroup("/activity").WithTags("Activity");
 
@@ -52,7 +52,8 @@ public static class ActivityEndpoints
 
         g.MapPost("/workouts", async (WorkoutInput input, MiseDbContext db, PersonScope person) =>
         {
-            if (string.IsNullOrWhiteSpace(input.Type)) return Results.BadRequest(new { error = "Podaj rodzaj treningu." });
+            var type = input.Type?.Trim() ?? "";
+            if (type.Length is 0 or > 60) return Results.BadRequest(new { error = "Rodzaj treningu: 1–60 znaków." });
             if (input.Minutes is < 1 or > 600) return Results.BadRequest(new { error = "Czas od 1 do 600 minut." });
             if (input.Kcal is < 0 or > 5000) return Results.BadRequest(new { error = "Kcal poza zakresem." });
             DateTimeOffset? started = null;
@@ -68,7 +69,7 @@ public static class ActivityEndpoints
                 StartedAt = started,
                 Minutes = input.Minutes,
                 Kcal = input.Kcal,
-                Type = input.Type.Trim(),
+                Type = type,
                 Source = MeasurementSource.Manual,
             };
             db.Workouts.Add(w);
@@ -76,9 +77,9 @@ public static class ActivityEndpoints
             return Results.Ok(ToDto(w, w.Kcal));
         });
 
-        g.MapDelete("/workouts/{id:guid}", async (Guid id, MiseDbContext db) =>
+        g.MapDelete("/workouts/{id:guid}", async (Guid id, MiseDbContext db, PersonScope person) =>
         {
-            var w = await db.Workouts.FirstOrDefaultAsync(x => x.Id == id);
+            var w = await db.Workouts.FirstOrDefaultAsync(x => x.Id == id && x.PersonId == person.Id);
             if (w is null) return Results.NotFound();
             db.Workouts.Remove(w);
             await db.SaveChangesAsync();

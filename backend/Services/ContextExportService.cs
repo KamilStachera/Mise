@@ -21,6 +21,7 @@ public sealed class ContextExportService
 {
     private readonly MiseDbContext _db;
     private readonly CookbookMarkdownBuilder _cookbook;
+    private readonly ContextExportQueue? _queue;
     private readonly string _root;
     private readonly string? _hostRoot;
 
@@ -33,10 +34,11 @@ public sealed class ContextExportService
     };
 
     public ContextExportService(MiseDbContext db, CookbookMarkdownBuilder cookbook,
-        IConfiguration config, IHostEnvironment env)
+        IConfiguration config, IHostEnvironment env, ContextExportQueue? queue = null)
     {
         _db = db;
         _cookbook = cookbook;
+        _queue = queue;
         var configured = config["ContextDir"];
         var dir = string.IsNullOrWhiteSpace(configured)
             ? System.IO.Path.Combine(env.ContentRootPath, "..", "context")
@@ -47,6 +49,13 @@ public sealed class ContextExportService
         _hostRoot = string.IsNullOrWhiteSpace(hostDir) ? null : hostDir.Trim().TrimEnd('\\', '/');
         var apiBase = config["PUBLIC_API_BASE"];
         ApiBase = string.IsNullOrWhiteSpace(apiBase) ? "http://localhost:5080/api" : apiBase.Trim();
+    }
+
+    /// <summary>Queue a debounced background export for the current household (non-blocking).</summary>
+    public void Schedule()
+    {
+        if (_queue is not null && _db.Tenant.HouseholdId is int hid && hid > 0)
+            _queue.Enqueue(hid);
     }
 
     /// <summary>Each household exports to its own subfolder: <c>{ContextDir}/{householdId}</c>.</summary>
@@ -107,6 +116,7 @@ public sealed class ContextExportService
     {
         var r = await _db.Recipes.AsNoTracking()
             .Include(x => x.Ingredients).Include(x => x.Steps)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == recipeId, ct);
         if (r is null) return null;
         var md = BuildRecipeMarkdown(r);
@@ -148,6 +158,7 @@ public sealed class ContextExportService
             .Include(r => r.Ingredients.OrderBy(i => i.Order))
             .Include(r => r.Steps.OrderBy(s => s.Order))
             .AsSplitQuery()
+            .OrderBy(r => r.CreatedAt).ThenBy(r => r.Id)
             .ToListAsync(ct);
         var shopping = (await _db.ShoppingItems.AsNoTracking().ToListAsync(ct))
             .OrderBy(s => s.Category).ThenBy(s => s.Name, Pl.Comparer).ToList();
@@ -179,6 +190,8 @@ public sealed class ContextExportService
             .OrderBy(e => e.Date)
             .ToListAsync(ct);
 
+        var planPeople = await _db.People.AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+
         System.IO.Directory.CreateDirectory(dir);
         var recipesDir = System.IO.Path.Combine(dir, "recipes");
         System.IO.Directory.CreateDirectory(recipesDir);
@@ -186,7 +199,7 @@ public sealed class ContextExportService
 
         var files = new List<string>();
 
-        await WriteAsync("cookbook.md", _cookbook.Build(prefs, pantry, recipes, answers), files, ct);
+        await WriteAsync(dir, "cookbook.md", _cookbook.Build(prefs, pantry, recipes, answers), files, ct);
 
         var pantryJson = JsonSerializer.Serialize(pantry.Select(p => new
         {
@@ -202,38 +215,43 @@ public sealed class ContextExportService
             aliasy = p.Aliases.Split(';',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
         }), Json);
-        await WriteAsync("pantry.json", pantryJson, files, ct);
+        await WriteAsync(dir, "pantry.json", pantryJson, files, ct);
 
-        await WriteAsync("shopping.md", BuildShoppingMarkdown(shopping), files, ct);
-        await WriteAsync("supplies.md", BuildSuppliesMarkdown(supplies, supplyFavorites), files, ct);
-        await WriteAsync("plan.md", BuildPlanMarkdown(plan, recipes, planFrom), files, ct);
-        await WriteAsync("cooklog.md", BuildCookLogMarkdown(cookLog), files, ct);
-        await WriteAsync("AGENTS.md", AgentDocs.AgentsMd(ApiBase), files, ct);
-        await WriteAsync("CLAUDE.md", AgentDocs.AgentsMd(ApiBase), files, ct);
-        await WriteAsync("api.md", AgentDocs.ApiMd(ApiBase), files, ct);
+        await WriteAsync(dir, "shopping.md", BuildShoppingMarkdown(shopping), files, ct);
+        await WriteAsync(dir, "supplies.md", BuildSuppliesMarkdown(supplies, supplyFavorites), files, ct);
+        await WriteAsync(dir, "plan.md", BuildPlanMarkdown(plan, recipes, planPeople, planFrom), files, ct);
+        await WriteAsync(dir, "cooklog.md", BuildCookLogMarkdown(cookLog), files, ct);
+        await WriteAsync(dir, "AGENTS.md", AgentDocs.AgentsMd(ApiBase), files, ct);
+        await WriteAsync(dir, "CLAUDE.md", AgentDocs.AgentsMd(ApiBase), files, ct);
+        await WriteAsync(dir, "api.md", AgentDocs.ApiMd(ApiBase), files, ct);
 
         // Slash-command files the user can copy to ~/.claude/commands and ~/.codex/prompts.
         // Only these known names are overwritten; the folder itself is never wiped.
         var ctxForCommands = HostDirectory ?? AgentDocs.ContextDirToken;
         foreach (var (name, content) in AgentDocs.CommandFiles(ApiBase, ctxForCommands))
-            await WriteAsync(System.IO.Path.Combine("commands", name), content, files, ct);
-
-        // refresh recipes/ folder (the API is the only write path, so a full
-        // wipe-and-rewrite keeps deleted recipes from lingering)
-        foreach (var existing in System.IO.Directory.GetFiles(recipesDir, "*.md"))
-            System.IO.File.Delete(existing);
+            await WriteAsync(dir, System.IO.Path.Combine("commands", name), content, files, ct);
 
         var logByRecipe = cookLog.Where(e => e.RecipeId is not null)
             .GroupBy(e => e.RecipeId!.Value)
             .ToDictionary(g => g.Key, g => g.Take(RecipeHistoryCap).ToList());
 
+        // Write updated recipe files atomically first, then remove obsolete ones so readers never see an empty folder.
         var usedSlugs = new HashSet<string>();
+        var keepFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var r in recipes)
         {
             var slug = UniqueSlug(r.Title, usedSlugs);
-            var rel = System.IO.Path.Combine("recipes", slug + ".md");
+            var fileName = slug + ".md";
+            keepFiles.Add(fileName);
+            var rel = System.IO.Path.Combine("recipes", fileName);
             logByRecipe.TryGetValue(r.Id, out var history);
-            await WriteAsync(rel, BuildRecipeMarkdown(r, history), files, ct);
+            await WriteAsync(dir, rel, BuildRecipeMarkdown(r, history), files, ct);
+        }
+
+        foreach (var existing in System.IO.Directory.GetFiles(recipesDir, "*.md"))
+        {
+            if (!keepFiles.Contains(System.IO.Path.GetFileName(existing)))
+                System.IO.File.Delete(existing);
         }
 
         return new ContextExportResult(dir, files, DateTimeOffset.UtcNow);
@@ -250,10 +268,19 @@ public sealed class ContextExportService
         return date.AddDays(-diff);
     }
 
-    private async Task WriteAsync(string relativePath, string content, List<string> files, CancellationToken ct)
+    private static async Task WriteAsync(string dir, string relativePath, string content, List<string> files, CancellationToken ct)
     {
-        var full = System.IO.Path.Combine(Directory, relativePath);
-        await System.IO.File.WriteAllTextAsync(full, content, new UTF8Encoding(false), ct);
+        var full = System.IO.Path.Combine(dir, relativePath);
+        var tmp = full + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+        try
+        {
+            await System.IO.File.WriteAllTextAsync(tmp, content, new UTF8Encoding(false), ct);
+            System.IO.File.Move(tmp, full, overwrite: true);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(tmp)) System.IO.File.Delete(tmp);
+        }
         files.Add(relativePath.Replace('\\', '/'));
     }
 
@@ -354,11 +381,13 @@ public sealed class ContextExportService
         return sb.ToString().TrimEnd() + "\n";
     }
 
-    private static string BuildPlanMarkdown(List<PlanEntry> entries, List<Recipe> recipes, DateOnly from)
+    private static string BuildPlanMarkdown(List<PlanEntry> entries, List<Recipe> recipes,
+        Dictionary<int, string> people, DateOnly from)
     {
         var titleById = recipes.ToDictionary(r => r.Id, r => r.Title);
         var byDate = entries.ToLookup(e => e.Date);
         var pl = System.Globalization.CultureInfo.GetCultureInfo("pl-PL");
+        var showPerson = people.Count > 1;
 
         var sb = new StringBuilder();
         sb.AppendLine("# Plan posiłków");
@@ -378,6 +407,7 @@ public sealed class ContextExportService
                 dayName = char.ToUpper(dayName[0], pl) + dayName[1..];   // pl-PL day names are lowercase
                 var dayEntries = byDate[date]
                     .OrderBy(e => e.Slot switch { MealSlot.Breakfast => 0, MealSlot.Lunch => 1, _ => 2 })
+                    .ThenBy(e => e.PersonId)
                     .ToList();
                 if (dayEntries.Count == 0)
                 {
@@ -387,6 +417,7 @@ public sealed class ContextExportService
                 foreach (var e in dayEntries)
                 {
                     var slot = SlotLabel(e.Slot);
+                    var who = showPerson && people.TryGetValue(e.PersonId, out var pname) ? $" ({pname})" : "";
                     var what = e.RecipeId is Guid rid && titleById.TryGetValue(rid, out var t)
                         ? $"{t} (zapisany przepis)"
                         : e.Title;
@@ -394,7 +425,7 @@ public sealed class ContextExportService
                         : e.IsLeftover ? $" — resztki z {e.Cook.Date:dd.MM}"
                         : $" — gotowane na kilka dni (porcje: {e.Cook.Portions})";
                     var note = string.IsNullOrWhiteSpace(e.Note) ? "" : $" — {e.Note.Trim()}";
-                    sb.AppendLine($"- {dayName} {date:dd.MM}, {slot}: {what}{pot}{note}");
+                    sb.AppendLine($"- {dayName} {date:dd.MM}, {slot}{who}: {what}{pot}{note}");
                 }
             }
         }
@@ -479,6 +510,14 @@ public sealed class ContextExportService
         return sb.ToString().TrimEnd() + "\n";
     }
 
+    private const int MaxSlugLength = 80;
+    private static readonly HashSet<string> WindowsReserved = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "con", "prn", "aux", "nul",
+        "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+        "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    };
+
     private static string UniqueSlug(string title, HashSet<string> used)
     {
         var baseSlug = Slugify(title);
@@ -488,10 +527,26 @@ public sealed class ContextExportService
         return slug;
     }
 
-    private static string Slugify(string s)
+    public static string Slugify(string s)
     {
-        s = s.ToLowerInvariant();
-        s = Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
-        return string.IsNullOrEmpty(s) ? "recipe" : s;
+        // Fold Polish diacritics first ("Łosoś" → "losos", not "oso") and bound filename length.
+        var folded = FoldPolish(s.ToLowerInvariant());
+        var slug = Regex.Replace(folded, @"[^a-z0-9]+", "-").Trim('-');
+        if (slug.Length > MaxSlugLength) slug = slug[..MaxSlugLength].TrimEnd('-');
+        if (string.IsNullOrEmpty(slug)) return "recipe";
+        return WindowsReserved.Contains(slug) ? "r-" + slug : slug;
+    }
+
+    private static string FoldPolish(string s)
+    {
+        var sb = new StringBuilder(s.Length);
+        foreach (var ch in s)
+            sb.Append(ch switch
+            {
+                'ą' => 'a', 'ć' => 'c', 'ę' => 'e', 'ł' => 'l', 'ń' => 'n',
+                'ó' => 'o', 'ś' => 's', 'ź' => 'z', 'ż' => 'z',
+                _ => ch,
+            });
+        return sb.ToString();
     }
 }

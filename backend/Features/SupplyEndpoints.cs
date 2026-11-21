@@ -25,8 +25,11 @@ public static class SupplyEndpoints
         g.MapPost("/", async (SupplyItemInput input, MiseDbContext db, SupplyService supplies,
             ContextExportService export) =>
         {
-            if (string.IsNullOrWhiteSpace(input.Name))
+            var name = input.Name?.Trim() ?? "";
+            if (name.Length == 0)
                 return Results.BadRequest(new { error = "Podaj nazwę." });
+            if (name.Length > 200)
+                return Results.BadRequest(new { error = "Nazwa może mieć maks. 200 znaków." });
             if (!Mapping.TryParseSupplyCategory(input.Category, out var category))
                 return Results.BadRequest(new
                 {
@@ -35,8 +38,8 @@ public static class SupplyEndpoints
                 });
 
             var before = await db.SupplyItems.CountAsync();
-            var item = await supplies.AddAsync(input.Name, category);
-            await export.ExportAsync();
+            var item = await supplies.AddAsync(name, category);
+            export.Schedule();
 
             var dto = Mapping.ToDto(item);
             // Re-adding something already on the list is a no-op, so only a genuinely new
@@ -55,7 +58,7 @@ public static class SupplyEndpoints
             if (item is null) return Results.NotFound();
             item.Checked = input?.Checked ?? !item.Checked;
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(Mapping.ToDto(item));
         });
 
@@ -65,7 +68,7 @@ public static class SupplyEndpoints
             if (item is null) return Results.NotFound();
             db.SupplyItems.Remove(item);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.NoContent();
         });
 
@@ -74,18 +77,24 @@ public static class SupplyEndpoints
         g.MapPost("/clear-checked", async (MiseDbContext db, ContextExportService export) =>
         {
             var checkedItems = await db.SupplyItems.Where(s => s.Checked).ToListAsync();
-            db.SupplyItems.RemoveRange(checkedItems);
-            await db.SaveChangesAsync();
-            await export.ExportAsync();
+            if (checkedItems.Count > 0)
+            {
+                db.SupplyItems.RemoveRange(checkedItems);
+                await db.SaveChangesAsync();
+                export.Schedule();
+            }
             return Results.Ok(new { removed = checkedItems.Count });
         });
 
         g.MapPost("/clear", async (MiseDbContext db, ContextExportService export) =>
         {
             var all = await db.SupplyItems.ToListAsync();
-            db.SupplyItems.RemoveRange(all);
-            await db.SaveChangesAsync();
-            await export.ExportAsync();
+            if (all.Count > 0)
+            {
+                db.SupplyItems.RemoveRange(all);
+                await db.SaveChangesAsync();
+                export.Schedule();
+            }
             return Results.Ok(new { removed = all.Count });
         });
 
@@ -99,7 +108,7 @@ public static class SupplyEndpoints
             if (input.Pinned is bool pinned) favorite.Pinned = pinned;
             if (input.Hidden is bool hidden) favorite.Hidden = hidden;
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(new HotSupplyDto(favorite.Id, favorite.Name,
                 Mapping.SupplyCategoryString(favorite.Category), favorite.AddCount,
                 favorite.Pinned, favorite.Hidden));
@@ -112,7 +121,7 @@ public static class SupplyEndpoints
             if (favorite is null) return Results.NotFound();
             db.SupplyFavorites.Remove(favorite);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.NoContent();
         });
 

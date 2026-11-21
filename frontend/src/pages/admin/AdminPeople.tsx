@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AdminPerson } from '../../api/client'
 import { useAdminActions, useAdminHouseholds, useAdminPeople, useAuth } from '../../api/hooks'
 import { Badge, TextButton } from '../../components/HouseholdCards'
 import { Button, Chip, Eyebrow, SearchField, Segmented, Sheet, Toggle, inputStyle, mono, sans } from '../../components/ui'
+import { plural } from '../../lib/labels'
 import { Empty, ErrorLine, Row, ago, day } from './shared'
 
 const STATUSES = [
@@ -16,9 +17,14 @@ const STATUSES = [
 /** Everyone on the server: search, filter by household/status; roles, admin, block, unlink. */
 export function AdminPeople() {
   const [q, setQ] = useState('')
+  const [debouncedQ, setDebouncedQ] = useState('')
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(q.trim()), 200)
+    return () => window.clearTimeout(t)
+  }, [q])
   const [householdId, setHouseholdId] = useState<number | undefined>()
   const [status, setStatus] = useState('all')
-  const { data: people } = useAdminPeople({ q: q.trim() || undefined, householdId, status })
+  const { data: people } = useAdminPeople({ q: debouncedQ || undefined, householdId, status })
   const { data: households } = useAdminHouseholds()
   const [open, setOpen] = useState<AdminPerson | null>(null)
   const current = people?.find((p) => p.id === open?.id) ?? open
@@ -51,7 +57,7 @@ export function AdminPeople() {
             </>}
             meta={<>
               <span style={{ font: mono(12) }}>{p.email ?? '—'}</span> · {p.householdName} · aktywność {ago(p.lastSeenAt)}
-              {p.keys > 0 && ` · ${p.keys} ${p.keys === 1 ? 'klucz' : 'klucze'} API`}
+              {p.keys > 0 && ` · ${plural(p.keys, 'klucz', 'klucze', 'kluczy')} API`}
             </>}
             right={<span style={{ font: sans(13), color: 'var(--text-2)' }}>›</span>}
           />
@@ -97,7 +103,13 @@ function PersonEditor({ person }: { person: AdminPerson }) {
       </div>
 
       <Toggle on={person.isAdmin} disabled={self || person.envAdmin || !person.email} label="Administrator serwera"
-        onChange={(v) => patch.mutate({ id: person.id, isAdmin: v })} />
+        onChange={(v) => {
+          const msg = v
+            ? `Nadać ${person.name} uprawnienia administratora całego serwera?`
+            : `Odebrać ${person.name} uprawnienia administratora serwera?`
+          if (!window.confirm(msg)) return
+          patch.mutate({ id: person.id, isAdmin: v })
+        }} />
       {person.envAdmin && <span style={{ font: sans(12.5), color: 'var(--text-3)', marginTop: -10 }}>Admin z ADMIN_EMAILS — zmienia się w .env.</span>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, borderTop: '1px solid var(--rule)', paddingTop: 14 }}>

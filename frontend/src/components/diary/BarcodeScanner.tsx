@@ -28,12 +28,29 @@ export function BarcodeScanner({ onCode, onManual, onClose }: {
   const track = useRef<MediaStreamTrack | null>(null)
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [onClose])
+
+  useEffect(() => {
     const Ctor = detectorCtor()
     if (!Ctor) return
     let stopped = false
     let stream: MediaStream | null = null
     let timer: ReturnType<typeof setTimeout>
-    const detector = new Ctor({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] })
+    let detector: BarcodeDetectorLike
+    try {
+      detector = new Ctor({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] })
+    } catch {
+      setError('Ta przeglądarka nie obsługuje skanowania kodów EAN. Wpisz kod ręcznie.')
+      return
+    }
 
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
       .then(async (s) => {
@@ -73,8 +90,12 @@ export function BarcodeScanner({ onCode, onManual, onClose }: {
 
   async function toggleTorch() {
     if (!track.current || torch == null) return
-    await track.current.applyConstraints({ advanced: [{ torch: !torch } as MediaTrackConstraintSet] }).catch(() => {})
-    setTorch(!torch)
+    try {
+      await track.current.applyConstraints({ advanced: [{ torch: !torch } as MediaTrackConstraintSet] })
+      setTorch(!torch)
+    } catch {
+      /* torch constraint not supported on this device */
+    }
   }
 
   const pill = { height: 44, padding: '0 16px', borderRadius: 999, border: '1px solid rgba(239,230,214,.35)', background: 'transparent', color: '#efe6d6', font: sans(14, 600), cursor: 'pointer' } as const

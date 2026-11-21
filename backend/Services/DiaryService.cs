@@ -105,7 +105,12 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         }
         var name = title?.Trim() ?? "";
         if (recipe is null && name.Length == 0) throw new DiaryException("Podaj przepis albo nazwę.");
+        if (name.Length > 300) throw new DiaryException("Nazwa może mieć maks. 300 znaków.");
+        if ((note?.Length ?? 0) > 1000) throw new DiaryException("Notatka może mieć maks. 1000 znaków.");
         if (kcal is < 0 or > 10000) throw new DiaryException("Kcal poza zakresem.");
+        if (protein is < 0 or > 10000 || fat is < 0 or > 10000 || carbs is < 0 or > 10000)
+            throw new DiaryException("Makroskładniki poza zakresem.");
+        if (grams is < 0 or > 100000) throw new DiaryException("Gramatura poza zakresem.");
 
         var entry = new PlanEntry
         {
@@ -132,7 +137,7 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
     /// </summary>
     public async Task<bool> DeleteEntryAsync(Guid id, CancellationToken ct = default)
     {
-        var entry = await db.PlanEntries.FirstOrDefaultAsync(e => e.Id == id, ct);
+        var entry = await db.PlanEntries.FirstOrDefaultAsync(e => e.Id == id && e.PersonId == pid, ct);
         if (entry is null) return false;
         if (entry.CookId is Guid cookId && !entry.IsLeftover)
         {
@@ -179,12 +184,13 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         PlanEntry cookDay;
         if (fromEntryId is Guid fid)
         {
-            cookDay = await db.PlanEntries.FirstOrDefaultAsync(e => e.Id == fid, ct)
+            cookDay = await db.PlanEntries.FirstOrDefaultAsync(e => e.Id == fid && e.PersonId == pid, ct)
                 ?? throw new DiaryException("Nie ma takiego wpisu.", StatusCodes.Status404NotFound);
             if (cookDay.CookId is not null)
                 throw new DiaryException("Ten wpis należy już do gotowania na kilka dni.", StatusCodes.Status409Conflict);
             if (cookDay.RecipeId != recipe.Id)
                 throw new DiaryException("Wpis jest dla innego przepisu.");
+            cookDay.Recipe = recipe;
         }
         else
         {
@@ -200,6 +206,7 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         cookDay.Cook = cook;
         cookDay.IsLeftover = false;
         cookDay.Portions = 1;
+        Snapshot(cookDay);
         cookDay.UpdatedAt = DateTimeOffset.UtcNow;
         AddLeftovers(cook, recipe, assignments);
         await db.SaveChangesAsync(ct);
@@ -276,7 +283,7 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
     public Task<Cook?> LoadCookAsync(Guid id, CancellationToken ct = default) =>
         db.Cooks.Include(c => c.Entries).ThenInclude(e => e.Recipe)
             .Include(c => c.Recipe)
-            .FirstOrDefaultAsync(c => c.Id == id, ct);
+            .FirstOrDefaultAsync(c => c.Id == id && c.PersonId == pid, ct);
 
     private static void ValidatePot(decimal portions, decimal needed)
     {
@@ -318,9 +325,17 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
     public async Task<FoodFavorite> RememberAsync(string name, int kcal, decimal? protein, decimal? fat,
         decimal? carbs, bool per100g, decimal? lastGrams, string? barcode, CancellationToken ct = default)
     {
-        var trimmed = name.Trim();
+        var trimmed = (name ?? "").Trim();
         var key = Key(trimmed);
         if (key.Length == 0) throw new DiaryException("Podaj nazwę.");
+        if (trimmed.Length > 200) throw new DiaryException("Nazwa może mieć maks. 200 znaków.");
+        if (kcal is < 0 or > 10000) throw new DiaryException("Kcal poza zakresem.");
+        if (protein is < 0 or > 10000 || fat is < 0 or > 10000 || carbs is < 0 or > 10000)
+            throw new DiaryException("Makroskładniki poza zakresem.");
+        if (lastGrams is < 0 or > 100000) throw new DiaryException("Gramatura poza zakresem.");
+        var cleanBarcode = string.IsNullOrWhiteSpace(barcode) ? null : barcode.Trim();
+        if (cleanBarcode?.Length > 32) throw new DiaryException("Kod kreskowy jest za długi.");
+
         var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.PersonId == pid && x.NormalizedName == key, ct);
         if (f is null)
         {
@@ -329,7 +344,7 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         }
         (f.Name, f.Kcal, f.Protein, f.Fat, f.Carbs, f.Per100g) = (trimmed, kcal, protein, fat, carbs, per100g);
         if (lastGrams is > 0) f.LastGrams = lastGrams;
-        if (!string.IsNullOrWhiteSpace(barcode)) f.Barcode = barcode.Trim();
+        if (cleanBarcode is not null) f.Barcode = cleanBarcode;
         Bump(f);
         await db.SaveChangesAsync(ct);
         return f;
@@ -339,15 +354,18 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
     public async Task<PlanEntry> LogFavoriteAsync(Guid id, DateOnly date, MealSlot slot, decimal? grams,
         CancellationToken ct = default)
     {
-        var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.Id == id, ct)
+        var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.Id == id && x.PersonId == pid, ct)
             ?? throw new DiaryException("Nie ma takiego ulubionego.", StatusCodes.Status404NotFound);
         var entry = new PlanEntry { PersonId = pid, Date = date, Slot = slot, Title = f.Name };
         if (f.Per100g)
         {
             var g = grams is > 0 ? grams.Value : f.LastGrams ?? 100;
+            if (g > 100000m) throw new DiaryException("Gramatura poza zakresem.");
             var factor = g / 100m;
+            var scaledKcal = Math.Round(f.Kcal * factor, MidpointRounding.AwayFromZero);
+            if (scaledKcal > 100000m) throw new DiaryException("Kcal poza zakresem.");
             entry.Grams = g;
-            entry.Kcal = (int)Math.Round(f.Kcal * factor, MidpointRounding.AwayFromZero);
+            entry.Kcal = (int)scaledKcal;
             (entry.Protein, entry.Fat, entry.Carbs) = (Times(f.Protein, factor), Times(f.Fat, factor), Times(f.Carbs, factor));
             f.LastGrams = g;
         }

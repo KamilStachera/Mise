@@ -236,15 +236,15 @@ public sealed class ShoppingService
         foreach (var productGroup in requirements.GroupBy(r => r.Key))
         {
             var grouped = productGroup.ToList();
-            if (!NeedsPurchase(grouped)) continue;
-
             var row = FindManagedRow(managedRows, productGroup.Key);
+            if (!NeedsPurchase(grouped, row)) continue;
+
             if (row is null)
             {
                 var first = grouped[0];
                 row = new ShoppingItem
                 {
-                    Name = first.ShoppingName,
+                    Name = Truncate(first.ShoppingName, 200),
                     Category = "Recipe",
                     Origin = ShoppingOrigin.Recipe,
                     PantryItemId = first.PantryItem?.Id,
@@ -280,28 +280,29 @@ public sealed class ShoppingService
         foreach (var alternativeGroup in requirements.GroupBy(r => r.Key, StringComparer.Ordinal))
         {
             var grouped = alternativeGroup.ToList();
-            if (!AlternativeNeedsPurchase(grouped)) continue;
-
+            var altKey = Truncate(alternativeGroup.Key, 1000);
             var row = managedRows.FirstOrDefault(r =>
-                string.Equals(r.AlternativeKey, alternativeGroup.Key, StringComparison.Ordinal));
+                string.Equals(r.AlternativeKey, altKey, StringComparison.Ordinal));
+            if (!AlternativeNeedsPurchase(grouped, row)) continue;
+
             if (row is null)
             {
                 row = new ShoppingItem
                 {
-                    Name = grouped[0].ShoppingName,
+                    Name = Truncate(grouped[0].ShoppingName, 200),
                     Category = "Recipe",
                     Origin = ShoppingOrigin.Recipe,
-                    AlternativeKey = alternativeGroup.Key,
+                    AlternativeKey = altKey,
                 };
                 db.ShoppingItems.Add(row);
                 managedRows.Add(row);
             }
 
-            row.Name = grouped[0].ShoppingName;
+            row.Name = Truncate(grouped[0].ShoppingName, 200);
             row.PantryItemId = null;
-            row.AlternativeKey = alternativeGroup.Key;
-            row.AlternativePantryItemIds = SerializePantryIds(grouped
-                .SelectMany(r => r.PantryItems).Select(p => p.Id));
+            row.AlternativeKey = altKey;
+            row.AlternativePantryItemIds = TruncateNullable(SerializePantryIds(grouped
+                .SelectMany(r => r.PantryItems).Select(p => p.Id)), 1000);
 
             foreach (var sourceGroup in grouped.GroupBy(r => r.Source.Key, StringComparer.Ordinal))
             {
@@ -403,34 +404,52 @@ public sealed class ShoppingService
         };
     }
 
-    private static bool NeedsPurchase(IReadOnlyList<Requirement> requirements)
+    private static bool NeedsPurchase(IReadOnlyList<Requirement> requirements, ShoppingItem? existingRow = null)
     {
         var pantryItem = requirements[0].PantryItem;
         if (pantryItem is null) return true;
 
+        var incomingKeys = requirements.Select(r => r.Source.Key).ToHashSet(StringComparer.Ordinal);
+        var prior = existingRow?.Contributions
+            .Where(c => !incomingKeys.Contains(c.SourceKey))
+            .ToList() ?? [];
+
         var unit = SafeUnit(requirements);
-        if (unit is null)
+        if (unit is null || prior.Any(c => c.RequiredQuantity is not > 0 || c.Unit != unit))
         {
             var comparableKnownDemand = requirements
                 .Where(r => r.Ingredient.AmountValue is > 0
                     && r.Ingredient.AmountUnit == pantryItem.Unit)
-                .Sum(r => r.Ingredient.AmountValue!.Value);
+                .Sum(r => r.Ingredient.AmountValue!.Value)
+                + prior
+                    .Where(c => c.RequiredQuantity is > 0 && c.Unit == pantryItem.Unit)
+                    .Sum(c => c.RequiredQuantity!.Value);
             var stock = StockReliability.PlanningQuantity(pantryItem);
             return stock <= 0 || comparableKnownDemand > stock;
         }
-        var required = requirements.Sum(r => r.Ingredient.AmountValue!.Value);
+        var required = requirements.Sum(r => r.Ingredient.AmountValue!.Value)
+            + prior.Sum(c => c.RequiredQuantity!.Value);
         return required > StockReliability.PlanningQuantity(pantryItem);
     }
 
-    private static bool AlternativeNeedsPurchase(IReadOnlyList<AlternativeRequirement> requirements)
+    private static bool AlternativeNeedsPurchase(IReadOnlyList<AlternativeRequirement> requirements,
+        ShoppingItem? existingRow = null)
     {
+        var incomingKeys = requirements.Select(r => r.Source.Key).ToHashSet(StringComparer.Ordinal);
+        var prior = existingRow?.Contributions
+            .Where(c => !incomingKeys.Contains(c.SourceKey))
+            .ToList() ?? [];
+
         var safe = requirements.Select(SafeAlternativeAmount).ToList();
         if (safe.All(x => x.RequiredQuantity is > 0 && x.Unit is not null)
-            && safe.Select(x => x.Unit).Distinct().Count() == 1)
+            && safe.Select(x => x.Unit).Distinct().Count() == 1
+            && prior.All(c => c.RequiredQuantity is > 0 && c.Unit == safe[0].Unit))
         {
             var unit = safe[0].Unit!.Value;
+            var allDemands = safe.Select(x => x.RequiredQuantity!.Value)
+                .Concat(prior.Select(c => c.RequiredQuantity!.Value));
             return !CanSatisfyAlternativeDemands(
-                safe.Select(x => x.RequiredQuantity!.Value),
+                allDemands,
                 requirements.SelectMany(r => r.PantryItems).DistinctBy(p => p.Id), unit);
         }
 
@@ -576,10 +595,16 @@ public sealed class ShoppingService
     }
 
     private static void RecalculateReason(ShoppingItem row) =>
-        row.Reason = "Do: " + string.Join("; ", row.Contributions
+        row.Reason = Truncate("Do: " + string.Join("; ", row.Contributions
             .GroupBy(c => c.SourceLabel, StringComparer.Ordinal)
             .OrderBy(g => g.Key, Pl.Comparer)
-            .Select(g => g.Count() > 1 ? $"{g.Key} ×{g.Count()}" : g.Key));
+            .Select(g => g.Count() > 1 ? $"{g.Key} ×{g.Count()}" : g.Key)), 1000);
+
+    private static string Truncate(string value, int maxLen) =>
+        value.Length <= maxLen ? value : value[..maxLen];
+
+    private static string? TruncateNullable(string? value, int maxLen) =>
+        value is null || value.Length <= maxLen ? value : value[..maxLen];
 
     private static bool CanSatisfyAlternativeDemands(IEnumerable<decimal> requested,
         IEnumerable<PantryItem> pantryItems, PantryUnit unit) =>
@@ -593,11 +618,14 @@ public sealed class ShoppingService
         var demands = requested.Where(x => x > 0).OrderByDescending(x => x).ToArray();
         var stocks = pantryItems.Where(p => p.Unit == unit && stockOf(p) > 0)
             .Select(stockOf).OrderByDescending(x => x).ToArray();
+        const int maxSteps = 10_000;
+        var steps = 0;
         return Assign(0);
 
         bool Assign(int demandIndex)
         {
             if (demandIndex == demands.Length) return true;
+            if (++steps > maxSteps) return false;
             decimal? previousStock = null;
             for (var i = 0; i < stocks.Length; i++)
             {
@@ -606,6 +634,7 @@ public sealed class ShoppingService
                 stocks[i] -= demands[demandIndex];
                 if (Assign(demandIndex + 1)) return true;
                 stocks[i] += demands[demandIndex];
+                if (steps > maxSteps) return false;
             }
             return false;
         }

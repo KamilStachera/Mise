@@ -13,6 +13,14 @@ public sealed class StravaEventQueue
 {
     private readonly Channel<StravaEvent> _channel = Channel.CreateBounded<StravaEvent>(
         new BoundedChannelOptions(500) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
+    private long _subscriptionId;
+
+    /// <summary>Known Strava push subscription id (0 until EnsureSubscriptionAsync confirms it).</summary>
+    public long SubscriptionId
+    {
+        get => Volatile.Read(ref _subscriptionId);
+        set => Volatile.Write(ref _subscriptionId, value);
+    }
 
     public bool TryEnqueue(StravaEvent e) => _channel.Writer.TryWrite(e);
 
@@ -94,9 +102,10 @@ public sealed class StravaWorker(IServiceScopeFactory scopes, StravaEventQueue q
             using var scope = scopes.CreateScope();
             var client = scope.ServiceProvider.GetRequiredService<StravaClient>();
             var subs = await client.ListSubscriptionsAsync(options, stop);
-            if (subs.Any(s => string.Equals(s.CallbackUrl, url, StringComparison.OrdinalIgnoreCase)))
+            if (subs.FirstOrDefault(s => string.Equals(s.CallbackUrl, url, StringComparison.OrdinalIgnoreCase)) is { } match)
             {
-                logger.LogInformation("Strava webhook subscription OK ({Url}).", url);
+                queue.SubscriptionId = match.Id;
+                logger.LogInformation("Strava webhook subscription OK ({Id}, {Url}).", match.Id, url);
                 return;
             }
             // A Strava app has at most one subscription; an old one points at a previous address.
@@ -106,6 +115,7 @@ public sealed class StravaWorker(IServiceScopeFactory scopes, StravaEventQueue q
                 await client.DeleteSubscriptionAsync(options, s.Id, stop);
             }
             var created = await client.CreateSubscriptionAsync(options, url, stop);
+            queue.SubscriptionId = created.Id;
             logger.LogInformation("Strava webhook subscription {Id} created for {Url}.", created.Id, url);
         }
         catch (Exception x) when (x is not OperationCanceledException)
@@ -131,8 +141,10 @@ public sealed class StravaWorker(IServiceScopeFactory scopes, StravaEventQueue q
                 using var scope = scopes.CreateScope();
                 scope.ServiceProvider.GetRequiredService<TenantContext>().UseHousehold(householdId);
                 var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+                var strava = scope.ServiceProvider.GetRequiredService<StravaService>();
+                if (await strava.IsPersonBlockedAsync(personId, stop)) continue;
                 if (await db.StravaConnections.FirstOrDefaultAsync(c => c.PersonId == personId, stop) is not { } conn) continue;
-                var n = await scope.ServiceProvider.GetRequiredService<StravaService>().SyncAsync(conn, PollDays, refreshKnown: false, stop);
+                var n = await strava.SyncAsync(conn, PollDays, refreshKnown: false, stop);
                 if (n > 0) logger.LogInformation("Strava poll: {Count} new workouts for person {Person}.", n, personId);
             }
             catch (Exception x) when (x is not OperationCanceledException)

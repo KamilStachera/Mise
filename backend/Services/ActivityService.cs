@@ -94,50 +94,71 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
         db.HealthSyncs.AsNoTracking().FirstOrDefaultAsync(s => s.PersonId == PersonId, ct);
 
     /// <summary>
-    /// Constant-time token check against every person's phone (in every household — the webhook
-    /// runs before any tenant is known); null when the token is unknown. A match points the
-    /// tenant at the token's household, so the ingest that follows can only write there.
+    /// Constant-time token check against active phones; null when unknown or when the person/household
+    /// is blocked. Points the tenant at the matched household and tracks only that row.
     /// </summary>
     public async Task<HealthSync?> AuthorizeAsync(string token, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(token) || token.Length > 64) return null;
         var candidate = System.Text.Encoding.ASCII.GetBytes(token);
         HealthSync? match = null;
-        foreach (var sync in await db.HealthSyncs.IgnoreQueryFilters().ToListAsync(ct))
+        foreach (var sync in await db.HealthSyncs.IgnoreQueryFilters().AsNoTracking().ToListAsync(ct))
         {
             if (string.IsNullOrEmpty(sync.Token) || token.Length != sync.Token.Length) continue;
             if (CryptographicOperations.FixedTimeEquals(candidate, System.Text.Encoding.ASCII.GetBytes(sync.Token)))
                 match = sync;
         }
-        if (match is not null) db.Tenant.UseHousehold(match.HouseholdId);
-        return match;
+        if (match is null) return null;
+        var blocked = await db.People.IgnoreQueryFilters().AsNoTracking()
+            .AnyAsync(p => p.Id == match.PersonId && (p.BlockedAt != null
+                || db.Households.Any(h => h.Id == p.HouseholdId && h.BlockedAt != null)), ct);
+        if (blocked) return null;
+        db.Tenant.UseHousehold(match.HouseholdId);
+        return await db.HealthSyncs.FirstOrDefaultAsync(s => s.PersonId == match.PersonId, ct);
     }
 
     // ---- ingest ----
+
+    public const int MaxEnergyPerPush = 2000;
+    public const int MaxWorkoutsPerPush = 200;
+    public const int MaxWeightsPerPush = 100;
+    public const decimal MaxEnergyKcal = 20_000m;
+
+    /// <summary>Postgres timestamptz has microsecond (10-tick) precision; normalize before dedup lookup & insert.</summary>
+    private static DateTimeOffset TruncateToMicros(DateTimeOffset t)
+    {
+        var utc = t.ToUniversalTime();
+        return new DateTimeOffset(utc.Ticks - (utc.Ticks % 10), TimeSpan.Zero);
+    }
 
     /// <summary>Upserts everything in one payload. Records are re-sent when updated, so every write is idempotent.</summary>
     public async Task<HcIngestResult> IngestAsync(HealthSync sync, HcPayload payload, CancellationToken ct = default)
     {
         var pid = sync.PersonId;
         var energy = 0;
-        var incoming = (payload.ActiveCalories ?? []).Concat(payload.TotalCalories ?? []).ToList();
+        var activeIn = (payload.ActiveCalories ?? []).Take(MaxEnergyPerPush).ToList();
+        var totalIn = (payload.TotalCalories ?? []).Take(MaxEnergyPerPush).ToList();
+        var incoming = activeIn.Concat(totalIn).ToList();
         // A 48 h window can hold thousands of short intervals: load the existing ones in one query.
         var existing = new Dictionary<(EnergyKind, long, long), EnergySample>();
         if (incoming.Count > 0)
         {
-            var min = incoming.Min(s => s.StartTime).ToUniversalTime();
-            var max = incoming.Max(s => s.StartTime).ToUniversalTime();
+            var min = incoming.Min(s => TruncateToMicros(s.StartTime));
+            var max = incoming.Max(s => TruncateToMicros(s.StartTime));
             foreach (var row in await db.EnergySamples.Where(x => x.PersonId == pid && x.Start >= min && x.Start <= max).ToListAsync(ct))
-                existing[(row.Kind, row.Start.UtcTicks, row.End.UtcTicks)] = row;
+                existing[(row.Kind, TruncateToMicros(row.Start).UtcTicks, TruncateToMicros(row.End).UtcTicks)] = row;
         }
-        foreach (var (kind, list) in new[] { (EnergyKind.Active, payload.ActiveCalories), (EnergyKind.Total, payload.TotalCalories) })
+        foreach (var (kind, list) in new[] { (EnergyKind.Active, activeIn), (EnergyKind.Total, totalIn) })
         {
-            foreach (var s in list ?? [])
+            foreach (var s in list)
             {
-                if (s.Calories < 0 || s.EndTime < s.StartTime) continue;
-                var key = (kind, s.StartTime.UtcTicks, s.EndTime.UtcTicks);
+                if (s.Calories < 0 || s.Calories > MaxEnergyKcal || s.EndTime < s.StartTime) continue;
+                var start = TruncateToMicros(s.StartTime);
+                var end = TruncateToMicros(s.EndTime);
+                var key = (kind, start.UtcTicks, end.UtcTicks);
                 if (!existing.TryGetValue(key, out var row))
                 {
-                    row = new EnergySample { PersonId = pid, Kind = kind, Start = s.StartTime.ToUniversalTime(), End = s.EndTime.ToUniversalTime(), Date = LocalDate(s.StartTime) };
+                    row = new EnergySample { PersonId = pid, Kind = kind, Start = start, End = end, Date = LocalDate(start) };
                     db.EnergySamples.Add(row);
                     existing[key] = row;
                 }
@@ -148,28 +169,41 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
         }
 
         var workouts = 0;
-        foreach (var x in payload.Exercise ?? [])
+        var incomingExercises = (payload.Exercise ?? []).Take(MaxWorkoutsPerPush)
+            .Where(x => x.EndTime > x.StartTime).ToList();
+        var exKeys = incomingExercises
+            .Select(x => $"{TruncateToMicros(x.StartTime).UtcDateTime:O}|{TruncateToMicros(x.EndTime).UtcDateTime:O}")
+            .Distinct().ToList();
+        var existingWorkouts = exKeys.Count == 0
+            ? new Dictionary<string, Workout>()
+            : (await db.Workouts.Where(w => w.PersonId == pid && w.ExternalKey != null && exKeys.Contains(w.ExternalKey)).ToListAsync(ct))
+                .ToDictionary(w => w.ExternalKey!);
+        foreach (var x in incomingExercises)
         {
-            if (x.EndTime <= x.StartTime) continue;
-            var key = $"{x.StartTime.UtcDateTime:O}|{x.EndTime.UtcDateTime:O}";
-            // Local first: the same record can appear twice in one batch before anything is saved.
-            var row = db.Workouts.Local.FirstOrDefault(w => w.PersonId == pid && w.ExternalKey == key)
-                ?? await db.Workouts.FirstOrDefaultAsync(w => w.PersonId == pid && w.ExternalKey == key, ct);
-            if (row is null)
+            var start = TruncateToMicros(x.StartTime);
+            var end = TruncateToMicros(x.EndTime);
+            var key = $"{start.UtcDateTime:O}|{end.UtcDateTime:O}";
+            if (!existingWorkouts.TryGetValue(key, out var row))
             {
                 row = new Workout { PersonId = pid, ExternalKey = key, Source = MeasurementSource.HealthConnect };
                 db.Workouts.Add(row);
+                existingWorkouts[key] = row;
             }
-            row.Date = LocalDate(x.StartTime);
-            row.StartedAt = x.StartTime.ToUniversalTime();
-            row.Minutes = (int)Math.Round((x.DurationSeconds ?? (x.EndTime - x.StartTime).TotalSeconds) / 60.0);
+            var rawSeconds = x.DurationSeconds is int dur && dur > 0
+                ? (double)dur
+                : (end - start).TotalSeconds;
+            var clampedSeconds = Math.Clamp(rawSeconds, 60.0, 86400.0);
+            row.Date = LocalDate(start);
+            row.StartedAt = start;
+            row.Minutes = Math.Max(1, (int)Math.Round(clampedSeconds / 60.0));
             row.Type = ExerciseLabel(x.Type);
             workouts++;
         }
 
         var weights = 0;
         var ignored = 0;
-        var incomingWeights = (payload.Weight ?? []).Where(w => w.Kilograms is >= 25 and <= 350).OrderBy(w => w.Time).ToList();
+        var incomingWeights = (payload.Weight ?? []).Take(MaxWeightsPerPush)
+            .Where(w => w.Kilograms is >= 25 and <= 350).OrderBy(w => w.Time).ToList();
         // Recent weigh-ins of this person: the reference for spotting the other person's reading.
         var known = new List<WeightEntry>();
         if (incomingWeights.Count > 0)
@@ -278,7 +312,7 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
             var own = list.Where(x => x.w.Source == MeasurementSource.Manual
                     || (x.w.Source == MeasurementSource.Strava && !fromTotal && BandKcal(x.w, active) is null))
                 .Sum(x => x.w.Kcal ?? 0);
-            days.Add(new ActivityDay(d, (int)Math.Round(band) + own, list));
+            days.Add(new ActivityDay(d, (int)Math.Round(Math.Min(band, 100_000m)) + own, list));
         }
         return days;
     }

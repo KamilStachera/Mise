@@ -41,7 +41,7 @@ public class SupplyService
         (SupplyCategory.Paper, new Regex(@"papier toalet|recznik\w* papier|papier kuchen|chustecz|serwetk|papier do pieczenia")),
         (SupplyCategory.Pets, new Regex(@"karma|zwierz|dla kota|dla psa|kuweta|zwirek|smakolyk")),
         (SupplyCategory.Hygiene, new Regex(@"mydlo|szampon|odzywk|zel pod prysznic|pasta do zeb|szczoteczk|nic dentyst|plyn do plukania ust|dezodorant|golen|podpask|tampon|pielucha|krem|balsam|wacik|patyczk")),
-        (SupplyCategory.Cleaning, new Regex(@"plyn do|proszek do prania|kapsulk do prania|plyn do plukania|tabletk do zmyw|nabloszcz|odkamien|wybielacz|detergent|myd(e|l)o w plynie|srodek|czyszcz|udrazniacz|odswiezacz")),
+        (SupplyCategory.Cleaning, new Regex(@"plyn do|proszek do prania|kapsulk[ai] do prania|plyn do plukania|tabletk[ai] do zmyw|nablyszcz|odkamien|wybielacz|detergent|myd(e|l)o w plynie|srodek|czyszcz|udrazniacz|odswiezacz")),
         (SupplyCategory.Kitchen, new Regex(@"worki na smieci|folia alumini|folia spozywcz|papier sniadan|gabk|zmywak|sciereczk|reczniki kuchen|rekawic|strunow|zapalk|swieczk|baterie|zarowk|filtr do wody")),
     };
 

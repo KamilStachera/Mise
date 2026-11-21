@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,10 @@ public record ChatRequest(string Message, string? SessionId, Guid? RecipeId = nu
 
 public static class ChatEndpoints
 {
+    public const int MaxMessageChars = 16_000;
+    private const int HistoryCap = 200;
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> SessionLocks = new();
+
     public static RouteGroupBuilder MapChat(this RouteGroupBuilder api)
     {
         var g = api.MapGroup("/chat").WithTags("Chat");
@@ -27,27 +32,30 @@ public static class ChatEndpoints
                 provider = provider.Name,
             }));
 
-        g.MapGet("/history", async (string? sessionId, MiseDbContext db, PersonScope person) =>
+        g.MapGet("/history", async (MiseDbContext db, PersonScope person, CancellationToken ct) =>
         {
-            var sid = SessionOf(sessionId, person);
+            var sid = SessionOf(person);
             var msgs = await db.ChatMessages.AsNoTracking()
                 .Where(m => m.SessionId == sid)
-                .OrderBy(m => m.CreatedAt)
+                .OrderByDescending(m => m.CreatedAt)
+                .Take(HistoryCap)
                 .Select(m => new { id = m.Id, role = m.Role, content = m.Content, createdAt = m.CreatedAt })
-                .ToListAsync();
+                .ToListAsync(ct);
+            msgs.Reverse();
             return Results.Ok(msgs);
         });
 
         // „Nowa rozmowa”: drops the messages and with them the Codex thread handle.
-        g.MapDelete("/history", async (string? sessionId, MiseDbContext db, PersonScope person) =>
+        g.MapDelete("/history", async (MiseDbContext db, PersonScope person, CancellationToken ct) =>
         {
-            var sid = SessionOf(sessionId, person);
-            await db.ChatMessages.Where(m => m.SessionId == sid).ExecuteDeleteAsync();
+            var sid = SessionOf(person);
+            await db.ChatMessages.Where(m => m.SessionId == sid).ExecuteDeleteAsync(ct);
             return Results.NoContent();
         });
 
         g.MapPost("/", async (ChatRequest req, HttpContext ctx, MiseDbContext db, PersonScope person, Caller caller,
-            IChatProvider provider, ContextExportService export, ImportService import, CancellationToken ct) =>
+            IChatProvider provider, ContextExportService export, ImportService import,
+            ILogger<IChatProvider> logger, CancellationToken ct) =>
         {
             if (!provider.Enabled || !await SousAllowedAsync(db, caller, ct))
                 return Results.Json(new
@@ -55,6 +63,9 @@ public static class ChatEndpoints
                     enabled = false,
                     message = "In-app chat is off. Use the ./context folder with Codex or Claude Code instead.",
                 }, statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            if (req.Message is { Length: > MaxMessageChars })
+                return Results.BadRequest(new { error = $"Wiadomość jest za długa (maks. {MaxMessageChars} znaków)." });
 
             DocumentInfo? attachment = null;
             if (req.DocumentId is Guid docId)
@@ -65,78 +76,101 @@ public static class ChatEndpoints
             if (string.IsNullOrWhiteSpace(req.Message) && attachment is null)
                 return Results.BadRequest();
 
-            var sid = SessionOf(req.SessionId, person);
-            var message = string.IsNullOrWhiteSpace(req.Message) ? "Przejrzyj załączony PDF." : req.Message.Trim();
-            // What the chat shows; the provider additionally gets how to read the attachment.
-            var shown = attachment is null ? message : $"{message}\n📎 {attachment.Name}";
-            var providerMessage = attachment is null ? message
-                : $"{message}\n\n{await AttachmentNoteAsync(attachment, inlineText: provider.NeedsSystemPrompt, import, ct)}";
+            var who = await People.FindAsync(db, person.Id, ct);
+            if (who is null || who.HouseholdId != caller.HouseholdId)
+                return Results.Unauthorized();
 
-            db.ChatMessages.Add(new ChatMessage { SessionId = sid, Role = "user", Content = shown });
-            await db.SaveChangesAsync(ct);
+            var sid = SessionOf(person);
+            var gate = SessionLocks.GetOrAdd(sid, _ => new SemaphoreSlim(1, 1));
+            if (!await gate.WaitAsync(0, ct))
+                return Results.Json(new { error = "Sous jeszcze odpowiada na poprzednią wiadomość — poczekaj chwilę." },
+                    statusCode: StatusCodes.Status429TooManyRequests);
 
-            var focus = req.RecipeId is Guid rid ? await export.BuildRecipeFocusAsync(rid, ct) : null;
-            string? systemPrompt = null;
-            if (provider.NeedsSystemPrompt)
-            {
-                systemPrompt = await export.BuildCookbookAsync(ct);
-                if (focus is not null)
-                    systemPrompt += "\n\n---\n\n## Użytkownik ogląda teraz ten przepis\n"
-                        + "Odpowiadaj w jego kontekście, chyba że pytanie wyraźnie dotyczy czegoś innego.\n\n"
-                        + focus;
-            }
-            var history = await db.ChatMessages.AsNoTracking()
-                .Where(m => m.SessionId == sid)
-                .OrderByDescending(m => m.CreatedAt).Take(20)
-                .ToListAsync(ct);
-            history.Reverse();
-            var turns = history.Select(m => new ChatTurn(m.Role, m.Content)).ToList();
-            if (turns.Count > 0) turns[^1] = new ChatTurn("user", providerMessage);
-            var threadId = history.Where(m => m.Role == "ai").Select(m => ThreadOf(m.MetadataJson)).LastOrDefault(t => t is not null);
-            var who = await People.FindAsync(db, person.Id, ct)
-                ?? new PersonInfo(person.Id, $"Osoba {person.Id}", null, db.Tenant.HouseholdId ?? 0);
-
-            ctx.Response.Headers.ContentType = "text/event-stream";
-            ctx.Response.Headers.CacheControl = "no-cache";
-            ctx.Response.Headers["X-Accel-Buffering"] = "no";
-
-            var assistant = new StringBuilder();
-            var failed = false;
             try
             {
-                var turn = new ChatTurnRequest(systemPrompt, turns, providerMessage, who, focus, threadId);
-                await foreach (var chunk in provider.StreamAsync(turn, ct))
+                var message = string.IsNullOrWhiteSpace(req.Message) ? "Przejrzyj załączony PDF." : req.Message.Trim();
+                // What the chat shows; the provider additionally gets how to read the attachment.
+                var shown = attachment is null ? message : $"{message}\n📎 {attachment.Name}";
+                var providerMessage = attachment is null ? message
+                    : $"{message}\n\n{await AttachmentNoteAsync(attachment, inlineText: provider.NeedsSystemPrompt, import, ct)}";
+
+                db.ChatMessages.Add(new ChatMessage { SessionId = sid, Role = "user", Content = shown });
+                await db.SaveChangesAsync(ct);
+
+                var focus = req.RecipeId is Guid rid ? await export.BuildRecipeFocusAsync(rid, ct) : null;
+                string? systemPrompt = null;
+                if (provider.NeedsSystemPrompt)
                 {
-                    if (chunk.ThreadId is { } t) threadId = t;
-                    if (chunk.Status is { } status) await WriteEvent(ctx, new { status });
-                    if (chunk.Delta is { } delta)
+                    systemPrompt = await export.BuildCookbookAsync(ct);
+                    if (focus is not null)
+                        systemPrompt += "\n\n---\n\n## Użytkownik ogląda teraz ten przepis\n"
+                            + "Odpowiadaj w jego kontekście, chyba że pytanie wyraźnie dotyczy czegoś innego.\n\n"
+                            + focus;
+                }
+                var history = await db.ChatMessages.AsNoTracking()
+                    .Where(m => m.SessionId == sid)
+                    .OrderByDescending(m => m.CreatedAt).Take(20)
+                    .ToListAsync(ct);
+                history.Reverse();
+                var turns = history.Select(m => new ChatTurn(m.Role, m.Content)).ToList();
+                if (turns.Count > 0) turns[^1] = new ChatTurn("user", providerMessage);
+                var threadId = history.Where(m => m.Role == "ai").Select(m => ThreadOf(m.MetadataJson)).LastOrDefault(t => t is not null);
+
+                ctx.Response.Headers.ContentType = "text/event-stream";
+                ctx.Response.Headers.CacheControl = "no-cache";
+                ctx.Response.Headers["X-Accel-Buffering"] = "no";
+
+                var assistant = new StringBuilder();
+                var failed = false;
+                string? transientError = null;
+                try
+                {
+                    var turn = new ChatTurnRequest(systemPrompt, turns, providerMessage, who, focus, threadId);
+                    await foreach (var chunk in provider.StreamAsync(turn, ct))
                     {
-                        assistant.Append(delta);
-                        await WriteEvent(ctx, new { delta });
+                        if (chunk.ThreadId is { } t) threadId = t;
+                        if (chunk.Status is { } status) await WriteEvent(ctx, new { status });
+                        if (chunk.Error is { } err)
+                        {
+                            transientError = err;
+                            await WriteEvent(ctx, new { delta = err });
+                        }
+                        if (chunk.Delta is { } delta)
+                        {
+                            assistant.Append(delta);
+                            await WriteEvent(ctx, new { delta });
+                        }
                     }
                 }
-            }
-            catch (Exception) when (!ct.IsCancellationRequested)
-            {
-                // Provider died mid-stream — keep whatever was generated and tell the client.
-                failed = true;
-            }
-
-            if (assistant.Length > 0)
-            {
-                db.ChatMessages.Add(new ChatMessage
+                catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
-                    SessionId = sid,
-                    Role = "ai",
-                    Content = assistant.ToString(),
-                    MetadataJson = threadId is null ? null : JsonSerializer.Serialize(new { codexThread = threadId }),
-                });
-                await db.SaveChangesAsync(ct);
-            }
+                    // Provider died mid-stream — log and keep whatever was generated.
+                    logger.LogWarning(ex, "Chat stream failed for household {Household} person {Person}", who.HouseholdId, who.Id);
+                    failed = true;
+                }
 
-            await WriteEvent(ctx, new { done = true, error = failed });
-            return Results.Empty;
-        });
+                if (assistant.Length > 0 && transientError is null)
+                {
+                    db.ChatMessages.Add(new ChatMessage
+                    {
+                        SessionId = sid,
+                        Role = "ai",
+                        Content = assistant.ToString(),
+                        MetadataJson = threadId is null ? null : JsonSerializer.Serialize(new { codexThread = threadId }),
+                    });
+                    // Save even if client closed the tab right as the final chunk landed.
+                    await db.SaveChangesAsync(CancellationToken.None);
+                }
+
+                if (!ct.IsCancellationRequested)
+                    await WriteEvent(ctx, new { done = true, error = failed });
+                return Results.Empty;
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }).RequireRateLimiting(HouseholdEndpoints.ChatRateLimit);
 
         return api;
     }
@@ -152,16 +186,16 @@ public static class ChatEndpoints
         if (!inlineText)
             return head + "\n[Czytaj go narzędziem read_import_document (kolejne strony: nextPage).]";
         var slice = await import.SliceAsync(doc.Id, 1, null, ct);
-        var body = string.Join("\n\n", slice!.Pages.Select(p => $"— strona {p.Page} —\n{p.Text}"));
+        if (slice is null) return head + "\n[Załącznik wygasł.]";
+        var body = string.Join("\n\n", slice.Pages.Select(p => $"— strona {p.Page} —\n{p.Text}"));
         return $"{head}\n{body}" + (slice.NextPage is null ? "" : $"\n[… dalsze strony od {slice.NextPage} pominięte]");
     }
 
     private static Task<bool> SousAllowedAsync(MiseDbContext db, Caller caller, CancellationToken ct) =>
         db.Households.AsNoTracking().AnyAsync(h => h.Id == caller.HouseholdId && h.SousEnabled, ct);
 
-    /// <summary>Each person has their own Sous conversation unless the client names a session.</summary>
-    private static string SessionOf(string? sessionId, PersonScope person) =>
-        string.IsNullOrWhiteSpace(sessionId) ? $"person-{person.Id}" : sessionId!;
+    /// <summary>Each person has their own Sous conversation; sessionId is server-derived to prevent cross-person hijacking.</summary>
+    private static string SessionOf(PersonScope person) => $"person-{person.Id}";
 
     private static string? ThreadOf(string? metadataJson)
     {

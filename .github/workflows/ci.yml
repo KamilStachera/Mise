@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mise_ci
+          POSTGRES_USER: mise
+          POSTGRES_PASSWORD: mise_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Run backend unit and regression tests
+        run: dotnet test Mise.sln --nologo
+      - name: Verify EF Core migrations apply cleanly on PostgreSQL 16
+        env:
+          ConnectionStrings__Default: Host=localhost;Port=5432;Database=mise_ci;Username=mise;Password=mise_ci_password
+        run: |
+          dotnet tool install -g dotnet-ef --version '9.*'
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef database update --project backend/Mise.Api.csproj
+          dotnet ef migrations has-pending-model-changes --project backend/Mise.Api.csproj
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:unit
+      - run: npm run test:zmierzch
+
+  mcp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp/package-lock.json
+      - run: npm ci
+      - run: npm run build

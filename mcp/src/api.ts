@@ -8,6 +8,8 @@ const API_KEY = process.env.MISE_API_KEY
 // unset = the key's own person. Sous sets it per signed-in person.
 const PERSON = process.env.MISE_PERSON?.trim()
 
+const REQUEST_TIMEOUT_MS = Number(process.env.MISE_API_TIMEOUT_MS ?? 45_000)
+
 export async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   // FormData goes through as-is (fetch sets the multipart boundary header itself).
   const isForm = body instanceof FormData
@@ -22,6 +24,7 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
       method,
       headers,
       body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
   } catch (e) {
     throw new Error(
@@ -35,7 +38,12 @@ export async function call<T>(method: string, path: string, body?: unknown): Pro
     )
   }
   if (!res.ok) throw new Error(`Pichci API ${res.status} ${res.statusText}: ${text}`)
-  return (text ? JSON.parse(text) : undefined) as T
+  if (!text) return undefined as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return text as T
+  }
 }
 
 export const get = <T>(path: string) => call<T>('GET', path)

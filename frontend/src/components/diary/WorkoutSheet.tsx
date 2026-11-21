@@ -31,19 +31,24 @@ export function WorkoutSheet({ open, onClose, weightKg, addBackPercent }: {
     setTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`)
   }, [open])
 
-  const min = Number(minutes)
+  const parseNum = (s: string) => {
+    const trimmed = s.replace(',', '.').trim()
+    if (!trimmed) return Number.NaN
+    return Number(trimmed)
+  }
+  const min = parseNum(minutes)
   const met = TYPES.find(([t]) => t === type)?.[1] ?? 5
-  const estimate = weightKg && min > 0 ? Math.round(((met - 1) * weightKg * min) / 60 / 10) * 10 : null
-  const kcalValue = kcal.trim() === '' ? estimate : Number(kcal)
-  const valid = min > 0 && min <= 600 && kcalValue != null && Number.isFinite(kcalValue) && kcalValue >= 0
-  const bonus = kcalValue != null ? Math.round((kcalValue * addBackPercent) / 100) : 0
+  const estimate = weightKg && Number.isFinite(min) && min > 0 ? Math.round(((met - 1) * weightKg * min) / 60 / 10) * 10 : null
+  const kcalValue = kcal.trim() === '' ? estimate : parseNum(kcal)
+  const valid = Number.isFinite(min) && min > 0 && min <= 600 && kcalValue != null && Number.isFinite(kcalValue) && kcalValue >= 0
+  const bonus = kcalValue != null && Number.isFinite(kcalValue) ? Math.round((kcalValue * addBackPercent) / 100) : 0
 
   async function save() {
     if (!valid) return
     await add.mutateAsync({
       date: toISO(when === 'today' ? new Date() : addDays(new Date(), -1)),
       type,
-      minutes: min,
+      minutes: Math.round(min),
       kcal: Math.round(kcalValue!),
       time: time || undefined,
     })

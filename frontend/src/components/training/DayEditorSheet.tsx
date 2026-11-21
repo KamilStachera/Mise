@@ -16,8 +16,7 @@ interface Row {
   name: string
   isTimed: boolean
   sets: string
-  repsMin: string
-  repsMax: string
+  reps: string
   seconds: string
   rest: string
   kg: string
@@ -36,6 +35,22 @@ const num = (s: string): number | null => {
   return s.trim() === '' || !Number.isFinite(v) ? null : v
 }
 const str = (n: number | null | undefined) => (n == null ? '' : String(n).replace('.', ','))
+
+export function formatRepsRange(min: number | null | undefined, max: number | null | undefined): string {
+  if (min == null && max == null) return ''
+  if (min == null) return String(max)
+  if (max == null || min === max) return String(min)
+  return `${min}-${max}`
+}
+
+export function parseRepsRange(raw: string): { repsMin: number | null; repsMax: number | null } {
+  const trimmed = raw.trim()
+  if (!trimmed) return { repsMin: null, repsMax: null }
+  const parts = trimmed.split(/[-–—]/).map((p) => p.trim()).filter(Boolean)
+  const lo = parts[0] != null ? num(parts[0]) : null
+  const hi = parts[1] != null ? num(parts[1]) : lo
+  return { repsMin: lo, repsMax: hi }
+}
 
 /**
  * Edit (or add) one plan day: name, weekday, where, and either the exercise list
@@ -70,7 +85,7 @@ export function DayEditorSheet({ target, onClose }: { target: DayEditorTarget | 
     setWorkoutType(d?.video?.workoutType ?? '')
     setRows((d?.exercises ?? []).map((e) => ({
       key: e.id, exerciseId: e.exerciseId, name: e.name, isTimed: e.seconds != null,
-      sets: str(e.sets), repsMin: str(e.repsMin), repsMax: str(e.repsMax), seconds: str(e.seconds),
+      sets: str(e.sets), reps: formatRepsRange(e.repsMin, e.repsMax), seconds: str(e.seconds),
       rest: str(e.restSeconds), kg: str(e.targetKg),
     })))
     setError(null)
@@ -90,7 +105,7 @@ export function DayEditorSheet({ target, onClose }: { target: DayEditorTarget | 
   const add = (e: ExerciseListItem) => {
     setRows((rs) => [...rs, {
       key: `new-${Date.now()}`, exerciseId: e.id, name: e.name, isTimed: e.isTimed,
-      sets: '3', repsMin: e.isTimed ? '' : '10', repsMax: e.isTimed ? '' : '12', seconds: e.isTimed ? '30' : '',
+      sets: '3', reps: e.isTimed ? '' : '10-12', seconds: e.isTimed ? '30' : '',
       rest: e.isTimed ? '45' : '75', kg: '',
     }])
     setPicker(false)
@@ -107,7 +122,7 @@ export function DayEditorSheet({ target, onClose }: { target: DayEditorTarget | 
               sets: num(r.sets) ?? 3,
               ...(r.isTimed
                 ? { seconds: num(r.seconds) }
-                : { repsMin: num(r.repsMin), repsMax: num(r.repsMax) }),
+                : parseRepsRange(r.reps)),
               restSeconds: num(r.rest) ?? 60,
               targetKg: num(r.kg),
             })),
@@ -197,11 +212,8 @@ export function DayEditorSheet({ target, onClose }: { target: DayEditorTarget | 
                         <input
                           aria-label="Powtórzenia"
                           style={small}
-                          value={r.repsMin === r.repsMax || !r.repsMax ? r.repsMin : `${r.repsMin}-${r.repsMax}`}
-                          onChange={(e) => {
-                            const [lo, hi] = e.target.value.split(/[-–]/)
-                            update(r.key, { repsMin: lo ?? '', repsMax: hi ?? lo ?? '' })
-                          }}
+                          value={r.reps}
+                          onChange={(e) => update(r.key, { reps: e.target.value })}
                           placeholder="10-12"
                         />
                       )}
@@ -212,8 +224,8 @@ export function DayEditorSheet({ target, onClose }: { target: DayEditorTarget | 
                       <RowAction disabled={i === 0} onClick={() => move(i, -1)}>↑ wyżej</RowAction>
                       <RowAction disabled={i === rows.length - 1} onClick={() => move(i, 1)}>↓ niżej</RowAction>
                       <RowAction onClick={() => update(r.key, r.isTimed
-                        ? { isTimed: false, repsMin: '10', repsMax: '12', seconds: '' }
-                        : { isTimed: true, seconds: '30', repsMin: '', repsMax: '' })}>
+                        ? { isTimed: false, reps: '10-12', seconds: '' }
+                        : { isTimed: true, seconds: '30', reps: '' })}>
                         {r.isTimed ? 'na powtórzenia' : 'na czas'}
                       </RowAction>
                       <RowAction danger onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>usuń</RowAction>

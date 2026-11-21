@@ -33,7 +33,11 @@ export function TrainingQuestionnaire() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!profile?.configured) return
+    if (!profile) return
+    if (!profile.configured) {
+      setForm(DEFAULTS)
+      return
+    }
     const { configured: _c, updatedAt: _u, ...rest } = profile
     setForm(rest)
   }, [profile])

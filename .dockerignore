@@ -1,11 +1,29 @@
+# Secrets & local data dumps (never ship into Docker build context)
+.env
+*.env.local
+mise.sql
+mise-images/
+context/
+output/
+tmp/
+*.zip
+*.log
+
+# Dev tooling, tests & docs not needed by container builds
+.git/
+.github/
+.claude/
+.vs/
+.idea/
+.vscode/
+docs/
+backend.tests/
+frontend/tests/
+
+# Build artifacts & dependencies
 **/bin/
 **/obj/
 **/node_modules/
 **/dist/
 **/.vite/
-.git/
-.vs/
-.idea/
-.vscode/
-context/
-*.log
+**/*.tsbuildinfo

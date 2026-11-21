@@ -38,12 +38,15 @@ export function FoodShoppingList() {
   const [name, setName] = useState('')
   const [layout, setLayout] = useState<ShoppingLayout>(savedLayout)
 
-  const items = data?.items ?? []
+  const items = useMemo(() => data?.items ?? [], [data])
   const total = data?.total ?? 0
   const done = data?.checkedCount ?? 0
-  const unchecked = items.filter((s) => !s.checked)
-  const checked = items.filter((s) => s.checked)
-  const groups = layout === 'lidl' ? lidlShoppingGroups(unchecked) : alphabeticalShoppingGroups(unchecked)
+  const unchecked = useMemo(() => items.filter((s) => !s.checked), [items])
+  const checked = useMemo(() => items.filter((s) => s.checked), [items])
+  const groups = useMemo(
+    () => (layout === 'lidl' ? lidlShoppingGroups(unchecked) : alphabeticalShoppingGroups(unchecked)),
+    [layout, unchecked],
+  )
 
   // "Dla przepisów": which recipes the open rows serve, with how many rows each.
   const forRecipes = useMemo(() => {

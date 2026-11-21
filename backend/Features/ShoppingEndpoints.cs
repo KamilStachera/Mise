@@ -33,28 +33,41 @@ public static class ShoppingEndpoints
         g.MapPatch("/{id:guid}/check", async (Guid id, ShoppingCheckInput? input,
             MiseDbContext db, ContextExportService export) =>
         {
-            var item = await db.ShoppingItems.FirstOrDefaultAsync(s => s.Id == id);
+            var item = await db.ShoppingItems.Include(s => s.Contributions)
+                .FirstOrDefaultAsync(s => s.Id == id);
             if (item is null) return Results.NotFound();
             item.Checked = input?.Checked ?? !item.Checked;
             await db.SaveChangesAsync();
-            await export.ExportAsync();
-            return Results.Ok(Mapping.ToDto(item));
+            export.Schedule();
+            var recipesByKey = await ResolveContributionRecipesAsync(db, [item]);
+            var recipes = item.Contributions
+                .Select(c => recipesByKey.GetValueOrDefault(c.SourceKey))
+                .OfType<ShoppingRecipeRefDto>()
+                .DistinctBy(r => r.Id)
+                .ToList();
+            return Results.Ok(Mapping.ToDto(item, recipes));
         });
 
         g.MapPost("/", async (ShoppingItemInput input, MiseDbContext db,
             IngredientMatcher matcher, ContextExportService export) =>
         {
-            if (string.IsNullOrWhiteSpace(input.Name)) return Results.BadRequest();
+            var name = input.Name?.Trim() ?? "";
+            if (name.Length == 0) return Results.BadRequest(new { error = "Podaj nazwę." });
+            if (name.Length > 200) return Results.BadRequest(new { error = "Nazwa może mieć maks. 200 znaków." });
+            if ((input.Category?.Trim().Length ?? 0) > 60)
+                return Results.BadRequest(new { error = "Kategoria może mieć maks. 60 znaków." });
+            if ((input.Reason?.Trim().Length ?? 0) > 500)
+                return Results.BadRequest(new { error = "Powód może mieć maks. 500 znaków." });
             if (!Mapping.TryParseUnit(input.Unit, out var unit))
                 return Results.BadRequest(new { error = "Nieznana jednostka.", allowed = Mapping.AllowedUnits });
 
             // Best-effort pantry link so a later receipt scan can tie the purchase back.
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
-            var match = matcher.FindMatch(input.Name, pantry);
+            var match = matcher.FindMatch(name, pantry);
 
             var item = new ShoppingItem
             {
-                Name = input.Name.Trim(),
+                Name = name,
                 Category = string.IsNullOrWhiteSpace(input.Category) ? "Other" : input.Category!.Trim(),
                 Reason = string.IsNullOrWhiteSpace(input.Reason) ? "Dodane ręcznie" : input.Reason!.Trim(),
                 Origin = ShoppingOrigin.Manual,
@@ -64,7 +77,7 @@ public static class ShoppingEndpoints
             };
             db.ShoppingItems.Add(item);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Created($"/api/shopping/{item.Id}", Mapping.ToDto(item));
         });
 
@@ -74,7 +87,7 @@ public static class ShoppingEndpoints
             if (item is null) return Results.NotFound();
             db.ShoppingItems.Remove(item);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.NoContent();
         });
 
@@ -82,9 +95,12 @@ public static class ShoppingEndpoints
         g.MapPost("/clear-checked", async (MiseDbContext db, ContextExportService export) =>
         {
             var checkedItems = await db.ShoppingItems.Where(s => s.Checked).ToListAsync();
-            db.ShoppingItems.RemoveRange(checkedItems);
-            await db.SaveChangesAsync();
-            await export.ExportAsync();
+            if (checkedItems.Count > 0)
+            {
+                db.ShoppingItems.RemoveRange(checkedItems);
+                await db.SaveChangesAsync();
+                export.Schedule();
+            }
             return Results.Ok(new { removed = checkedItems.Count });
         });
 
@@ -92,9 +108,12 @@ public static class ShoppingEndpoints
         g.MapPost("/clear", async (MiseDbContext db, ContextExportService export) =>
         {
             var all = await db.ShoppingItems.ToListAsync();
-            db.ShoppingItems.RemoveRange(all);
-            await db.SaveChangesAsync();
-            await export.ExportAsync();
+            if (all.Count > 0)
+            {
+                db.ShoppingItems.RemoveRange(all);
+                await db.SaveChangesAsync();
+                export.Schedule();
+            }
             return Results.Ok(new { removed = all.Count });
         });
 
@@ -109,6 +128,7 @@ public static class ShoppingEndpoints
         MiseDbContext db, List<ShoppingItem> items)
     {
         var keys = items.SelectMany(i => i.Contributions).Select(c => c.SourceKey).Distinct().ToList();
+        if (keys.Count == 0) return new Dictionary<string, ShoppingRecipeRefDto>();
         static Guid? IdOf(string key, string prefix) =>
             key.StartsWith(prefix, StringComparison.Ordinal) && Guid.TryParse(key[prefix.Length..], out var id) ? id : null;
 
@@ -125,6 +145,7 @@ public static class ShoppingEndpoints
         }
 
         var recipeIds = recipeOfKey.Values.Distinct().ToList();
+        if (recipeIds.Count == 0) return new Dictionary<string, ShoppingRecipeRefDto>();
         var recipes = await db.Recipes.AsNoTracking()
             .Where(r => recipeIds.Contains(r.Id))
             .Select(r => new { r.Id, r.Title, r.ImagePath })

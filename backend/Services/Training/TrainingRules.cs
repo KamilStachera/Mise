@@ -47,6 +47,7 @@ public static class TrainingRules
         var styles = p.Styles;
         if (input.Styles is not null)
         {
+            if (input.Styles.Any(s => string.IsNullOrWhiteSpace(s))) return Allowed("styles", Styles);
             styles = input.Styles.Select(s => s.Trim().ToLowerInvariant()).Distinct().ToList();
             if (styles.Any(s => !Styles.Contains(s))) return Allowed("styles", Styles);
         }

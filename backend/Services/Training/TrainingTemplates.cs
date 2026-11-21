@@ -87,11 +87,9 @@ public static partial class TrainingTemplates
                 ". Taki plan ułoży Sous albo dopisz w ankiecie trening siłowy.");
 
         var days = Math.Clamp(profile.DaysPerWeek, 1, 6);
-        var home = profile.Location != TrainingLocation.Gym;
+        var home = profile.Location == TrainingLocation.Home;
         // The questionnaire stores the home kit without bodyweight (implied): an empty kit = bodyweight only.
-        IReadOnlySet<ExerciseEquipment>? allowed = !home ? null
-            : profile.HomeEquipment.Count == 0 ? new HashSet<ExerciseEquipment> { ExerciseEquipment.BodyOnly }
-            : ExerciseAlternatives.AllowedFor("home", profile);
+        IReadOnlySet<ExerciseEquipment>? allowed = home ? ExerciseAlternatives.AllowedFor("home", profile) : null;
         var perDay = profile.MinutesPerSession switch { <= 30 => 4, <= 45 => 5, <= 60 => 6, _ => 7 };
         var dose = DoseFor(profile.Goal, profile.Level);
 
@@ -134,14 +132,19 @@ public static partial class TrainingTemplates
             {
                 if (ProgramSchedule.DateOf(start, week, weekdays[i]) < start) continue; // week 1 starts today
                 var (name, picks) = workouts[i];
-                inputs.Add(new ProgramDayInput(week, weekdays[i], name, "exercises", home ? "home" : "gym",
+                inputs.Add(new ProgramDayInput(week, weekdays[i], name, "exercises", ExerciseTokens.Of(profile.Location),
                     WeekNote(week), null, null, null,
                     picks.Select((e, order) => Prescribe(e, order < 2, dose, week)).ToList()));
             }
         }
 
         var split = workouts.Count switch { <= 3 => "całe ciało", _ => "góra / dół" };
-        var where = home ? "w domu" : "na siłowni";
+        var where = profile.Location switch
+        {
+            TrainingLocation.Home => "w domu",
+            TrainingLocation.Gym => "na siłowni",
+            _ => "w domu lub na siłowni",
+        };
         var input = new TrainingProgramInput(
             Name: $"Plan z szablonu: {split}, {workouts.Count}× w tygodniu",
             Description: $"{Weeks} tygodni, {where}, ok. {profile.MinutesPerSession} min na trening.",

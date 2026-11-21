@@ -1,33 +1,41 @@
 // Sous runner: one Codex turn per HTTP request, signed in with the household's ChatGPT
 // plan (CODEX_HOME holds auth.json + thread sessions). Internal only — the api container
-// is the sole caller and does the auth; never publish this port.
+// is the sole caller and authenticates via X-Sous-Secret; never publish this port.
 //
-//   POST /turn  { prompt, instructions, threadId?, person, household }  → NDJSON stream of
+//   POST /turn  { prompt, instructions, threadId?, person, household, token } → NDJSON stream of
 //               { status } | { delta } | { threadId } | { error } … then { done: true }
 //   POST /job   { prompt, outputSchema } → { text } (JSON matching the schema) | { error, limit }
 //               A one-off background task (exercise descriptions): fresh thread, live web
 //               search, no MCP tools — the api validates and saves the result itself.
 //   GET  /health → { ok, loggedIn }
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { Codex } from '@openai/codex-sdk'
 
 const PORT = Number(process.env.PORT ?? 8090)
-const CONTEXT_DIR = process.env.CONTEXT_DIR ?? '/context'
 const MCP_ENTRY = process.env.MCP_ENTRY ?? '/app/mcp/dist/index.js'
-const CODEX_HOME = process.env.CODEX_HOME ?? join(process.env.HOME ?? '/root', '.codex')
+const CODEX_HOME = process.env.CODEX_HOME ?? join(process.env.HOME ?? '/data', '.codex')
+const MAX_BODY_BYTES = 256 * 1024
+const MAX_CONCURRENT = Number(process.env.SOUS_MAX_CONCURRENT ?? 3)
+const SOUS_SECRET = process.env.SOUS_SECRET?.trim()
+  || (process.env.MISE_API_KEY?.trim()
+    ? createHash('sha256').update('pichci-sous-internal:' + process.env.MISE_API_KEY.trim()).digest('hex')
+    : '')
 
-// Each household's context export lives in its own subfolder (CONTEXT_DIR/<householdId>).
-const threadOptionsFor = (household) => ({
-  ...threadOptions,
-  workingDirectory: join(CONTEXT_DIR, String(Number(household) || 1)),
-})
+function authorized(req) {
+  if (!SOUS_SECRET) return true
+  const got = String(req.headers['x-sous-secret'] ?? '')
+  const a = Buffer.from(got, 'utf8')
+  const b = Buffer.from(SOUS_SECRET, 'utf8')
+  return a.length === b.length && timingSafeEqual(a, b)
+}
 
+// No /context mount: Sous reads and writes strictly through its per-turn household-scoped MCP tools.
 const threadOptions = {
-  workingDirectory: CONTEXT_DIR,
+  workingDirectory: '/tmp',
   skipGitRepoCheck: true,
-  // Reads the context files; every write goes through the pichci MCP tools.
   sandboxMode: 'read-only',
   approvalPolicy: 'never',
   networkAccessEnabled: false,
@@ -36,8 +44,8 @@ const threadOptions = {
   ...(process.env.SOUS_MODEL ? { model: process.env.SOUS_MODEL } : {}),
 }
 
-/** One Codex per person: the MCP server's env decides whose diary (and household) the tools write to. */
-function codexFor(person) {
+/** One Codex per turn: the short-lived token pins the MCP server to one (household, person). */
+function codexFor(person, token) {
   return new Codex({
     config: {
       mcp_servers: {
@@ -49,8 +57,9 @@ function codexFor(person) {
           default_tools_approval_mode: 'approve',
           env: {
             MISE_API_URL: process.env.MISE_API_URL ?? 'http://api:8080',
-            MISE_API_KEY: process.env.MISE_API_KEY ?? '',
+            MISE_API_KEY: token,
             MISE_PERSON: String(person),
+            MISE_ALLOWED_IMAGE_DIR: join(CODEX_HOME, 'generated_images'),
           },
         },
       },
@@ -87,10 +96,12 @@ function statusOf(item) {
   }
 }
 
-async function runTurn({ prompt, instructions, threadId, person, household }, send, signal) {
-  if (!person) throw new Error('person is required')
-  const codex = codexFor(person)
-  const options = threadOptionsFor(household)
+async function runTurn({ prompt, instructions, threadId, person, household, token }, send, signal) {
+  if (!Number.isInteger(person) || person <= 0) throw new Error('person is required')
+  if (!Number.isInteger(household) || household <= 0) throw new Error('household is required')
+  if (typeof token !== 'string' || !token) throw new Error('token is required')
+  const codex = codexFor(person, token)
+  const options = threadOptions
   let thread = threadId ? codex.resumeThread(threadId, options) : codex.startThread(options)
   let input = threadId ? prompt : `${instructions}\n\n${prompt}`
   let started = false
@@ -164,12 +175,28 @@ async function runJob({ prompt, outputSchema }, signal) {
 const isLimit = (message) => /usage limit|rate limit|429/i.test(message)
 
 async function readJson(req) {
-  let raw = ''
-  for await (const chunk of req) raw += chunk
-  return JSON.parse(raw)
+  const chunks = []
+  let total = 0
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    total += buf.length
+    if (total > MAX_BODY_BYTES) throw new Error('body too large')
+    chunks.push(buf)
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
+let inFlight = 0
+
 async function handleJob(req, res) {
+  if (!authorized(req)) {
+    res.writeHead(401).end()
+    return
+  }
+  if (inFlight >= MAX_CONCURRENT) {
+    res.writeHead(429, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'busy' }))
+    return
+  }
   let body
   try {
     body = await readJson(req)
@@ -181,18 +208,23 @@ async function handleJob(req, res) {
   const abort = new AbortController()
   res.on('close', () => { if (!res.writableFinished) abort.abort() })
   const t0 = Date.now()
+  inFlight++
   try {
     if (!loggedIn()) throw new Error('not logged in')
     const out = await runJob(body, abort.signal)
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify(out))
+    if (!res.destroyed) {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(out))
+    }
     console.log(`job ok ${Date.now() - t0} ms`)
   } catch (e) {
     console.error(`job failed after ${Date.now() - t0} ms: ${e.message}`)
-    if (!abort.signal.aborted) {
+    if (!abort.signal.aborted && !res.destroyed) {
       res.writeHead(502, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: e.message, limit: isLimit(e.message) }))
     }
+  } finally {
+    inFlight--
   }
 }
 
@@ -210,24 +242,34 @@ createServer(async (req, res) => {
     res.writeHead(404).end()
     return
   }
+  if (!authorized(req)) {
+    res.writeHead(401).end()
+    return
+  }
+  if (inFlight >= MAX_CONCURRENT) {
+    res.writeHead(429, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'busy' }))
+    return
+  }
 
   let body
   try {
-    let raw = ''
-    for await (const chunk of req) raw += chunk
-    body = JSON.parse(raw)
+    body = await readJson(req)
     if (typeof body.prompt !== 'string' || !body.prompt.trim()) throw new Error('prompt')
+    if (!Number.isInteger(body.person) || body.person <= 0) throw new Error('person')
+    if (!Number.isInteger(body.household) || body.household <= 0) throw new Error('household')
+    if (typeof body.token !== 'string' || !body.token) throw new Error('token')
   } catch {
     res.writeHead(400).end()
     return
   }
 
   res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' })
-  const send = (obj) => res.write(JSON.stringify(obj) + '\n')
+  const send = (obj) => { if (!res.destroyed && !res.writableEnded) res.write(JSON.stringify(obj) + '\n') }
   const abort = new AbortController()
   res.on('close', () => { if (!res.writableFinished) abort.abort() })
 
   const t0 = Date.now()
+  inFlight++
   try {
     if (!loggedIn()) throw new Error('not logged in')
     await runTurn(body, send, abort.signal)
@@ -236,8 +278,10 @@ createServer(async (req, res) => {
       console.error(`turn failed: ${e.message}`)
       send({ error: friendly(e.message) })
     }
+  } finally {
+    inFlight--
   }
   console.log(`turn household=${body.household} person=${body.person} ${body.threadId ? 'resume' : 'new'} ${Date.now() - t0} ms`)
   send({ done: true })
-  res.end()
-}).listen(PORT, () => console.log(`sous listening on :${PORT}, context ${CONTEXT_DIR}, logged in: ${loggedIn()}`))
+  if (!res.destroyed && !res.writableEnded) res.end()
+}).listen(PORT, () => console.log(`sous listening on :${PORT}, logged in: ${loggedIn()}`))

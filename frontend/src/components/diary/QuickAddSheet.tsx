@@ -144,13 +144,13 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
 
   return (
     <>
-    {scanning && <BarcodeScanner onCode={onCode} onManual={() => { setScanning(false); setView('code') }} onClose={() => setScanning(false)} />}
+    {open && scanning && <BarcodeScanner onCode={onCode} onManual={() => { setScanning(false); setView('code') }} onClose={() => setScanning(false)} />}
     <Sheet open={open} onClose={onClose} title={title} width={520}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Segmented value={slot} onChange={setSlot} items={DIARY_SLOTS.map((s) => ({ key: s, label: slotLabel[s] }))} />
 
         {view === 'product' && product ? (
-          <ScannedProduct product={product} date={date} slot={slot} onRescan={startScan} onDone={onClose} />
+          <ScannedProduct key={product.barcode} product={product} date={date} slot={slot} onRescan={startScan} onDone={onClose} />
         ) : view === 'code' ? (
           <>
             <p style={{ margin: 0, font: sans(14.5), lineHeight: 1.5, color: 'var(--text-2)' }}>Cyfry spod kodu kreskowego (8–13 cyfr).</p>

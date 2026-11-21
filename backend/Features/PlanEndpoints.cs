@@ -49,6 +49,10 @@ public static class PlanEndpoints
         {
             var slot = Mapping.ParseSlot(input.Slot);
             var title = input.Title?.Trim() ?? "";
+            if (title.Length > 300)
+                return Results.BadRequest(new { error = "Nazwa może mieć maks. 300 znaków." });
+            if ((input.Note?.Length ?? 0) > 1000)
+                return Results.BadRequest(new { error = "Notatka może mieć maks. 1000 znaków." });
             Recipe? recipe = null;
             if (input.RecipeId is Guid rid)
             {
@@ -74,7 +78,7 @@ public static class PlanEndpoints
             entry.Note = input.Note?.Trim() ?? "";
             entry.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(Mapping.ToDto(entry, cooked: false));
         });
 
@@ -90,16 +94,17 @@ public static class PlanEndpoints
                     input.Portions, input.Grams, input.Kcal, input.Protein, input.Fat, input.Carbs, input.Eaten);
                 if (input.Favorite is { } f)
                     await diary.RememberAsync(f.Name, f.Kcal, f.Protein, f.Fat, f.Carbs, f.Per100g, f.LastGrams, f.Barcode);
-                await export.ExportAsync();
+                if (entry.Slot != MealSlot.Snack && (entry.RecipeId is not null || entry.Kcal is null))
+                    export.Schedule();
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
             catch (DiaryException ex) { return Error(ex); }
         });
 
-        g.MapPatch("/entry/{id:guid}", async (Guid id, PlanEntryPatch input, MiseDbContext db, ContextExportService export) =>
+        g.MapPatch("/entry/{id:guid}", async (Guid id, PlanEntryPatch input, MiseDbContext db, PersonScope person, ContextExportService export) =>
         {
             var entry = await db.PlanEntries.Include(e => e.Recipe).Include(e => e.Cook)
-                .FirstOrDefaultAsync(e => e.Id == id);
+                .FirstOrDefaultAsync(e => e.Id == id && e.PersonId == person.Id);
             if (entry is null) return Results.NotFound();
 
             if (input.Slot is not null)
@@ -116,7 +121,11 @@ public static class PlanEndpoints
                 entry.Date = date;
                 if (entry.Cook is not null && !entry.IsLeftover) entry.Cook.Date = date;
             }
-            if (input.Note is not null) entry.Note = input.Note.Trim();
+            if (input.Note is not null)
+            {
+                if (input.Note.Length > 1000) return Results.BadRequest(new { error = "Notatka może mieć maks. 1000 znaków." });
+                entry.Note = input.Note.Trim();
+            }
             var portionsChanged = false;
             if (entry.RecipeId is not null)
             {
@@ -129,12 +138,20 @@ public static class PlanEndpoints
             }
             else
             {
-                if (input.Title is { } t && t.Trim().Length > 0) entry.Title = t.Trim();
+                if (input.Title is { } t && t.Trim().Length > 0)
+                {
+                    if (t.Trim().Length > 300) return Results.BadRequest(new { error = "Nazwa może mieć maks. 300 znaków." });
+                    entry.Title = t.Trim();
+                }
                 if (input.Kcal is int kcal)
                 {
                     if (kcal is < 0 or > 10000) return Results.BadRequest(new { error = "Kcal poza zakresem." });
                     entry.Kcal = kcal;
                 }
+                if (input.Protein is < 0 or > 10000 || input.Fat is < 0 or > 10000 || input.Carbs is < 0 or > 10000)
+                    return Results.BadRequest(new { error = "Makroskładniki poza zakresem." });
+                if (input.Grams is < 0 or > 100000)
+                    return Results.BadRequest(new { error = "Gramatura poza zakresem." });
                 if (input.Protein is not null) entry.Protein = input.Protein;
                 if (input.Fat is not null) entry.Fat = input.Fat;
                 if (input.Carbs is not null) entry.Carbs = input.Carbs;
@@ -144,7 +161,7 @@ public static class PlanEndpoints
             else if (portionsChanged) DiaryService.Snapshot(entry);
             entry.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            if (!entry.IsCatering && entry.Slot != MealSlot.Snack) export.Schedule();
             return Results.Ok(Mapping.ToDto(entry, cooked: false));
         });
 
@@ -193,7 +210,7 @@ public static class PlanEndpoints
         g.MapDelete("/entry/{id:guid}", async (Guid id, DiaryService diary, ContextExportService export) =>
         {
             if (!await diary.DeleteEntryAsync(id)) return Results.NotFound();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.NoContent();
         });
 
@@ -231,7 +248,7 @@ public static class PlanEndpoints
                 db, selection.Sources, selection.ScopeKeys);
             await tx.CommitAsync();
             if (result.Added > 0 || result.Updated > 0 || (input.Confirmations?.Count ?? 0) > 0)
-                await export.ExportAsync();
+                export.Schedule();
             return Results.Ok(new ShoppingAddResultDto(result.Added, result.Updated));
         });
 

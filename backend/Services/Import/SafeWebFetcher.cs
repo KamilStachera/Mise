@@ -18,6 +18,8 @@ public sealed class FetchRefusedException(string message) : Exception(message);
 public sealed class SafeWebFetcher : IDisposable
 {
     public const int MaxBytes = 20 * 1024 * 1024;
+    public const int MaxRedirects = 5;
+    private static readonly TimeSpan TotalTimeout = TimeSpan.FromSeconds(30);
     private readonly HttpClient _http;
 
     public SafeWebFetcher()
@@ -25,13 +27,13 @@ public sealed class SafeWebFetcher : IDisposable
         var handler = new SocketsHttpHandler
         {
             UseProxy = false,
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5,
+            // Manual redirect loop so every Location goes through ValidateUrl (scheme, port, UserInfo).
+            AllowAutoRedirect = false,
             AutomaticDecompression = DecompressionMethods.All,
             ConnectTimeout = TimeSpan.FromSeconds(10),
             ConnectCallback = ConnectPublicOnlyAsync,
         };
-        _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+        _http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         // Many recipe sites serve bots a stripped page or a 403; a plain browser UA gets the real one.
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36");
@@ -49,60 +51,95 @@ public sealed class SafeWebFetcher : IDisposable
             throw new FetchRefusedException("Adres z loginem/hasłem nie jest obsługiwany.");
         if (!uri.IsDefaultPort)
             throw new FetchRefusedException("Obsługiwane są tylko zwykłe adresy (port 80/443).");
-        if (IPAddress.TryParse(uri.IdnHost, out var ip) && !IsPublic(ip))
-            throw new FetchRefusedException("Ten adres wskazuje na sieć prywatną — mogę czytać tylko publiczne strony.");
-        if (uri.IdnHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) || !uri.IdnHost.Contains('.'))
+        var host = uri.IdnHost.Trim('[', ']');
+        if (IPAddress.TryParse(host, out var ip))
+        {
+            if (!IsPublic(ip))
+                throw new FetchRefusedException("Ten adres wskazuje na sieć prywatną — mogę czytać tylko publiczne strony.");
+            return uri;
+        }
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || !host.Contains('.'))
             throw new FetchRefusedException("Ten adres wskazuje na sieć prywatną — mogę czytać tylko publiczne strony.");
         return uri;
     }
 
-    public async Task<FetchedResource> FetchAsync(string url, CancellationToken ct)
+    public async Task<FetchedResource> FetchAsync(string url, CancellationToken ct, int maxBytes = MaxBytes)
     {
-        var uri = ValidateUrl(url);
-        HttpResponseMessage res;
+        var limit = Math.Clamp(maxBytes, 1, MaxBytes);
+        var current = ValidateUrl(url);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TotalTimeout);
+        var token = timeout.Token;
+
+        HttpResponseMessage? res = null;
         try
         {
-            res = await _http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
+            for (var hop = 0; hop <= MaxRedirects; hop++)
+            {
+                res = await _http.GetAsync(current, HttpCompletionOption.ResponseHeadersRead, token);
+                if ((int)res.StatusCode is >= 300 and <= 399 && res.Headers.Location is { } loc)
+                {
+                    res.Dispose();
+                    res = null;
+                    if (hop == MaxRedirects)
+                        throw new FetchRefusedException("Strona przekierowała zbyt wiele razy.");
+                    var next = loc.IsAbsoluteUri ? loc : new Uri(current, loc);
+                    current = ValidateUrl(next.ToString());
+                    continue;
+                }
+                break;
+            }
         }
+        catch (FetchRefusedException) { res?.Dispose(); throw; }
         catch (HttpRequestException e) when (e.InnerException is FetchRefusedException refused)
         {
+            res?.Dispose();
             throw refused;
         }
         catch (HttpRequestException e)
         {
+            res?.Dispose();
             throw new FetchRefusedException($"Nie udało się połączyć ze stroną ({e.Message}).");
         }
-        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            res?.Dispose();
             throw new FetchRefusedException("Strona nie odpowiedziała w 30 s.");
         }
 
-        using (res)
-        {
-            if (!res.IsSuccessStatusCode)
-                throw new FetchRefusedException($"Strona odpowiedziała błędem {(int)res.StatusCode} {res.ReasonPhrase}"
-                    + ((int)res.StatusCode is 401 or 403 ? " — pewnie blokuje automaty albo wymaga logowania." : "."));
-            if (res.Content.Headers.ContentLength > MaxBytes)
-                throw new FetchRefusedException("Plik jest za duży (limit 20 MB).");
+        using var response = res!;
+        if (!response.IsSuccessStatusCode)
+            throw new FetchRefusedException($"Strona odpowiedziała błędem {(int)response.StatusCode} {response.ReasonPhrase}"
+                + ((int)response.StatusCode is 401 or 403 ? " — pewnie blokuje automaty albo wymaga logowania." : "."));
+        if (response.Content.Headers.ContentLength > limit)
+            throw new FetchRefusedException($"Plik jest za duży (limit {limit / (1024 * 1024)} MB).");
 
-            await using var stream = await res.Content.ReadAsStreamAsync(ct);
+        try
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(token);
             using var buffer = new MemoryStream();
             var chunk = new byte[81920];
             int read;
-            while ((read = await stream.ReadAsync(chunk, ct)) > 0)
+            while ((read = await stream.ReadAsync(chunk, token)) > 0)
             {
-                if (buffer.Length + read > MaxBytes)
-                    throw new FetchRefusedException("Plik jest za duży (limit 20 MB).");
+                if (buffer.Length + read > limit)
+                    throw new FetchRefusedException($"Plik jest za duży (limit {limit / (1024 * 1024)} MB).");
                 buffer.Write(chunk, 0, read);
             }
 
-            MediaTypeHeaderValue? type = res.Content.Headers.ContentType;
-            return new FetchedResource(res.RequestMessage?.RequestUri ?? uri, type?.MediaType, type?.CharSet, buffer.ToArray());
+            MediaTypeHeaderValue? type = response.Content.Headers.ContentType;
+            return new FetchedResource(current, type?.MediaType, type?.CharSet, buffer.ToArray());
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new FetchRefusedException("Strona nie odpowiedziała w 30 s.");
         }
     }
 
     private static async ValueTask<Stream> ConnectPublicOnlyAsync(SocketsHttpConnectionContext context, CancellationToken ct)
     {
+        if (context.DnsEndPoint.Port is not (80 or 443))
+            throw new FetchRefusedException("Obsługiwane są tylko zwykłe adresy (port 80/443).");
         var host = context.DnsEndPoint.Host;
         var addresses = IPAddress.TryParse(host, out var literal)
             ? [literal]

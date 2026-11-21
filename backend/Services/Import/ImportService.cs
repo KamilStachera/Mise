@@ -50,7 +50,7 @@ public sealed class ImportService(MiseDbContext db, SafeWebFetcher fetcher)
 
     public async Task<DocumentInfo> SaveDocumentAsync(string name, string? sourceUrl, byte[] bytes, CancellationToken ct)
     {
-        var pages = PdfText.Extract(bytes);
+        var pages = await Task.Run(() => PdfText.Extract(bytes, ct), ct);
         if (pages.Count == 0) throw new FetchRefusedException("Ten PDF nie ma żadnych stron.");
 
         // Scratch data — drop this household's stale imports while we're here.

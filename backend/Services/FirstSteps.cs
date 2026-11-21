@@ -18,7 +18,7 @@ public record FirstStepsDto(bool Show, IReadOnlyList<FirstStep> Steps);
 public static class FirstSteps
 {
     /// <summary>Starter copies are created with the household; a recipe this much later is their own.</summary>
-    private static readonly TimeSpan StarterWindow = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan StarterWindow = TimeSpan.FromSeconds(10);
 
     public static async Task<FirstStepsDto> BuildAsync(MiseDbContext db, Caller caller, CancellationToken ct = default)
     {
@@ -26,6 +26,8 @@ public static class FirstSteps
             return new FirstStepsDto(false, []);
 
         var person = await db.People.AsNoTracking().FirstAsync(p => p.Id == self.Id, ct);
+        if (person.FirstStepsDismissedAt is not null)
+            return new FirstStepsDto(false, []);
         var household = await db.Households.AsNoTracking().FirstAsync(h => h.Id == householdId, ct);
         var ownSince = household.CreatedAt + StarterWindow;
 

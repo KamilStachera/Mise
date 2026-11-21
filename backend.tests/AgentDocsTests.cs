@@ -73,11 +73,13 @@ public class AgentDocsTests
         var commands = AgentDocs.CommandFiles("http://localhost:5080/api", "/ctx");
         var sous = AgentDocs.SousInstructions("Ania");
 
-        // The style lives in one place: AGENTS.md carries the prompt verbatim, the rest point at it.
+        // The style lives in one place: AGENTS.md and in-app Sous carry the prompt verbatim (Sous has no /context mount).
         Assert.Contains(AgentDocs.RecipePhotoPrompt, agents, StringComparison.Ordinal);
         Assert.DoesNotContain("{PHOTO_PROMPT}", agents, StringComparison.Ordinal);
+        Assert.Contains(AgentDocs.RecipePhotoPrompt, sous, StringComparison.Ordinal);
+        Assert.DoesNotContain("{PHOTO_PROMPT}", sous, StringComparison.Ordinal);
+        Assert.DoesNotContain("/context/", sous, StringComparison.Ordinal);
         Assert.Contains("### Zdjęcie dania, gdy przepis go nie ma", agents, StringComparison.Ordinal);
-        Assert.Contains("„Zdjęcie dania, gdy przepis go nie ma”", sous, StringComparison.Ordinal);
         Assert.Contains("`hasImage: false`", sous, StringComparison.Ordinal);
         Assert.Contains("„Zdjęcie dania, gdy przepis go nie ma”", commands["zdjecia-przepisow.md"], StringComparison.Ordinal);
         Assert.Contains("hasImage=<true|false>", api, StringComparison.Ordinal);

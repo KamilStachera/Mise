@@ -1,5 +1,7 @@
 import { useLocation } from 'react-router-dom'
+import { useAuth } from '../api/hooks'
 import { FoodShoppingList } from '../components/FoodShoppingList'
+import { LoginPrompt } from '../components/LoginPrompt'
 import { SupplyShoppingList } from '../components/SupplyShoppingList'
 
 /**
@@ -10,5 +12,7 @@ import { SupplyShoppingList } from '../components/SupplyShoppingList'
  */
 export function Shopping() {
   const { pathname } = useLocation()
+  const { canEdit, isLoading } = useAuth()
+  if (!isLoading && !canEdit) return <LoginPrompt title="Zakupy" />
   return pathname.startsWith('/shopping/dom') ? <SupplyShoppingList /> : <FoodShoppingList />
 }

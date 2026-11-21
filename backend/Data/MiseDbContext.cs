@@ -76,12 +76,14 @@ public class MiseDbContext : DbContext
             e.HasMany(x => x.Ingredients).WithOne(i => i.Recipe!).HasForeignKey(i => i.RecipeId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Steps).WithOne(s => s.Recipe!).HasForeignKey(s => s.RecipeId).OnDelete(DeleteBehavior.Cascade);
             e.HasMany(x => x.Images).WithOne(i => i.Recipe!).HasForeignKey(i => i.RecipeId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.ImagePath);
         });
 
         b.Entity<RecipeImage>(e =>
         {
             e.Property(x => x.Path).HasMaxLength(260);
             e.HasIndex(x => x.RecipeId);
+            e.HasIndex(x => x.Path);
         });
 
         b.Entity<RecipeIngredient>(e =>
@@ -131,6 +133,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Quantity).HasPrecision(10, 2);
             e.Property(x => x.Unit).HasConversion<string>().HasMaxLength(8);
             e.HasIndex(x => x.PantryItemId);
+            e.HasIndex(x => new { x.HouseholdId, x.Checked });
             e.HasMany(x => x.Contributions).WithOne(x => x.ShoppingItem!)
                 .HasForeignKey(x => x.ShoppingItemId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -171,6 +174,8 @@ public class MiseDbContext : DbContext
         {
             e.Property(x => x.Role).HasMaxLength(8);
             e.HasIndex(x => new { x.SessionId, x.CreatedAt });
+            e.HasIndex(x => x.CreatedAt);
+            e.HasIndex(x => new { x.HouseholdId, x.SessionId, x.CreatedAt });
         });
 
         b.Entity<CookLogEntry>(e =>
@@ -208,6 +213,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Title).HasMaxLength(300);
             e.HasOne(x => x.Recipe).WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => x.Date);
+            e.HasIndex(x => new { x.PersonId, x.Date });
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -243,6 +249,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Kind).HasMaxLength(40);
             e.Property(x => x.Summary).HasMaxLength(500);
             e.HasIndex(x => x.At);
+            e.HasIndex(x => x.Kind);
         });
 
         b.Entity<ApiKey>(e =>
@@ -289,6 +296,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Kcal).HasPrecision(8, 2);
             e.HasIndex(x => new { x.PersonId, x.Kind, x.Start, x.End }).IsUnique();
             e.HasIndex(x => new { x.PersonId, x.Date });
+            e.HasIndex(x => new { x.PersonId, x.Start });
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -307,6 +315,7 @@ public class MiseDbContext : DbContext
             e.HasKey(x => x.PersonId);
             e.Property(x => x.PersonId).ValueGeneratedNever();
             e.Property(x => x.Token).HasMaxLength(64);
+            e.HasIndex(x => x.Token).IsUnique().HasFilter("\"Token\" <> ''");
             e.HasOne<Person>().WithOne().HasForeignKey<HealthSync>(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -333,6 +342,7 @@ public class MiseDbContext : DbContext
             e.Property(x => x.LastGrams).HasPrecision(8, 1);
             e.HasIndex(x => new { x.PersonId, x.NormalizedName }).IsUnique();
             e.HasIndex(x => x.Barcode);
+            e.HasIndex(x => new { x.HouseholdId, x.Barcode });
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -357,6 +367,9 @@ public class MiseDbContext : DbContext
             e.Property(x => x.YoutubeId).HasMaxLength(16);
             e.Property(x => x.VideoTitle).HasMaxLength(300);
             e.Property(x => x.VideoChannel).HasMaxLength(200);
+            e.HasIndex(x => new { x.Hidden, x.EnrichedAt });
+            e.HasIndex(x => x.PrimaryMuscles).HasMethod("gin");
+            e.HasIndex(x => x.SecondaryMuscles).HasMethod("gin");
         });
 
         b.Entity<TrainingProfile>(e =>

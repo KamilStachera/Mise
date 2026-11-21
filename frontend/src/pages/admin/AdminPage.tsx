@@ -21,12 +21,13 @@ const TABS: { key: Tab; label: string }[] = [
 
 /** The admin panel: households, people, invite codes, API keys and the audit log (admins only). */
 export function AdminPage() {
-  const { data: auth } = useAuth()
+  const { data: auth, isLoading } = useAuth()
   const { pathname } = useLocation()
   const nav = useNavigate()
   const pad = usePagePad()
 
-  if (auth && !auth.isAdmin) return <Navigate to="/" replace />
+  if (isLoading) return null
+  if (!auth?.isAdmin) return <Navigate to="/" replace />
   const segment = pathname.split('/')[2] as Tab | undefined
   const tab: Tab = TABS.some((t) => t.key === segment) ? segment! : 'przeglad'
 

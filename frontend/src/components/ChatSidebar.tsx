@@ -5,6 +5,7 @@ import { useChatHealth, useChatHistory, useRecipe } from '../api/hooks'
 import { ApiError, api, streamChat, type ImportDocumentInfo } from '../api/client'
 import { registerPromptConsumer } from '../lib/chatBus'
 import { plural } from '../lib/labels'
+import { showToast } from '../lib/toastBus'
 import { mono, sans } from './ui'
 
 type Msg = { role: 'ai' | 'user'; content: string }
@@ -41,8 +42,11 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const enabled = health?.enabled ?? false
+
+  useEffect(() => () => { abortRef.current?.abort() }, [])
 
   useEffect(() => {
     if (history) setMessages(history.map((m) => ({ role: m.role, content: m.content })))
@@ -95,6 +99,8 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
     setUploadError(null)
     setMessages((m) => [...m, { role: 'user', content: shown }, { role: 'ai', content: '' }])
     setTyping(true)
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
     try {
       await streamChat(
         text.trim(),
@@ -105,14 +111,19 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
             return next
           })
         },
-        undefined,
+        ctrl.signal,
         recipeId,
         setStatus,
         doc?.id,
       )
-      // Sous may have logged food, planned meals or edited lists — refresh what's on screen.
-      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'chatHistory' })
-    } catch {
+      // Sous may have logged food, planned meals or edited lists — refresh everything including chatHistory.
+      qc.invalidateQueries()
+    } catch (e) {
+      if (ctrl.signal.aborted) return
+      if (e instanceof ApiError && e.status === 401) {
+        qc.invalidateQueries({ queryKey: ['auth'] })
+      }
+      const errMsg = e instanceof ApiError && e.detail ? e.detail : null
       // Keep whatever streamed before the failure instead of wiping it.
       setMessages((m) => {
         const next = [...m]
@@ -120,12 +131,13 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
         next[next.length - 1] = {
           role: 'ai',
           content: partial
-            ? `${partial}\n\n⚠️ Połączenie przerwane — odpowiedź może być niepełna.`
-            : 'Przepraszam — coś poszło nie tak przy połączeniu z modelem.',
+            ? `${partial}\n\n⚠️ ${errMsg ?? 'Połączenie przerwane — odpowiedź może być niepełna.'}`
+            : (errMsg ?? 'Przepraszam — coś poszło nie tak przy połączeniu z modelem.'),
         }
         return next
       })
     } finally {
+      if (abortRef.current === ctrl) abortRef.current = null
       setTyping(false)
       setStatus(null)
     }
@@ -133,9 +145,18 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
 
   async function reset() {
     if (typing || messages.length === 0 || !confirm('Zacząć nową rozmowę? Obecna zniknie.')) return
-    await api.resetChat()
-    setMessages([])
-    qc.invalidateQueries({ queryKey: ['chatHistory'] })
+    try {
+      await api.resetChat()
+      setMessages([])
+      qc.invalidateQueries({ queryKey: ['chatHistory'] })
+    } catch {
+      showToast('Nie udało się wyczyścić rozmowy.')
+    }
+  }
+
+  function handleClose() {
+    abortRef.current?.abort()
+    onClose()
   }
 
   const panelStyle: CSSProperties = fullscreen
@@ -164,7 +185,7 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             title="Zamknij"
             style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text)', cursor: 'pointer', fontSize: 13 }}
           >
@@ -265,9 +286,9 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
           <button
             type="button"
             onClick={() => send(input)}
-            disabled={!enabled}
+            disabled={!enabled || typing || uploading}
             aria-label="Wyślij"
-            style={{ flex: '0 0 36px', width: 36, height: 36, borderRadius: 9, border: 0, background: 'var(--accent)', color: '#fff', fontSize: 16, cursor: enabled ? 'pointer' : 'not-allowed' }}
+            style={{ flex: '0 0 36px', width: 36, height: 36, borderRadius: 9, border: 0, background: 'var(--accent)', color: '#fff', fontSize: 16, cursor: enabled && !typing && !uploading ? 'pointer' : 'not-allowed', opacity: enabled && !typing && !uploading ? 1 : 0.5 }}
           >
             ↑
           </button>

@@ -6,6 +6,7 @@ import { cuisineLabel, plural } from '../lib/labels'
 import { mondayOf, parseISODate } from '../lib/dates'
 import { useIsMobile } from '../lib/useIsMobile'
 import { RecipeThumb } from '../components/RecipeThumb'
+import { LoginPrompt } from '../components/LoginPrompt'
 import { Button, Eyebrow, PageTitle, Sheet, StatStrip, UnderlineTabs, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
 type Filter = 'all' | 'high'
@@ -45,7 +46,7 @@ export function History() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
   const pad = usePagePad()
-  const { canEdit } = useAuth()
+  const { canEdit, isLoading: authLoading } = useAuth()
   const { data: entries = [], isLoading } = useCookLog(undefined, 500)
   const { data: recipes = [] } = useRecipes('all', '')
   const [filter, setFilter] = useState<Filter>('all')
@@ -128,6 +129,7 @@ export function History() {
     return out
   }, [filtered])
 
+  if (!authLoading && !canEdit) return <LoginPrompt title="Historia gotowania" />
   if (isLoading) return <div style={{ ...pad, color: 'var(--text-3)' }}>Ładowanie…</div>
 
   const total = entries.length
@@ -291,17 +293,26 @@ function HistoryRow({ item, first, canEdit, onEdit }: { item: Enriched; first: b
         {thumb}
         {text}
         {canEdit && (
-          <button
-            type="button"
-            aria-label={again ? 'Ugotuj ponownie' : 'Edytuj'}
-            onClick={(e) => {
-              e.stopPropagation()
-              ;(again ?? onEdit)()
-            }}
-            style={{ width: 40, height: 40, flex: '0 0 40px', borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 16, color: 'var(--text)' }}
-          >
-            {again ? '↻' : '✎'}
-          </button>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              aria-label="Edytuj"
+              onClick={onEdit}
+              style={{ width: 38, height: 38, flex: '0 0 38px', borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 15, color: 'var(--text)' }}
+            >
+              ✎
+            </button>
+            {again && (
+              <button
+                type="button"
+                aria-label="Ugotuj ponownie"
+                onClick={again}
+                style={{ width: 38, height: 38, flex: '0 0 38px', borderRadius: '50%', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: 16, color: 'var(--text)' }}
+              >
+                ↻
+              </button>
+            )}
+          </div>
         )}
       </div>
     )

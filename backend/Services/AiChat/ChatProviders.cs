@@ -15,8 +15,8 @@ public record ChatTurn(string Role, string Content);
 public record ChatTurnRequest(string? SystemPrompt, IReadOnlyList<ChatTurn> History, string Message,
     PersonInfo Person, string? RecipeFocus, string? ThreadId);
 
-/// <summary>Streamed piece of a reply: text, a progress line for the UI, or a new thread handle.</summary>
-public record ChatChunk(string? Delta = null, string? Status = null, string? ThreadId = null);
+/// <summary>Streamed piece of a reply: text, a progress line for the UI, a transient runner error, or a new thread handle.</summary>
+public record ChatChunk(string? Delta = null, string? Status = null, string? ThreadId = null, string? Error = null);
 
 public interface IChatProvider
 {
@@ -73,9 +73,8 @@ public sealed class OpenAiChatProvider : IChatProvider
 
         await using var stream = await resp.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
-        while (!reader.EndOfStream)
+        while (await reader.ReadLineAsync(ct) is { } line)
         {
-            var line = await reader.ReadLineAsync(ct);
             if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data:")) continue;
             var data = line["data:".Length..].Trim();
             if (data == "[DONE]") break;
@@ -126,9 +125,8 @@ public sealed class OllamaChatProvider : IChatProvider
 
         await using var stream = await resp.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);
-        while (!reader.EndOfStream)
+        while (await reader.ReadLineAsync(ct) is { } line)
         {
-            var line = await reader.ReadLineAsync(ct);
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             string? delta = null;
@@ -148,18 +146,21 @@ public sealed class OllamaChatProvider : IChatProvider
 
 /// <summary>
 /// Codex signed in with the owner's ChatGPT plan, run by the internal `sous` container
-/// (sous/server.mjs). Codex reads the household's ./context/{id} and writes through the pichci MCP tools as the
-/// chatting person; the conversation lives in a Codex thread, so only the new message is sent.
+/// (sous/server.mjs). Codex has no /context mount and no global MISE_API_KEY: each turn carries a
+/// short-lived DataProtection token pinned to (householdId, personId), so Sous reads and writes
+/// strictly through the pichci MCP tools as the chatting person.
 /// </summary>
 public sealed class CodexChatProvider : IChatProvider
 {
     private readonly IHttpClientFactory _http;
     private readonly string _baseUrl;
+    private readonly AccessControl _access;
 
-    public CodexChatProvider(IHttpClientFactory http, string baseUrl)
+    public CodexChatProvider(IHttpClientFactory http, string baseUrl, AccessControl access)
     {
         _http = http;
         _baseUrl = baseUrl.TrimEnd('/');
+        _access = access;
     }
 
     public bool Enabled => true;
@@ -169,6 +170,7 @@ public sealed class CodexChatProvider : IChatProvider
     public async IAsyncEnumerable<ChatChunk> StreamAsync(ChatTurnRequest turn, [EnumeratorCancellation] CancellationToken ct)
     {
         var now = DateTime.Now; // TZ=Europe/Warsaw in the container
+        var turnToken = _access.MintSousToken(turn.Person.HouseholdId, turn.Person.Id);
         var body = JsonSerializer.Serialize(new
         {
             prompt = AgentDocs.SousTurn(now, turn.Person.Name, turn.Message, turn.RecipeFocus),
@@ -176,21 +178,24 @@ public sealed class CodexChatProvider : IChatProvider
             threadId = turn.ThreadId,
             person = turn.Person.Id,
             household = turn.Person.HouseholdId,
+            token = turnToken,
         });
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/turn");
+        if (_access.SousSecret is { Length: > 0 } secret)
+            req.Headers.Add(AccessControl.SousSecretHeader, secret);
         req.Content = new StringContent(body, Encoding.UTF8, "application/json");
 
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromMinutes(10));
         var client = _http.CreateClient();
-        // A turn that reads files and calls several tools can take minutes.
-        client.Timeout = TimeSpan.FromMinutes(10);
-        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        client.Timeout = Timeout.InfiniteTimeSpan;
+        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
         resp.EnsureSuccessStatusCode();
 
-        await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        await using var stream = await resp.Content.ReadAsStreamAsync(timeout.Token);
         using var reader = new StreamReader(stream);
-        while (!reader.EndOfStream)
+        while (await reader.ReadLineAsync(timeout.Token) is { } line)
         {
-            var line = await reader.ReadLineAsync(ct);
             if (string.IsNullOrWhiteSpace(line)) continue;
 
             ChatChunk? chunk = null;
@@ -199,8 +204,8 @@ public sealed class CodexChatProvider : IChatProvider
                 using var doc = JsonDocument.Parse(line);
                 var root = doc.RootElement;
                 string? Str(string name) => root.TryGetProperty(name, out var v) ? v.GetString() : null;
-                // A runner error (not logged in, plan limit) is shown to the user as the reply.
-                if ((Str("delta") ?? Str("error")) is { } text) chunk = new ChatChunk(Delta: text);
+                if (Str("delta") is { } text) chunk = new ChatChunk(Delta: text);
+                else if (Str("error") is { } err) chunk = new ChatChunk(Error: err);
                 else if (Str("status") is { } status) chunk = new ChatChunk(Status: status);
                 else if (Str("threadId") is { } thread) chunk = new ChatChunk(ThreadId: thread);
             }
@@ -213,7 +218,7 @@ public sealed class CodexChatProvider : IChatProvider
 
 public static class ChatProviderFactory
 {
-    public static IChatProvider Create(IConfiguration config, IHttpClientFactory http)
+    public static IChatProvider Create(IConfiguration config, IHttpClientFactory http, AccessControl access)
     {
         var provider = (config["AI_PROVIDER"] ?? "").Trim().ToLowerInvariant();
         switch (provider)
@@ -229,7 +234,7 @@ public static class ChatProviderFactory
                 return new OllamaChatProvider(http, baseUrl!, config["OLLAMA_MODEL"] ?? "llama3.1");
 
             case "codex":
-                return new CodexChatProvider(http, config["SOUS_URL"] is { Length: > 0 } url ? url : "http://sous:8090");
+                return new CodexChatProvider(http, config["SOUS_URL"] is { Length: > 0 } url ? url : "http://sous:8090", access);
 
             default:
                 return new DisabledChatProvider();

@@ -312,7 +312,10 @@ public static class Mapping
     {
         category = null;
         if (string.IsNullOrWhiteSpace(s)) return true;
-        if (!Enum.TryParse<SupplyCategory>(s.Trim(), ignoreCase: true, out var parsed)) return false;
+        var trimmed = s.Trim();
+        if (trimmed.Any(char.IsDigit)) return false;
+        if (!Enum.TryParse<SupplyCategory>(trimmed, ignoreCase: true, out var parsed) || !Enum.IsDefined(parsed))
+            return false;
         category = parsed;
         return true;
     }

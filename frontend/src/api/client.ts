@@ -939,7 +939,7 @@ export const api = {
   },
   setPlanEntry: (input: PlanEntryInput) =>
     http<PlanEntry>(`/plan/entry`, { method: 'PUT', body: JSON.stringify(input) }),
-  pendingCook: () => http<PlanEntry[]>(`/plan/pending-cook`),
+  pendingCook: () => http<PlanEntry[]>(`/plan/pending-cook`, undefined, true),
   dismissCookReminder: (id: string) =>
     http<void>(`/plan/entry/${id}/dismiss-cook-reminder`, { method: 'POST' }),
   deletePlanEntry: (id: string) => http<void>(`/plan/entry/${id}`, { method: 'DELETE' }),
@@ -997,11 +997,11 @@ export const api = {
   exportContext: () =>
     http<{ path: string; files: string[]; exportedAt: string }>(`/context/export`, { method: 'POST' }),
 
-  chatHealth: () => http<ChatHealth>(`/chat/health`),
+  chatHealth: () => http<ChatHealth>(`/chat/health`, undefined, true),
   chatHistory: () => http<ChatMessage[]>(`/chat/history`, undefined, true),
   resetChat: () => http<void>(`/chat/history`, { method: 'DELETE' }, true),
 
-  authMe: () => http<AuthMe>(`/auth/me`),
+  authMe: () => http<AuthMe>(`/auth/me`, undefined, true),
   redeemInvite: (code: string, name: string) =>
     http<{ householdId: number; personId: number }>(`/onboarding/redeem`, { method: 'POST', body: JSON.stringify({ code, name }) }),
   household: () => http<HouseholdDetail>(`/household`, undefined, true),
@@ -1044,7 +1044,7 @@ export const api = {
   apiKeys: () => http<ApiKeyInfo[]>(`/keys`, undefined, true),
   createApiKey: (name: string) => http<CreatedApiKey>(`/keys`, { method: 'POST', body: JSON.stringify({ name }) }, true),
   revokeApiKey: (id: string) => http<void>(`/keys/${id}`, { method: 'DELETE' }, true),
-  logout: () => http<void>(`/auth/logout`, { method: 'POST' }),
+  logout: () => http<void>(`/auth/logout`, { method: 'POST' }, true),
 }
 
 /** Full-page navigation into the Google OAuth flow; comes back to `returnUrl`. */
@@ -1070,29 +1070,45 @@ export async function streamChat(
     body: JSON.stringify({ message, recipeId, documentId }),
     signal,
   })
-  if (!res.ok || !res.body) throw new ApiError(res.status, res.statusText || 'chat')
+  if (!res.ok || !res.body) {
+    let detail: string | null = null
+    try {
+      const body = JSON.parse(await res.text())
+      if (typeof body?.error === 'string') detail = body.error
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(res.status, res.statusText || 'chat', detail)
+  }
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+
+  const processFrame = (frame: string) => {
+    const line = frame.split('\n').find((l) => l.startsWith('data:'))
+    if (!line) return
+    let payload: Record<string, unknown>
+    try {
+      payload = JSON.parse(line.slice('data:'.length).trim()) as Record<string, unknown>
+    } catch {
+      return /* ignore malformed frames */
+    }
+    if (typeof payload.delta === 'string' && payload.delta) onDelta(payload.delta)
+    if (typeof payload.status === 'string' && payload.status) onStatus?.(payload.status)
+    if (payload.error) throw new Error(typeof payload.error === 'string' ? payload.error : 'stream interrupted')
+  }
+
   for (;;) {
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
     const frames = buffer.split('\n\n')
     buffer = frames.pop() ?? ''
-    for (const frame of frames) {
-      const line = frame.split('\n').find((l) => l.startsWith('data:'))
-      if (!line) continue
-      try {
-        const payload = JSON.parse(line.slice('data:'.length).trim())
-        if (payload.delta) onDelta(payload.delta as string)
-        if (payload.status) onStatus?.(payload.status as string)
-        if (payload.error) throw new Error('stream interrupted')
-      } catch (e) {
-        if (e instanceof Error && e.message === 'stream interrupted') throw e
-        /* ignore malformed frames */
-      }
-    }
+    for (const frame of frames) processFrame(frame)
+  }
+  buffer += decoder.decode()
+  if (buffer.trim()) {
+    for (const frame of buffer.split('\n\n')) processFrame(frame)
   }
 }

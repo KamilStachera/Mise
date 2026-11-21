@@ -11,8 +11,10 @@ public class MiseDbContextFactory : IDesignTimeDbContextFactory<MiseDbContext>
 {
     public MiseDbContext CreateDbContext(string[] args)
     {
+        var cs = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
+            ?? "Host=localhost;Port=5432;Database=mise;Username=mise;Password=mise_dev_password";
         var options = new DbContextOptionsBuilder<MiseDbContext>()
-            .UseNpgsql("Host=localhost;Port=5432;Database=mise;Username=mise;Password=mise_dev_password")
+            .UseNpgsql(cs)
             .Options;
         return new MiseDbContext(options);
     }

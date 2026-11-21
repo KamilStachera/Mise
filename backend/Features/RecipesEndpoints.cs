@@ -114,6 +114,8 @@ public static class RecipesEndpoints
         g.MapPost("/", async (RecipeInput input, MiseDbContext db, RecipeIngredientNormalizer ingredientNormalizer,
             ContextExportService export) =>
         {
+            if (ValidateInput(input) is IResult bad)
+                return bad;
             if (!Mapping.TryParseDishType(input.DishType, out var dt))
                 return BadDishType();
             if (!Mapping.TryParseCuisine(input.Cuisine, out var cu))
@@ -127,13 +129,15 @@ public static class RecipesEndpoints
             var recipe = ApplyInput(new Recipe(), input, dt, cu, pantry, ingredientNormalizer);
             db.Recipes.Add(recipe);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Created($"/api/recipes/{recipe.Id}", new { recipe.Id });
         });
 
         g.MapPut("/{id:guid}", async (Guid id, RecipeInput input, MiseDbContext db,
             RecipeIngredientNormalizer ingredientNormalizer, ContextExportService export) =>
         {
+            if (ValidateInput(input) is IResult bad)
+                return bad;
             if (!Mapping.TryParseDishType(input.DishType, out var dt))
                 return BadDishType();
             if (!Mapping.TryParseCuisine(input.Cuisine, out var cu))
@@ -166,7 +170,7 @@ public static class RecipesEndpoints
             db.RecipeSteps.AddRange(recipe.Steps);
             recipe.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.NoContent();
         });
 
@@ -178,17 +182,17 @@ public static class RecipesEndpoints
             if (recipe is null) return Results.NotFound();
             db.Recipes.Remove(recipe);
             await db.SaveChangesAsync();
-            foreach (var img in recipe.Images) images.Delete(img.Path);
-            await export.ExportAsync();
+            foreach (var img in recipe.Images) await images.DeleteAsync(img.Path);
+            export.Schedule();
             return Results.NoContent();
         });
 
         // Upload a photo: it joins the gallery and becomes the new default.
         g.MapPost("/{id:guid}/image", async (Guid id, IFormFile file, MiseDbContext db,
-            RecipeImageStore images) =>
+            RecipeImageStore images, CancellationToken ct) =>
         {
             var recipe = await db.Recipes.Include(r => r.Images)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == id, ct);
             if (recipe is null) return Results.NotFound();
             if (!RecipeImageStore.TryGetExtension(file.ContentType, out _))
                 return Results.BadRequest(new
@@ -199,20 +203,31 @@ public static class RecipesEndpoints
             if (file.Length is 0 or > RecipeImageStore.MaxBytes)
                 return Results.BadRequest(new { error = "Plik musi mieć od 1 B do 5 MB." });
 
-            var image = new RecipeImage { RecipeId = id, Path = await images.SaveAsync(id, file) };
-            recipe.Images.Add(image);
-            // Self-assigned Guid id — register as an insert (see the PUT handler above).
-            db.RecipeImages.Add(image);
-            recipe.ImagePath = image.Path;
-            recipe.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync();
-            return Results.Ok(new
-            {
-                imageId = image.Id,
-                imageUrl = Mapping.ImageUrl(image.Path),
-                images = GalleryDto(recipe),
-            });
+            string storedPath;
+            try { storedPath = await images.SaveAsync(id, file, ct); }
+            catch (InvalidImageException ex) { return Results.BadRequest(new { error = ex.Message }); }
+
+            return await AttachImageAsync(recipe, storedPath, db, images, ct);
         }).DisableAntiforgery();
+
+        // Fetch a remote dish photo through SafeWebFetcher (no SSRF/LAN access) and attach it.
+        g.MapPost("/{id:guid}/image-from-url", async (Guid id, ImportUrlRequest input, MiseDbContext db,
+            RecipeImageStore images, Services.Import.SafeWebFetcher fetcher, CancellationToken ct) =>
+        {
+            var recipe = await db.Recipes.Include(r => r.Images)
+                .FirstOrDefaultAsync(r => r.Id == id, ct);
+            if (recipe is null) return Results.NotFound();
+
+            Services.Import.FetchedResource fetched;
+            try { fetched = await fetcher.FetchAsync(input.Url, ct, maxBytes: (int)RecipeImageStore.MaxBytes); }
+            catch (Services.Import.FetchRefusedException ex) { return Results.BadRequest(new { error = ex.Message }); }
+
+            string storedPath;
+            try { storedPath = await images.SaveBytesAsync(id, fetched.Bytes, ct); }
+            catch (InvalidImageException ex) { return Results.BadRequest(new { error = ex.Message }); }
+
+            return await AttachImageAsync(recipe, storedPath, db, images, ct);
+        });
 
         g.MapGet("/{id:guid}/images", async (Guid id, MiseDbContext db) =>
         {
@@ -237,10 +252,10 @@ public static class RecipesEndpoints
 
         // Remove one gallery photo; a deleted default falls back to the newest remaining.
         g.MapDelete("/{id:guid}/images/{imageId:guid}", async (Guid id, Guid imageId,
-            MiseDbContext db, RecipeImageStore images) =>
+            MiseDbContext db, RecipeImageStore images, CancellationToken ct) =>
         {
             var recipe = await db.Recipes.Include(r => r.Images)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == id, ct);
             var image = recipe?.Images.FirstOrDefault(i => i.Id == imageId);
             if (recipe is null || image is null) return Results.NotFound();
             recipe.Images.Remove(image);
@@ -249,16 +264,16 @@ public static class RecipesEndpoints
                 recipe.ImagePath = recipe.Images.OrderByDescending(i => i.CreatedAt)
                     .FirstOrDefault()?.Path;
             recipe.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync();
-            images.Delete(image.Path);
+            await db.SaveChangesAsync(ct);
+            await images.DeleteAsync(image.Path, ct);
             return Results.Ok(new { images = GalleryDto(recipe) });
         });
 
         // Legacy: remove the current default photo (same fallback as above).
-        g.MapDelete("/{id:guid}/image", async (Guid id, MiseDbContext db, RecipeImageStore images) =>
+        g.MapDelete("/{id:guid}/image", async (Guid id, MiseDbContext db, RecipeImageStore images, CancellationToken ct) =>
         {
             var recipe = await db.Recipes.Include(r => r.Images)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == id, ct);
             if (recipe is null) return Results.NotFound();
             var image = recipe.Images.FirstOrDefault(i => i.Path == recipe.ImagePath);
             if (image is not null)
@@ -269,8 +284,8 @@ public static class RecipesEndpoints
             recipe.ImagePath = recipe.Images.OrderByDescending(i => i.CreatedAt)
                 .FirstOrDefault()?.Path;
             recipe.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync();
-            if (image is not null) images.Delete(image.Path);
+            await db.SaveChangesAsync(ct);
+            if (image is not null) await images.DeleteAsync(image.Path, ct);
             return Results.NoContent();
         });
 
@@ -341,7 +356,7 @@ public static class RecipesEndpoints
                 // Demand follows the saved portion scaling.
                 new ShoppingRecipeSource($"recipe:{recipe.Id}", recipe.Title, RecipeScaling.Scaled(recipe)),
             });
-            if (result.Added > 0 || result.Updated > 0) await export.ExportAsync();
+            if (result.Added > 0 || result.Updated > 0) export.Schedule();
             return Results.Ok(new ShoppingAddResultDto(result.Added, result.Updated));
         });
 
@@ -386,7 +401,7 @@ public static class RecipesEndpoints
             if (input.Servings is int servings) recipe.Servings = servings;
             recipe.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(new
             {
                 id = recipe.Id,
@@ -486,6 +501,67 @@ public static class RecipesEndpoints
         return null;
     }
 
+    private static async Task<IResult> AttachImageAsync(Recipe recipe, string storedPath,
+        MiseDbContext db, RecipeImageStore images, CancellationToken ct)
+    {
+        var image = new RecipeImage { RecipeId = recipe.Id, Path = storedPath };
+        recipe.Images.Add(image);
+        // Self-assigned Guid id — register as an insert (see the PUT handler above).
+        db.RecipeImages.Add(image);
+        recipe.ImagePath = image.Path;
+        recipe.UpdatedAt = DateTimeOffset.UtcNow;
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            await images.DeleteAsync(storedPath, CancellationToken.None);
+            throw;
+        }
+        return Results.Ok(new
+        {
+            imageId = image.Id,
+            imageUrl = Mapping.ImageUrl(image.Path),
+            images = GalleryDto(recipe),
+        });
+    }
+
+    private static IResult? ValidateInput(RecipeInput input)
+    {
+        var title = input.Title?.Trim() ?? "";
+        if (title.Length is 0 or > 300)
+            return Results.BadRequest(new { error = "Tytuł przepisu: 1–300 znaków." });
+        if (input.Time is < 0 or > 1440)
+            return Results.BadRequest(new { error = "Czas przygotowania: 0–1440 min." });
+        if (input.Servings is < 0 or > 200)
+            return Results.BadRequest(new { error = "Liczba porcji: 1–200." });
+        if (input.Tint is { Length: > 16 })
+            return Results.BadRequest(new { error = "Kolor (tint): maks. 16 znaków." });
+        if (input.Difficulty is { Length: > 60 })
+            return Results.BadRequest(new { error = "Trudność: maks. 60 znaków." });
+        if (input.Blurb is { Length: > 4000 } || input.Tip is { Length: > 4000 })
+            return Results.BadRequest(new { error = "Opis i wskazówka: maks. 4000 znaków." });
+        if (input.Kcal is < 0 or > 20000
+            || input.Protein is < 0 or > 10000
+            || input.Fat is < 0 or > 10000
+            || input.Carbs is < 0 or > 10000)
+            return Results.BadRequest(new { error = "Wartości odżywcze poza zakresem." });
+        if ((input.Ingredients?.Count ?? 0) > 100)
+            return Results.BadRequest(new { error = "Maks. 100 składników." });
+        if ((input.Steps?.Count ?? 0) > 100)
+            return Results.BadRequest(new { error = "Maks. 100 kroków." });
+        foreach (var i in input.Ingredients ?? [])
+        {
+            if (i.Name?.Trim().Length > 200) return Results.BadRequest(new { error = "Nazwa składnika: maks. 200 znaków." });
+            if (i.Quantity?.Trim().Length > 100) return Results.BadRequest(new { error = "Ilość składnika: maks. 100 znaków." });
+            if (i.DisplayText?.Trim().Length > 500) return Results.BadRequest(new { error = "displayText: maks. 500 znaków." });
+        }
+        foreach (var s in input.Steps ?? [])
+            if (s is { Length: > 4000 }) return Results.BadRequest(new { error = "Krok przepisu: maks. 4000 znaków." });
+        return null;
+    }
+
     private static Recipe ApplyInput(Recipe recipe, RecipeInput input,
         DishType? dishType, Cuisine? cuisine,
         IReadOnlyList<PantryItem> pantry, RecipeIngredientNormalizer ingredientNormalizer)
@@ -504,11 +580,11 @@ public static class RecipesEndpoints
         recipe.Tint = string.IsNullOrWhiteSpace(input.Tint) ? "#c0552d" : input.Tint!.Trim();
         recipe.Blurb = input.Blurb?.Trim() ?? "";
         recipe.Tip = string.IsNullOrWhiteSpace(input.Tip) ? null : input.Tip!.Trim();
-        // Per-serving estimates; non-positive values mean "no estimate" (full-replace clears).
+        // Per-serving estimates; 0 g is valid for macros (e.g. 0 g carbs in eggs/meat).
         recipe.KcalPerServing = input.Kcal is > 0 ? input.Kcal : null;
-        recipe.ProteinGrams = input.Protein is > 0 ? input.Protein : null;
-        recipe.FatGrams = input.Fat is > 0 ? input.Fat : null;
-        recipe.CarbGrams = input.Carbs is > 0 ? input.Carbs : null;
+        recipe.ProteinGrams = input.Protein is >= 0 ? input.Protein : null;
+        recipe.FatGrams = input.Fat is >= 0 ? input.Fat : null;
+        recipe.CarbGrams = input.Carbs is >= 0 ? input.Carbs : null;
 
         var order = 0;
         foreach (var i in input.Ingredients ?? new())

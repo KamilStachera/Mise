@@ -219,6 +219,7 @@ public static partial class RecipePageParser
             return minutes > 0 ? minutes : null;
         }
         catch (FormatException) { return null; }
+        catch (OverflowException) { return null; }
     }
 
     private static string? Text(JsonElement e, string prop) =>
@@ -271,17 +272,25 @@ public static partial class RecipePageParser
     /// <summary>Main content if the page marks it, else the body; scripts, styles, nav chrome dropped; one block per line.</summary>
     public static string VisibleText(string html)
     {
-        var body = MainTag().Match(html) is { Success: true } main ? main.Value
-            : ArticleTag().Match(html) is { Success: true } article ? article.Value
-            : html;
-        body = Invisible().Replace(body, " ");
-        body = BlockBreak().Replace(body, "\n");
-        body = AnyTag().Replace(body, " ");
-        body = WebUtility.HtmlDecode(body);
-        var lines = body.Split('\n')
-            .Select(l => Spaces().Replace(l, " ").Trim())
-            .Where(l => l.Length > 0);
-        return string.Join("\n", lines);
+        if (html.Length > RecipeMicrodata.MaxHtmlChars) html = html[..RecipeMicrodata.MaxHtmlChars];
+        try
+        {
+            var body = MainTag().Match(html) is { Success: true } main ? main.Value
+                : ArticleTag().Match(html) is { Success: true } article ? article.Value
+                : html;
+            body = Invisible().Replace(body, " ");
+            body = BlockBreak().Replace(body, "\n");
+            body = AnyTag().Replace(body, " ");
+            body = WebUtility.HtmlDecode(body);
+            var lines = body.Split('\n')
+                .Select(l => Spaces().Replace(l, " ").Trim())
+                .Where(l => l.Length > 0);
+            return string.Join("\n", lines);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return "";
+        }
     }
 
     /// <summary>Tags out, entities decoded, whitespace collapsed (JSON-LD fields often carry HTML).</summary>
@@ -290,36 +299,36 @@ public static partial class RecipePageParser
 
     private static string? NullIfEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
-    [GeneratedRegex(@"<script[^>]*type\s*=\s*[""']?application/ld\+json[""']?[^>]*>(.*?)</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<script[^>]*type\s*=\s*[""']?application/ld\+json[""']?[^>]*>(.*?)</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline, matchTimeoutMilliseconds: 2000)]
     private static partial Regex JsonLdScript();
 
-    [GeneratedRegex(@"<meta[^>]+>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<meta[^>]+>", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 2000)]
     private static partial Regex MetaTag();
 
-    [GeneratedRegex(@"<meta[^>]+charset\s*=\s*[""']?([\w-]+)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<meta[^>]+charset\s*=\s*[""']?([\w-]+)", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 2000)]
     private static partial Regex MetaCharset();
 
-    [GeneratedRegex(@"<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<title[^>]*>(.*?)</title>", RegexOptions.IgnoreCase | RegexOptions.Singleline, matchTimeoutMilliseconds: 2000)]
     private static partial Regex TitleTag();
 
-    [GeneratedRegex(@"<main\b.*?</main>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<main\b.*?</main>", RegexOptions.IgnoreCase | RegexOptions.Singleline, matchTimeoutMilliseconds: 2000)]
     private static partial Regex MainTag();
 
-    [GeneratedRegex(@"<article\b.*?</article>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<article\b.*?</article>", RegexOptions.IgnoreCase | RegexOptions.Singleline, matchTimeoutMilliseconds: 2000)]
     private static partial Regex ArticleTag();
 
-    [GeneratedRegex(@"<(script|style|noscript|svg|nav|header|footer|form|iframe|template)\b.*?</\1>|<!--.*?-->", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    [GeneratedRegex(@"<(script|style|noscript|svg|nav|header|footer|form|iframe|template)\b.*?</\1>|<!--.*?-->", RegexOptions.IgnoreCase | RegexOptions.Singleline, matchTimeoutMilliseconds: 2000)]
     private static partial Regex Invisible();
 
-    [GeneratedRegex(@"<br\s*/?>|</?(p|div|li|ul|ol|h[1-6]|tr|section|table)\b[^>]*>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<br\s*/?>|</?(p|div|li|ul|ol|h[1-6]|tr|section|table)\b[^>]*>", RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 2000)]
     private static partial Regex BlockBreak();
 
-    [GeneratedRegex(@"<[^>]+>")]
+    [GeneratedRegex(@"<[^>]+>", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
     private static partial Regex AnyTag();
 
-    [GeneratedRegex(@"[\s ]+")]
+    [GeneratedRegex(@"[\s ]+", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
     private static partial Regex AllSpace();
 
-    [GeneratedRegex(@"[ \t\r\f\v ]+")]
+    [GeneratedRegex(@"[ \t\r\f\v ]+", RegexOptions.None, matchTimeoutMilliseconds: 2000)]
     private static partial Regex Spaces();
 }

@@ -461,7 +461,9 @@ export function Wordmark({ size = 32 }: { size?: number }) {
 
 // ---- overlays ----
 
-/** Bottom sheet on phones, centred dialog on desktop. Escape / backdrop closes. */
+const sheetStack: symbol[] = []
+
+/** Bottom sheet on phones, centred dialog on desktop. Escape closes only the topmost sheet. */
 export function Sheet({ open, onClose, title, children, width = 480 }: {
   open: boolean
   onClose: () => void
@@ -472,9 +474,20 @@ export function Sheet({ open, onClose, title, children, width = 480 }: {
   const isMobile = useIsMobile()
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const token = Symbol('sheet')
+    sheetStack.push(token)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sheetStack[sheetStack.length - 1] === token) {
+        e.stopPropagation()
+        onClose()
+      }
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      const idx = sheetStack.lastIndexOf(token)
+      if (idx >= 0) sheetStack.splice(idx, 1)
+    }
   }, [open, onClose])
   if (!open) return null
   return (
@@ -493,6 +506,7 @@ export function Sheet({ open, onClose, title, children, width = 480 }: {
     >
       <div
         role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: isMobile ? '100%' : width,

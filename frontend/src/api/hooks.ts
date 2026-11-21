@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   api,
@@ -40,7 +41,11 @@ export function usePerson() {
   const picked = usePickedPerson()
   const people = data?.people ?? []
   const own = data?.personId ?? 1
-  const id = picked != null && people.some((p) => p.id === picked) ? picked : own
+  const validPick = picked != null && people.some((p) => p.id === picked)
+  useEffect(() => {
+    if (data && picked != null && !validPick) pickPerson(null)
+  }, [data, picked, validPick])
+  const id = validPick ? picked : own
   return { id, own, people, person: people.find((p) => p.id === id) ?? null, pick: pickPerson }
 }
 
@@ -162,8 +167,12 @@ export function useLogout() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => api.logout(),
-    // Everything cached belonged to that session's household.
-    onSuccess: () => qc.invalidateQueries(),
+    // Everything cached (and any persisted X-Person pick) belonged to that session's household.
+    onSuccess: () => {
+      pickPerson(null)
+      qc.clear()
+      qc.invalidateQueries({ queryKey: ['auth'] })
+    },
   })
 }
 
@@ -176,49 +185,60 @@ export function useRecipe(id: string | undefined) {
 }
 
 export function usePantry() {
-  return useQuery({ queryKey: ['pantry'], queryFn: api.pantry })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['pantry'], queryFn: api.pantry, enabled: canEdit })
 }
 
 export function useShopping() {
-  return useQuery({ queryKey: ['shopping'], queryFn: api.shopping })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['shopping'], queryFn: api.shopping, enabled: canEdit })
 }
 
 export function useSupplies() {
-  return useQuery({ queryKey: ['supplies'], queryFn: api.supplies })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['supplies'], queryFn: api.supplies, enabled: canEdit })
 }
 
 /** Only fetched while the "Zarządzaj częstymi" panel is open. */
 export function useAllHotSupplies(enabled: boolean) {
-  return useQuery({ queryKey: ['supplies', 'hot', 'all'], queryFn: api.allHotSupplies, enabled })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['supplies', 'hot', 'all'], queryFn: api.allHotSupplies, enabled: canEdit && enabled })
 }
 
 export function usePreferences() {
-  return useQuery({ queryKey: ['preferences'], queryFn: api.preferences })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['preferences'], queryFn: api.preferences, enabled: canEdit })
 }
 
 export function useCookbook() {
-  return useQuery({ queryKey: ['cookbook'], queryFn: api.cookbook })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['cookbook'], queryFn: api.cookbook, enabled: canEdit })
 }
 
 export function useQuestionnaire() {
-  return useQuery({ queryKey: ['questionnaire'], queryFn: api.questionnaire })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['questionnaire'], queryFn: api.questionnaire, enabled: canEdit })
 }
 
 export function useCookLog(recipeId?: string, limit?: number) {
+  const { canEdit } = useAuth()
   return useQuery({
     queryKey: ['cooklog', recipeId ?? 'all', limit ?? 'default'],
     queryFn: () => api.cookLog(recipeId, limit),
+    enabled: canEdit,
   })
 }
 
 export function usePlan(start?: string, enabled = true) {
+  const { isLoading } = useAuth()
   const { id } = usePerson()
-  return useQuery({ queryKey: ['plan', id, start ?? 'current'], queryFn: () => api.plan(start), enabled })
+  return useQuery({ queryKey: ['plan', id, start ?? 'current'], queryFn: () => api.plan(start), enabled: !isLoading && enabled })
 }
 
 /** Past plan entries never logged as cooked — drives the login reminder modal. */
 export function usePendingCook(enabled: boolean) {
-  return useQuery({ queryKey: ['pendingCook'], queryFn: api.pendingCook, enabled })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['pendingCook'], queryFn: api.pendingCook, enabled: canEdit && enabled })
 }
 
 export function useDismissCookReminder() {
@@ -230,7 +250,8 @@ export function useDismissCookReminder() {
 }
 
 export function useConnectInfo() {
-  return useQuery({ queryKey: ['connect'], queryFn: api.connectInfo })
+  const { canEdit } = useAuth()
+  return useQuery({ queryKey: ['connect'], queryFn: api.connectInfo, enabled: canEdit })
 }
 
 // Chat endpoints are privileged — don't fire them anonymously (they would 401).

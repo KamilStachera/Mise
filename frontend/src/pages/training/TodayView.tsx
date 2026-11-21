@@ -20,9 +20,10 @@ export function TodayView() {
   const isMobile = useIsMobile()
   const nav = useNavigate()
   const { canEdit, isLoading: authLoading } = useAuth()
-  const { data, isLoading } = useTrainingToday()
+  const todayStr = todayIso()
+  const { data, isLoading } = useTrainingToday(todayStr)
   const [exercise, setExercise] = useState<string | null>(null)
-  const today = parseISODate(todayIso())
+  const today = parseISODate(todayStr)
 
   const title = `${DAY_NAMES_PL[(today.getDay() + 6) % 7]}, ${dayShortMonth(today)}`
 

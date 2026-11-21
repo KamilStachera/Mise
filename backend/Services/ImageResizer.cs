@@ -13,7 +13,8 @@ public static class ImageResizer
     {
         using var input = File.OpenRead(source);
         using var codec = SKCodec.Create(input);
-        if (codec is null || (long)codec.Info.Width * codec.Info.Height > 40_000_000) return false;
+        if (codec is null || codec.Info.Width <= 0 || codec.Info.Height <= 0
+            || (long)codec.Info.Width * codec.Info.Height > 25_000_000) return false;
         using var bitmap = SKBitmap.Decode(codec);
         if (bitmap is null) return false;
         var origin = codec.EncodedOrigin;

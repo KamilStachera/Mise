@@ -69,7 +69,7 @@ public static class ExerciseAlternatives
             case "none" or "bodyweight":
                 return new HashSet<ExerciseEquipment> { ExerciseEquipment.BodyOnly };
             case "home":
-                if (profile is null || profile.HomeEquipment.Count == 0) return ExerciseCatalog.HomeEquipment;
+                if (profile is null) return ExerciseCatalog.HomeEquipment;
                 var set = profile.HomeEquipment
                     .Select(n => Enum.TryParse<ExerciseEquipment>(n, out var e) ? e : (ExerciseEquipment?)null)
                     .OfType<ExerciseEquipment>()

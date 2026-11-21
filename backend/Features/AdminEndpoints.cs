@@ -88,6 +88,8 @@ public static class AdminEndpoints
             if (input.Name is not null)
             {
                 if (HouseholdEndpoints.CleanName(input.Name, 60) is not { } name) return Results.BadRequest(new { error = "Imię: 1–60 znaków." });
+                if (name != person.Name)
+                    audit.Add("person.renamed", $"Osoba „{person.Name}” → „{name}”.", person.HouseholdId, person.Id);
                 person.Name = name;
             }
             if (input.Role is not null)
@@ -350,7 +352,8 @@ public static class AdminEndpoints
     private static async Task<bool> OtherAdminExistsAsync(MiseDbContext db, AccessControl access, int except, CancellationToken ct)
     {
         var others = await db.People.IgnoreQueryFilters().AsNoTracking()
-            .Where(p => p.Id != except && p.BlockedAt == null && p.Email != null)
+            .Where(p => p.Id != except && p.BlockedAt == null && p.Email != null
+                && !db.Households.Any(h => h.Id == p.HouseholdId && h.BlockedAt != null))
             .Select(p => new { p.IsAdmin, p.Email }).ToListAsync(ct);
         return others.Any(p => p.IsAdmin || access.IsAdminEmail(p.Email));
     }

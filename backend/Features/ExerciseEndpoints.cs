@@ -131,18 +131,21 @@ public static class ExerciseEndpoints
             return Results.File(file, "image/webp", lastModified: File.GetLastWriteTimeUtc(file));
         });
 
-        g.MapPatch("/{id:guid}", async (Guid id, ExerciseEnrichInput input, MiseDbContext db,
+        g.MapPatch("/{id:guid}", async (Guid id, ExerciseEnrichInput input, Caller caller, MiseDbContext db,
             YouTubeVerifier youtube, CancellationToken ct) =>
         {
             var e = await db.Exercises.FirstOrDefaultAsync(x => x.Id == id, ct);
             if (e is null) return Results.NotFound();
+            if (e.HouseholdId is null && !caller.IsAdmin)
+                return Results.Json(new { error = "Wspólny katalog ćwiczeń może edytować tylko administrator." },
+                    statusCode: StatusCodes.Status403Forbidden);
             if (await ApplyAsync(e, input, youtube, ct) is { } error)
                 return Results.BadRequest(new { error });
             await db.SaveChangesAsync(ct);
             return Results.Ok(ToDetailDto(e));
         });
 
-        g.MapPost("/enrich", async (ExerciseEnrichBatchInput input, MiseDbContext db,
+        g.MapPost("/enrich", async (ExerciseEnrichBatchInput input, Caller caller, MiseDbContext db,
             YouTubeVerifier youtube, CancellationToken ct) =>
         {
             if (input.Items is not { Count: > 0 } items) return Results.BadRequest(new { error = "Pusta lista items." });
@@ -158,6 +161,11 @@ public static class ExerciseEndpoints
                     errors.Add(new(item.Id, "Nie ma takiego ćwiczenia (id)."));
                     continue;
                 }
+                if (e.HouseholdId is null && !caller.IsAdmin)
+                {
+                    errors.Add(new(id, "Wspólny katalog ćwiczeń może edytować tylko administrator."));
+                    continue;
+                }
                 if (await ApplyAsync(e, item, youtube, ct) is { } error) errors.Add(new(id, error));
                 else updated++;
             }
@@ -165,11 +173,15 @@ public static class ExerciseEndpoints
             return Results.Ok(new ExerciseEnrichResultDto(updated, errors));
         });
 
-        g.MapPost("/", async (ExerciseCreateInput input, MiseDbContext db, YouTubeVerifier youtube,
+        g.MapPost("/", async (ExerciseCreateInput input, Caller caller, MiseDbContext db, YouTubeVerifier youtube,
             CancellationToken ct) =>
         {
             var name = input.NamePl?.Trim() ?? "";
             if (name.Length is 0 or > 200) return Results.BadRequest(new { error = "namePl: 1–200 znaków." });
+            var nameEn = string.IsNullOrWhiteSpace(input.NameEn) ? name : input.NameEn.Trim();
+            if (nameEn.Length > 200) return Results.BadRequest(new { error = "nameEn: maks. 200 znaków." });
+            if (caller.HouseholdId is int hid && await db.Exercises.CountAsync(x => x.HouseholdId == hid, ct) >= 200)
+                return Results.BadRequest(new { error = "Osiągnięto limit własnych ćwiczeń (200)." });
             var folded = IngredientMatcher.Normalize(name);
             var names = await db.Exercises.AsNoTracking()
                 .Select(x => new { x.Id, x.NameEn, x.NamePl }).ToListAsync(ct);
@@ -178,7 +190,7 @@ public static class ExerciseEndpoints
             if (dup is not null)
                 return Results.Conflict(new { error = $"Takie ćwiczenie już jest: {dup.NamePl ?? dup.NameEn}.", id = dup.Id });
 
-            var e = new Exercise { NameEn = string.IsNullOrWhiteSpace(input.NameEn) ? name : input.NameEn.Trim() };
+            var e = new Exercise { NameEn = nameEn };
             var patch = new ExerciseEnrichInput(null, name, input.InstructionsPl, input.TipsPl, input.MistakesPl,
                 input.YoutubeId, input.VideoStartSeconds, input.IsTimed, null, input.Level ?? "beginner",
                 input.Category ?? "strength", input.Equipment ?? "body-only",

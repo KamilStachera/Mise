@@ -25,9 +25,11 @@ public enum CallerKind
     Unlinked,
     /// <summary>Signed in and a member of a household.</summary>
     Member,
-    /// <summary>A personal API key (agents/MCP): acts as the key's person.</summary>
+    /// <summary>A personal API key (agents/MCP): acts strictly as the key's person.</summary>
     PersonalKey,
-    /// <summary>The deployment's internal key (the Sous container): acts as the <c>X-Person</c> it names.</summary>
+    /// <summary>A short-lived per-turn token minted by the API for Sous: pinned to one (household, person).</summary>
+    SousToken,
+    /// <summary>The deployment's internal key (internal/non-public network only): acts as the <c>X-Person</c> it names.</summary>
     SystemKey,
     /// <summary>Local development: everything allowed, <c>X-Person</c> may pick anyone.</summary>
     DevBypass,
@@ -50,18 +52,19 @@ public sealed class Caller
     /// <summary>Whose data the request touches: <see cref="Self"/>, or the <c>X-Person</c> pick within the household.</summary>
     public PersonInfo? Acting { get; set; }
     public int? HouseholdId { get; set; }
-    /// <summary>Everyone in <see cref="HouseholdId"/> (the person switcher).</summary>
+    /// <summary>Active (unblocked) people in <see cref="HouseholdId"/> (the person switcher).</summary>
     public IReadOnlyList<PersonInfo> People { get; set; } = [];
     public bool IsAdmin { get; set; }
     /// <summary>Id of the personal API key used, for last-used bookkeeping.</summary>
     public Guid? ApiKeyId { get; set; }
 
     /// <summary>Allowed to write and to read the private endpoints of <see cref="HouseholdId"/>.</summary>
-    public bool IsPrivileged => Kind is CallerKind.Member or CallerKind.PersonalKey or CallerKind.SystemKey or CallerKind.DevBypass
+    public bool IsPrivileged => Kind is CallerKind.Member or CallerKind.PersonalKey or CallerKind.SousToken or CallerKind.SystemKey or CallerKind.DevBypass
         && Acting is not null;
 
-    /// <summary>May invite people, rename the household and change roles in it.</summary>
-    public bool IsOwner => IsPrivileged && (IsAdmin || Self?.Role == HouseholdRole.Owner);
+    /// <summary>May invite people, rename the household and change roles in it (never Sous/system tokens).</summary>
+    public bool IsOwner => Kind is CallerKind.Member or CallerKind.PersonalKey or CallerKind.DevBypass
+        && Acting is not null && (IsAdmin || Self?.Role == HouseholdRole.Owner);
 }
 
 /// <summary>Person lookups and the request → <see cref="Caller"/> resolution.</summary>
@@ -130,14 +133,26 @@ public static class People
                 : first;
             caller.Acting = pick ?? caller.Self;
         }
+        else if (key.StartsWith(AccessControl.SousTokenPrefix, StringComparison.Ordinal)
+            && access.ReadSousToken(key) is { } sousToken)
+        {
+            var person = await FindAsync(db, sousToken.PersonId, ct);
+            if (person is not null && person.HouseholdId == sousToken.HouseholdId)
+            {
+                caller.Kind = CallerKind.SousToken;
+                caller.Self = person;
+                caller.Acting = person; // pinned: ignores X-Person
+            }
+        }
         else if (key.Length > 0 && await access.FindPersonalKeyAsync(db, key, ct) is { } personal)
         {
             caller.Kind = CallerKind.PersonalKey;
             caller.ApiKeyId = personal.KeyId;
             caller.Self = personal.Person;
-            caller.Acting = await PickWithinAsync(db, personal.Person, picked, ct);
+            // A personal key acts strictly as its owner (ignores X-Person).
+            caller.Acting = personal.Person;
         }
-        else if (key.Length > 0 && access.IsSystemKey(key))
+        else if (key.Length > 0 && access.IsSystemKey(key) && IsInternalRequest(ctx))
         {
             caller.Kind = CallerKind.SystemKey;
             // The internal key names its person explicitly; it never defaults to anyone.
@@ -177,15 +192,18 @@ public static class People
         if (caller.HouseholdId is int household)
         {
             db.Tenant.UseHousehold(household);
-            if (caller.IsPrivileged) caller.People = await InHouseholdAsync(db, household, ct);
+            if (caller.IsPrivileged) caller.People = (await InHouseholdAsync(db, household, ct)).Where(p => !p.Blocked).ToList();
         }
     }
+
+    private static bool IsInternalRequest(HttpContext ctx) =>
+        ctx.Connection.RemoteIpAddress is not { } ip || !Import.SafeWebFetcher.IsPublic(ip);
 
     private static async Task<PersonInfo> PickWithinAsync(MiseDbContext db, PersonInfo self, int? picked, CancellationToken ct)
     {
         if (picked is not int id || id == self.Id) return self;
         var other = await FindAsync(db, id, ct);
-        return other is not null && other.HouseholdId == self.HouseholdId ? other : self;
+        return other is not null && other.HouseholdId == self.HouseholdId && !other.Blocked ? other : self;
     }
 
     public const string LegacyImportKind = "system.legacy-import";

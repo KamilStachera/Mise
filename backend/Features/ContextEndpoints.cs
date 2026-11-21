@@ -15,24 +15,30 @@ public static class ContextEndpoints
             return Results.Ok(new { markdown = md });
         });
 
-        g.MapGet("/status", (ContextExportService export) =>
-            Results.Ok(new { path = export.Directory, hostPath = export.HostDirectory }));
+        g.MapGet("/status", (ContextExportService export, Caller caller) =>
+            Results.Ok(new
+            {
+                path = caller.IsAdmin ? export.Directory : null,
+                hostPath = caller.IsAdmin ? export.HostDirectory : null,
+            }));
 
         // Everything the "Połącz agenta" card needs: copyable prompts/snippets for
-        // Codex & Claude Code. When HOST_CONTEXT_DIR is unset the strings contain
-        // {{CONTEXT_DIR}} / {{REPO_DIR}} tokens the frontend substitutes client-side.
-        g.MapGet("/connect", (ContextExportService export) =>
+        // Codex & Claude Code. Host filesystem paths are only exposed to instance admins
+        // so non-admin households receive portable {{CONTEXT_DIR}} / {{REPO_DIR}} tokens.
+        g.MapGet("/connect", (ContextExportService export, Caller caller) =>
         {
-            var ctxDir = export.HostDirectory ?? AgentDocs.ContextDirToken;
+            var hostDir = caller.IsAdmin ? export.HostDirectory : null;
+            var hostRoot = caller.IsAdmin ? export.HostRoot : null;
+            var ctxDir = hostDir ?? AgentDocs.ContextDirToken;
             // HOST_CONTEXT_DIR is the repo's context folder; this household's export is a subfolder of it.
-            var repoDir = export.HostRoot is string host
+            var repoDir = hostRoot is string host
                 ? (System.IO.Path.GetDirectoryName(host) ?? AgentDocs.RepoDirToken)
                 : AgentDocs.RepoDirToken;
             return Results.Ok(new
             {
                 apiBase = export.ApiBase,
-                contextPath = export.Directory,
-                hostContextPath = export.HostDirectory,
+                contextPath = caller.IsAdmin ? export.Directory : null,
+                hostContextPath = hostDir,
                 prompts = new
                 {
                     oneShot = AgentDocs.OneShotPrompt(ctxDir, export.ApiBase),

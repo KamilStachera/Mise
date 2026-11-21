@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useLocation, useNavigationType } from 'react-router-dom'
 
 /**
@@ -8,7 +8,7 @@ import { useLocation, useNavigationType } from 'react-router-dom'
  * recipe list after peeking into a recipe. Query-only changes (?d= on Plan) keep
  * the position.
  */
-export function useScrollMemory(ref: RefObject<HTMLElement>) {
+export function useScrollMemory(el: HTMLElement | null) {
   const location = useLocation()
   const navType = useNavigationType()
   const positions = useRef(new Map<string, number>())
@@ -17,15 +17,13 @@ export function useScrollMemory(ref: RefObject<HTMLElement>) {
   // Positions are recorded as you scroll: by the time a route change commits, the
   // new page may already have clamped scrollTop, so reading it on the way out lies.
   useEffect(() => {
-    const el = ref.current
     if (!el) return
     const onScroll = () => positions.current.set(current.current.key, el.scrollTop)
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [ref])
+  }, [el])
 
   useLayoutEffect(() => {
-    const el = ref.current
     const previous = current.current
     current.current = { key: location.key, pathname: location.pathname }
     if (!el || previous.key === location.key) return
@@ -54,5 +52,5 @@ export function useScrollMemory(ref: RefObject<HTMLElement>) {
       el.removeEventListener('touchstart', stop)
       el.removeEventListener('wheel', stop)
     }
-  }, [ref, location.key, location.pathname, navType])
+  }, [el, location.key, location.pathname, navType])
 }

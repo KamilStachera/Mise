@@ -35,6 +35,10 @@ public static class CookLogEndpoints
             }
             if (dishName.Length == 0)
                 return Results.BadRequest(new { error = "Podaj recipeId albo dishName." });
+            if (dishName.Length > 300)
+                return Results.BadRequest(new { error = "Nazwa dania może mieć maks. 300 znaków." });
+            if ((input.Note?.Length ?? 0) > 1000)
+                return Results.BadRequest(new { error = "Notatka może mieć maks. 1000 znaków." });
             if (input.Rating is int rating && rating is < 1 or > 5)
                 return Results.BadRequest(new { error = "Ocena musi być w zakresie 1–5." });
 
@@ -42,11 +46,16 @@ public static class CookLogEndpoints
             // or not at all. Quantities clamp at 0 — cooking can't make stock negative.
             await using var tx = await db.Database.BeginTransactionAsync();
 
+            var deductions = input.Deductions ?? new();
+            var ids = deductions.Select(d => d.PantryItemId).Distinct().ToList();
+            var pantryById = ids.Count == 0
+                ? new Dictionary<Guid, PantryItem>()
+                : await db.PantryItems.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+
             var deducted = new List<CookDeductedDto>();
-            foreach (var d in input.Deductions ?? new())
+            foreach (var d in deductions)
             {
-                var item = await db.PantryItems.FirstOrDefaultAsync(p => p.Id == d.PantryItemId);
-                if (item is null)
+                if (!pantryById.TryGetValue(d.PantryItemId, out var item))
                     return Results.NotFound(new { error = $"Nie ma pozycji spiżarni {d.PantryItemId}." });
                 if (d.Amount <= 0)
                     return Results.BadRequest(new { error = $"Ilość dla '{item.Name}' musi być dodatnia." });
@@ -74,7 +83,7 @@ public static class CookLogEndpoints
             db.CookLog.Add(entry);
             await db.SaveChangesAsync();
             await tx.CommitAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Created($"/api/cooklog/{entry.Id}", new CookLogResultDto(ToDto(entry), deducted));
         });
 
@@ -89,13 +98,17 @@ public static class CookLogEndpoints
                 return Results.BadRequest(new { error = "Ocena musi być w zakresie 1–5." });
 
             var dishName = input.DishName?.Trim();
+            if (dishName is { Length: > 300 })
+                return Results.BadRequest(new { error = "Nazwa dania może mieć maks. 300 znaków." });
+            if ((input.Note?.Length ?? 0) > 1000)
+                return Results.BadRequest(new { error = "Notatka może mieć maks. 1000 znaków." });
             if (!string.IsNullOrEmpty(dishName)) entry.DishName = dishName;
             entry.Rating = input.Rating;
             entry.Note = input.Note?.Trim() ?? "";
             if (input.CookedAt is DateOnly cookedAt) entry.CookedAt = cookedAt;
 
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(ToDto(entry));
         });
 
@@ -105,7 +118,7 @@ public static class CookLogEndpoints
             if (entry is null) return Results.NotFound();
             db.CookLog.Remove(entry);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.NoContent();
         });
 

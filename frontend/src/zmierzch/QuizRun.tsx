@@ -69,7 +69,11 @@ export function QuizRun({ questions, seconds, onGrade, onClose, onRetry }: {
       if (picked === null) {
         const i = '1234'.indexOf(e.key) >= 0 ? '1234'.indexOf(e.key) : 'abcd'.indexOf(e.key.toLowerCase())
         if (i >= 0 && options[i]) answer(options[i])
-      } else if (e.key === 'Enter') next()
+      } else if (e.key === 'Enter') {
+        if (e.target instanceof HTMLButtonElement) return // autoFocus "Dalej" button handles Enter itself
+        e.preventDefault()
+        next()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

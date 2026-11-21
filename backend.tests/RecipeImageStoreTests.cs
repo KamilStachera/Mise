@@ -129,7 +129,7 @@ public sealed class RecipeImageStoreTests : IDisposable
     public async Task BigPngUpload_IsStoredAsSmallerWebpWithinMaxSize()
     {
         var bytes = Encode(Noise(2600, 1300), SKEncodedImageFormat.Png);
-        Assert.True(bytes.Length > RecipeImageStore.OptimizeAboveBytes);
+        Assert.True(bytes.Length > 1024 * 1024);
 
         var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/png"));
 
@@ -148,7 +148,7 @@ public sealed class RecipeImageStoreTests : IDisposable
         using var noise = Noise(1800, 1200);
         using var lossless = noise.Encode(SKEncodedImageFormat.Webp, 100);
         var bytes = lossless.ToArray();
-        Assert.True(bytes.Length > RecipeImageStore.OptimizeAboveBytes);
+        Assert.True(bytes.Length > 1024 * 1024);
 
         var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/webp"));
 
@@ -158,29 +158,34 @@ public sealed class RecipeImageStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task SmallUpload_IsStoredByteForByte()
+    public async Task SmallUpload_IsAlwaysReencodedToWebpWithoutExif()
     {
         using var small = new SKBitmap(300, 200);
         small.Erase(SKColors.Orange);
-        var bytes = Encode(small, SKEncodedImageFormat.Jpeg);
+        var jpeg = Encode(small, SKEncodedImageFormat.Jpeg);
+        // Embed an EXIF APP1 block and verify the stored WebP drops it completely.
+        byte[] exif = [0xff, 0xe1, 0, 14, 69, 120, 105, 102, 0, 0, 71, 80, 83, 33, 0, 0];
+        var withExif = jpeg.Take(2).Concat(exif).Concat(jpeg.Skip(2)).ToArray();
 
-        var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/jpeg"));
+        var name = await store.SaveAsync(Guid.NewGuid(), Upload(withExif, "image/jpeg"));
 
-        Assert.EndsWith(".jpg", name);
-        Assert.Equal(bytes, await File.ReadAllBytesAsync(Path.Combine(root, name)));
+        Assert.EndsWith(".webp", name);
+        var storedBytes = await File.ReadAllBytesAsync(Path.Combine(root, name));
+        Assert.DoesNotContain((byte)'G', storedBytes.Skip(12).Take(20)); // no EXIF GPS marker
+        using var codec = SKCodec.Create(Path.Combine(root, name));
+        Assert.Equal(SKEncodedImageFormat.Webp, codec.EncodedFormat);
+        Assert.Equal((300, 200), (codec.Info.Width, codec.Info.Height));
     }
 
     [Fact]
-    public async Task BigUndecodableUpload_IsKeptAsUploaded()
+    public async Task SpoofedOrUndecodableUpload_IsRejectedAndLeavesNoFile()
     {
-        var bytes = new byte[RecipeImageStore.OptimizeAboveBytes + 10];
-        new Random(7).NextBytes(bytes);
+        var bytes = System.Text.Encoding.UTF8.GetBytes("<html><script>alert(1)</script></html>");
 
-        var name = await store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/png"));
+        await Assert.ThrowsAsync<InvalidImageException>(() =>
+            store.SaveAsync(Guid.NewGuid(), Upload(bytes, "image/png")));
 
-        Assert.EndsWith(".png", name);
-        Assert.Equal(bytes, await File.ReadAllBytesAsync(Path.Combine(root, name)));
-        Assert.Single(Directory.GetFiles(root));
+        Assert.Empty(Directory.GetFiles(root));
     }
 
     private static SKBitmap Noise(int width, int height)

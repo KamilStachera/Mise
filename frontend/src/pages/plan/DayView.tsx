@@ -7,7 +7,7 @@ import { useDiarySheets } from '../../components/diary/useDiarySheets'
 import { RecipeThumb } from '../../components/RecipeThumb'
 import { TAB_BAR_HEIGHT } from '../../components/TabBar'
 import { Button, Eyebrow, PageTitle, SectionHead, mono, sans, usePagePad } from '../../components/ui'
-import { DAY_NAMES_PL, DIARY_SLOTS, formatKcal, slotForNow, slotLabel } from '../../lib/labels'
+import { DAY_NAMES_PL, DIARY_SLOTS, formatKcal, plural, slotForNow, slotLabel } from '../../lib/labels'
 import { WEEKDAY_SHORT, addDays, dayShortMonth, daysAgo, mondayOf, parseISODate, syncLabel, toISO } from '../../lib/dates'
 import { showToast } from '../../lib/toastBus'
 import { useIsMobile } from '../../lib/useIsMobile'
@@ -50,7 +50,7 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
   const logCatering = useLogCatering()
   const deleteEntry = useDeletePlanEntry()
   const feminine = useFeminine()
-  const touchX = useRef<number | null>(null)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const recipeById = useMemo(() => new Map((recipes ?? []).map((r) => [r.id, r])), [recipes])
   const weekEntries = useMemo(() => (plan?.entries ?? []).filter((e) => e.date >= weekStart && e.date < toISO(addDays(parseISODate(weekStart), 7))), [plan, weekStart])
@@ -195,6 +195,10 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
   )
 
   const actDay = activity?.days.find((a) => a.date === day)
+  const hasStravaWorkout = actDay?.workouts.some((w) => w.source === 'strava') ?? false
+  const hasBandWorkout = actDay?.workouts.some((w) => w.source === 'band') ?? false
+  const hasManualWorkout = actDay?.workouts.some((w) => w.source === 'manual') ?? false
+  const showBandTag = hasBandWorkout || (activity?.state !== 'none' && !hasStravaWorkout && !hasManualWorkout)
   const activityBlock = !future && activity && (activity.state !== 'none' || (actDay?.activeKcal ?? 0) > 0) && (
     <button
       type="button"
@@ -204,7 +208,9 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
       <span style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <Eyebrow tone="ink">Aktywność</Eyebrow>
-          {activity.state !== 'none' && <SourceTag band />}
+          {showBandTag && <SourceTag band />}
+          {hasStravaWorkout && <SourceTag strava />}
+          {!showBandTag && !hasStravaWorkout && (hasManualWorkout || (actDay?.activeKcal ?? 0) > 0) && <SourceTag />}
           {activity.lastSyncAt && <span style={{ font: mono(11.5), color: activity.state === 'stale' ? 'var(--gold-text)' : 'var(--text-3)' }}>zsynchronizowano {syncLabel(activity.lastSyncAt)}</span>}
         </span>
         <span style={{ font: mono(13.5), lineHeight: 1.5 }}>
@@ -247,13 +253,15 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
   )
 
   return (
+    <>
     <div
-      onTouchStart={(e) => { touchX.current = e.touches[0].clientX }}
+      onTouchStart={(e) => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
       onTouchEnd={(e) => {
-        if (touchX.current == null) return
-        const dx = e.changedTouches[0].clientX - touchX.current
-        touchX.current = null
-        if (Math.abs(dx) > 70) onDay(dx < 0 ? next : prev)
+        if (touchStart.current == null) return
+        const dx = e.changedTouches[0].clientX - touchStart.current.x
+        const dy = e.changedTouches[0].clientY - touchStart.current.y
+        touchStart.current = null
+        if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) onDay(dx < 0 ? next : prev)
       }}
       style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 28 }}
     >
@@ -302,8 +310,9 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
           </div>
         </>
       )}
-      {sheets}
     </div>
+    {sheets}
+    </>
   )
 }
 
@@ -320,7 +329,7 @@ function FridgeStrip({ items, day, letters, recipeImage }: {
   const discard = useDiscardCook()
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <SectionHead title="W lodówce" meta={`${items.length} ${items.length === 1 ? 'danie' : items.length < 5 ? 'dania' : 'dań'}`} />
+      <SectionHead title="W lodówce" meta={plural(items.length, 'danie', 'dania', 'dań')} />
       {items.map((f, i) => {
         const r = recipeImage(f.recipeId)
         const letter = letters.get(f.cookId) ?? String.fromCharCode(65 + i)

@@ -13,6 +13,10 @@ type View = 'dzien' | 'tydzien' | 'postepy' | 'aktywnosc'
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 
+function isValidISODate(d: string): boolean {
+  return ISO.test(d) && toISO(parseISODate(d)) === d
+}
+
 /**
  * Plan shell: Dzień (the diary, default on phones) and Tydzień (the week grid, default on
  * desktop and for anonymous visitors). The selected day/week lives in the URL (?d=), so the
@@ -30,7 +34,7 @@ export function Plan() {
     : pathname.startsWith('/plan/postepy') ? 'postepy'
     : pathname.startsWith('/plan/aktywnosc') ? 'aktywnosc' : null
   const d = params.get('d')
-  const day = d && ISO.test(d) ? d : toISO(new Date())
+  const day = d && isValidISODate(d) ? d : toISO(new Date())
 
   if (view === null) {
     if (isLoading) return null
@@ -39,8 +43,8 @@ export function Plan() {
 
   const go = (v: View, iso: string) => nav(`/plan/${v}${iso === toISO(new Date()) ? '' : `?d=${iso}`}`, { replace: v === view })
 
-  // Phones switch views in the shell's section strip (SectionNav); only whose diary stays here.
-  const switcher = isMobile && canEdit ? <PersonSwitch /> : (
+  // Phones switch views in the shell's section strip (SectionNav); anonymous visitors see only the week plan.
+  const switcher = !canEdit ? null : isMobile ? <PersonSwitch /> : (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
       <PersonSwitch />
       <Segmented

@@ -106,10 +106,21 @@ public static class TrainingEndpoints
                 if (name.Length is 0 or > 120) return Results.BadRequest(new { error = "name: 1–120 znaków." });
                 p.Name = name;
             }
-            if (input.Description is not null) p.Description = input.Description.Trim();
-            if (input.Rationale is not null) p.Rationale = input.Rationale.Trim();
+            if (input.Description is not null)
+            {
+                if (input.Description.Length > 1000) return Results.BadRequest(new { error = "description: maks. 1000 znaków." });
+                p.Description = input.Description.Trim();
+            }
+            if (input.Rationale is not null)
+            {
+                if (input.Rationale.Length > 4000) return Results.BadRequest(new { error = "rationale: maks. 4000 znaków." });
+                p.Rationale = input.Rationale.Trim();
+            }
             if (input.StartDate is { } start)
             {
+                var today = DateOnly.FromDateTime(DateTime.Today);
+                if (start < today.AddYears(-1) || start > today.AddYears(1))
+                    return Results.BadRequest(new { error = "startDate: najwyżej rok od dziś." });
                 // Days keep their (week, weekday); a later start may push week-1 days before it.
                 if (p.Days.Any(d => ProgramSchedule.DateOf(start, d.Week, d.Weekday) < start))
                     return Results.BadRequest(new { error = "Nowa data startu wypada po niektórych dniach 1. tygodnia — wybierz poniedziałek lub wcześniej." });
@@ -217,7 +228,8 @@ public static class TrainingEndpoints
                 if (exercise is null) return Results.BadRequest(new { error = "Nie ma takiego ćwiczenia w katalogu." });
             }
             // A swap to/from a timed exercise flips reps ↔ seconds unless the caller set them.
-            var switchesMode = exercise.IsTimed != slot.Exercise!.IsTimed && input.Seconds is null && input.RepsMin is null && input.RepsMax is null;
+            var modeChanged = exercise.IsTimed != slot.Exercise!.IsTimed;
+            var switchesMode = modeChanged && input.Seconds is null && input.RepsMin is null && input.RepsMax is null;
             var (repsMin, repsMax, seconds) = switchesMode
                 ? exercise.IsTimed ? ((int?)null, (int?)null, (int?)30) : (10, 12, null)
                 : (input.RepsMin ?? (input.Seconds is not null ? null : slot.RepsMin),
@@ -246,12 +258,12 @@ public static class TrainingEndpoints
                     foreach (var other in later)
                     {
                         other.ExerciseId = exercise.Id;
-                        // Same weight makes no sense on a different movement; reps carry over.
+                        // Same weight makes no sense on a different movement; reps carry over unless mode changed.
                         other.TargetKg = null;
-                        if (switchesMode)
+                        if (modeChanged)
                             (other.RepsMin, other.RepsMax, other.Seconds) = exercise.IsTimed
-                                ? ((int?)null, (int?)null, (int?)30)
-                                : (10, 12, null);
+                                ? ((int?)null, (int?)null, (int?)(slot.Seconds ?? 30))
+                                : ((int?)(slot.RepsMin ?? 10), (int?)(slot.RepsMax ?? 12), (int?)null);
                     }
                     swapped += later.Count;
                 }

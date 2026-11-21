@@ -3,6 +3,7 @@ import type { AdminHousehold, CreatedInvite } from '../../api/client'
 import { useAdminActions, useAdminHouseholds, useAuth } from '../../api/hooks'
 import { Badge, FreshCode } from '../../components/HouseholdCards'
 import { Button, Eyebrow, Segmented, Sheet, Toggle, inputStyle, sans } from '../../components/ui'
+import { plural } from '../../lib/labels'
 import { ErrorLine, Row, ago, day } from './shared'
 
 /** Every household: members, counts, last activity; rename, Sous, block, and join codes for it. */
@@ -27,7 +28,7 @@ export function AdminHouseholds() {
           </>}
           meta={<>
             {h.members.length ? h.members.map((m) => `${m.name}${m.role === 'owner' ? ' ★' : ''}${m.blocked ? ' (blok.)' : ''}`).join(', ') : 'bez domowników'}
-            {' · '}{h.recipes} przepisów · {h.planEntries} wpisów w planie · aktywność {ago(h.lastSeenAt)} · od {day(h.createdAt)}
+            {' · '}{plural(h.recipes, 'przepis', 'przepisy', 'przepisów')} · {plural(h.planEntries, 'wpis', 'wpisy', 'wpisów')} w planie · aktywność {ago(h.lastSeenAt)} · od {day(h.createdAt)}
           </>}
           right={<span style={{ font: sans(13), color: 'var(--text-2)' }}>›</span>}
         />

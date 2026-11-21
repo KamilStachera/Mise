@@ -21,7 +21,13 @@ function householdDir(contextRoot: string, household: number | undefined): strin
 export function ConnectAgentCard() {
   const { data: info } = useConnectInfo()
   const { data: auth } = useAuth()
-  const [manualDir, setManualDir] = useState(() => localStorage.getItem(LS_KEY) ?? '')
+  const [manualDir, setManualDir] = useState(() => {
+    try {
+      return localStorage.getItem(LS_KEY) ?? ''
+    } catch {
+      return ''
+    }
+  })
 
   if (!info) return null
 
@@ -53,9 +59,9 @@ export function ConnectAgentCard() {
             value={manualDir}
             onChange={(e) => {
               setManualDir(e.target.value)
-              localStorage.setItem(LS_KEY, e.target.value)
+              try { localStorage.setItem(LS_KEY, e.target.value) } catch { /* private mode */ }
             }}
-            placeholder="np. E:\Ntropy\Repos\CukBuk\context"
+            placeholder="np. E:\Repos\CukBuk\context"
             style={input}
           />
         </div>
@@ -108,7 +114,15 @@ function ApiKeys() {
             {k.name} <Code>{k.prefix}…</Code>
             <span style={{ color: 'var(--text-3)' }}> · {k.lastUsedAt ? `używany ${dateFmt.format(new Date(k.lastUsedAt))}` : 'jeszcze nieużywany'}</span>
           </span>
-          <button onClick={() => actions.revokeApiKey.mutate(k.id)} style={pill}>Unieważnij</button>
+          <button
+            onClick={() => {
+              if (window.confirm(`Unieważnić klucz „${k.name}”? Agenci korzystający z niego stracą dostęp.`))
+                actions.revokeApiKey.mutate(k.id)
+            }}
+            style={pill}
+          >
+            Unieważnij
+          </button>
         </div>
       ))}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -133,9 +147,13 @@ function CopyBlock({ title, text, disabled }: { title: string; text: string; dis
   const [copied, setCopied] = useState(false)
 
   async function onCopy() {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1600)
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    } catch {
+      window.prompt('Skopiuj ręcznie:', text)
+    }
   }
 
   return (

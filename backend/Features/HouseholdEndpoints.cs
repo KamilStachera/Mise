@@ -27,8 +27,11 @@ public record RedeemInput(string? Code, string? Name);
 public static class HouseholdEndpoints
 {
     public const string RedeemRateLimit = "redeem";
+    public const string ChatRateLimit = "chat";
+    public const string ImportRateLimit = "import";
+    public const string WebhookRateLimit = "webhook";
 
-    /// <summary>Invite codes are ~50 bits, but don't let anyone hammer the redeem endpoint anyway: 5 tries per 10 min per account (or IP).</summary>
+    /// <summary>Rate limits across sensitive / expensive / unauthenticated endpoints.</summary>
     public static IServiceCollection AddHouseholdRateLimits(this IServiceCollection services) =>
         services.AddRateLimiter(o =>
         {
@@ -36,6 +39,15 @@ public static class HouseholdEndpoints
             o.AddPolicy(RedeemRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
                 ctx.User.FindFirstValue(ClaimTypes.Email) ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+            o.AddPolicy(ChatRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.RequestServices.GetService<Caller>()?.Self?.Id.ToString() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+            o.AddPolicy(ImportRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.RequestServices.GetService<Caller>()?.Self?.Id.ToString() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+            o.AddPolicy(WebhookRateLimit, ctx => RateLimitPartition.GetFixedWindowLimiter(
+                ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         });
 
     private static readonly IResult OwnersOnly =
@@ -73,13 +85,18 @@ public static class HouseholdEndpoints
         });
 
         // Everyone may rename themselves; renaming others takes the owner role.
-        g.MapPatch("/people/{id:int}", async (int id, PersonRenameInput input, Caller caller, MiseDbContext db, CancellationToken ct) =>
+        g.MapPatch("/people/{id:int}", async (int id, PersonRenameInput input, Caller caller, MiseDbContext db, Audit audit, CancellationToken ct) =>
         {
             if (id != caller.Self?.Id && !caller.IsOwner) return OwnersOnly;
             if (CleanName(input.Name, 60) is not { } name) return Results.BadRequest(new { error = "Imię: 1–60 znaków." });
             var person = await db.People.FirstOrDefaultAsync(p => p.Id == id, ct);
             if (person is null) return Results.NotFound();
-            person.Name = name;
+            if (name != person.Name)
+            {
+                if (id != caller.Self?.Id)
+                    audit.Add("person.renamed", $"Osoba „{person.Name}” → „{name}”.", person.HouseholdId, person.Id);
+                person.Name = name;
+            }
             await db.SaveChangesAsync(ct);
             return Results.Ok(await DetailAsync(db, caller, ct));
         });

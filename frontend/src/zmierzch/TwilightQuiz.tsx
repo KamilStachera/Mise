@@ -38,7 +38,9 @@ export function TwilightQuiz() {
   useEffect(() => saveProgress(progress), [progress])
   useEffect(() => saveFilters(filters), [filters])
   useEffect(() => {
+    const prev = document.title
     document.title = 'Zmierzch · trening do quizu'
+    return () => { document.title = prev }
   }, [])
 
   const onGrade = useCallback((id: string, ok: boolean) => setProgress((p) => grade(p, id, ok)), [])

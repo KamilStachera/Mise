@@ -71,7 +71,7 @@ public static class ExerciseCatalog
             if (list is null) continue;
             if (CleanList(list, label, out var clean) is { } err) return (null, err);
             actions.Add(() => set(clean));
-            polish = true;
+            if (clean.Count > 0) polish = true;
         }
         if (input.VideoStartSeconds is { } start)
         {

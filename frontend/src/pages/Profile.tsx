@@ -4,6 +4,7 @@ import { useAuth, useBody, useLogout, usePreferences, useCookbook, useSavePrefer
 import { loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
 import { HouseholdCard } from '../components/HouseholdCards'
+import { LoginPrompt } from '../components/LoginPrompt'
 import { useIsMobile } from '../lib/useIsMobile'
 import { Avatar, Button, Chip, Eyebrow, PageTitle, SectionHead, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
@@ -12,7 +13,7 @@ export function Profile() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
   const pad = usePagePad()
-  const { data: auth, canEdit } = useAuth()
+  const { data: auth, isLoading: authLoading, canEdit } = useAuth()
   const logout = useLogout()
   const { data: prefs } = usePreferences()
   const { data: questionnaire } = useQuestionnaire()
@@ -27,6 +28,7 @@ export function Profile() {
     if (prefs && !editing) setDraft(prefs)
   }, [prefs, editing])
 
+  if (!authLoading && !canEdit) return <LoginPrompt title="Profil kulinarny" />
   if (!prefs || !draft) return <div style={{ ...pad, color: 'var(--text-3)' }}>Ładowanie…</div>
 
   const view = editing ? draft : prefs
@@ -257,13 +259,14 @@ function LinkRow({ label, meta, onClick }: { label: string; meta: string; onClic
 }
 
 function Collapsible({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
   return (
-    <details style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+    <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)} style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
       <summary style={{ cursor: 'pointer', font: sans(15, 500), listStyle: 'none', display: 'flex', justifyContent: 'space-between' }}>
         {title}
-        <span style={{ color: 'var(--text-3)' }}>▾</span>
+        <span style={{ color: 'var(--text-3)' }}>{open ? '▴' : '▾'}</span>
       </summary>
-      <div style={{ paddingTop: 14 }}>{children}</div>
+      {open && <div style={{ paddingTop: 14 }}>{children}</div>}
     </details>
   )
 }

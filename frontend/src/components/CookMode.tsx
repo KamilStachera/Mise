@@ -43,7 +43,7 @@ export function CookMode({ title, steps, ingredients, servings, onClose }: {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, prev, next, timer])
+  }, [onClose, prev, next, timer.toggle])
 
   useWakeLock()
 
@@ -263,6 +263,12 @@ function useTimer(stepSeconds: number, stepKey: number) {
   const [left, setLeft] = useState(stepSeconds)
   const [state, setState] = useState<'idle' | 'running' | 'paused' | 'done'>('idle')
   const endsAt = useRef(0)
+  const stateRef = useRef(state)
+  const leftRef = useRef(left)
+  const totalRef = useRef(total)
+  stateRef.current = state
+  leftRef.current = left
+  totalRef.current = total
 
   useEffect(() => {
     setTotal(stepSeconds)
@@ -286,24 +292,28 @@ function useTimer(stepSeconds: number, stepKey: number) {
   }, [state])
 
   const toggle = useCallback(() => {
-    setState((s) => {
-      if (s === 'running') return 'paused'
-      if (s === 'done') {
-        setLeft(total)
-        return 'idle'
-      }
-      if (left <= 0) return s
-      endsAt.current = Date.now() + left * 1000
-      return 'running'
-    })
-  }, [left, total])
+    const s = stateRef.current
+    if (s === 'running') {
+      setState('paused')
+      return
+    }
+    if (s === 'done') {
+      setLeft(totalRef.current)
+      setState('idle')
+      return
+    }
+    if (leftRef.current <= 0) return
+    unlockAudio()
+    endsAt.current = Date.now() + leftRef.current * 1000
+    setState('running')
+  }, [])
 
   const addMinute = useCallback(() => {
-    if (state === 'running') endsAt.current += 60_000
+    if (stateRef.current === 'running') endsAt.current += 60_000
     setLeft((l) => l + 60)
     setTotal((t) => t + 60)
-    if (state === 'done') setState('idle')
-  }, [state])
+    if (stateRef.current === 'done') setState('idle')
+  }, [])
 
   return { left, state, toggle, addMinute, hasPreset: stepSeconds > 0 }
 }
@@ -394,11 +404,31 @@ function useWakeLock() {
   }, [])
 }
 
+let sharedAudio: AudioContext | null = null
+
+function getAudioContext(): AudioContext | null {
+  try {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Ctx) return null
+    if (!sharedAudio || sharedAudio.state === 'closed') sharedAudio = new Ctx()
+    return sharedAudio
+  } catch {
+    return null
+  }
+}
+
+/** Unlock AudioContext inside a user gesture so Safari/iOS allows the chime when the timer finishes. */
+function unlockAudio() {
+  const ctx = getAudioContext()
+  if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {})
+}
+
 /** Three soft sine notes — audible over kitchen noise without being an alarm. */
 function chime() {
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new Ctx()
+    const ctx = getAudioContext()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
     const notes = [880, 1108.7, 1318.5]
     notes.forEach((freq, i) => {
       const t = ctx.currentTime + i * 0.45
@@ -413,7 +443,6 @@ function chime() {
       osc.start(t)
       osc.stop(t + 0.45)
     })
-    window.setTimeout(() => ctx.close(), 2200)
   } catch {
     /* no audio available — the pulsing card is the fallback cue */
   }

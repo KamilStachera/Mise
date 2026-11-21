@@ -63,18 +63,27 @@ public static class PantryEndpoints
             if (item is null) return Results.NotFound();
             reliability.Confirm(item, input.Quantity);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(Mapping.ToDto(item));
         });
 
         g.MapPut("/{id:guid}", async (Guid id, PantryItemInput input, MiseDbContext db,
             IngredientMatcher matcher, StockReliability reliability, ContextExportService export) =>
         {
+            var name = input.Name?.Trim() ?? "";
+            if (name.Length is 0 or > 200)
+                return Results.BadRequest(new { error = "Nazwa musi mieć 1–200 znaków." });
+            if (input.LowThreshold is < 0)
+                return Results.BadRequest(new { error = "Próg minimalny nie może być ujemny." });
             if (!Mapping.TryParseUnit(input.Unit, out var unit))
                 return BadUnit();
+            var aliases = input.Aliases is not null ? JoinAliases(input.Aliases) : null;
+            if (aliases is { Length: > 500 } || (input.Aliases?.Count ?? 0) > 50)
+                return Results.BadRequest(new { error = "Aliasy mogą mieć maks. 500 znaków (i 50 pozycji)." });
+
             var item = await db.PantryItems.FirstOrDefaultAsync(p => p.Id == id);
             if (item is null) return Results.NotFound();
-            item.Name = input.Name.Trim();
+            item.Name = name;
             item.Category = Mapping.ParseCategory(input.Category);
             // Changing the unit reinterprets the stored quantity; callers adjust it themselves.
             var unitChanged = unit is PantryUnit u && u != item.Unit;
@@ -86,12 +95,12 @@ public static class PantryEndpoints
                 item.ReliabilityUpdatedAt = null;
             }
             item.LowThreshold = input.LowThreshold;
-            if (input.Aliases is not null)
-                item.Aliases = JoinAliases(input.Aliases);
+            if (aliases is not null)
+                item.Aliases = aliases;
             item.UpdatedAt = DateTimeOffset.UtcNow;
             await RelinkIngredientsAsync(db, matcher, item);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Ok(Mapping.ToDto(item));
         });
 
@@ -101,10 +110,15 @@ public static class PantryEndpoints
             IngredientMatcher matcher, StockReliability reliability, ContextExportService export) =>
         {
             var name = input.Name?.Trim() ?? "";
-            if (name.Length == 0)
-                return Results.BadRequest(new { error = "Podaj nazwę." });
+            if (name.Length is 0 or > 200)
+                return Results.BadRequest(new { error = "Nazwa musi mieć 1–200 znaków." });
+            if (input.LowThreshold is < 0)
+                return Results.BadRequest(new { error = "Próg minimalny nie może być ujemny." });
             if (!Mapping.TryParseUnit(input.Unit, out var unit) || unit is null)
                 return BadUnit();
+            var aliases = JoinAliases(input.Aliases ?? new());
+            if (aliases.Length > 500 || (input.Aliases?.Count ?? 0) > 50)
+                return Results.BadRequest(new { error = "Aliasy mogą mieć maks. 500 znaków (i 50 pozycji)." });
 
             var pantry = await db.PantryItems.ToListAsync();
             // Same strict match as adjust/bulk: "Jajko" duplicates "Jajka", but
@@ -124,13 +138,13 @@ public static class PantryEndpoints
                 Unit = unit.Value,
                 Quantity = Math.Max(0, input.Quantity ?? 0),
                 LowThreshold = input.LowThreshold,
-                Aliases = JoinAliases(input.Aliases ?? new()),
+                Aliases = aliases,
             };
             reliability.Confirm(item, item.Quantity);
             db.PantryItems.Add(item);
             await RelinkIngredientsAsync(db, matcher, item);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.Created($"/api/pantry/{item.Id}", Mapping.ToDto(item));
         });
 
@@ -140,7 +154,7 @@ public static class PantryEndpoints
             if (item is null) return Results.NotFound();
             db.PantryItems.Remove(item);
             await db.SaveChangesAsync();
-            await export.ExportAsync();
+            export.Schedule();
             return Results.NoContent();
         });
 
@@ -149,17 +163,22 @@ public static class PantryEndpoints
         g.MapPost("/adjust", async (PantryAdjustInput input, MiseDbContext db,
             IngredientMatcher matcher, StockReliability reliability, ContextExportService export) =>
         {
-            var pantry = await db.PantryItems.ToListAsync();
+            var items = input.Items ?? new();
+            if (items.Count > 500)
+                return Results.BadRequest(new { error = "Maks. 500 pozycji naraz." });
             var merchant = NormalizeMerchant(input.Merchant);
+            if (merchant.Length > 120) merchant = merchant[..120];
+            var pantry = await db.PantryItems.ToListAsync();
             var receiptMappings = await db.ReceiptNameMappings.ToListAsync();
             var updated = new List<PantryItemDto>();
             var notInCatalog = new List<UnmatchedItemDto>();
             var matches = new List<PantryAdjustmentMatchDto>();
 
-            foreach (var raw in input.Items ?? new())
+            foreach (var raw in items)
             {
                 var name = raw.Name?.Trim() ?? "";
                 if (name.Length == 0) continue;
+                if (name.Length > 300) name = name[..300];
 
                 ReceiptNameMapping? receiptMapping = null;
                 string matchedBy;
@@ -203,8 +222,11 @@ public static class PantryEndpoints
                     matchedBy, receiptMapping?.Id));
             }
 
-            await db.SaveChangesAsync();
-            await export.ExportAsync();
+            if (updated.Count > 0)
+            {
+                await db.SaveChangesAsync();
+                export.Schedule();
+            }
             return Results.Ok(new PantryAdjustResultDto(updated, notInCatalog, matches));
         });
 
@@ -213,14 +235,18 @@ public static class PantryEndpoints
         g.MapPost("/bulk", async (PantryBulkInput input, MiseDbContext db,
             IngredientMatcher matcher, StockReliability reliability, ContextExportService export) =>
         {
+            var items = input.Items ?? new();
+            if (items.Count > 500)
+                return Results.BadRequest(new { error = "Maks. 500 pozycji naraz." });
             var pantry = await db.PantryItems.ToListAsync();
             var results = new List<PantryItemDto>();
             var notInCatalog = new List<UnmatchedItemDto>();
 
-            foreach (var raw in input.Items ?? new())
+            foreach (var raw in items)
             {
                 var name = raw.Name?.Trim() ?? "";
                 if (name.Length == 0) continue;
+                if (name.Length > 300) name = name[..300];
 
                 var item = FindByName(name, pantry, matcher);
                 if (item is null)
@@ -238,14 +264,17 @@ public static class PantryEndpoints
                 reliability.Confirm(item, quantity);
                 if (!string.IsNullOrWhiteSpace(raw.Category))
                     item.Category = Mapping.ParseCategory(raw.Category);
-                if (raw.LowThreshold is decimal low)
+                if (raw.LowThreshold is decimal low && low >= 0)
                     item.LowThreshold = low;
                 item.UpdatedAt = DateTimeOffset.UtcNow;
                 results.Add(Mapping.ToDto(item));
             }
 
-            await db.SaveChangesAsync();
-            await export.ExportAsync();
+            if (results.Count > 0)
+            {
+                await db.SaveChangesAsync();
+                export.Schedule();
+            }
             return Results.Ok(new PantryBulkResultDto(results.Count, results, notInCatalog));
         });
 

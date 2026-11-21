@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type { CookAssignment, PlanEntry, Slot } from '../../api/client'
 import { useAddDiaryEntry, useCook, useCreateCook, useUpdateCook } from '../../api/hooks'
 import { WEEKDAY_SHORT, addDays, parseISODate, toISO } from '../../lib/dates'
-import { SLOTS, slotLabel } from '../../lib/labels'
+import { SLOTS, plural, slotLabel } from '../../lib/labels'
 import { showToast } from '../../lib/toastBus'
 import { Button, Eyebrow, Sheet, mono, sans } from '../ui'
 import { CookMark, PortionDots } from './parts'
@@ -103,7 +103,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
         assignments: rows,
         fromEntryId: origin.kind === 'entry' ? origin.entry.id : undefined,
       })
-      showToast(`Zaplanowano: ${title} · ${portions} porcji`)
+      showToast(`Zaplanowano: ${title} · ${plural(portions, 'porcja', 'porcje', 'porcji')}`)
     }
     onClose()
   }
@@ -126,7 +126,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <StepButton label="−" disabled={portions <= Math.max(1, used)} onClick={() => setPortions(portions - 1)} />
             <span style={{ font: mono(26, 500), minWidth: 28, textAlign: 'center' }}>{portions}</span>
-            <span style={{ font: sans(14), color: 'var(--text-2)', width: 48 }}>{portions === 1 ? 'porcja' : portions < 5 ? 'porcje' : 'porcji'}</span>
+            <span style={{ font: sans(14), color: 'var(--text-2)', width: 48 }}>{plural(portions, 'porcja', 'porcje', 'porcji').replace(/^\d+\s+/, '')}</span>
             <StepButton label="+" disabled={portions >= MAX_PORTIONS} onClick={() => setPortions(portions + 1)} />
           </div>
         </div>
@@ -184,7 +184,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)' }}>
           <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ font: sans(15, 500) }}>
-              {left > 0 ? `zostaje ${left} ${left === 1 ? 'porcja' : left < 5 ? 'porcje' : 'porcji'} → W lodówce` : 'wszystkie porcje rozplanowane'}
+              {left > 0 ? `zostaje ${plural(left, 'porcja', 'porcje', 'porcji')} → W lodówce` : 'wszystkie porcje rozplanowane'}
             </span>
             <span style={{ font: sans(13), color: 'var(--text-2)' }}>Składniki kupujesz raz, na {cookDayName}.</span>
           </span>

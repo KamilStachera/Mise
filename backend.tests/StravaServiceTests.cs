@@ -79,12 +79,14 @@ public class StravaServiceTests
     public void State_RoundTrips_AndForgeriesAreRejected()
     {
         var (_, strava, _) = Setup(person: 3);
-        var url = new Uri(strava.AuthorizeUrl("https://pichci.com/api/activity/strava/callback", 2));
+        var (authorizeUrl, nonce) = strava.AuthorizeStart("https://pichci.com/api/activity/strava/callback", 2);
+        var url = new Uri(authorizeUrl);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(url.Query);
 
         Assert.Equal("12345", query["client_id"].ToString());
         Assert.Equal("activity:read_all", query["scope"].ToString());
-        Assert.Equal(new StravaState(3, 2), strava.ReadState(query["state"]));
+        Assert.False(string.IsNullOrWhiteSpace(nonce));
+        Assert.Equal(new StravaState(3, 2, nonce), strava.ReadState(query["state"]));
         Assert.Null(strava.ReadState("3:2:abc"));
         Assert.Null(strava.ReadState(null));
     }

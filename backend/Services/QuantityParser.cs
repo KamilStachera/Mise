@@ -47,27 +47,35 @@ public static partial class QuantityParser
         var slash = num.IndexOf('/');
         if (slash > 0)
         {
-            var a = decimal.Parse(num[..slash], CultureInfo.InvariantCulture);
-            var b = decimal.Parse(num[(slash + 1)..], CultureInfo.InvariantCulture);
-            if (b == 0) return false;
-            n = a / b;
+            if (!decimal.TryParse(num[..slash], NumberStyles.Number, CultureInfo.InvariantCulture, out var a)
+                || !decimal.TryParse(num[(slash + 1)..], NumberStyles.Number, CultureInfo.InvariantCulture, out var b)
+                || b == 0)
+                return false;
+            try { n = a / b; }
+            catch (OverflowException) { return false; }
         }
         else
         {
-            n = decimal.Parse(num.Replace(',', '.'), CultureInfo.InvariantCulture);
+            if (!decimal.TryParse(num.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out n))
+                return false;
         }
+        if (n <= 0 || n > 1_000_000_000m) return false;
 
         var token = m.Groups["unit"].Value.ToLowerInvariant();
-        (value, unit) = token switch
+        try
         {
-            "kg" => (n * 1000, PantryUnit.G),
-            "dag" or "dkg" => (n * 10, PantryUnit.G),
-            "g" => (n, PantryUnit.G),
-            "l" => (n * 1000, PantryUnit.Ml),
-            "ml" => (n, PantryUnit.Ml),
-            // bare number ("4" jajka, "2" dymki) or szt/sztuki
-            _ => (n, PantryUnit.Szt),
-        };
+            (value, unit) = token switch
+            {
+                "kg" => (n * 1000, PantryUnit.G),
+                "dag" or "dkg" => (n * 10, PantryUnit.G),
+                "g" => (n, PantryUnit.G),
+                "l" => (n * 1000, PantryUnit.Ml),
+                "ml" => (n, PantryUnit.Ml),
+                // bare number ("4" jajka, "2" dymki) or szt/sztuki
+                _ => (n, PantryUnit.Szt),
+            };
+        }
+        catch (OverflowException) { return false; }
         return value > 0;
     }
 

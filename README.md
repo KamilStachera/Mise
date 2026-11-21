@@ -367,8 +367,14 @@ One-time setup:
    On a shared/VPS host also set `WEB_BIND=127.0.0.1:8080` in `.env` so nginx
    isn't reachable directly — only through the tunnel.
 
-Moving hosts later (e.g. VPS → home server) is just: copy the volumes
-(`pg_dump` + images), same `.env`, same tunnel token — DNS and TLS don't change.
+Moving hosts later (e.g. VPS → home server) — back up **all four volumes**
+(`pg_dump`, `mise-images`, **`mise-keys`** so sessions & encrypted Strava tokens survive,
+and **`sous-codex`** so ChatGPT login & threads survive; see `scripts/backup.sh`), plus
+`.env` and the tunnel token — DNS and TLS don't change.
+
+> **Upgrading `sous` to non-root:** on an existing deployment whose `sous-codex` volume was
+> previously mounted at `/root/.codex`, fix volume ownership once before starting the new image:
+> `docker compose run --rm --user root --entrypoint chown sous -R node:node /data/codex`.
 
 ---
 

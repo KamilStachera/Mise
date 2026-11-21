@@ -2,8 +2,8 @@
 // MCP server "pichci" — first-class tools over the Pichci cookbook REST API for
 // Claude Code / Codex. The exported ./context folder stays the primary READ
 // path; these tools are for writes and quick queries when the folder isn't open.
-import { readFile } from 'node:fs/promises'
-import { extname } from 'node:path'
+import { readFile, realpath, stat } from 'node:fs/promises'
+import { extname, sep } from 'node:path'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
@@ -60,9 +60,9 @@ const recipeInputShape = {
         'Zawsze komplet: kcal+protein+fat+carbs, nigdy samo kcal — gdy źródło podaje ' +
         'tylko kalorie, resztę policz ze składników',
     ),
-  protein: z.number().positive().optional().describe('Białko w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z fat i carbs'),
-  fat: z.number().positive().optional().describe('Tłuszcz w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i carbs'),
-  carbs: z.number().positive().optional().describe('Węglowodany w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i fat'),
+  protein: z.number().min(0).optional().describe('Białko w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z fat i carbs'),
+  fat: z.number().min(0).optional().describe('Tłuszcz w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i carbs'),
+  carbs: z.number().min(0).optional().describe('Węglowodany w gramach NA PORCJĘ (szacunek) — zawsze oszacuj, razem z protein i fat'),
   blurb: z.string().optional().describe('Jedno-dwa zdania opisu'),
   tip: z.string().optional().describe(
     'Wskazówka (opcjonalna), ale precyzyjna: bez „odrobiny”, „kilku minut” i innych wartości bez liczby',
@@ -215,6 +215,8 @@ const IMAGE_TYPE_BY_EXT: Record<string, string> = {
 }
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
+const ALLOWED_IMAGE_DIR = process.env.MISE_ALLOWED_IMAGE_DIR?.trim() || null
+
 server.tool(
   'add_recipe_image',
   'Dodaj zdjęcie dania do przepisu — z pliku lokalnego (filePath) LUB z internetu (url). ' +
@@ -222,35 +224,35 @@ server.tool(
   {
     id: z.string().uuid().describe('Id przepisu'),
     filePath: z.string().optional().describe('Ścieżka do pliku ze zdjęciem na dysku'),
-    url: z.string().url().optional().describe('Adres URL zdjęcia do pobrania'),
+    url: z.string().url().optional().describe('Adres URL zdjęcia do pobrania (pobiera bezpiecznie serwer Pichci)'),
   },
   async ({ id, filePath, url }) => {
     if (!filePath === !url) throw new Error('Podaj dokładnie jedno z: filePath albo url.')
 
-    let bytes: Uint8Array<ArrayBuffer>
-    let type: string | undefined
-    let name: string
-    if (filePath) {
-      // Copy so the Blob sees a plain ArrayBuffer-backed view (Buffer may be pooled).
-      bytes = new Uint8Array(await readFile(filePath))
-      type = IMAGE_TYPE_BY_EXT[extname(filePath).toLowerCase()]
-      name = filePath.replace(/^.*[\\/]/, '')
-    } else {
-      const res = await fetch(url!)
-      if (!res.ok) throw new Error(`Nie udało się pobrać zdjęcia: ${res.status} ${res.statusText}`)
-      bytes = new Uint8Array(await res.arrayBuffer())
-      const pathname = new URL(url!).pathname
-      type = res.headers.get('content-type')?.split(';')[0].trim()
-      if (!type || !Object.values(IMAGE_TYPE_BY_EXT).includes(type))
-        type = IMAGE_TYPE_BY_EXT[extname(pathname).toLowerCase()]
-      name = pathname.replace(/^.*\//, '') || 'photo'
+    // Remote URLs ALWAYS go through the backend's SafeWebFetcher (no SSRF / LAN access).
+    if (url) {
+      return text(await post(`/recipes/${id}/image-from-url`, { url }))
     }
 
+    const type = IMAGE_TYPE_BY_EXT[extname(filePath!).toLowerCase()]
     if (!type)
       throw new Error('Nieobsługiwany typ zdjęcia — dozwolone JPG, PNG i WebP.')
-    if (bytes.byteLength === 0 || bytes.byteLength > IMAGE_MAX_BYTES)
+
+    const resolvedPath = await realpath(filePath!)
+    if (ALLOWED_IMAGE_DIR) {
+      const allowedRoot = await realpath(ALLOWED_IMAGE_DIR)
+      const prefix = allowedRoot.endsWith(sep) ? allowedRoot : allowedRoot + sep
+      if (!resolvedPath.startsWith(prefix))
+        throw new Error('Dostęp do plików spoza katalogu wygenerowanych zdjęć jest zablokowany.')
+    }
+
+    const info = await stat(resolvedPath)
+    if (!info.isFile() || info.size === 0 || info.size > IMAGE_MAX_BYTES)
       throw new Error('Zdjęcie musi mieć od 1 B do 5 MB.')
 
+    // Copy so the Blob sees a plain ArrayBuffer-backed view (Buffer may be pooled).
+    const bytes = new Uint8Array(await readFile(resolvedPath))
+    const name = resolvedPath.replace(/^.*[\\/]/, '')
     const form = new FormData()
     form.append('file', new Blob([bytes], { type }), name)
     return text(await post(`/recipes/${id}/image`, form))
@@ -597,6 +599,7 @@ server.tool(
     portions: z.number().int().min(1).max(12).describe('porcje w garnku (≥ 1 + liczba przypisań); nadwyżka czeka w lodówce (get_fridge)'),
     firstDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('dzień gotowania, YYYY-MM-DD'),
     firstSlot: z.enum(['breakfast', 'lunch', 'dinner']),
+    fromEntryId: z.string().uuid().optional().describe('opcjonalnie: przekształć istniejący wpis z planu w dzień gotowania garnka'),
     assignments: z
       .array(z.object({
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -729,6 +732,19 @@ server.tool(
     carbs: z.number().min(0).optional().describe('Suma węglowodanów w g'),
     note: z.string().optional(),
     eaten: z.boolean().default(true).describe('true = zjedzone (domyślnie), false = tylko w planie'),
+    favorite: z
+      .object({
+        name: z.string(),
+        kcal: z.number().int().min(0).max(10000),
+        protein: z.number().min(0).optional(),
+        fat: z.number().min(0).optional(),
+        carbs: z.number().min(0).optional(),
+        per100g: z.boolean().optional(),
+        lastGrams: z.number().positive().optional(),
+        barcode: z.string().max(32).optional(),
+      })
+      .optional()
+      .describe('opcjonalnie zapisz ten produkt jako ulubiony (Ulubione)'),
   },
   async (input) => text(await post('/plan/entries', input)),
 )
@@ -914,6 +930,8 @@ const enrichShape = {
   isTimed: z.boolean().optional().describe('true = wykonywane na czas (plank, rozciąganie), false = na powtórzenia'),
   hidden: z.boolean().optional().describe('Ukryj z katalogu (np. duplikat, ćwiczenie niszowe)'),
   level: z.enum(EXERCISE_LEVELS).optional(),
+  category: z.enum(EXERCISE_CATEGORIES).optional(),
+  equipment: z.enum(EQUIPMENT).optional(),
   primaryMuscles: z.array(z.enum(MUSCLES)).min(1).optional().describe('Popraw tylko, gdy dane źródłowe są błędne'),
   secondaryMuscles: z.array(z.enum(MUSCLES)).optional(),
 }
@@ -932,6 +950,8 @@ server.tool(
     location: z.enum(['home', 'gym']).optional(),
     enriched: z.boolean().optional(),
     video: z.boolean().optional().describe('true = tylko z filmem, false = tylko bez filmu'),
+    includeHidden: z.boolean().optional().describe('true = pokaż też ukryte ćwiczenia'),
+    primaryOnly: z.boolean().optional().describe('true = filtr muscle tylko dla partii głównej'),
     limit: z.number().int().min(1).max(200).optional().describe('Domyślnie 30'),
     offset: z.number().int().min(0).optional(),
   },

@@ -57,7 +57,14 @@ public class ExerciseEnrichmentTests
         var done = Ex("Squat", ExerciseEquipment.BodyOnly, namePl: "Przysiad", video: GoodVideo);
         var hidden = Ex("Atlas Stones", ExerciseEquipment.Other);
         hidden.Hidden = true;
-        db.Exercises.AddRange(gymNoText, homeNoText, noVideo, inPlan, done, hidden);
+        var customHousehold = new Exercise
+        {
+            NameEn = "Private Household Move",
+            Equipment = ExerciseEquipment.BodyOnly,
+            PrimaryMuscles = ["Quadriceps"],
+            InstructionsEn = ["Private."],
+        }; // SourceId == null → MiseDbContext stamps HouseholdId = 1
+        db.Exercises.AddRange(gymNoText, homeNoText, noVideo, inPlan, done, hidden, customHousehold);
         db.People.Add(new Person { Id = 1, Name = "Ola" });
         db.TrainingPrograms.Add(new TrainingProgram
         {
@@ -137,6 +144,7 @@ public class ExerciseEnrichmentTests
 
     private static Exercise Ex(string name, ExerciseEquipment eq, string? namePl = null, string? video = null) => new()
     {
+        SourceId = name.Replace(' ', '_'),
         NameEn = name,
         Equipment = eq,
         PrimaryMuscles = ["Quadriceps"],

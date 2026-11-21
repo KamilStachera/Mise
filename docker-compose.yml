@@ -1,7 +1,15 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    mem_limit: 512m
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mise}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mise_dev_password}
@@ -19,6 +27,8 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     restart: unless-stopped
+    mem_limit: 1g
+    logging: *default-logging
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: ${ConnectionStrings__Default:-Host=db;Port=5432;Database=mise;Username=mise;Password=mise_dev_password}
@@ -33,19 +43,20 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1}
       SOUS_URL: http://sous:8090
+      SOUS_SECRET: ${SOUS_SECRET:-}
       # Background Polish descriptions + YouTube demos for the exercise catalog (AI_PROVIDER=codex).
       EXERCISE_ENRICH: ${EXERCISE_ENRICH:-on}
       EXERCISE_ENRICH_INTERVAL: ${EXERCISE_ENRICH_INTERVAL:-60}
       EXERCISE_ENRICH_BATCH: ${EXERCISE_ENRICH_BATCH:-6}
       # Households: members sign in with Google; new accounts join with an invite code.
-      # Agents use personal API keys; MISE_API_KEY is the internal key for the sous
-      # container. See README "Households and access".
+      # Agents use personal API keys; Sous gets short-lived per-turn tokens minted by the API.
       Auth__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Auth__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
       Auth__AdminEmails: ${ADMIN_EMAILS:-}
       Auth__PublicHouseholdId: ${PUBLIC_HOUSEHOLD_ID:-}
       MISE_API_KEY: ${MISE_API_KEY:-}
       Auth__DevBypass: ${AUTH_DEV_BYPASS:-false}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
       # Legacy single-household config, imported once into household 1 on boot (safe to
       # remove after the first boot of the households version).
       Auth__AllowedEmails: ${AUTH_ALLOWED_EMAILS:-}
@@ -62,12 +73,18 @@ services:
       - ./context:/context
       - mise-images:/data/images
       # DataProtection keys — without persistence every rebuild would log
-      # everyone out and break in-flight Google logins.
+      # everyone out and break in-flight Google logins and Strava tokens.
       - mise-keys:/data/keys
     ports:
       # Direct access for local agents/Swagger. Writes are auth-gated in the app
       # itself (middleware), but keep the raw port loopback-only anyway.
       - "127.0.0.1:5080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /api/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && grep -q \"200 OK\" <&3'"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
     depends_on:
       db:
         condition: service_healthy
@@ -77,24 +94,37 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
     restart: unless-stopped
+    mem_limit: 128m
+    logging: *default-logging
     ports:
       # On a public host (VPS) set WEB_BIND=127.0.0.1:8080 in .env so nginx is
       # loopback-only — cloudflared reaches it over the compose network,
       # nothing else should. Default keeps LAN access for home use.
       - "${WEB_BIND:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   # In-app Sous on Codex, signed in with the household's ChatGPT plan (AI_PROVIDER=codex).
   # One-time login: docker compose exec sous codex login --device-auth
-  # Internal only: no ports — the api container is the only caller and does the auth.
+  # Internal only: no ports — the api container is the only caller (authenticated via X-Sous-Secret)
+  # and issues short-lived per-turn household-scoped tokens. No /context mount.
   sous:
     build:
       context: .
       dockerfile: sous/Dockerfile
     restart: unless-stopped
+    mem_limit: 1g
+    logging: *default-logging
     environment:
       MISE_API_URL: http://api:8080
+      SOUS_SECRET: ${SOUS_SECRET:-}
+      # Fallback only when SOUS_SECRET is unset (used solely to derive the same X-Sous-Secret hash, never sent to the API).
       MISE_API_KEY: ${MISE_API_KEY:-}
       SOUS_MODEL: ${SOUS_MODEL:-}
       SOUS_REASONING: ${SOUS_REASONING:-low}
@@ -102,25 +132,33 @@ services:
       SOUS_JOB_REASONING: ${SOUS_JOB_REASONING:-low}
       TZ: Europe/Warsaw
     volumes:
-      - ./context:/context:ro
       # ChatGPT sign-in (auth.json) and the conversation threads.
-      - sous-codex:/root/.codex
+      - sous-codex:/data/codex
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   # Public exposure via Cloudflare Tunnel (TLS + domain, no open inbound ports).
   # Opt-in: docker compose --profile public up -d --build
   # Ingress is configured in the Cloudflare Zero Trust dashboard:
   #   https://<your-domain> -> http://web:80
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.3.0
     restart: unless-stopped
+    mem_limit: 256m
+    logging: *default-logging
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
     profiles: ["public"]
     depends_on:
-      - web
+      web:
+        condition: service_healthy
 
 volumes:
   mise-db:

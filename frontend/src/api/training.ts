@@ -274,7 +274,7 @@ export const trainingApi = {
 }
 
 /** refreshEvery: poll (ms) while the background describer is filling the catalog in. */
-export function useExercises(f: ExerciseQuery, refreshEvery?: number) {
+export function useExercises(f: ExerciseQuery, refreshEvery?: number, enabled = true) {
   return useQuery({
     queryKey: ['exercises', f],
     queryFn: () => trainingApi.exercises(f),
@@ -282,6 +282,7 @@ export function useExercises(f: ExerciseQuery, refreshEvery?: number) {
     placeholderData: keepPreviousData,
     staleTime: 60_000,
     refetchInterval: refreshEvery,
+    enabled,
   })
 }
 
@@ -298,11 +299,11 @@ export interface EnrichmentStatus {
 }
 
 /** The background describer (GPT via Sous); polled so the catalog counter moves on its own. */
-export function useEnrichmentStatus() {
+export function useEnrichmentStatus(poll = true) {
   return useQuery({
     queryKey: ['exerciseEnrichment'],
     queryFn: () => http<EnrichmentStatus>('/exercises/enrichment'),
-    refetchInterval: 60_000,
+    refetchInterval: poll ? 60_000 : false,
     staleTime: 30_000,
   })
 }

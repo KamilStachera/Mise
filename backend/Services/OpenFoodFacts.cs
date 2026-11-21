@@ -36,10 +36,14 @@ public class OpenFoodFacts(IHttpClientFactory http, IMemoryCache cache, ILogger<
                 using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
                 product = Parse(doc.RootElement);
             }
-            else if ((int)res.StatusCode >= 500)
+            else if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                product = null;
+            }
+            else
             {
                 log.LogWarning("Open Food Facts {Status} for {Code}", (int)res.StatusCode, code);
-                return null;   // don't cache outages
+                return null;   // don't cache rate limits (429), blocks (403), or outages (5xx)
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
@@ -64,9 +68,10 @@ public class OpenFoodFacts(IHttpClientFactory http, IMemoryCache cache, ILogger<
             fat = Num(n, "fat_100g");
             carbs = Num(n, "carbohydrates_100g");
         }
-        if (name is null && kcal is null) return null;
+        int? safeKcal = kcal is decimal k && k is >= 0 and <= 100_000m ? (int)Math.Round(k) : null;
+        if (name is null && safeKcal is null) return null;
         var brand = Str(p, "brands")?.Split(',')[0].Trim();
-        return new OffProduct(name ?? "Produkt bez nazwy", brand, kcal is decimal k ? (int)Math.Round(k) : null,
+        return new OffProduct(name ?? "Produkt bez nazwy", brand, safeKcal,
             Round(protein), Round(fat), Round(carbs), Num(p, "serving_quantity") is decimal s && s > 0 ? s : null,
             Str(p, "serving_size"));
     }

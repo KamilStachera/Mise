@@ -1,19 +1,20 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
-  useAuth, useRecipe, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
+  useAuth, useChatHealth, useRecipe, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
   useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage, useSetRecipeServings,
 } from '../api/hooks'
 import type { CookProposalItem, RecipeDetail as Recipe, RecipeImage } from '../api/client'
 import { dishLine, formatGrams, formatQty, plural, sourceEyebrow, unitLabel } from '../lib/labels'
 import { IMAGE_ACCEPT } from '../lib/images'
 import { requestChat } from '../lib/chatBus'
-import { CookMode } from '../components/CookMode'
 import { RecipeThumb } from '../components/RecipeThumb'
 import { AddToPlanSheet } from '../components/AddToPlanSheet'
 import { Button, Eyebrow, SectionHead, Sheet, StatusDot, inputStyle, mono, sans } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { ingredientDetailText } from '../lib/ingredients'
+
+const CookMode = lazy(() => import('../components/CookMode').then((m) => ({ default: m.CookMode })))
 
 /** Height of the phone's sticky action bar (above the safe area). */
 const ACTION_BAR = 78
@@ -24,7 +25,8 @@ export function RecipeDetail() {
   const isMobile = useIsMobile()
   const location = useLocation()
   const { canEdit } = useAuth()
-  const { data: r, isLoading } = useRecipe(id)
+  const { data: chatHealth } = useChatHealth()
+  const { data: r, isLoading, isError } = useRecipe(id)
   const addMissing = useAddMissingToShopping()
   const del = useDeleteRecipe()
   const upload = useUploadRecipeImage()
@@ -42,12 +44,22 @@ export function RecipeDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Back returns to the list as it was left (filters, scroll); a deep link has no app history.
+  const goBack = () => (location.key !== 'default' ? nav(-1) : nav('/'))
+
+  if (isError) {
+    return (
+      <div style={{ padding: isMobile ? 20 : '40px 44px', display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start' }}>
+        <span style={{ fontFamily: 'var(--serif)', fontSize: 28 }}>Nie znaleziono przepisu</span>
+        <span style={{ font: sans(14.5), color: 'var(--text-2)' }}>Ten przepis mógł zostać usunięty albo nie istnieje.</span>
+        <Button variant="outline" onClick={goBack}>← Wróć do przepisów</Button>
+      </div>
+    )
+  }
+
   if (isLoading || !r) {
     return <div style={{ padding: isMobile ? 20 : '40px 44px', color: 'var(--text-3)' }}>Ładowanie…</div>
   }
-
-  // Back returns to the list as it was left (filters, scroll); a deep link has no app history.
-  const goBack = () => (location.key !== 'default' ? nav(-1) : nav('/'))
 
   async function onPick(file: File | undefined) {
     if (!file || !r) return
@@ -186,7 +198,11 @@ export function RecipeDetail() {
 
   const cookLog = <CookLogSection recipeId={r.id} initialOpen={cookRequested && canEdit} canEdit={canEdit} />
   const planSheet = canEdit && <AddToPlanSheet open={planOpen} onClose={() => setPlanOpen(false)} recipe={r} />
-  const cook = cookMode && <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} servings={r.selectedServings} onClose={() => setCookMode(false)} />
+  const cook = cookMode && (
+    <Suspense fallback={null}>
+      <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} servings={r.selectedServings} onClose={() => setCookMode(false)} />
+    </Suspense>
+  )
 
   if (isMobile) {
     const roundBtn: CSSProperties = { width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--surface)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, cursor: 'pointer' }
@@ -203,7 +219,7 @@ export function RecipeDetail() {
                   {upload.isPending ? '…' : 'Zdjęcie'}
                 </button>
               )}
-              {canEdit && (
+              {canEdit && chatHealth?.enabled && (
                 <button type="button" aria-label="Zapytaj Sous" onClick={() => requestChat()} style={{ ...roundBtn, color: 'var(--accent)' }}>✦</button>
               )}
               {canEdit && (
@@ -563,13 +579,13 @@ function CookLogSection({ recipeId, initialOpen = false, canEdit }: { recipeId: 
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSave()}
+            onKeyDown={(e) => { if (e.key === 'Enter' && proposal && rows && !add.isPending) onSave() }}
             placeholder="Notatka — np. następnym razem mniej soli"
             autoFocus
             style={{ ...inputStyle, background: 'var(--bg)' }}
           />
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={onSave} disabled={add.isPending}>{add.isPending ? 'Zapisywanie…' : 'Zapisz'}</Button>
+            <Button onClick={onSave} disabled={add.isPending || !proposal || !rows}>{add.isPending ? 'Zapisywanie…' : 'Zapisz'}</Button>
             <Button variant="quiet" onClick={() => setOpen(false)}>Anuluj</Button>
           </div>
         </div>

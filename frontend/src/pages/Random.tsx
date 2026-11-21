@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, useCookLog, useRecipes } from '../api/hooks'
+import { useAuth, useChatHealth, useCookLog, useRecipes } from '../api/hooks'
 import type { RecipeListItem } from '../api/client'
 import { daysAgo } from '../lib/dates'
 import { plural, recipeCountLabel } from '../lib/labels'
@@ -48,6 +48,7 @@ export function Random() {
   const isMobile = useIsMobile()
   const pad = usePagePad()
   const { canEdit } = useAuth()
+  const { data: chatHealth } = useChatHealth()
   const { data: recipes = [] } = useRecipes('all', '')
   const { data: cookLog = [] } = useCookLog()
 
@@ -166,7 +167,7 @@ export function Random() {
         ? 'Tylko jeden kandydat na dziś'
         : `${recipeCountLabel(basePool.length)} w puli`
 
-  const askSous = canEdit && (
+  const askSous = canEdit && chatHealth?.enabled && (
     <span style={{ font: sans(14), color: 'var(--text-2)' }}>
       <span style={{ color: 'var(--accent)' }}>✦</span> Nic nie pasuje?{' '}
       <button

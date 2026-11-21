@@ -22,7 +22,7 @@ public static class ImportEndpoints
         {
             try { return Results.Ok(await import.ReadUrlAsync(req.Url, ct)); }
             catch (FetchRefusedException e) { return Refused(e); }
-        });
+        }).RequireRateLimiting(HouseholdEndpoints.ImportRateLimit);
 
         g.MapPost("/documents", async (IFormFile file, ImportService import, CancellationToken ct) =>
         {
@@ -32,7 +32,7 @@ public static class ImportEndpoints
             await file.CopyToAsync(buffer, ct);
             try { return Results.Ok(await import.SaveDocumentAsync(Path.GetFileName(file.FileName), null, buffer.ToArray(), ct)); }
             catch (FetchRefusedException e) { return Refused(e); }
-        }).DisableAntiforgery();
+        }).DisableAntiforgery().RequireRateLimiting(HouseholdEndpoints.ImportRateLimit);
 
         g.MapGet("/documents/{id:guid}", async (Guid id, int? fromPage, int? toPage, ImportService import, CancellationToken ct) =>
             await import.SliceAsync(id, fromPage ?? 1, toPage, ct) is { } slice

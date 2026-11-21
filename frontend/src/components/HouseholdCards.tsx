@@ -64,7 +64,15 @@ export function HouseholdCard() {
                   {m.email && <span style={{ font: mono(12), color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</span>}
                 </span>
                 {manage && !m.isSelf && (
-                  <TextButton onClick={() => actions.setRole.mutate({ id: m.id, role: m.role === 'owner' ? 'member' : 'owner' })}>
+                  <TextButton
+                    onClick={() => {
+                      const nextRole = m.role === 'owner' ? 'member' : 'owner'
+                      const msg = nextRole === 'owner'
+                        ? `Uczynić ${m.name} właścicielem domu? Będzie mógł(a) zapraszać domowników i zmieniać role.`
+                        : `Odebrać ${m.name} uprawnienia właściciela domu?`
+                      if (window.confirm(msg)) actions.setRole.mutate({ id: m.id, role: nextRole })
+                    }}
+                  >
                     {m.role === 'owner' ? 'zwykły domownik' : 'uczyń właścicielem'}
                   </TextButton>
                 )}
@@ -105,8 +113,13 @@ export function FreshCode({ invite, hint, onDone }: { invite: CreatedInvite; hin
       <span style={{ font: sans(13.5), lineHeight: 1.5, color: 'var(--text-2)' }}>{hint} Nie zobaczysz go ponownie.</span>
       <span style={{ display: 'flex', gap: 8 }}>
         <Button size="sm" variant="outline" onClick={async () => {
-          await navigator.clipboard.writeText(`${invite.code} — ${window.location.origin}`)
-          setCopied(true)
+          const text = `${invite.code} — ${window.location.origin}`
+          try {
+            await navigator.clipboard.writeText(text)
+            setCopied(true)
+          } catch {
+            window.prompt('Skopiuj kod zaproszenia:', text)
+          }
         }}>{copied ? '✓ Skopiowano' : 'Kopiuj z linkiem'}</Button>
         <Button size="sm" variant="quiet" onClick={onDone}>Gotowe</Button>
       </span>

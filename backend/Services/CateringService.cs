@@ -81,20 +81,66 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
     {
         if (kcal is < 0 or > 10000) throw new DiaryException("Kcal poza zakresem.");
         if (enabled && kcal == 0) throw new DiaryException("Podaj kcal cateringu.");
+        if (protein is < 0 or > 10000 || fat is < 0 or > 10000 || carbs is < 0 or > 10000)
+            throw new DiaryException("Makroskładniki poza zakresem.");
+        if (startDate < today.AddDays(-365) || startDate > today.AddDays(90))
+            throw new DiaryException("Data startu może być najwyżej rok wstecz i 90 dni naprzód.");
+
         var c = await db.Caterings.FirstOrDefaultAsync(x => x.PersonId == PersonId, ct);
+        var isNew = c is null;
+        var wasEnabled = c?.Enabled == true;
+        var oldStart = c?.StartDate;
         if (c is null)
         {
             c = new Catering { PersonId = PersonId };
             db.Caterings.Add(c);
         }
-        // Moving the start back re-opens the days before it; moving it forward never deletes anything.
-        if (c.MaterializedThrough is DateOnly done && startDate <= done && startDate < c.StartDate)
-            c.MaterializedThrough = startDate.AddDays(-1);
+
         (c.Enabled, c.Kcal, c.Protein, c.Fat, c.Carbs) = (enabled, kcal, protein, fat, carbs);
         c.Weekdays = weekdays & AllWeekdays;
         c.StartDate = startDate;
         c.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+
+        if (!enabled)
+        {
+            // Mark today as handled so pausing and later resuming never backfills the paused gap.
+            if (c.MaterializedThrough is null || c.MaterializedThrough < today)
+                c.MaterializedThrough = today;
+        }
+        else if (!wasEnabled && !isNew && c.MaterializedThrough is DateOnly pausedThrough && pausedThrough < today.AddDays(-1))
+        {
+            c.MaterializedThrough = today.AddDays(-1);
+        }
+
+        // Moving the start back backfills ONLY the days strictly before the old start date so
+        // days the user already deleted within [oldStart .. MaterializedThrough] never come back.
+        var backfillAdded = new List<PlanEntry>();
+        if (enabled && oldStart is DateOnly prevStart && c.MaterializedThrough is not null && startDate < prevStart)
+        {
+            var backfillEnd = prevStart.AddDays(-1);
+            if (backfillEnd > today) backfillEnd = today;
+            if (startDate <= backfillEnd)
+            {
+                var existing = (await db.PlanEntries.AsNoTracking()
+                    .Where(e => e.PersonId == PersonId && e.IsCatering && e.Date >= startDate && e.Date <= backfillEnd)
+                    .Select(e => e.Date).ToListAsync(ct)).ToHashSet();
+                for (var day = startDate; day <= backfillEnd; day = day.AddDays(1))
+                {
+                    if (Delivers(c, day) && !existing.Contains(day)) backfillAdded.Add(NewEntry(c, day));
+                }
+                db.PlanEntries.AddRange(backfillAdded);
+            }
+        }
+
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateCatering(ex))
+        {
+            foreach (var entry in backfillAdded) db.Entry(entry).State = EntityState.Detached;
+            await db.SaveChangesAsync(ct);
+        }
         await EnsureAsync(today, ct);
         return c;
     }
@@ -104,11 +150,20 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
     {
         var c = await db.Caterings.AsNoTracking().FirstOrDefaultAsync(x => x.PersonId == PersonId, ct)
             ?? throw new DiaryException("Najpierw ustaw catering.", StatusCodes.Status404NotFound);
+        if (c.Kcal <= 0)
+            throw new DiaryException("Najpierw ustaw kcal cateringu.");
         if (await HasEntryAsync(PersonId, date, ct: ct))
             throw new DiaryException("Catering na ten dzień jest już wpisany.", StatusCodes.Status409Conflict);
         var entry = NewEntry(c, date);
         db.PlanEntries.Add(entry);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateCatering(ex))
+        {
+            throw new DiaryException("Catering na ten dzień jest już wpisany.", StatusCodes.Status409Conflict);
+        }
         return entry;
     }
 

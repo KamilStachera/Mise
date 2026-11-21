@@ -14,7 +14,7 @@ public interface ISousJobs
 /// <summary>Thrown when the ChatGPT plan's usage limit is hit — the worker backs off longer.</summary>
 public sealed class SousLimitException(string message) : Exception(message);
 
-public sealed class SousJobs(IHttpClientFactory http, IConfiguration config) : ISousJobs
+public sealed class SousJobs(IHttpClientFactory http, IConfiguration config, AccessControl access) : ISousJobs
 {
     private string BaseUrl => (config["SOUS_URL"] is { Length: > 0 } url ? url : "http://sous:8090").TrimEnd('/');
 
@@ -23,7 +23,13 @@ public sealed class SousJobs(IHttpClientFactory http, IConfiguration config) : I
         using var client = http.CreateClient();
         // A batch with several web searches can take a few minutes.
         client.Timeout = TimeSpan.FromMinutes(12);
-        using var res = await client.PostAsJsonAsync($"{BaseUrl}/job", new { prompt, outputSchema }, ct);
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/job")
+        {
+            Content = JsonContent.Create(new { prompt, outputSchema }),
+        };
+        if (access.SousSecret is { Length: > 0 } secret)
+            req.Headers.Add(AccessControl.SousSecretHeader, secret);
+        using var res = await client.SendAsync(req, ct);
         var body = await res.Content.ReadAsStringAsync(ct);
         using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
         var root = doc.RootElement;
