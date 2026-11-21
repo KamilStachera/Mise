@@ -19,6 +19,34 @@ public class RecipeIngredientNormalizerTests
     }
 
     [Theory]
+    [InlineData(200, "g", "200 g")]
+    [InlineData(1.5, "szt", "1,5 szt.")]
+    [InlineData(250, "ml", "250 ml")]
+    public void StructuredAmountOnly_FillsTheVisibleQuantity(double value, string unit, string expected)
+    {
+        // Sous sometimes sends only amountValue/amountUnit; the UI shows Quantity.
+        var ingredient = Normalize(new IngredientInput("Ser żółty", null, (decimal)value, unit));
+
+        Assert.Equal(expected, ingredient.Quantity);
+        Assert.Equal((decimal)value, ingredient.AmountValue);
+    }
+
+    [Theory]
+    [InlineData("Sól", "2 g", null, true)]
+    [InlineData("Pieczywo", "2–4 kromki", null, true)]
+    [InlineData("Sól", "", 2.0, true)]
+    [InlineData("100 g sera", null, null, true)]   // amount inside the name gets split off
+    [InlineData("Sól", "do smaku", null, false)]
+    [InlineData("Pieprz", "szczypta", null, false)]
+    [InlineData("Oliwa", null, null, false)]
+    public void HasAmount_NeedsANumberSomewhere(string name, string? quantity, double? amount, bool expected)
+    {
+        var input = new IngredientInput(name, quantity, (decimal?)amount, amount is null ? null : "g");
+
+        Assert.Equal(expected, RecipeIngredientNormalizer.HasAmount(input));
+    }
+
+    [Theory]
     [InlineData("spód do pizzy / pinsa")]
     [InlineData("Marchew lub cukinia")]
     [InlineData("Polędwica wieprzowa albo pierś z indyka")]

@@ -195,6 +195,7 @@ public static class SharedRecipeEndpoints
                 return Results.NotFound(new { error = "Ten link wygasł lub został cofnięty." });
 
             var copy = HouseholdProvisioner.CloneRecipe(images, source);
+            (await PortionSettings.LoadAsync(db, caller.HouseholdId, ct)).ApplyToNewRecipe(copy);
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync(ct);
             foreach (var ing in copy.Ingredients)
                 ing.PantryItemId = matcher.FindMatch(ing.Name, pantry)?.Id;

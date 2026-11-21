@@ -14,6 +14,8 @@ public record HouseholdDetailDto(int Id, string Name, bool SousEnabled, bool Can
     List<HouseholdMemberDto> Members, List<InviteDto> Invites);
 public record CreatedInviteDto(Guid Id, string Code, DateTimeOffset ExpiresAt);
 public record HouseholdRenameInput(string? Name);
+/// <summary>PUT /household/portions — see Household.NewRecipesFullServings / KeepIngredientsFixed.</summary>
+public record HouseholdPortionsInput(bool NewRecipesFullServings, bool KeepIngredientsFixed);
 public record PersonRenameInput(string? Name);
 public record RoleInput(string? Role);
 public record StarterSourceDto(string Name, int Count);
@@ -82,6 +84,18 @@ public static class HouseholdEndpoints
             household.Name = name;
             await db.SaveChangesAsync(ct);
             return Results.Ok(await DetailAsync(db, caller, ct));
+        });
+
+        // Kitchen setting, like the cooking profile: any member may change it (not an owner action).
+        g.MapPut("/portions", async (HouseholdPortionsInput input, Caller caller, MiseDbContext db,
+            ContextExportService export, CancellationToken ct) =>
+        {
+            var household = await db.Households.FirstAsync(h => h.Id == caller.HouseholdId, ct);
+            household.NewRecipesFullServings = input.NewRecipesFullServings;
+            household.KeepIngredientsFixed = input.KeepIngredientsFixed;
+            await db.SaveChangesAsync(ct);
+            export.Schedule();   // cookbook.md tells agents which portion mode applies
+            return Results.Ok(new HouseholdPortionsInput(household.NewRecipesFullServings, household.KeepIngredientsFixed));
         });
 
         // Everyone may rename themselves; renaming others takes the owner role.

@@ -38,7 +38,7 @@ public static class AuthEndpoints
             if (caller.IsPrivileged && caller.Self is { } self)
             {
                 var household = await db.Households.AsNoTracking().Where(h => h.Id == caller.HouseholdId)
-                    .Select(h => new HouseholdDto(h.Id, h.Name, h.SousEnabled)).FirstOrDefaultAsync(ct);
+                    .Select(h => new HouseholdDto(h.Id, h.Name, h.SousEnabled, h.NewRecipesFullServings, h.KeepIngredientsFixed)).FirstOrDefaultAsync(ct);
                 var dev = caller.Kind == CallerKind.DevBypass;
                 return Results.Ok(new AuthMeDto(true,
                     caller.Email ?? (dev ? "dev@localhost" : null), caller.Name ?? (dev ? "Dev" : self.Name), caller.Picture,

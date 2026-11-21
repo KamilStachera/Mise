@@ -101,6 +101,163 @@ public class AuditRegressionTests
     }
 
     [Fact]
+    public async Task AgentRecipe_WithIngredientWithoutAmount_IsRejected_ButTheEditorMaySaveIt()
+    {
+        await using var host = await BuildTestAppAsync();
+        var key = AccessControl.NewPersonalKey();
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseSystem();
+            db.ApiKeys.Add(new ApiKey { HouseholdId = 1, PersonId = 1, Name = "Agent", KeyHash = AccessControl.HashKey(key), Prefix = key[..8] });
+            await db.SaveChangesAsync();
+        }
+        object Recipe(string title) => new
+        {
+            title,
+            source = "ai",
+            time = 20,
+            servings = 2,
+            ingredients = new object[]
+            {
+                new { name = "Makaron", amountValue = 200, amountUnit = "g" },   // structured only → fine
+                new { name = "Sól", quantity = "do smaku" },                       // no number → rejected
+            },
+            steps = new[] { "Ugotuj makaron 10 minut." },
+        };
+
+        var agent = await host.SendAsync(HttpMethod.Post, "/api/recipes", apiKey: key, body: Recipe("Od agenta"));
+        Assert.Equal(HttpStatusCode.BadRequest, agent.StatusCode);
+        using (var doc = JsonDocument.Parse(await agent.Content.ReadAsStringAsync()))
+            Assert.Equal(["Sól"], doc.RootElement.GetProperty("ingredients").EnumerateArray().Select(e => e.GetString()));
+
+        var person = await host.SendAsync(HttpMethod.Post, "/api/recipes", email: AdminEmail, body: Recipe("Z edytora"));
+        Assert.Equal(HttpStatusCode.Created, person.StatusCode);
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseHousehold(1);
+            var saved = await db.Recipes.Include(r => r.Ingredients).SingleAsync(r => r.Title == "Z edytora");
+            Assert.Equal("200 g", saved.Ingredients.Single(i => i.Name == "Makaron").Quantity);
+        }
+    }
+
+    [Fact]
+    public async Task NutritionEstimate_ReturnsSousNumbersWithoutSaving_AndNeedsSous()
+    {
+        var reply = """{"kcal": 455, "protein": 28, "fat": 12.5, "carbs": 58, "note": "Mniej sera obniżyło tłuszcz."}""";
+        await using var host = await BuildTestAppAsync(b =>
+        {
+            b.Configuration["AI_PROVIDER"] = "codex";
+            b.Services.AddSingleton<ISousJobs>(new StubSousJobs(reply));
+        });
+        Guid recipeId;
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseHousehold(1);
+            var recipe = new Recipe
+            {
+                Title = "Makaron z serem", Servings = 2, KcalPerServing = 600, ProteinGrams = 30, FatGrams = 25, CarbGrams = 58,
+                Ingredients = [new RecipeIngredient { Name = "Makaron", Quantity = "200 g", AmountValue = 200, AmountUnit = PantryUnit.G }],
+            };
+            db.Recipes.Add(recipe);
+            await db.SaveChangesAsync();
+            recipeId = recipe.Id;
+        }
+
+        // Sous off for the household → 409, nothing asked.
+        var off = await host.SendAsync(HttpMethod.Post, $"/api/recipes/{recipeId}/nutrition/estimate", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.Conflict, off.StatusCode);
+
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseSystem();
+            (await db.Households.SingleAsync(h => h.Id == 1)).SousEnabled = true;
+            await db.SaveChangesAsync();
+        }
+
+        var res = await host.SendAsync(HttpMethod.Post, $"/api/recipes/{recipeId}/nutrition/estimate", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        using (var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal(455, doc.RootElement.GetProperty("estimate").GetProperty("kcal").GetInt32());
+            Assert.Equal(600, doc.RootElement.GetProperty("current").GetProperty("kcal").GetInt32());
+            Assert.Equal("Mniej sera obniżyło tłuszcz.", doc.RootElement.GetProperty("note").GetString());
+        }
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseHousehold(1);
+            Assert.Equal(600, (await db.Recipes.SingleAsync(r => r.Id == recipeId)).KcalPerServing); // only an estimate
+        }
+    }
+
+    [Fact]
+    public async Task PortionSettings_FullServingsDefault_FixedIngredients_AndResplit()
+    {
+        await using var host = await BuildTestAppAsync();
+        object Recipe(string title) => new
+        {
+            title, source = "ai", time = 30, servings = 4, kcal = 600, protein = 30, fat = 20, carbs = 70,
+            ingredients = new[] { new { name = "Makaron", quantity = "400 g", amountValue = 400, amountUnit = "g" } },
+            steps = new[] { "Ugotuj makaron 10 minut." },
+        };
+        async Task<JsonElement> Get(string path)
+        {
+            var res = await host.SendAsync(HttpMethod.Get, path, email: AdminEmail);
+            Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+            return JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement;
+        }
+        async Task<Guid> Create(string title)
+        {
+            var res = await host.SendAsync(HttpMethod.Post, "/api/recipes", email: AdminEmail, body: Recipe(title));
+            Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+            return JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        }
+
+        // Default household: a new recipe opens at 1 portion, ingredients scaled to it.
+        var a = await Create("Domyślny");
+        Assert.Equal(1, (await Get($"/api/recipes/{a}")).GetProperty("selectedServings").GetInt32());
+
+        // "New recipes at full portions" + "Nie łącz porcji ze składnikami".
+        var set = await host.SendAsync(HttpMethod.Put, "/api/household/portions", email: AdminEmail,
+            body: new { newRecipesFullServings = true, keepIngredientsFixed = true });
+        Assert.Equal(HttpStatusCode.OK, set.StatusCode);
+        var me = await Get("/api/auth/me");
+        Assert.True(me.GetProperty("household").GetProperty("keepIngredientsFixed").GetBoolean());
+
+        var b = await Create("Pełne porcje");
+        var detail = await Get($"/api/recipes/{b}");
+        Assert.Equal(4, detail.GetProperty("selectedServings").GetInt32());
+        // Fixed mode shows the whole dish even for the older recipe saved at 1 portion.
+        var older = await Get($"/api/recipes/{a}");
+        Assert.Equal(4, older.GetProperty("selectedServings").GetInt32());
+        Assert.Equal("400 g", older.GetProperty("ingredients")[0].GetProperty("quantity").GetString());
+        // The scaling picker is off in fixed mode; the agent is told where to go instead.
+        var servings = await host.SendAsync(HttpMethod.Put, $"/api/recipes/{a}/servings", email: AdminEmail, body: new { servings = 2 });
+        Assert.Equal(HttpStatusCode.Conflict, servings.StatusCode);
+
+        // The small eater splits the same pot into 6: 4 × 600 kcal → 6 × 400 kcal, ingredients untouched.
+        var split = await host.SendAsync(HttpMethod.Put, $"/api/recipes/{a}/portion-count", email: AdminEmail, body: new { portions = 6 });
+        Assert.Equal(HttpStatusCode.OK, split.StatusCode);
+        var after = await Get($"/api/recipes/{a}");
+        Assert.Equal(6, after.GetProperty("servings").GetInt32());
+        Assert.Equal(400, after.GetProperty("kcal").GetInt32());
+        Assert.Equal("400 g", after.GetProperty("ingredients")[0].GetProperty("quantity").GetString());
+
+        var bad = await host.SendAsync(HttpMethod.Put, $"/api/recipes/{a}/portion-count", email: AdminEmail, body: new { portions = 0 });
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+    }
+
+    private sealed class StubSousJobs(string reply) : ISousJobs
+    {
+        public Task<string> RunAsync(string prompt, System.Text.Json.Nodes.JsonObject outputSchema, CancellationToken ct) =>
+            Task.FromResult(reply);
+    }
+
+    [Fact]
     public async Task PersonalKey_XPersonPicksActiveHouseholdMember_ElseFallsBackToOwner()
     {
         await using var host = await BuildTestAppAsync();
@@ -1535,7 +1692,7 @@ public class AuditRegressionTests
         public ValueTask DisposeAsync() => App.DisposeAsync();
     }
 
-    private static async Task<TestHostApp> BuildTestAppAsync()
+    private static async Task<TestHostApp> BuildTestAppAsync(Action<WebApplicationBuilder>? configure = null)
     {
         var dbName = Guid.NewGuid().ToString();
         var ctxDir = Path.Combine(Path.GetTempPath(), "pichci-audit-ctx-" + Guid.NewGuid());
@@ -1587,6 +1744,7 @@ public class AuditRegressionTests
         builder.Services.AddSingleton<EnrichmentState>();
         builder.Services.AddSingleton<ISousJobs, SousJobs>();
         builder.Services.AddScoped<ExerciseEnrichment>();
+        builder.Services.AddScoped<RecipeNutritionEstimator>();
         builder.Services.AddSingleton<ExerciseImages>();
         builder.Services.AddSingleton<SafeWebFetcher>();
         builder.Services.AddHttpClient();
@@ -1597,6 +1755,7 @@ public class AuditRegressionTests
             .AddScheme<AuthenticationSchemeOptions, HeaderAuthHandler>("Test", _ => { });
         builder.Services.AddAuthorization();
 
+        configure?.Invoke(builder);
         var app = builder.Build();
         app.UseAuthentication();
         app.UseMiddleware<ApiAccessMiddleware>();

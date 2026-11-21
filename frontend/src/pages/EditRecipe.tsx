@@ -48,10 +48,15 @@ export function EditRecipe() {
       setError(validationError ?? 'Sprawdź formularz.')
       return
     }
+    // Changed ingredients make the stored kcal/macros stale: the recipe page then offers "Przelicz makro".
+    const ingredientsKey = (list: typeof payload.ingredients) =>
+      JSON.stringify(list.map((i) => [i.name, i.quantity, i.amountValue ?? null, i.amountUnit ?? null, i.alternativeGroup ?? null]))
+    const initial = formToRecipeInput(recipeDetailToForm(recipe!)).payload
+    const ingredientsChanged = !initial || ingredientsKey(initial.ingredients) !== ingredientsKey(payload.ingredients)
     try {
       await update.mutateAsync({ id, input: payload })
       showToast('Zapisano zmiany')
-      nav(`/recipe/${id}`, { replace: true })
+      nav(`/recipe/${id}`, { replace: true, state: ingredientsChanged ? { recalc: true } : null })
     } catch (e) {
       setError(errorText(e, 'Nie udało się zapisać zmian.'))
     }

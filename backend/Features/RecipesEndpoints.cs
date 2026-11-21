@@ -18,7 +18,7 @@ public static class RecipesEndpoints
         g.MapGet("/", async (string? source, string? q, string? dishType, string? cuisine,
             int? maxTime, bool? airFryer, string? sourceName, bool? hasImage,
             string? ingredient, bool? favorite, string? tag, int? maxKcal, decimal? minProtein,
-            MiseDbContext db) =>
+            Caller caller, MiseDbContext db) =>
         {
             if (!Mapping.TryParseDishType(dishType, out var dt))
                 return BadDishType();
@@ -80,10 +80,11 @@ public static class RecipesEndpoints
                     recipes = recipes.Where(r => MatchesIngredients(r, ingTokens)).ToList();
             }
 
+            var portions = await PortionSettings.LoadAsync(db, caller.HouseholdId);
             var list = recipes.OrderBy(r => r.Title, Pl.Comparer).Select(r =>
             {
                 // Saved portion scaling changes the amounts, so it changes what's short.
-                var toBuy = Mapping.IngredientRequirementGroups(RecipeScaling.ScaledIngredients(r))
+                var toBuy = Mapping.IngredientRequirementGroups(RecipeScaling.ScaledIngredients(r, portions.KeepIngredientsFixed))
                     .Count(group => Mapping.RequirementNeedsPurchase(group, pantryById));
                 var ingredientNames = r.Ingredients.OrderBy(i => i.Order)
                     .Select(i => i.Name)
@@ -103,7 +104,7 @@ public static class RecipesEndpoints
 
         // ?base=true serves the amounts as written (for agents and the editor about to PUT
         // the recipe back); the default serves them scaled to the saved portion choice.
-        g.MapGet("/{id:guid}", async (Guid id, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "base")] bool? asWritten,
+        g.MapGet("/{id:guid}", async (Guid id, [Microsoft.AspNetCore.Mvc.FromQuery(Name = "base")] bool? asWritten, Caller caller,
             MiseDbContext db) =>
         {
             var r = await db.Recipes.AsNoTracking()
@@ -118,7 +119,8 @@ public static class RecipesEndpoints
                 .ToDictionaryAsync(p => p.Id);
 
             // Amounts (display + structured) are served at the saved portion scaling.
-            var scaledIngredients = asWritten == true ? r.Ingredients : RecipeScaling.ScaledIngredients(r);
+            var portions = await PortionSettings.LoadAsync(db, caller.HouseholdId);
+            var scaledIngredients = asWritten == true ? r.Ingredients : RecipeScaling.ScaledIngredients(r, portions.KeepIngredientsFixed);
             var ingredients = scaledIngredients.OrderBy(i => i.Order)
                 .Select(i => new IngredientDto(i.Name, i.Quantity, i.DisplayText,
                     i.AlternativeGroup,
@@ -134,7 +136,7 @@ public static class RecipesEndpoints
             var steps = r.Steps.OrderBy(s => s.Order).Select(s => s.Text).ToList();
 
             return Results.Ok(new RecipeDetailDto(r.Id, r.Title, Mapping.SourceString(r.Source),
-                r.TimeMinutes, r.Servings, asWritten == true ? r.Servings : RecipeScaling.EffectiveServings(r),
+                r.TimeMinutes, r.Servings, asWritten == true ? r.Servings : RecipeScaling.EffectiveServings(r, portions.KeepIngredientsFixed),
                 r.Difficulty, r.Tint, r.Blurb,
                 Mapping.ImageUrl(r.ImagePath), r.Tip,
                 ingredients, steps, requirements.Count - missing.Count, requirements.Count, missing,
@@ -144,7 +146,7 @@ public static class RecipesEndpoints
                 r.IsFavorite, r.Tags.ToList()));
         });
 
-        g.MapPost("/", async (RecipeInput input, MiseDbContext db, RecipeIngredientNormalizer ingredientNormalizer,
+        g.MapPost("/", async (RecipeInput input, Caller caller, MiseDbContext db, RecipeIngredientNormalizer ingredientNormalizer,
             ContextExportService export) =>
         {
             if (ValidateInput(input) is IResult bad)
@@ -157,18 +159,21 @@ public static class RecipesEndpoints
                 return badUnit;
             if (BadIngredientAlternatives(input) is IResult badAlternatives)
                 return badAlternatives;
+            if (MissingAmounts(input, caller) is IResult noAmount)
+                return noAmount;
             if (!TryNormalizeTags(input.Tags, out var tags, out var tagError))
                 return Results.BadRequest(new { error = tagError });
 
             var pantry = await db.PantryItems.AsNoTracking().ToListAsync();
             var recipe = ApplyInput(new Recipe(), input, dt, cu, tags, pantry, ingredientNormalizer);
+            (await PortionSettings.LoadAsync(db, caller.HouseholdId)).ApplyToNewRecipe(recipe);
             db.Recipes.Add(recipe);
             await db.SaveChangesAsync();
             export.Schedule();
             return Results.Created($"/api/recipes/{recipe.Id}", new { recipe.Id });
         });
 
-        g.MapPut("/{id:guid}", async (Guid id, RecipeInput input, MiseDbContext db,
+        g.MapPut("/{id:guid}", async (Guid id, RecipeInput input, Caller caller, MiseDbContext db,
             RecipeIngredientNormalizer ingredientNormalizer, ContextExportService export) =>
         {
             if (ValidateInput(input) is IResult bad)
@@ -181,6 +186,8 @@ public static class RecipesEndpoints
                 return badUnit;
             if (BadIngredientAlternatives(input) is IResult badAlternatives)
                 return badAlternatives;
+            if (MissingAmounts(input, caller) is IResult noAmount)
+                return noAmount;
             if (!TryNormalizeTags(input.Tags, out var tags, out var tagError))
                 return Results.BadRequest(new { error = tagError });
 
@@ -328,7 +335,7 @@ public static class RecipesEndpoints
 
         // What "Ugotowane!" would subtract from the pantry — the UI shows this as an
         // editable confirm dialog before POSTing /cooklog with the chosen deductions.
-        g.MapGet("/{id:guid}/cook-proposal", async (Guid id, MiseDbContext db) =>
+        g.MapGet("/{id:guid}/cook-proposal", async (Guid id, Caller caller, MiseDbContext db) =>
         {
             var r = await db.Recipes.AsNoTracking()
                 .Include(x => x.Ingredients)
@@ -338,7 +345,8 @@ public static class RecipesEndpoints
             var pantryById = await db.PantryItems.AsNoTracking().ToDictionaryAsync(p => p.Id);
 
             // Deduction proposals follow the saved portion scaling.
-            var scaledIngredients = RecipeScaling.ScaledIngredients(r);
+            var portions = await PortionSettings.LoadAsync(db, caller.HouseholdId);
+            var scaledIngredients = RecipeScaling.ScaledIngredients(r, portions.KeepIngredientsFixed);
             var selectedAlternatives = Mapping.IngredientRequirementGroups(scaledIngredients)
                 .Where(group => group.Count > 1
                     && !string.IsNullOrWhiteSpace(group[0].AlternativeGroup))
@@ -380,7 +388,7 @@ public static class RecipesEndpoints
         });
 
         // Add the recipe's short / out-of-stock / unmatched ingredients to the shopping list.
-        g.MapPost("/{id:guid}/add-missing-to-shopping", async (Guid id, MiseDbContext db,
+        g.MapPost("/{id:guid}/add-missing-to-shopping", async (Guid id, Caller caller, MiseDbContext db,
             ShoppingService shopping, ContextExportService export) =>
         {
             var recipe = await db.Recipes.AsNoTracking()
@@ -391,7 +399,8 @@ public static class RecipesEndpoints
             var result = await shopping.AddMissingForRecipesAsync(db, new[]
             {
                 // Demand follows the saved portion scaling.
-                new ShoppingRecipeSource($"recipe:{recipe.Id}", recipe.Title, RecipeScaling.Scaled(recipe)),
+                new ShoppingRecipeSource($"recipe:{recipe.Id}", recipe.Title,
+                    RecipeScaling.Scaled(recipe, (await PortionSettings.LoadAsync(db, caller.HouseholdId)).KeepIngredientsFixed)),
             });
             if (result.Added > 0 || result.Updated > 0) export.Schedule();
             return Results.Ok(new ShoppingAddResultDto(result.Added, result.Updated));
@@ -399,10 +408,16 @@ public static class RecipesEndpoints
 
         // Save the portion choice; every quantity-aware read/write above scales to it.
         // Choosing the default (one portion) clears the saved choice.
-        g.MapPut("/{id:guid}/servings", async (Guid id, RecipeServingsInput input, MiseDbContext db) =>
+        g.MapPut("/{id:guid}/servings", async (Guid id, RecipeServingsInput input, Caller caller, MiseDbContext db) =>
         {
             var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == id);
             if (recipe is null) return Results.NotFound();
+            if ((await PortionSettings.LoadAsync(db, caller.HouseholdId)).KeepIngredientsFixed)
+                return Results.Conflict(new
+                {
+                    error = "W tym domu porcje nie skalują składników (ustawienie „Nie łącz porcji ze składnikami”). "
+                        + "Zmień liczbę porcji, na które dzielisz danie: PUT /recipes/{id}/portion-count.",
+                });
 
             var max = Math.Max(RecipeScaling.MaxServings, recipe.Servings);
             if (input.Servings < 1 || input.Servings > max)
@@ -414,6 +429,34 @@ public static class RecipesEndpoints
             {
                 servings = recipe.Servings,
                 selectedServings = RecipeScaling.EffectiveServings(recipe),
+            });
+        });
+
+        // How many portions the dish is split into. Ingredients stay as written (the whole dish);
+        // per-portion kcal/macros are re-divided so the dish total holds — e.g. someone who eats
+        // less splits a 4-portion pot into 6 and her diary portions get smaller. Household-wide.
+        g.MapPut("/{id:guid}/portion-count", async (Guid id, RecipePortionCountInput input, Caller caller,
+            MiseDbContext db, ContextExportService export) =>
+        {
+            if (input.Portions is < 1 or > RecipeScaling.MaxPortionCount)
+                return Results.BadRequest(new { error = $"Liczba porcji musi być od 1 do {RecipeScaling.MaxPortionCount}." });
+            var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == id);
+            if (recipe is null) return Results.NotFound();
+
+            RecipeScaling.Resplit(recipe, input.Portions);
+            recipe.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync();
+            export.Schedule();
+            var portions = await PortionSettings.LoadAsync(db, caller.HouseholdId);
+            return Results.Ok(new
+            {
+                id = recipe.Id,
+                servings = recipe.Servings,
+                selectedServings = RecipeScaling.EffectiveServings(recipe, portions.KeepIngredientsFixed),
+                kcal = recipe.KcalPerServing,
+                protein = recipe.ProteinGrams,
+                fat = recipe.FatGrams,
+                carbs = recipe.CarbGrams,
             });
         });
 
@@ -449,6 +492,48 @@ public static class RecipesEndpoints
                 carbs = recipe.CarbGrams,
             });
         });
+
+        // "Przelicz makro": a GPT estimate from the current ingredients, per ONE portion. Returns
+        // the numbers only; the person reviews them and saves through PATCH /nutrition.
+        g.MapPost("/{id:guid}/nutrition/estimate", async (Guid id, Caller caller, MiseDbContext db,
+            RecipeNutritionEstimator estimator, CancellationToken ct) =>
+        {
+            if (!estimator.Available
+                || !await db.Households.AsNoTracking().AnyAsync(h => h.Id == caller.HouseholdId && h.SousEnabled, ct))
+                return Results.Json(new { error = "Przeliczanie makro działa z włączonym Sous — poproś administratora o włączenie." },
+                    statusCode: StatusCodes.Status409Conflict);
+
+            var recipe = await db.Recipes.AsNoTracking()
+                .Include(r => r.Ingredients)
+                .Include(r => r.Steps)
+                .AsSplitQuery()
+                .FirstOrDefaultAsync(r => r.Id == id, ct);
+            if (recipe is null) return Results.NotFound();
+            if (recipe.Ingredients.Count == 0)
+                return Results.BadRequest(new { error = "Przepis nie ma składników — nie ma czego przeliczyć." });
+
+            try
+            {
+                var e = await estimator.EstimateAsync(recipe, ct);
+                return Results.Ok(new
+                {
+                    servings = recipe.Servings,
+                    current = new { kcal = recipe.KcalPerServing, protein = recipe.ProteinGrams, fat = recipe.FatGrams, carbs = recipe.CarbGrams },
+                    estimate = new { kcal = e.Kcal, protein = e.Protein, fat = e.Fat, carbs = e.Carbs },
+                    note = e.Note,
+                });
+            }
+            catch (Services.Training.SousLimitException)
+            {
+                return Results.Json(new { error = "Limit planu ChatGPT na teraz się wyczerpał — spróbuj później." },
+                    statusCode: StatusCodes.Status429TooManyRequests);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+            {
+                return Results.Json(new { error = "Sous nie przeliczył makro — spróbuj ponownie za chwilę." },
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).RequireRateLimiting(HouseholdEndpoints.ChatRateLimit);
 
         // Lightweight favorite toggle (avoids full-replace PUT).
         g.MapPut("/{id:guid}/favorite", async (Guid id, RecipeFavoriteInput input, MiseDbContext db,
@@ -521,6 +606,30 @@ public static class RecipesEndpoints
         error = "Nieznana cuisine.",
         allowed = Mapping.AllowedCuisines,
     });
+
+    /// <summary>
+    /// Agents (personal keys, Sous, the system key) must give every ingredient an amount: Sous
+    /// kept saving rows with no amount and the UI showed them blank. The recipe editor stays
+    /// lenient — a person typing "sól" with no amount knows what they meant.
+    /// </summary>
+    private static IResult? MissingAmounts(RecipeInput input, Caller caller)
+    {
+        if (caller.Kind is not (CallerKind.PersonalKey or CallerKind.SousToken or CallerKind.SystemKey))
+            return null;
+        var missing = (input.Ingredients ?? new())
+            .Where(i => !RecipeIngredientNormalizer.HasAmount(i))
+            .Select(i => i.Name?.Trim() ?? "")
+            .ToList();
+        if (missing.Count == 0) return null;
+        return Results.BadRequest(new
+        {
+            error = $"Składniki bez ilości: {string.Join(", ", missing.Select(n => $"„{n}”"))}. "
+                + "Każdy składnik potrzebuje quantity z liczbą (np. \"200 g\", \"2 szt.\", \"1 łyżka (15 ml)\") "
+                + "i, gdy ilość jest mierzalna, amountValue + amountUnit. Przy nieprecyzyjnym źródle "
+                + "dobierz jedną rozsądną wartość (np. sól 2 g, pieprz 0,5 g) i zapisz ponownie.",
+            ingredients = missing,
+        });
+    }
 
     private static IResult? BadIngredientUnit(RecipeInput input)
     {

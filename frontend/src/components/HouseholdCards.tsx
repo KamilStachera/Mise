@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { errorText, type CreatedInvite, type Invite } from '../api/client'
-import { useHousehold, useHouseholdActions } from '../api/hooks'
-import { Button, Eyebrow, SectionHead, inputStyle, mono, sans } from './ui'
+import { useAuth, useHousehold, useHouseholdActions } from '../api/hooks'
+import { Button, Eyebrow, SectionHead, Segmented, Toggle, inputStyle, mono, sans } from './ui'
 
 const dateFmt = new Intl.DateTimeFormat('pl-PL', { day: 'numeric', month: 'long' })
 export const validUntil = (iso: string) => `ważny do ${dateFmt.format(new Date(iso))}`
@@ -160,5 +160,48 @@ export function TextButton({ onClick, children, tone }: { onClick: () => void; c
       style={{ border: 0, padding: 0, background: 'transparent', color: tone === 'danger' ? 'var(--accent-text)' : 'var(--text-2)', textDecoration: 'underline', cursor: 'pointer', font: sans(13), whiteSpace: 'nowrap' }}>
       {children}
     </button>
+  )
+}
+
+/**
+ * "Porcje" — the household's portion settings (any member may change them, like the cooking
+ * profile). Both ride on /auth/me so recipe screens know the mode without another request.
+ */
+export function PortionSettingsCard() {
+  const { data: auth } = useAuth()
+  const actions = useHouseholdActions()
+  const h = auth?.household
+  if (!h) return null
+  const save = (patch: Partial<{ newRecipesFullServings: boolean; keepIngredientsFixed: boolean }>) =>
+    actions.setPortions.mutate({
+      newRecipesFullServings: h.newRecipesFullServings,
+      keepIngredientsFixed: h.keepIngredientsFixed,
+      ...patch,
+    })
+  const busy = actions.setPortions.isPending
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <SectionHead title="Porcje" meta="dla całego domu" size={20} />
+      <Eyebrow>Nowy przepis otwiera się na</Eyebrow>
+      <Segmented
+        value={h.newRecipesFullServings ? 'full' : 'one'}
+        onChange={(v) => { if (!busy) save({ newRecipesFullServings: v === 'full' }) }}
+        items={[
+          { key: 'one', label: '1 porcję' },
+          { key: 'full', label: 'cały przepis' },
+        ]}
+      />
+      <Toggle
+        on={h.keepIngredientsFixed}
+        disabled={busy}
+        onChange={(on) => save({ keepIngredientsFixed: on })}
+        label="Nie łącz porcji z dzieleniem składników"
+      />
+      <span style={{ font: sans(13), color: 'var(--text-2)', lineHeight: 1.5 }}>
+        {h.keepIngredientsFixed
+          ? 'Przepis zawsze pokazuje składniki na całe danie. Liczba porcji mówi, na ile porcji je dzielicie — kcal i makro na porcję zmieniają się razem z nią.'
+          : 'Zmiana porcji przelicza składniki, a kcal na porcję zostaje. Gdy ktoś je mniej niż porcja z przepisu, zmień w przepisie „Na ile porcji dzielisz danie?”.'}
+      </span>
+    </div>
   )
 }

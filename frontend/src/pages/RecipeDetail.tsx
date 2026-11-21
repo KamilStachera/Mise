@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   useAuth, useChatHealth, useRecipe, useRecipes, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
   useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage, useSetRecipeServings,
-  useSetRecipeFavorite, useSetRecipeTags, useSetRecipeNutrition,
+  useSetRecipeFavorite, useSetRecipeTags, useSetRecipeNutrition, useEstimateRecipeNutrition, useSetRecipePortionCount,
   useRecipeShare, useCreateRecipeShare, useRevokeRecipeShare,
 } from '../api/hooks'
 import { errorText, type CookProposalItem, type RecipeDetail as Recipe, type RecipeImage } from '../api/client'
@@ -22,13 +22,18 @@ const CookMode = lazy(() => import('../components/CookMode').then((m) => ({ defa
 
 /** Height of the phone's sticky action bar (above the safe area). */
 const ACTION_BAR = 78
+/** Stepper ceiling when it splits the dish (the API allows up to 200 via the sheet). */
+const MAX_SPLIT_STEPPER = 24
 
 export function RecipeDetail() {
   const { id } = useParams()
   const nav = useNavigate()
   const isMobile = useIsMobile()
   const location = useLocation()
-  const { canEdit } = useAuth()
+  const { canEdit, data: auth } = useAuth()
+  // „Nie łącz porcji ze składnikami” (household setting): the recipe always shows the whole dish.
+  const fixedIngredients = auth?.household?.keepIngredientsFixed === true
+  const [splitOpen, setSplitOpen] = useState(false)
   const { data: chatHealth } = useChatHealth()
   const { data: r, isLoading, isError } = useRecipe(id)
   const addMissing = useAddMissingToShopping()
@@ -46,9 +51,12 @@ export function RecipeDetail() {
   // Capture it before clearing — CookLogSection mounts only after the recipe
   // loads, so reading location.state at that point would already see null.
   const [cookRequested] = useState(() => (location.state as { cook?: boolean } | null)?.cook === true)
+  // EditRecipe lands here with { recalc: true } after the ingredients changed: offer "Przelicz makro".
+  const [recalcSuggested] = useState(() => (location.state as { recalc?: boolean } | null)?.recalc === true)
   const [cookMode, setCookMode] = useState(false)
   useEffect(() => {
-    if (cookRequested) nav(location.pathname, { replace: true, state: null })
+    if (recalcSuggested) setNutritionOpen(true)
+    if (cookRequested || recalcSuggested) nav(location.pathname, { replace: true, state: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -157,16 +165,31 @@ export function RecipeDetail() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)' }}>
         <Fact first value={r.time} label="minut" />
-        <Fact value={<ServingsStepper recipe={r} canEdit={canEdit} />} label={plural(r.selectedServings, 'porcja', 'porcje', 'porcji').replace(/^\d+ /, '')} />
-        <Fact value={r.kcal != null ? `~${Math.round(r.kcal * r.selectedServings)}` : '—'} label="kcal" />
+        <Fact value={<ServingsStepper recipe={r} canEdit={canEdit} fixed={fixedIngredients} />} label={plural(fixedIngredients ? r.servings : r.selectedServings, 'porcja', 'porcje', 'porcji').replace(/^\d+ /, '')} />
+        {fixedIngredients
+          ? <Fact value={r.kcal != null ? `~${r.kcal}` : '—'} label="kcal / porcja" />
+          : <Fact value={r.kcal != null ? `~${Math.round(r.kcal * r.selectedServings)}` : '—'} label="kcal" />}
         <Fact value={<span style={{ font: sans(15, 500), lineHeight: '21.5px' }}>{r.difficulty}</span>} label="poziom" />
       </div>
-      {r.selectedServings !== r.servings && (
+      {fixedIngredients ? (
+        <span style={{ font: sans(12.5, 500), color: 'var(--text-3)' }}>
+          Składniki na całe danie — dzielisz je na {plural(r.servings, 'porcję', 'porcje', 'porcji')}; kcal i makro na jedną.
+        </span>
+      ) : r.selectedServings !== r.servings && (
         <span style={{ font: sans(12.5, 500), color: 'var(--accent-text)' }}>
           Przepis oryginalnie na {plural(r.servings, 'porcję', 'porcje', 'porcji')} — ilości i kcal przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')}.
         </span>
       )}
-      <MacroBar r={r} canEdit={canEdit} onEdit={() => setNutritionOpen(true)} />
+      <MacroBar r={r} canEdit={canEdit} onEdit={() => setNutritionOpen(true)} portions={fixedIngredients ? 1 : r.selectedServings} />
+      {canEdit && !fixedIngredients && (
+        <button
+          type="button"
+          onClick={() => setSplitOpen(true)}
+          style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: sans(12.5, 600), color: 'var(--accent-text)' }}
+        >
+          Jesz mniej lub więcej niż porcja? Podziel danie inaczej
+        </button>
+      )}
     </div>
   )
 
@@ -236,7 +259,16 @@ export function RecipeDetail() {
 
   const cookLog = <CookLogSection recipeId={r.id} initialOpen={cookRequested && canEdit} canEdit={canEdit} />
   const planSheet = canEdit && <AddToPlanSheet open={planOpen} onClose={() => setPlanOpen(false)} recipe={r} />
-  const nutritionSheet = canEdit && <NutritionSheet open={nutritionOpen} onClose={() => setNutritionOpen(false)} recipe={r} />
+  const nutritionSheet = canEdit && (
+    <NutritionSheet
+      open={nutritionOpen}
+      onClose={() => setNutritionOpen(false)}
+      recipe={r}
+      canEstimate={chatHealth?.enabled === true}
+      ingredientsChanged={recalcSuggested}
+    />
+  )
+  const splitSheet = canEdit && <PortionCountSheet open={splitOpen} onClose={() => setSplitOpen(false)} recipe={r} />
   const tagsSheet = canEdit && <TagsSheet open={tagsOpen} onClose={() => setTagsOpen(false)} recipe={r} />
   const shareSheet = canEdit && <ShareRecipeSheet open={shareOpen} onClose={() => setShareOpen(false)} recipe={r} />
   const cook = cookMode && (
@@ -309,6 +341,7 @@ export function RecipeDetail() {
         </Sheet>
         {planSheet}
         {nutritionSheet}
+        {splitSheet}
         {tagsSheet}
         {shareSheet}
         {cook}
@@ -362,6 +395,7 @@ export function RecipeDetail() {
       {cookLog}
       {planSheet}
       {nutritionSheet}
+      {splitSheet}
       {tagsSheet}
       {shareSheet}
       {cook}
@@ -398,9 +432,9 @@ function Fact({ value, label, first }: { value: ReactNode; label: string; first?
  * gram, fat 9) with the grams underneath. The bar renders only when all three
  * are estimated; partial data shows just the numbers.
  */
-function MacroBar({ r, canEdit, onEdit }: { r: Recipe; canEdit: boolean; onEdit: () => void }) {
+function MacroBar({ r, canEdit, onEdit, portions }: { r: Recipe; canEdit: boolean; onEdit: () => void; portions: number }) {
   const isMobile = useIsMobile()
-  const n = r.selectedServings
+  const n = portions
   const defs = [
     { key: 'B', grams: r.protein, color: 'var(--sage)', kcalPerGram: 4 },
     { key: 'T', grams: r.fat, color: 'var(--gold)', kcalPerGram: 9 },
@@ -458,10 +492,15 @@ function MacroBar({ r, canEdit, onEdit }: { r: Recipe; canEdit: boolean; onEdit:
  * survives navigation, and the server rescales ingredient amounts, missing/to-buy
  * and cook deductions to it; kcal and macros multiply on the client.
  */
-function ServingsStepper({ recipe, canEdit }: { recipe: Recipe; canEdit: boolean }) {
-  const set = useSetRecipeServings()
-  const selected = recipe.selectedServings
-  const max = Math.max(8, recipe.servings)
+function ServingsStepper({ recipe, canEdit, fixed }: { recipe: Recipe; canEdit: boolean; fixed: boolean }) {
+  const scale = useSetRecipeServings()
+  const split = useSetRecipePortionCount()
+  // Fixed ingredients: the stepper says how many portions the whole dish is split into.
+  const set = fixed
+    ? { isPending: split.isPending, mutate: ({ id, servings }: { id: string; servings: number }) => split.mutate({ id, portions: servings }) }
+    : scale
+  const selected = fixed ? recipe.servings : recipe.selectedServings
+  const max = fixed ? Math.max(MAX_SPLIT_STEPPER, recipe.servings) : Math.max(8, recipe.servings)
   if (!canEdit) return <>{selected}</>
   // 32px hit areas pulled back by negative margins: thumb-sized without widening the fact cell.
   const step = (disabled: boolean): CSSProperties => ({
@@ -757,23 +796,116 @@ function DeductionRowView({ item, row, onChange }: {
   )
 }
 
+/**
+ * PUT /recipes/{id}/portion-count: split the same dish into another number of portions. The
+ * ingredients stay; kcal/macros per portion change so the dish total holds — for someone who
+ * eats less (or more) than the recipe's portion. Household-wide; eaten diary days keep theirs.
+ */
+function PortionCountSheet({ open, onClose, recipe }: { open: boolean; onClose: () => void; recipe: Recipe }) {
+  const split = useSetRecipePortionCount()
+  const [count, setCount] = useState(recipe.servings)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    if (open) { setCount(recipe.servings); setError(null) }
+  }, [open, recipe.servings])
+
+  const perPortion = recipe.kcal != null ? Math.round((recipe.kcal * recipe.servings) / count) : null
+  async function save() {
+    setError(null)
+    try {
+      await split.mutateAsync({ id: recipe.id, portions: count })
+      showToast(`Danie dzielone na ${plural(count, 'porcję', 'porcje', 'porcji')}`)
+      onClose()
+    } catch (e) {
+      setError(errorText(e, 'Nie udało się zmienić liczby porcji.'))
+    }
+  }
+  const stepStyle = (disabled: boolean): CSSProperties => ({
+    width: 44, height: 44, borderRadius: 22, border: '1px solid var(--rule)', background: 'transparent',
+    font: mono(20, 500), color: disabled ? 'var(--border-2)' : 'var(--text)', cursor: disabled ? 'default' : 'pointer',
+  })
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Na ile porcji dzielisz danie?">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <span style={{ font: sans(13.5), color: 'var(--text-2)', lineHeight: 1.5 }}>
+          Składniki zostają bez zmian — to całe danie. Zmienia się tylko wielkość porcji, a z nią kcal i makro
+          w dzienniku (także zaplanowanych posiłków; zjedzone dni zostają). Zmiana dotyczy całego domu.
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 22 }}>
+          <button type="button" aria-label="Mniej porcji" disabled={count <= 1} onClick={() => setCount(count - 1)} style={stepStyle(count <= 1)}>−</button>
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 90 }}>
+            <span style={{ font: mono(34, 500) }}>{count}</span>
+            <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>{plural(count, 'porcja', 'porcje', 'porcji').replace(/^\d+ /, '')}</span>
+          </span>
+          <button type="button" aria-label="Więcej porcji" disabled={count >= 200} onClick={() => setCount(count + 1)} style={stepStyle(count >= 200)}>+</button>
+        </div>
+        {perPortion != null && (
+          <span style={{ font: mono(13), color: 'var(--text-2)', textAlign: 'center' }}>
+            {recipe.kcal} kcal/porcja → <strong style={{ color: 'var(--text)' }}>{perPortion} kcal/porcja</strong>
+          </span>
+        )}
+        {error && <span role="alert" style={{ font: sans(13.5, 500), color: 'var(--accent-text)' }}>{error}</span>}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={onClose}>Anuluj</Button>
+          <Button size="xl" style={{ flex: 1.4 }} onClick={save} disabled={split.isPending || count === recipe.servings}>
+            {split.isPending ? 'Zapisywanie…' : 'Zapisz'}
+          </Button>
+        </div>
+      </div>
+    </Sheet>
+  )
+}
+
 /** Lightweight PATCH /recipes/{id}/nutrition editor — edits macros per 1 serving without touching ingredients/steps. */
-function NutritionSheet({ open, onClose, recipe }: { open: boolean; onClose: () => void; recipe: Recipe }) {
+function NutritionSheet({ open, onClose, recipe, canEstimate, ingredientsChanged }: {
+  open: boolean
+  onClose: () => void
+  recipe: Recipe
+  /** Sous is on for this household: offer "Przelicz ze składników". */
+  canEstimate: boolean
+  /** Opened right after an edit changed the ingredients. */
+  ingredientsChanged: boolean
+}) {
   const save = useSetRecipeNutrition()
+  const estimate = useEstimateRecipeNutrition()
   const [kcal, setKcal] = useState('')
   const [protein, setProtein] = useState('')
   const [fat, setFat] = useState('')
   const [carbs, setCarbs] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [estimated, setEstimated] = useState<{ note: string; before: string } | null>(null)
+  const dec = (v: number | null | undefined) => (v != null ? String(v).replace('.', ',') : '')
 
   useEffect(() => {
     if (!open) return
     setKcal(recipe.kcal != null ? String(recipe.kcal) : '')
-    setProtein(recipe.protein != null ? String(recipe.protein).replace('.', ',') : '')
-    setFat(recipe.fat != null ? String(recipe.fat).replace('.', ',') : '')
-    setCarbs(recipe.carbs != null ? String(recipe.carbs).replace('.', ',') : '')
+    setProtein(dec(recipe.protein))
+    setFat(dec(recipe.fat))
+    setCarbs(dec(recipe.carbs))
     setError(null)
+    setEstimated(null)
   }, [open, recipe.kcal, recipe.protein, recipe.fat, recipe.carbs])
+
+  async function recalc() {
+    setError(null)
+    try {
+      const res = await estimate.mutateAsync(recipe.id)
+      const c = res.current
+      setEstimated({
+        note: res.note,
+        before: c.kcal != null
+          ? `${c.kcal} kcal · B ${dec(c.protein) || '–'} · T ${dec(c.fat) || '–'} · W ${dec(c.carbs) || '–'}`
+          : 'brak',
+      })
+      setKcal(String(res.estimate.kcal))
+      setProtein(dec(res.estimate.protein))
+      setFat(dec(res.estimate.fat))
+      setCarbs(dec(res.estimate.carbs))
+    } catch (e) {
+      setError(errorText(e, 'Nie udało się przeliczyć makro.'))
+    }
+  }
 
   async function submit() {
     setError(null)
@@ -803,6 +935,24 @@ function NutritionSheet({ open, onClose, recipe }: { open: boolean; onClose: () 
         <span style={{ font: sans(13.5), color: 'var(--text-2)', lineHeight: 1.45 }}>
           Podaj wartości szacunkowe dla <strong>jednej porcji</strong> (1 osoba). Aplikacja automatycznie mnoży je przez wybraną liczbę porcji.
         </span>
+        {canEstimate && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
+            {ingredientsChanged && !estimated && (
+              <span style={{ font: sans(13.5, 600), color: 'var(--text)' }}>
+                Składniki się zmieniły — przelicz kcal i makro, żeby dziennik się zgadzał.
+              </span>
+            )}
+            <Button variant="outline" onClick={recalc} disabled={estimate.isPending}>
+              {estimate.isPending ? 'Sous liczy… (do minuty)' : 'Przelicz ze składników (Sous)'}
+            </Button>
+            {estimated && (
+              <span style={{ font: sans(13), color: 'var(--text-2)', lineHeight: 1.45 }}>
+                Było: <span style={{ font: mono(12.5) }}>{estimated.before}</span>. Nowe wartości są wpisane poniżej — sprawdź i zapisz.
+                {estimated.note && <><br />{estimated.note}</>}
+              </span>
+            )}
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <Eyebrow>Kalorie (kcal)</Eyebrow>

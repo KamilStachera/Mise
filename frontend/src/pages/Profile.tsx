@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, useBody, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire, useCookLog } from '../api/hooks'
 import { api, errorText, loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
-import { HouseholdCard } from '../components/HouseholdCards'
+import { HouseholdCard, PortionSettingsCard } from '../components/HouseholdCards'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { showToast } from '../lib/toastBus'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -129,6 +129,7 @@ export function Profile() {
         </div>
 
         {canEdit && <HouseholdCard />}
+        {canEdit && <PortionSettingsCard />}
         {auth?.isAdmin && (
           <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
             <LinkRow label="Panel administratora" meta="domy, ludzie, kody" onClick={() => nav('/admin')} />
@@ -192,7 +193,10 @@ export function Profile() {
 
       {canEdit && (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 620px) minmax(0, 1fr)', gap: 56, alignItems: 'start' }}>
-          <HouseholdCard />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+            <HouseholdCard />
+            <PortionSettingsCard />
+          </div>
           {auth?.isAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--rule)', paddingTop: 14 }}>
               <span style={{ font: sans(15.5, 500) }}>Panel administratora</span>

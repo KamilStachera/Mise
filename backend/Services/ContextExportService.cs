@@ -105,8 +105,23 @@ public sealed class ContextExportService
         // Steps feed the air-fryer fallback heuristic on pre-flag recipes.
         var recipes = await _db.Recipes.AsNoTracking().Include(r => r.Steps).ToListAsync(ct);
         var answers = await LoadAnswersAsync(ct);
-        return _cookbook.Build(prefs, pantry, recipes, answers);
+        var portions = await PortionSettings.LoadAsync(_db, _db.Tenant.HouseholdId, ct);
+        return _cookbook.Build(prefs, pantry, recipes, answers) + PortionModeSection(portions);
     }
+
+    /// <summary>Tells agents how this household treats portions (cookbook.md, read by Sous via get_cookbook).</summary>
+    internal static string PortionModeSection(PortionSettings s) =>
+        "\n## Porcje w tym domu\n\n"
+        + (s.KeepIngredientsFixed
+            ? "- Składniki NIE skalują się z porcjami: przepis zawsze pokazuje całe danie, a liczba porcji mówi, "
+              + "na ile porcji je dzielimy (kcal/makro na porcję = całe danie ÷ porcje). Zmiana porcji: "
+              + "`PUT /recipes/{id}/portion-count` (MCP `set_recipe_portion_count`); `set_recipe_servings` jest wyłączone.\n"
+            : "- Wybór porcji na ekranie przepisu skaluje składniki (`set_recipe_servings`); kcal/makro na porcję "
+              + "zostają. Gdy ktoś je mniej lub więcej niż porcja przepisu, podziel danie na inną liczbę porcji: "
+              + "`set_recipe_portion_count` (składniki bez zmian, kcal/makro na porcję przeliczone).\n")
+        + (s.NewRecipesFullServings
+            ? "- Nowe przepisy otwierają się na pełnej liczbie porcji z przepisu.\n"
+            : "- Nowe przepisy otwierają się na 1 porcji (1 osoba).\n");
 
     /// <summary>
     /// Full markdown of one recipe for the chat system prompt when the user asks
@@ -120,8 +135,9 @@ public sealed class ContextExportService
             .FirstOrDefaultAsync(x => x.Id == recipeId, ct);
         if (r is null) return null;
         var md = BuildRecipeMarkdown(r);
-        return RecipeScaling.IsScaled(r)
-            ? md + $"\nEkran przepisu pokazuje ilości na {PortionsPl(RecipeScaling.EffectiveServings(r))} (przepis bazowy: {PortionsPl(r.Servings)}).\n"
+        var fixedIngredients = (await PortionSettings.LoadAsync(_db, _db.Tenant.HouseholdId, ct)).KeepIngredientsFixed;
+        return RecipeScaling.IsScaled(r, fixedIngredients)
+            ? md + $"\nEkran przepisu pokazuje ilości na {PortionsPl(RecipeScaling.EffectiveServings(r, fixedIngredients))} (przepis bazowy: {PortionsPl(r.Servings)}).\n"
             : md;
     }
 

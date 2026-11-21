@@ -631,6 +631,18 @@ public class Household
     public string Name { get; set; } = "";
     /// <summary>In-app Sous runs on the owner's ChatGPT plan, so the admin turns it on per household.</summary>
     public bool SousEnabled { get; set; }
+    /// <summary>
+    /// New recipes open at their full portion count (<see cref="Recipe.SelectedServings"/> =
+    /// <see cref="Recipe.Servings"/>) instead of one portion. Applies at creation only.
+    /// </summary>
+    public bool NewRecipesFullServings { get; set; }
+    /// <summary>
+    /// "Nie łącz porcji ze składnikami": ingredients always show as written (the whole dish) and
+    /// the portion count only says how many portions it is split into, so kcal/macros per portion
+    /// = whole dish ÷ <see cref="Recipe.Servings"/>. Off = the portion picker scales ingredients
+    /// (<see cref="Recipe.SelectedServings"/>) and kcal per portion stays put. See RecipeScaling.
+    /// </summary>
+    public bool KeepIngredientsFixed { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     /// <summary>Blocked by an admin: none of its people can sign in or use keys. Data stays; reversible.</summary>
     public DateTimeOffset? BlockedAt { get; set; }

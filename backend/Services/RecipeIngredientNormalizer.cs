@@ -70,6 +70,11 @@ public sealed partial class RecipeIngredientNormalizer(IngredientMatcher matcher
             (amountValue, amountUnit) = (parsedValue, parsedUnit);
         }
 
+        // Agents (Sous especially) sometimes send only the structured amount. The UI shows
+        // Quantity, so without this the row looked like it had no amount at all.
+        if (quantity.Length == 0 && amountValue is decimal v && amountUnit is PantryUnit u)
+            quantity = FormatAmount(v, u);
+
         return new RecipeIngredient
         {
             Name = storedName,
@@ -84,6 +89,22 @@ public sealed partial class RecipeIngredientNormalizer(IngredientMatcher matcher
             PantryItemId = catalogItem?.Id,
         };
     }
+
+    /// <summary>"200 g", "1,5 szt." — Polish decimal comma.</summary>
+    public static string FormatAmount(decimal value, PantryUnit unit) =>
+        $"{value.ToString("0.##", System.Globalization.CultureInfo.GetCultureInfo("pl-PL"))} {CookbookMarkdownBuilder.UnitLabel(unit)}";
+
+    /// <summary>
+    /// An ingredient states an amount when its quantity text has a number (or a ¼-style
+    /// fraction) or it carries a structured amount. "do smaku", "szczypta" alone don't.
+    /// </summary>
+    public static bool HasAmount(IngredientInput input) =>
+        input.AmountValue is > 0
+        || (input.Quantity is { } q && AmountDigitPattern().IsMatch(q))
+        || (string.IsNullOrWhiteSpace(input.Quantity) && QuantityPrefixPattern().IsMatch(input.Name ?? ""));
+
+    [GeneratedRegex(@"[0-9¼½¾⅓⅔⅛⅜⅝⅞]")]
+    private static partial Regex AmountDigitPattern();
 
     private static bool TrySplitQuantityPrefix(string text,
         out string quantity, out string name)

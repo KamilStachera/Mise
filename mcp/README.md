@@ -4,7 +4,7 @@ A small stdio [MCP](https://modelcontextprotocol.io) server that exposes the Pic
 cookbook REST API as first-class tools for Claude Code and Codex:
 
 - recipes — `get_cookbook`, `search_recipes`, `get_recipe`, `add_recipe`,
-  `update_recipe`, `set_recipe_nutrition`, `set_recipe_servings`, `add_recipe_image`
+  `update_recipe`, `set_recipe_nutrition`, `set_recipe_servings`, `set_recipe_portion_count`, `add_recipe_image`
 - pantry — `get_pantry`, `add_to_pantry` (deltas, e.g. after a receipt),
   `set_pantry_quantities` (absolute amounts), `create_pantry_item`,
   `add_pantry_aliases`, `get_receipt_mappings`, `delete_receipt_mapping`

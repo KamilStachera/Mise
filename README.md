@@ -20,7 +20,14 @@ help plan meals.
   and installed Microsoft Edge; `PLAYWRIGHT_CHANNEL` can select another installed
   Playwright browser channel). Tests use 300 fixture recipes without a live API.
 - **Per-serving nutrition estimates** (kcal / protein / fat / carbs) on every
-  recipe — agents estimate them when saving, the plan shows per-day totals.
+  recipe — agents estimate them when saving, the plan shows per-day totals. After
+  editing ingredients, „Przelicz ze składników” asks Sous for a fresh estimate
+  (shown for review, never saved on its own).
+- **Portions your way** (*Profil → Porcje*, per household): new recipes open at 1
+  portion or the full recipe; „Nie łącz porcji z dzieleniem składników” keeps the
+  ingredients as the whole dish and makes the portion count only split it (kcal per
+  portion follows). Any recipe can be split into a different number of portions —
+  for someone who eats less than the recipe's portion — without touching ingredients.
 - A full-screen dark **cook mode** ("Gotuj krok po kroku"): one step at a time in
   large type, the ingredients that step mentions ("Potrzebne teraz"), a tickable
   ingredient list, a timer pre-set from the step text (space starts it, arrows

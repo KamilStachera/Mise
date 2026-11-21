@@ -682,10 +682,16 @@ namespace Mise.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("KeepIngredientsFixed")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
+
+                    b.Property<bool>("NewRecipesFullServings")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("SousEnabled")
                         .HasColumnType("boolean");

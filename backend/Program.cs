@@ -54,6 +54,7 @@ builder.Services.AddScoped<TrainingSessionService>();
 builder.Services.AddSingleton<EnrichmentState>();
 builder.Services.AddSingleton<ISousJobs, SousJobs>();
 builder.Services.AddScoped<ExerciseEnrichment>();
+builder.Services.AddScoped<RecipeNutritionEstimator>();
 builder.Services.AddHostedService<ExerciseEnrichmentWorker>();
 builder.Services.AddScoped<IChatProvider>(sp =>
     ChatProviderFactory.Create(sp.GetRequiredService<IConfiguration>(),

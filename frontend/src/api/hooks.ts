@@ -159,6 +159,8 @@ export function useHouseholdActions() {
   const refresh = (...keys: string[]) => () => Promise.all(keys.map((k) => qc.invalidateQueries({ queryKey: [k] })))
   return {
     rename: useMutation({ mutationFn: api.renameHousehold, onSuccess: refresh('household', 'auth') }),
+    // The flags ride on /auth/me; recipe screens read them from there.
+    setPortions: useMutation({ mutationFn: api.setHouseholdPortions, onSuccess: refresh('auth', 'recipe', 'recipes', 'cookbook') }),
     renamePerson: useMutation({
       mutationFn: ({ id, name }: { id: number; name: string }) => api.renamePerson(id, name),
       onSuccess: refresh('household', 'auth'),
@@ -643,6 +645,22 @@ export function useAddMissingToShopping() {
   })
 }
 
+/** Splits the same dish into another number of portions: per-portion kcal/macros change, ingredients don't. */
+export function useSetRecipePortionCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, portions }: { id: string; portions: number }) => api.setRecipePortionCount(id, portions),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['recipe'] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
+      // Planned diary entries take the new per-portion kcal; pots buy portions of the dish.
+      qc.invalidateQueries({ queryKey: ['plan'] })
+      qc.invalidateQueries({ queryKey: ['budget'] })
+    },
+  })
+}
+
 export function useSetRecipeServings() {
   const qc = useQueryClient()
   return useMutation({
@@ -685,6 +703,14 @@ export function useUpdateRecipe() {
       qc.invalidateQueries({ queryKey: ['cookProposal', id] })
       qc.invalidateQueries({ queryKey: ['plan'] })
     },
+  })
+}
+
+/** Asks Sous to recount kcal/macros from the current ingredients; the sheet shows it before saving. */
+export function useEstimateRecipeNutrition() {
+  return useMutation({
+    mutationFn: (id: string) => api.estimateRecipeNutrition(id),
+    meta: OWN_ERRORS,
   })
 }
 

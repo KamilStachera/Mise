@@ -150,7 +150,8 @@ public record AuthMeDto(bool Authenticated, string? Email, string? Name, string?
     bool IsAdmin = false, HouseholdDto? Household = null, bool PublicHousehold = false,
     bool Blocked = false, string? Role = null, bool CanManage = false);
 public record PersonDto(int Id, string Name);
-public record HouseholdDto(int Id, string Name, bool SousEnabled);
+/// <summary>auth/me household; the two portion flags drive the recipe screen (see <see cref="Domain.Household"/>).</summary>
+public record HouseholdDto(int Id, string Name, bool SousEnabled, bool NewRecipesFullServings = false, bool KeepIngredientsFixed = false);
 
 public record QuestionDto(string Key, string Label, string Type, string[]? Options, string? Placeholder);
 public record QuestionnaireSectionDto(string Key, string Title, List<QuestionDto> Questions);
@@ -180,6 +181,8 @@ public record PantryAdjustInput(List<PantryAdjustItem> Items, string? Merchant =
 
 /// <summary>Portion choice for the recipe screen; equal to the base Servings clears the scaling.</summary>
 public record RecipeServingsInput(int Servings);
+/// <summary>PUT /recipes/{id}/portion-count: how many portions the same dish is split into (1–200).</summary>
+public record RecipePortionCountInput(int Portions);
 /// <summary>PATCH /recipes/{id}/nutrition — per ONE portion; Servings (optional) = base portions the amounts make.</summary>
 public record RecipeNutritionInput(int? Kcal, decimal? Protein, decimal? Fat, decimal? Carbs, int? Servings = null);
 

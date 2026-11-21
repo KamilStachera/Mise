@@ -76,8 +76,10 @@ const recipeInputShape = {
     .array(
       z.object({
         name: z.string().describe('Kanoniczna nazwa produktu ze spiżarni, bez ilości i bez opisu przygotowania'),
-        quantity: z.string().optional().describe(
-          'Dokładna ilość, pokazywana osobno po prawej, np. "100 g", "2 szt."; nie używaj pustej wartości, „do smaku”, „szczypty”, „odrobiny” ani „garści” bez liczby',
+        quantity: z.string().min(1).describe(
+          'WYMAGANE: ilość z liczbą, pokazywana osobno po prawej, np. "100 g", "2 szt.", "1 łyżka (15 ml)". ' +
+            'Podawaj ją ZAWSZE, także gdy wypełniasz amountValue/amountUnit. Bez pustej wartości, „do smaku”, ' +
+            '„szczypty”, „odrobiny” ani „garści” bez liczby — API odrzuci składnik bez ilości',
         ),
         displayText: z.string().optional().describe(
           'Oryginalny pełny wiersz ze źródła, gdy zawiera dodatkowe informacje, np. "2–4 kromki chleba na zakwasie piwnym"; UI pokazuje go jako doprecyzowanie pod kanonicznym name',
@@ -196,12 +198,27 @@ server.tool(
   'set_recipe_servings',
   'Zapisz wybór liczby porcji dla przepisu (1–8, albo do bazowej liczby porcji, gdy większa). Skaluje ilości składników wszędzie, gdzie się ' +
     'liczą: szczegóły przepisu, do kupienia, cook-proposal i zapotrzebowanie na liście zakupów. ' +
-    'Wartość 1 przywraca domyślną jedną porcję (jedna osoba).',
+    'Wartość 1 przywraca domyślną jedną porcję (jedna osoba). Nie zmienia kcal na porcję — do tego ' +
+    'set_recipe_portion_count. W domu z „Nie łącz porcji ze składnikami” zwraca 409 (sprawdź get_cookbook).',
   {
     id: z.string().uuid().describe('Id przepisu'),
     servings: z.number().int().min(1).describe('Wybrana liczba porcji'),
   },
   async ({ id, servings }) => text(await put(`/recipes/${id}/servings`, { servings })),
+)
+
+server.tool(
+  'set_recipe_portion_count',
+  'Podziel TO SAMO danie na inną liczbę porcji (1–200). Składniki zostają bez zmian (to całe danie), ' +
+    'a kcal/makro na porcję przeliczają się tak, by suma dania się zgadzała (np. 4 × 600 kcal → 6 × 400 kcal). ' +
+    'Użyj, gdy ktoś je mniejsze/większe porcje niż przepis zakłada — zaplanowane wpisy w dzienniku dostaną ' +
+    'nowe kcal, zjedzone zostają. Zmiana dotyczy całego domu. W domu z ustawieniem „Nie łącz porcji ze ' +
+    'składnikami” to jedyny sposób zmiany porcji (set_recipe_servings jest wtedy wyłączone).',
+  {
+    id: z.string().uuid().describe('Id przepisu'),
+    portions: z.number().int().min(1).max(200).describe('Na ile porcji dzielimy całe danie'),
+  },
+  async ({ id, portions }) => text(await put(`/recipes/${id}/portion-count`, { portions })),
 )
 
 server.tool(

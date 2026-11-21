@@ -59,6 +59,7 @@ public static class AgentDocs
         |---|---|---|
         | nowy przepis | `add_recipe` | `POST {API}/recipes` |
         | poprawka kalorii przepisu | `set_recipe_nutrition` | `PATCH {API}/recipes/{id}/nutrition` |
+        | to samo danie na inną liczbę porcji | `set_recipe_portion_count` | `PUT {API}/recipes/{id}/portion-count` |
         | zakupy → spiżarnia (delty, paragon) | `add_to_pantry` | `POST {API}/pantry/adjust` |
         | inwentaryzacja (ilości absolutne) | `set_pantry_quantities` | `POST {API}/pantry/bulk` |
         | nowa pozycja katalogu (rzadko) | `create_pantry_item` | `POST {API}/pantry` |
@@ -384,6 +385,8 @@ public static class AgentDocs
         lub „do podania" bez liczby. Jeśli źródło nie podaje ilości, oszacuj jedną
         rozsądną wartość dla bazowej liczby porcji i zapisz ją metrycznie w `quantity`,
         `amountValue` i `amountUnit` (np. `2 g` soli, `0,5 g` pieprzu, `15 ml` oliwy).
+        API odrzuca (400) przepis od agenta, w którym choć jeden składnik nie ma liczby ani w
+        `quantity`, ani w `amountValue` — błąd wymienia te składniki; uzupełnij je i zapisz ponownie.
         Kroki i `tip` podlegają tej samej zasadzie: każda obróbka ma konkretny czas,
         temperaturę albo poziom ognia. Nie odsyłaj do opakowania i nie kończ instrukcji
         samym „aż zgęstnieje", „do miękkości" lub „do zarumienienia" — dodaj liczbowy
@@ -441,7 +444,17 @@ public static class AgentDocs
           porcji. Skaluje ilości wszędzie, gdzie się liczą (szczegóły, do kupienia,
           cook-proposal, zapotrzebowanie na liście zakupów). `1` przywraca domyślną
           jedną porcję. Plan tygodnia tego nie używa: wpis kupuje swoje `portions`,
-          a gotowanie na kilka dni — cały garnek.
+          a gotowanie na kilka dni — cały garnek. W domu z ustawieniem „Nie łącz porcji ze
+          składnikami” (`cookbook.md` → „Porcje w tym domu”) zwraca 409 — tam przepis zawsze
+          pokazuje całe danie.
+        - `PUT /recipes/{id}/portion-count` — body `{ "portions": 6 }` (1–200): dzieli **to samo**
+          danie na inną liczbę porcji. Składniki bez zmian, `servings` = nowa liczba, kcal/makro na
+          porcję przeliczone tak, by suma dania się zgadzała (4 × 600 kcal → 6 × 400 kcal). Dla kogoś,
+          kto je mniejsze porcje niż przepis zakłada; zaplanowane wpisy dziennika biorą nowe kcal,
+          zjedzone zostają. Dotyczy całego domu.
+        - `PUT /household/portions` — body `{ "newRecipesFullServings": false, "keepIngredientsFixed": false }`:
+          ustawienia porcji domu (nowe przepisy na 1 porcję / całość; „Nie łącz porcji ze składnikami”).
+          Zmieniaj tylko na wyraźną prośbę.
         - `GET /recipes/{id}/cook-proposal` — co odjąć ze spiżarni po ugotowaniu
           (na składnik: `pantryItemId`, `proposedAmount`, `deductible`, `skipReason`).
         - `PUT /recipes/{id}` — pełna podmiana (to samo body co POST). **Uwaga:** pominięcie
@@ -453,7 +466,11 @@ public static class AgentDocs
           "carbs": 40, "servings": 2 }`: zmienia **tylko** wartości odżywcze (na jedną porcję,
           komplet czterech) i opcjonalnie `servings` (na ile porcji wychodzą ilości z przepisu).
           Składniki, kroki i reszta pól zostają. Bezpieczna droga do poprawiania kalorii —
-          zamiast pełnego `PUT`.
+          zamiast pełnego `PUT`. Po zmianie składników przelicz makro samodzielnie i zapisz tutaj.
+        - `POST /recipes/{id}/nutrition/estimate` — przycisk „Przelicz makro” w aplikacji: Sous
+          szacuje kcal i makro na porcję z obecnych składników i **niczego nie zapisuje**
+          (`{ servings, current, estimate, note }`). Działa tylko z włączonym Sous; agent
+          z dostępem do składników nie potrzebuje go — liczy sam.
         - `DELETE /recipes/{id}`.
         - `POST /recipes/{id}/add-missing-to-shopping` — dopisz brakujące składniki do zakupów.
           Ponowienie dla tego samego przepisu jest idempotentne; odpowiedź ma
@@ -995,7 +1012,9 @@ public static class AgentDocs
           ciebie. Załącznik PDF z czatu czytaj `read_import_document` (kolejne strony od
           `nextPage`). Z każdego przepisu zrób propozycję (po polsku, dokładne ilości w g/ml/szt.
           z `amountValue`/`amountUnit`, czasy i temperatury w krokach, kcal + białko + tłuszcz +
-          węglowodany na porcję), pokaż ją i po zgodzie zapisz `add_recipe` (source "web",
+          węglowodany na porcję), pokaż ją i po zgodzie zapisz `add_recipe` — z PEŁNĄ listą
+          składników, każdy z `quantity` zawierającą liczbę (np. „200 g”, „2 szt.”); bez ilości
+          API odrzuci zapis, a przepis bez ilości jest bezużyteczny (source "web",
           sourceName = nazwa strony, autora lub książki), a zdjęcie dania z `imageUrl` dołącz
           `add_recipe_image`. Przy wielu przepisach (cały PDF) najpierw wypisz ich listę i zapytaj,
           które dodać; zapisuj po kilka i pomijaj te, które już są w książce. Strony z błędem albo
@@ -1014,6 +1033,9 @@ public static class AgentDocs
           razu i potwierdź jednym zdaniem z liczbami (np. ile kcal zostało na dziś).
           Usuwanie, czyszczenie list, podmiana przepisu, zmiana celu i nowy przepis — najpierw
           pokaż propozycję i poczekaj na zgodę.
+        - Każdy przepis, który zapisujesz (`add_recipe`, `update_recipe`), ma komplet składników
+          i przy KAŻDYM `quantity` z liczbą — także wtedy, gdy podajesz `amountValue`/`amountUnit`.
+          Gdy API zwróci listę składników bez ilości, dopisz je i zapisz jeszcze raz.
         - Odpowiadaj po polsku, krótko i konkretnie, jak w komunikatorze. Czat pokazuje zwykły
           tekst: bez nagłówków, tabel, pogrubień i bloków kodu; listy jako linie zaczynające
           się od „– ”. Nie pokazuj identyfikatorów ani JSON-a.

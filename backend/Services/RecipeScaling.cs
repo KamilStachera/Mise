@@ -26,19 +26,50 @@ public static partial class RecipeScaling
     [GeneratedRegex(@"\d+(?:[.,]\d+)?(?:\s*/\s*\d+)?", RegexOptions.CultureInvariant)]
     private static partial Regex NumberPattern();
 
-    public static int EffectiveServings(Recipe r) => r.SelectedServings ?? DefaultServings;
+    /// <summary>
+    /// Portions the recipe screen shows. With <paramref name="fixedIngredients"/>
+    /// (<see cref="Household.KeepIngredientsFixed"/>) it is always the whole recipe, so nothing scales.
+    /// </summary>
+    public static int EffectiveServings(Recipe r, bool fixedIngredients = false) =>
+        fixedIngredients ? Math.Max(1, r.Servings) : r.SelectedServings ?? DefaultServings;
 
-    public static bool IsScaled(Recipe r) => r.Servings > 0 && EffectiveServings(r) != r.Servings;
+    public static bool IsScaled(Recipe r, bool fixedIngredients = false) =>
+        r.Servings > 0 && EffectiveServings(r, fixedIngredients) != r.Servings;
 
     /// <summary>
     /// The recipe's ingredients with amounts multiplied by selected/base servings.
     /// Unscaled recipes return the original list; otherwise detached copies.
     /// </summary>
-    public static List<RecipeIngredient> ScaledIngredients(Recipe r) =>
-        IsScaled(r) ? ScaleIngredients(r, EffectiveServings(r)) : r.Ingredients;
+    public static List<RecipeIngredient> ScaledIngredients(Recipe r, bool fixedIngredients = false) =>
+        IsScaled(r, fixedIngredients) ? ScaleIngredients(r, EffectiveServings(r, fixedIngredients)) : r.Ingredients;
 
     /// <summary>Shallow copy carrying scaled ingredients, for consumers that take a whole recipe.</summary>
-    public static Recipe Scaled(Recipe r) => IsScaled(r) ? WithIngredients(r, ScaledIngredients(r)) : r;
+    public static Recipe Scaled(Recipe r, bool fixedIngredients = false) =>
+        IsScaled(r, fixedIngredients) ? WithIngredients(r, ScaledIngredients(r, fixedIngredients)) : r;
+
+    /// <summary>Most portions a dish may be split into (PUT /recipes/{id}/portion-count).</summary>
+    public const int MaxPortionCount = 200;
+
+    /// <summary>
+    /// Splits the same dish into <paramref name="portions"/> portions: ingredients stay as written
+    /// (they are the whole dish), per-portion kcal/macros are re-divided so the dish total holds
+    /// (e.g. 4 × 600 kcal → 6 × 400 kcal). Eaten diary entries keep their snapshots; planned
+    /// ones follow the new per-portion numbers.
+    /// </summary>
+    public static void Resplit(Recipe r, int portions)
+    {
+        var old = Math.Max(1, r.Servings);
+        if (portions == old) return;
+        decimal Ratio(decimal v) => v * old / portions;
+        if (r.KcalPerServing is int kcal)
+            r.KcalPerServing = Math.Max(1, (int)Math.Round(Ratio(kcal), MidpointRounding.AwayFromZero));
+        if (r.ProteinGrams is decimal p) r.ProteinGrams = Math.Round(Ratio(p), 1, MidpointRounding.AwayFromZero);
+        if (r.FatGrams is decimal f) r.FatGrams = Math.Round(Ratio(f), 1, MidpointRounding.AwayFromZero);
+        if (r.CarbGrams is decimal c) r.CarbGrams = Math.Round(Ratio(c), 1, MidpointRounding.AwayFromZero);
+        r.Servings = portions;
+        // The picker's choice counts people eating; drop it only when it no longer fits the range.
+        if (r.SelectedServings > Math.Max(MaxServings, r.Servings)) r.SelectedServings = null;
+    }
 
     /// <summary>
     /// The recipe scaled to an explicit portion count — a pot's size or a plan entry's

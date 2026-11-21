@@ -261,6 +261,21 @@ export interface RecipeNutritionInput {
   servings?: number
 }
 
+export interface NutritionValues {
+  kcal: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+}
+
+/** POST /recipes/{id}/nutrition/estimate — Sous's per-portion estimate; nothing is saved. */
+export interface NutritionEstimate {
+  servings: number
+  current: NutritionValues
+  estimate: { kcal: number; protein: number; fat: number; carbs: number }
+  note: string
+}
+
 export interface ImportedNutrition {
   calories: string | null
   protein: string | null
@@ -727,6 +742,10 @@ export interface HouseholdInfo {
   id: number
   name: string
   sousEnabled: boolean
+  /** New recipes open at their full portion count instead of 1. */
+  newRecipesFullServings: boolean
+  /** „Nie łącz porcji ze składnikami”: the recipe always shows the whole dish; portions only split it. */
+  keepIngredientsFixed: boolean
 }
 export interface HouseholdMember {
   id: number
@@ -1052,6 +1071,8 @@ export const api = {
       `/recipes/${id}/nutrition`,
       { method: 'PATCH', body: JSON.stringify(input) },
     ),
+  estimateRecipeNutrition: (id: string) =>
+    http<NutritionEstimate>(`/recipes/${id}/nutrition/estimate`, { method: 'POST' }),
   setRecipeFavorite: (id: string, favorite: boolean) =>
     http<{ id: string; isFavorite: boolean }>(`/recipes/${id}/favorite`, {
       method: 'PUT',
@@ -1070,6 +1091,11 @@ export const api = {
   importUrl: (url: string) =>
     http<UrlImportResult>(`/import/url`, { method: 'POST', body: JSON.stringify({ url }) }),
   deleteRecipe: (id: string) => http<void>(`/recipes/${id}`, { method: 'DELETE' }),
+  setRecipePortionCount: (id: string, portions: number) =>
+    http<{ servings: number; selectedServings: number; kcal: number | null }>(`/recipes/${id}/portion-count`, {
+      method: 'PUT',
+      body: JSON.stringify({ portions }),
+    }),
   setRecipeServings: (id: string, servings: number) =>
     http<{ servings: number; selectedServings: number }>(`/recipes/${id}/servings`, {
       method: 'PUT',
@@ -1281,6 +1307,8 @@ export const api = {
   redeemInvite: (code: string, name: string) =>
     http<{ householdId: number; personId: number }>(`/onboarding/redeem`, { method: 'POST', body: JSON.stringify({ code, name }) }),
   household: () => http<HouseholdDetail>(`/household`, undefined, true),
+  setHouseholdPortions: (input: { newRecipesFullServings: boolean; keepIngredientsFixed: boolean }) =>
+    http<{ newRecipesFullServings: boolean; keepIngredientsFixed: boolean }>(`/household/portions`, { method: 'PUT', body: JSON.stringify(input) }, true),
   renameHousehold: (name: string) =>
     http<HouseholdDetail>(`/household`, { method: 'PATCH', body: JSON.stringify({ name }) }, true),
   renamePerson: (id: number, name: string) =>
