@@ -29,6 +29,26 @@ public class DiaryServiceTests
     }
 
     [Fact]
+    public async Task PotCookedForPartnerToo_BuysBothPeoplesPortions_NotTwiceTheSame()
+    {
+        await using var db = NewDb();
+        var recipe = Gulasz();
+        db.Recipes.Add(recipe);
+        db.People.Add(new Person { Id = 2, HouseholdId = 1, Name = "Partner" });
+        await db.SaveChangesAsync();
+
+        // My pot: tonight + tomorrow (2 portions). The partner eats the same two meals at 1.5×.
+        await new DiaryService(db).CreateCookAsync(recipe.Id, 2, Monday, MealSlot.Dinner,
+            [(Monday.AddDays(1), MealSlot.Lunch)], null, alsoFor: [(2, 1.5m)]);
+
+        var selection = await PlanShoppingService.LoadAsync(db, Monday, 7);
+        // Leftovers never buy; each person's cook day buys their own pot: 2 + ceil(2 × 1.5) = 5
+        // portions → 5 × 250 g of beef, i.e. the food both actually eat.
+        Assert.Equal(2, selection.Sources.Count);
+        Assert.Equal(1250m, selection.Sources.Sum(s => Assert.Single(s.Recipe.Ingredients).AmountValue));
+    }
+
+    [Fact]
     public async Task Fridge_CountsUnassignedPortions_AndEatingOneTakesItOut()
     {
         await using var db = NewDb();
