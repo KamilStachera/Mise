@@ -49,6 +49,7 @@ builder.Services.AddSingleton<Mise.Api.Services.Import.SafeWebFetcher>();
 builder.Services.AddScoped<Mise.Api.Services.Import.ImportService>();
 builder.Services.AddSingleton<ExerciseImages>();
 builder.Services.AddSingleton<YouTubeVerifier>();
+builder.Services.AddScoped<TrainingSessionService>();
 // Background Polish descriptions + demo videos for the exercise catalog (GPT via Sous).
 builder.Services.AddSingleton<EnrichmentState>();
 builder.Services.AddSingleton<ISousJobs, SousJobs>();

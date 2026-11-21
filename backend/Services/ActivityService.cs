@@ -276,9 +276,9 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
     /// <summary>
     /// Active kcal per day in [from, to]. Band Active samples win; a day with only Total
     /// samples counts Total − BMR (pro rata for today); manual workouts always add. Strava
-    /// (watch) workouts add their own kcal unless the band already covered them: Active samples
-    /// inside their window, a Total − BMR day, or the same session also arriving through Health
-    /// Connect (then the Strava copy is hidden).
+    /// (watch) and Pichci tracker (<see cref="MeasurementSource.Training"/>) workouts add their
+    /// own kcal unless the band or watch already covered them: Active samples inside their window,
+    /// a Total − BMR day, or an overlapping watch/band workout (then the duplicate copy is hidden).
     /// </summary>
     public async Task<List<ActivityDay>> DaysAsync(DateOnly from, DateOnly to, int? bmr, CancellationToken ct = default)
     {
@@ -286,6 +286,9 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
             .Where(s => s.PersonId == PersonId && s.Date >= from && s.Date <= to).ToListAsync(ct);
         var workouts = await db.Workouts.AsNoTracking().Where(w => w.PersonId == PersonId && w.Date >= from && w.Date <= to)
             .OrderBy(w => w.StartedAt).ToListAsync(ct);
+        var watchWorkouts = workouts
+            .Where(w => w.Source is MeasurementSource.HealthConnect or MeasurementSource.Strava)
+            .ToList();
         var now = DateTimeOffset.Now;
         var today = LocalDate(now);
 
@@ -307,21 +310,27 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
                 fromTotal = band > 0;
             }
             var bandWorkouts = workouts.Where(w => w.Date == d && w.Source == MeasurementSource.HealthConnect).ToList();
-            var list = workouts.Where(w => w.Date == d && !DuplicateOfBand(w, bandWorkouts))
+            var list = workouts
+                .Where(w => w.Date == d && !DuplicateOfBand(w, bandWorkouts) && !DuplicateOfWatch(w, watchWorkouts))
                 .Select(w => (w, WorkoutKcal(w, active))).ToList();
             var own = list.Where(x => x.w.Source == MeasurementSource.Manual
-                    || (x.w.Source == MeasurementSource.Strava && !fromTotal && BandKcal(x.w, active) is null))
+                    || (x.w.Source is MeasurementSource.Strava or MeasurementSource.Training
+                        && !fromTotal && BandKcal(x.w, active) is null))
                 .Sum(x => x.w.Kcal ?? 0);
             days.Add(new ActivityDay(d, (int)Math.Round(Math.Min(band, 100_000m)) + own, list));
         }
         return days;
     }
 
-    /// <summary>Manual: as entered. Strava: the watch's kcal, else the band's. Band: the Active samples that start inside the session.</summary>
+    /// <summary>
+    /// Manual: as entered. Strava: the watch's kcal, else the band's. Training tracker: the band's
+    /// Active samples inside the session if present, else the tracker's estimate. Band: Active samples.
+    /// </summary>
     public static int? WorkoutKcal(Workout w, IReadOnlyCollection<EnergySample> active)
     {
         if (w.Source == MeasurementSource.Manual) return w.Kcal;
         if (w.Source == MeasurementSource.Strava && w.Kcal is not null) return w.Kcal;
+        if (w.Source == MeasurementSource.Training) return BandKcal(w, active) ?? w.Kcal;
         return BandKcal(w, active);
     }
 
@@ -341,6 +350,24 @@ public class ActivityService(MiseDbContext db, PersonScope? person = null)
     public static bool DuplicateOfBand(Workout w, IEnumerable<Workout> bandWorkouts) =>
         w.Source == MeasurementSource.Strava && w.StartedAt is DateTimeOffset start
         && bandWorkouts.Any(b => b.StartedAt is DateTimeOffset s && Math.Abs((s - start).TotalMinutes) <= 10);
+
+    /// <summary>
+    /// A live-tracker workout that overlaps a band (Health Connect) or watch (Strava) workout within
+    /// a ±15 minute window — the watch/band copy wins so neither the list nor daily kcal double-counts.
+    /// </summary>
+    public static bool DuplicateOfWatch(Workout w, IEnumerable<Workout> watchWorkouts)
+    {
+        if (w.Source != MeasurementSource.Training || w.StartedAt is not DateTimeOffset start) return false;
+        var end = start.AddMinutes(Math.Max(1, w.Minutes));
+        var margin = TimeSpan.FromMinutes(15);
+        return watchWorkouts.Any(o =>
+        {
+            if (o.Source is not (MeasurementSource.HealthConnect or MeasurementSource.Strava)
+                || o.StartedAt is not DateTimeOffset oStart) return false;
+            var oEnd = oStart.AddMinutes(Math.Max(1, o.Minutes));
+            return oStart <= end + margin && oEnd >= start - margin;
+        });
+    }
 
     public async Task<Dictionary<DateOnly, int>> ActiveKcalAsync(DateOnly from, DateOnly to, int? bmr, CancellationToken ct = default) =>
         (await DaysAsync(from, to, bmr, ct)).ToDictionary(d => d.Date, d => d.ActiveKcal);

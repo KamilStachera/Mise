@@ -76,14 +76,16 @@ export function KcalMissingTag() {
   )
 }
 
-/** "z opaski" (sage dot) / "ze Stravy" (accent dot) / "ręcznie" (ring). */
-export function SourceTag({ band, strava }: { band?: boolean; strava?: boolean }) {
-  const filled = band || strava
-  const color = band ? 'var(--sage)' : strava ? 'var(--accent)' : 'transparent'
+/** "z opaski" (sage dot) / "ze Stravy" (accent dot) / "z trackera" (ink dot) / "ręcznie" (ring). */
+export function SourceTag({ band, strava, training }: { band?: boolean; strava?: boolean; training?: boolean }) {
+  const filled = band || strava || training
+  const color = band ? 'var(--sage)' : strava ? 'var(--accent)' : training ? 'var(--text)' : 'transparent'
+  const textColor = band ? 'var(--sage-text)' : strava ? 'var(--accent-text)' : training ? 'var(--text-2)' : 'var(--text-3)'
+  const label = band ? 'z opaski' : strava ? 'ze Stravy' : training ? 'z trackera' : 'ręcznie'
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, font: mono(10.5, 500), color: band ? 'var(--sage-text)' : strava ? 'var(--accent-text)' : 'var(--text-3)' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, font: mono(10.5, 500), color: textColor }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', boxSizing: 'border-box', background: color, border: filled ? 0 : '1px solid var(--text-3)' }} />
-      {band ? 'z opaski' : strava ? 'ze Stravy' : 'ręcznie'}
+      {label}
     </span>
   )
 }

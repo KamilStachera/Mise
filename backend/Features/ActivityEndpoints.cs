@@ -105,6 +105,7 @@ public static class ActivityEndpoints
         {
             MeasurementSource.Manual => "manual",
             MeasurementSource.Strava => "strava",
+            MeasurementSource.Training => "training",
             _ => "band",
         });
 }

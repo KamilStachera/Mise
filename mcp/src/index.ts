@@ -1226,9 +1226,32 @@ server.tool(
 
 server.tool(
   'get_training_today',
-  'Co dziś w planie: status none/before-start/scheduled/rest/finished, tydzień, dzisiejszy trening i następny.',
+  'Co dziś w planie: status none/before-start/scheduled/rest/finished, tydzień, dzisiejszy trening, następny, ' +
+    'aktywna sesja w toku (activeSession) i ukończone dziś treningi (completedToday).',
   { date: DATE.optional() },
   async ({ date }) => text(await get(`/training/today${date ? `?date=${date}` : ''}`)),
+)
+
+server.tool(
+  'get_training_sessions',
+  'Historia sesji treningowych z live trackera (albo szczegóły jednej sesji z seriami i ciężarami po podaniu id). ' +
+    'Użyj przed dostosowaniem planu, żeby zobaczyć realne ciężary, powtórzenia i objętość.',
+  {
+    id: z.string().uuid().optional().describe('Opcjonalne id sesji — zwraca wszystkie ćwiczenia i serie'),
+    limit: z.number().int().min(1).max(100).optional().describe('Domyślnie 20 (dla listy)'),
+  },
+  async ({ id, limit }) => {
+    if (id) return text(await get(`/training/sessions/${id}`))
+    return text(await get(`/training/sessions${limit ? `?limit=${limit}` : ''}`))
+  },
+)
+
+server.tool(
+  'get_training_prs',
+  'Rekordy życiowe (PR) osoby dla każdego wykonanego ćwiczenia: największy ciężar, szacowany 1RM (Epley), ' +
+    'najwięcej powtórzeń bez obciążenia, najdłuższy czas (dla ćwiczeń na czas) i liczba sesji.',
+  {},
+  async () => text(await get('/training/prs')),
 )
 
 const transport = new StdioServerTransport()

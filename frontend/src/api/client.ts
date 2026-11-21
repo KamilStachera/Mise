@@ -538,10 +538,10 @@ export interface Workout {
   date: string
   startedAt: string | null
   minutes: number
-  /** Band workouts: derived from the band's active kcal in that window; null until synced. Strava: the watch's kcal. */
+  /** Band workouts: derived from the band's active kcal in that window; null until synced. Strava: the watch's kcal. Training: band active kcal if present, else tracker estimate. */
   kcal: number | null
   type: string
-  source: 'band' | 'manual' | 'strava'
+  source: 'band' | 'manual' | 'strava' | 'training'
 }
 export interface ActivityDay {
   date: string
@@ -990,10 +990,13 @@ export class ApiError extends Error {
   status: number
   /** The server's Polish `{ error }` message, when it sent one (validation 400s, 409s). */
   detail: string | null
-  constructor(status: number, statusText: string, detail: string | null = null) {
+  /** Optional structured JSON error body (e.g. `{ error, activeSessionId }`). */
+  payload: Record<string, unknown> | null
+  constructor(status: number, statusText: string, detail: string | null = null, payload: Record<string, unknown> | null = null) {
     super(`${status} ${statusText}`)
     this.status = status
     this.detail = detail
+    this.payload = payload
   }
 }
 
@@ -1015,13 +1018,15 @@ export async function http<T>(path: string, init?: RequestInit, asSelf = false):
   const res = await fetch(BASE + path, { headers, ...init })
   if (!res.ok) {
     let detail: string | null = null
+    let payload: Record<string, unknown> | null = null
     try {
       const body = JSON.parse(await res.text())
+      if (body && typeof body === 'object') payload = body as Record<string, unknown>
       if (typeof body?.error === 'string') detail = body.error
     } catch {
       /* not JSON — keep the status line */
     }
-    throw new ApiError(res.status, res.statusText, detail)
+    throw new ApiError(res.status, res.statusText, detail, payload)
   }
   if (res.status === 204) return undefined as T
   const text = await res.text()

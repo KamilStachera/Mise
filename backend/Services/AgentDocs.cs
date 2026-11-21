@@ -249,6 +249,11 @@ public static class AgentDocs
           (`create_training_program` z `activate: true`). Zmiany jednego ćwiczenia:
           `update_program_exercise` (zamiana: `get_exercise_alternatives`); większe zmiany:
           `replace_training_program`.
+        - **Historia sesji i rekordy życiowe (PR)**: przed dostosowaniem ciężarów lub planu sprawdź
+          `get_training_sessions` i `get_training_prs` — pokazują realnie podniesione ciężary,
+          powtórzenia, objętość i rekordy osoby. Ukończone treningi z trackera trafiają też do
+          aktywności i automatycznie nie dublują kalorii, gdy zegarek/opaska (Strava / Health Connect)
+          zarejestrował tę samą sesję.
 
         ## Zasady
 
@@ -817,7 +822,26 @@ public static class AgentDocs
           zamiana ćwiczenia czyści `targetKg`, a przejście powtórzenia ↔ czas ustawia domyślne
           10–12 / 30 s. Zwraca `{ swapped, program }`.
         - `GET /training/today?date=YYYY-MM-DD` — `{ status: none|before-start|scheduled|rest|finished,
-          program, week, day, next }`.
+          program, week, day, next, activeSession, completedToday[] }`.
+        - `GET /training/sessions?limit=30` — lista sesji treningowych z live trackera (czas, serie,
+          objętość w kg, liczba PR-ów). `GET /training/sessions/{id}` — szczegóły sesji ze wszystkimi
+          seriami, poprzednim wynikiem i bazą PR dla każdego ćwiczenia.
+        - `POST /training/sessions` — rozpoczęcie sesji z dnia planu (`programDayId`), szybkie
+          oznaczenie dnia z filmem (`programDayId` + `completeNow: true`), albo trening własny
+          (`name`, opcjonalnie `exerciseIds[]`). Jedna aktywna sesja na osobę (druga → `409` z
+          `activeSessionId`).
+        - `PATCH /training/sessions/{id}` (`name?`, `notes?`),
+          `PATCH /training/sessions/{id}/sets/{setId}` (`weightKg?`, `reps?`, `seconds?`, `completed?`,
+          `notes?`, flagi `clearWeight`/`clearReps`/`clearSeconds`),
+          `POST /training/sessions/{id}/sets` (`exerciseId`, opcjonalnie `exerciseOrder`, parametry serii),
+          `DELETE /training/sessions/{id}/sets/{setId}`.
+        - `POST /training/sessions/{id}/finish` — `{ durationMinutes?, estimatedKcal?, clearEstimatedKcal?,
+          notes?, updateFutureTargets?, logActivity? }`: kończy trening, wykrywa nowe rekordy życiowe
+          (PR), opcjonalnie przenosi ciężary na kolejne tygodnie planu i zapisuje trening do aktywności
+          (`source: "training"` — automatycznie deduplikowany wobec Health Connect i Stravy).
+        - `DELETE /training/sessions/{id}` — usuwa sesję oraz powiązany wpis aktywności z trackera.
+        - `GET /training/prs` — lista rekordów życiowych (PR) osoby dla każdego wykonanego ćwiczenia
+          (największy ciężar, szacowany 1RM wg Epleya, maks. powtórzenia bez obciążenia, najdłuższy czas).
 
         ## Profil
 
@@ -995,10 +1019,12 @@ public static class AgentDocs
           się od „– ”. Nie pokazuj identyfikatorów ani JSON-a.
         - Gdy czegoś nie wiesz (np. ile czegoś zjedzono), dopytaj jednym pytaniem zamiast
           zgadywać — chyba że rozsądne oszacowanie wystarczy; wtedy powiedz, że to szacunek.
-        - Trening: ankieta, plan i „co dziś” są w narzędziach `*_training_*`. Plan możesz ułożyć i
-          zmieniać. Polskie opisy i filmy ćwiczeń aplikacja dopisuje sama w tle (najpierw z nowego
-          planu) — nie pisz ich przy układaniu planu. Film do dnia „z filmem” (pilates, joga) znajdź
-          wyszukiwarką; adres podaj tylko z wyników, nigdy nie zgaduj (serwer go sprawdza).
+        - Trening: ankieta, plan, „co dziś”, historia sesji i rekordy życiowe (PR) są w narzędziach
+          `*_training_*` (`get_training_sessions`, `get_training_prs`). Plan możesz ułożyć i zmieniać
+          (przed zmianą ciężarów zajrzyj do historii i PR-ów). Polskie opisy i filmy ćwiczeń aplikacja
+          dopisuje sama w tle (najpierw z nowego planu) — nie pisz ich przy układaniu planu. Film do
+          dnia „z filmem” (pilates, joga) znajdź wyszukiwarką; adres podaj tylko z wyników,
+          nigdy nie zgaduj (serwer go sprawdza).
         """.Replace("{PERSON}", personName).Replace("{PHOTO_PROMPT}", RecipePhotoPrompt);
 
     /// <summary>Every Sous turn: the date (threads outlive days) plus the recipe on screen, if any.</summary>

@@ -23,6 +23,7 @@ const dates = await importTs('lib/dates.ts')
 const labels = await importTs('lib/labels.ts')
 const recipeParsing = await importTs('lib/recipeParsing.ts')
 const offlineQueue = await importTs('lib/offlineQueue.ts')
+const trainingStats = await importTs('lib/trainingStats.ts')
 
 test('dates: parseISODate and toISO round-trip across leap years and month boundaries', () => {
   for (const iso of ['2024-02-29', '2026-01-01', '2026-03-29', '2026-10-25', '2026-12-31']) {
@@ -130,4 +131,49 @@ test('offlineQueue: appendOfflineAction coalesces repeated checks per item while
     { kind: 'shopping-check', id: 'a', checked: false },
     { kind: 'supply-check', id: 'a', checked: true },
   ])
+})
+
+test('trainingStats: Epley 1RM, volume, live PR detection and wall-clock rest timer', () => {
+  assert.equal(trainingStats.estimated1Rm(100, 1), 100)
+  assert.equal(trainingStats.estimated1Rm(60, 10), 80)
+  assert.equal(trainingStats.estimated1Rm(0, 10), 0)
+  assert.equal(trainingStats.estimated1Rm(null, 8), 0)
+
+  assert.equal(
+    trainingStats.totalVolumeKg([
+      { weightKg: 60, reps: 8, seconds: null, completed: true },
+      { weightKg: 60, reps: 8, seconds: null, completed: false },
+      { weightKg: 22.5, reps: 10, seconds: null, completed: true },
+    ]),
+    705,
+  )
+
+  const baseline = { bestWeightKg: 60, bestWeightReps: 8, bestEst1RmKg: 76, bestBodyweightReps: null, bestSeconds: null }
+  // First-ever workout (no baseline) returns null, uncompleted returns null
+  assert.equal(trainingStats.liveSetPrKind({ weightKg: 65, reps: 8, seconds: null, completed: true }, null, false), null)
+  assert.equal(trainingStats.liveSetPrKind({ weightKg: 65, reps: 8, seconds: null, completed: false }, baseline, false), null)
+  // Higher weight -> weight PR; same weight + more reps -> est-1rm PR
+  assert.equal(trainingStats.liveSetPrKind({ weightKg: 62.5, reps: 6, seconds: null, completed: true }, baseline, false), 'weight')
+  assert.equal(trainingStats.liveSetPrKind({ weightKg: 60, reps: 10, seconds: null, completed: true }, baseline, false), 'est-1rm')
+  assert.equal(trainingStats.liveSetPrKind({ weightKg: 60, reps: 8, seconds: null, completed: true }, baseline, false), null)
+  // Timed hold PR
+  const plankBaseline = { bestWeightKg: null, bestWeightReps: null, bestEst1RmKg: null, bestBodyweightReps: null, bestSeconds: 45 }
+  assert.equal(trainingStats.liveSetPrKind({ weightKg: null, reps: null, seconds: 50, completed: true }, plankBaseline, true), 'seconds')
+  assert.equal(trainingStats.liveSetPrKind({ weightKg: null, reps: null, seconds: 45, completed: true }, plankBaseline, true), null)
+
+  // Wall-clock rest timer stays exact across backgrounding
+  assert.equal(trainingStats.remainingTimerSeconds(100_000, 95_200), 5)
+  assert.equal(trainingStats.remainingTimerSeconds(100_000, 100_000), 0)
+  assert.equal(trainingStats.remainingTimerSeconds(100_000, 115_000), 0)
+  assert.equal(trainingStats.formatTimerClock(75), '01:15')
+  assert.equal(trainingStats.formatKg(42.5), '42,5')
+  assert.equal(trainingStats.parseKg('42,5'), 42.5)
+  assert.equal(trainingStats.parseKg(''), null)
+  assert.equal(trainingStats.parseKg('-5'), null)
+  assert.equal(trainingStats.pluralSets(1), '1 seria')
+  assert.equal(trainingStats.pluralSets(3), '3 serie')
+  assert.equal(trainingStats.pluralSets(5), '5 serii')
+  assert.equal(trainingStats.pluralPrs(1), '1 nowy rekord')
+  assert.equal(trainingStats.pluralPrs(2), '2 nowe rekordy')
+  assert.equal(trainingStats.pluralPrs(5), '5 nowych rekordów')
 })

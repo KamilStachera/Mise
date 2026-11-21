@@ -1824,6 +1824,153 @@ namespace Mise.Api.Data.Migrations
                     b.ToTable("TrainingPrograms");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.TrainingSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("EstimatedKcal")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ProgramDayId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ProgramId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("WorkoutId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("PersonId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TrainingSessions_PersonId_Active")
+                        .HasFilter("\"FinishedAt\" IS NULL");
+
+                    b.HasIndex("ProgramDayId");
+
+                    b.HasIndex("ProgramId");
+
+                    b.HasIndex("WorkoutId");
+
+                    b.HasIndex("PersonId", "Date");
+
+                    b.HasIndex("PersonId", "ProgramDayId");
+
+                    b.ToTable("TrainingSessions");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.TrainingSessionSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ExerciseOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsPr")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("ProgramExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("Reps")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RestSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Seconds")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SetNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SupersetGroup")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<decimal?>("TargetKg")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.Property<int?>("TargetRepsMax")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TargetRepsMin")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TargetSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("WeightKg")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExerciseId");
+
+                    b.HasIndex("SessionId", "ExerciseOrder", "SetNumber");
+
+                    b.ToTable("TrainingSessionSets");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.WeightEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2371,6 +2518,61 @@ namespace Mise.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.TrainingSession", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Mise.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Mise.Api.Domain.ProgramDay", "ProgramDay")
+                        .WithMany()
+                        .HasForeignKey("ProgramDayId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Mise.Api.Domain.TrainingProgram", "Program")
+                        .WithMany()
+                        .HasForeignKey("ProgramId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Mise.Api.Domain.Workout", "Workout")
+                        .WithMany()
+                        .HasForeignKey("WorkoutId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Program");
+
+                    b.Navigation("ProgramDay");
+
+                    b.Navigation("Workout");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.TrainingSessionSet", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.Exercise", "Exercise")
+                        .WithMany()
+                        .HasForeignKey("ExerciseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Mise.Api.Domain.TrainingSession", "Session")
+                        .WithMany("Sets")
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Exercise");
+
+                    b.Navigation("Session");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.WeightEntry", b =>
                 {
                     b.HasOne("Mise.Api.Domain.Household", null)
@@ -2433,6 +2635,11 @@ namespace Mise.Api.Data.Migrations
             modelBuilder.Entity("Mise.Api.Domain.TrainingProgram", b =>
                 {
                     b.Navigation("Days");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.TrainingSession", b =>
+                {
+                    b.Navigation("Sets");
                 });
 #pragma warning restore 612, 618
         }

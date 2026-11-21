@@ -1223,6 +1223,255 @@ public class AuditRegressionTests
         return data.ToArray();
     }
 
+    [Fact]
+    public async Task TrainingSessions_Lifecycle_Prs_Prefill_TargetUpdate_Isolation_And_Delete()
+    {
+        await using var host = await BuildTestAppAsync();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var monday = today.AddDays(-((int)today.DayOfWeek + 6) % 7);
+
+        // 1. Create a 2-week program with Barbell Squat + Plank on Monday of week 1 and week 2.
+        var createProg = await host.SendAsync(HttpMethod.Post, "/api/training/programs", email: AdminEmail, body: new
+        {
+            name = "Siła testowa",
+            startDate = monday.ToString("yyyy-MM-dd"),
+            weeks = 2,
+            activate = true,
+            days = new object[]
+            {
+                new
+                {
+                    week = 1, weekday = 0, name = "Dół A", kind = "exercises",
+                    exercises = new object[]
+                    {
+                        new { exerciseId = host.SharedExerciseId, sets = 2, repsMin = 8, repsMax = 10, restSeconds = 90, targetKg = 50m },
+                        new { exerciseId = host.TimedExerciseId, sets = 1, seconds = 30, restSeconds = 45 },
+                    },
+                },
+                new
+                {
+                    week = 2, weekday = 0, name = "Dół A", kind = "exercises",
+                    exercises = new object[]
+                    {
+                        new { exerciseId = host.SharedExerciseId, sets = 2, repsMin = 8, repsMax = 10, restSeconds = 90, targetKg = 52.5m },
+                        new { exerciseId = host.TimedExerciseId, sets = 1, seconds = 35, restSeconds = 45 },
+                    },
+                },
+            },
+        });
+        Assert.Equal(HttpStatusCode.Created, createProg.StatusCode);
+        using var progJson = JsonDocument.Parse(await createProg.Content.ReadAsStringAsync());
+        var week1DayId = progJson.RootElement.GetProperty("days")[0].GetProperty("id").GetGuid();
+        var week2DayId = progJson.RootElement.GetProperty("days")[1].GetProperty("id").GetGuid();
+
+        // 2. Start live session #1 from Week 1 Day 1.
+        var start1 = await host.SendAsync(HttpMethod.Post, "/api/training/sessions", email: AdminEmail,
+            body: new { programDayId = week1DayId, date = today.ToString("yyyy-MM-dd") });
+        Assert.Equal(HttpStatusCode.Created, start1.StatusCode);
+        using var s1 = JsonDocument.Parse(await start1.Content.ReadAsStringAsync());
+        var s1Id = s1.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal(2, s1.RootElement.GetProperty("exercises").GetArrayLength());
+
+        // Single-active-session guard returns 409 with activeSessionId.
+        var duplicateStart = await host.SendAsync(HttpMethod.Post, "/api/training/sessions", email: AdminEmail,
+            body: new { name = "Drugi naraz" });
+        Assert.Equal(HttpStatusCode.Conflict, duplicateStart.StatusCode);
+        using var dupJson = JsonDocument.Parse(await duplicateStart.Content.ReadAsStringAsync());
+        Assert.Equal(s1Id, dupJson.RootElement.GetProperty("activeSessionId").GetGuid());
+
+        // Cross-person (ActivePartner in same household) & cross-household (Member in household 2) isolation.
+        var partnerRead = await host.SendAsync(HttpMethod.Get, $"/api/training/sessions/{s1Id}", email: "partner@example.com");
+        Assert.Equal(HttpStatusCode.NotFound, partnerRead.StatusCode);
+        var otherHouseRead = await host.SendAsync(HttpMethod.Get, $"/api/training/sessions/{s1Id}", email: MemberEmail);
+        Assert.Equal(HttpStatusCode.NotFound, otherHouseRead.StatusCode);
+
+        // Log sets: Squat 60 kg × 8 (2 sets) and Plank 45 s.
+        var s1SquatSets = s1.RootElement.GetProperty("exercises")[0].GetProperty("sets");
+        var s1PlankSetId = s1.RootElement.GetProperty("exercises")[1].GetProperty("sets")[0].GetProperty("id").GetGuid();
+        foreach (var setEl in s1SquatSets.EnumerateArray())
+        {
+            var setId = setEl.GetProperty("id").GetGuid();
+            var p = await host.SendAsync(HttpMethod.Patch, $"/api/training/sessions/{s1Id}/sets/{setId}",
+                email: AdminEmail, body: new { weightKg = 60m, reps = 8, completed = true });
+            Assert.Equal(HttpStatusCode.OK, p.StatusCode);
+        }
+        var pPlank1 = await host.SendAsync(HttpMethod.Patch, $"/api/training/sessions/{s1Id}/sets/{s1PlankSetId}",
+            email: AdminEmail, body: new { seconds = 45, completed = true });
+        Assert.Equal(HttpStatusCode.OK, pPlank1.StatusCode);
+
+        // Finish session #1 with updateFutureTargets = true → first session sets baseline (0 noisy newPrs), propagates 60 kg to Week 2, links Activity workout.
+        var fin1 = await host.SendAsync(HttpMethod.Post, $"/api/training/sessions/{s1Id}/finish",
+            email: AdminEmail, body: new { durationMinutes = 40, estimatedKcal = 180, updateFutureTargets = true, logActivity = true });
+        Assert.Equal(HttpStatusCode.OK, fin1.StatusCode);
+        using var f1 = JsonDocument.Parse(await fin1.Content.ReadAsStringAsync());
+        Assert.Equal(0, f1.RootElement.GetProperty("newPrs").GetArrayLength());
+        Assert.Equal(960m, f1.RootElement.GetProperty("totalVolumeKg").GetDecimal());
+        Assert.Equal(1, f1.RootElement.GetProperty("updatedFutureTargets").GetInt32());
+        Assert.True(f1.RootElement.GetProperty("activityLinked").GetBoolean());
+
+        // Verify program now marks Week 1 Day 1 completed and Week 2 Squat target updated to 60 kg.
+        var progAfter = await host.SendAsync(HttpMethod.Get, "/api/training/program", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, progAfter.StatusCode);
+        using var pa = JsonDocument.Parse(await progAfter.Content.ReadAsStringAsync());
+        Assert.Equal(s1Id, pa.RootElement.GetProperty("days")[0].GetProperty("completedSessionId").GetGuid());
+        Assert.Equal(60m, pa.RootElement.GetProperty("days")[1].GetProperty("exercises")[0].GetProperty("targetKg").GetDecimal());
+
+        // 3. Start session #2 from Week 2 Day 1 → pre-fills previous performance (60 kg × 8, 45 s) & returns PR baseline.
+        var start2 = await host.SendAsync(HttpMethod.Post, "/api/training/sessions", email: AdminEmail,
+            body: new { programDayId = week2DayId, date = today.ToString("yyyy-MM-dd") });
+        Assert.Equal(HttpStatusCode.Created, start2.StatusCode);
+        using var s2 = JsonDocument.Parse(await start2.Content.ReadAsStringAsync());
+        var s2Id = s2.RootElement.GetProperty("id").GetGuid();
+        var s2Squat = s2.RootElement.GetProperty("exercises")[0];
+        Assert.Equal(60m, s2Squat.GetProperty("sets")[0].GetProperty("weightKg").GetDecimal());
+        Assert.Equal(8, s2Squat.GetProperty("sets")[0].GetProperty("reps").GetInt32());
+        Assert.Equal(60m, s2Squat.GetProperty("prBaseline").GetProperty("bestWeightKg").GetDecimal());
+        Assert.Equal(45, s2.RootElement.GetProperty("exercises")[1].GetProperty("sets")[0].GetProperty("seconds").GetInt32());
+
+        // Beat both PRs: Squat 65 kg × 8 and Plank 60 s.
+        var s2SquatSet1 = s2Squat.GetProperty("sets")[0].GetProperty("id").GetGuid();
+        var s2PlankSet1 = s2.RootElement.GetProperty("exercises")[1].GetProperty("sets")[0].GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await host.SendAsync(HttpMethod.Patch, $"/api/training/sessions/{s2Id}/sets/{s2SquatSet1}",
+            email: AdminEmail, body: new { weightKg = 65m, reps = 8, completed = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await host.SendAsync(HttpMethod.Patch, $"/api/training/sessions/{s2Id}/sets/{s2PlankSet1}",
+            email: AdminEmail, body: new { seconds = 60, completed = true })).StatusCode);
+
+        var fin2 = await host.SendAsync(HttpMethod.Post, $"/api/training/sessions/{s2Id}/finish",
+            email: AdminEmail, body: new { durationMinutes = 42, estimatedKcal = 190, logActivity = true });
+        Assert.Equal(HttpStatusCode.OK, fin2.StatusCode);
+        using var f2 = JsonDocument.Parse(await fin2.Content.ReadAsStringAsync());
+        var newPrs2 = f2.RootElement.GetProperty("newPrs").EnumerateArray().ToList();
+        Assert.Equal(2, newPrs2.Count);
+        Assert.Contains(newPrs2, x => x.GetProperty("metric").GetString() == "weight" && x.GetProperty("newValue").GetDecimal() == 65m);
+        Assert.Contains(newPrs2, x => x.GetProperty("metric").GetString() == "seconds" && x.GetProperty("newValue").GetDecimal() == 60m);
+
+        // 4. Session #3 (ad-hoc): same weight 65 kg but 10 reps → triggers est-1rm PR!
+        var start3 = await host.SendAsync(HttpMethod.Post, "/api/training/sessions", email: AdminEmail,
+            body: new { name = "Szybkie przysiady", date = today.ToString("yyyy-MM-dd"), exerciseIds = new[] { host.SharedExerciseId } });
+        Assert.Equal(HttpStatusCode.Created, start3.StatusCode);
+        using var s3 = JsonDocument.Parse(await start3.Content.ReadAsStringAsync());
+        var s3Id = s3.RootElement.GetProperty("id").GetGuid();
+        var s3Set1 = s3.RootElement.GetProperty("exercises")[0].GetProperty("sets")[0].GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await host.SendAsync(HttpMethod.Patch, $"/api/training/sessions/{s3Id}/sets/{s3Set1}",
+            email: AdminEmail, body: new { weightKg = 65m, reps = 10, completed = true })).StatusCode);
+
+        // Also test adding and deleting an extra set.
+        var addSetRes = await host.SendAsync(HttpMethod.Post, $"/api/training/sessions/{s3Id}/sets",
+            email: AdminEmail, body: new { exerciseId = host.SharedExerciseId, exerciseOrder = 0 });
+        Assert.Equal(HttpStatusCode.Created, addSetRes.StatusCode);
+        using var addSetJson = JsonDocument.Parse(await addSetRes.Content.ReadAsStringAsync());
+        var setsAfterAdd = addSetJson.RootElement.GetProperty("exercises")[0].GetProperty("sets");
+        var lastAddedId = setsAfterAdd[setsAfterAdd.GetArrayLength() - 1].GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await host.SendAsync(HttpMethod.Delete, $"/api/training/sessions/{s3Id}/sets/{lastAddedId}", email: AdminEmail)).StatusCode);
+
+        var fin3 = await host.SendAsync(HttpMethod.Post, $"/api/training/sessions/{s3Id}/finish",
+            email: AdminEmail, body: new { durationMinutes = 20, estimatedKcal = 90, logActivity = true });
+        Assert.Equal(HttpStatusCode.OK, fin3.StatusCode);
+        using var f3 = JsonDocument.Parse(await fin3.Content.ReadAsStringAsync());
+        var newPrs3 = f3.RootElement.GetProperty("newPrs").EnumerateArray().ToList();
+        Assert.Single(newPrs3);
+        Assert.Equal("est-1rm", newPrs3[0].GetProperty("metric").GetString());
+
+        // Check PR leaderboard for Admin vs empty for ActivePartner.
+        var prsRes = await host.SendAsync(HttpMethod.Get, "/api/training/prs", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, prsRes.StatusCode);
+        using var prsJson = JsonDocument.Parse(await prsRes.Content.ReadAsStringAsync());
+        Assert.Equal(2, prsJson.RootElement.GetArrayLength());
+
+        var partnerPrs = await host.SendAsync(HttpMethod.Get, "/api/training/prs", email: "partner@example.com");
+        Assert.Equal(HttpStatusCode.OK, partnerPrs.StatusCode);
+        using var partnerPrsJson = JsonDocument.Parse(await partnerPrs.Content.ReadAsStringAsync());
+        Assert.Equal(0, partnerPrsJson.RootElement.GetArrayLength());
+
+        // Check household export ZIP includes trainingSessions in training.json.
+        var zipRes = await host.SendAsync(HttpMethod.Get, "/api/household/export.zip", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, zipRes.StatusCode);
+        using (var zip = new ZipArchive(await zipRes.Content.ReadAsStreamAsync(), ZipArchiveMode.Read))
+        {
+            var trEntry = zip.GetEntry("training.json");
+            Assert.NotNull(trEntry);
+            using var reader = new StreamReader(trEntry!.Open());
+            var trText = await reader.ReadToEndAsync();
+            Assert.Contains("\"sessions\"", trText);
+            Assert.Contains("Szybkie przysiady", trText);
+        }
+
+        // Delete session #3 → removes both session and its linked MeasurementSource.Training Workout.
+        var linkedWorkoutId = f3.RootElement.GetProperty("session").GetProperty("workoutId").GetGuid();
+        Assert.Equal(HttpStatusCode.NoContent, (await host.SendAsync(HttpMethod.Delete, $"/api/training/sessions/{s3Id}", email: AdminEmail)).StatusCode);
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseSystem();
+            Assert.Null(await db.Workouts.FirstOrDefaultAsync(w => w.Id == linkedWorkoutId));
+        }
+    }
+
+    [Fact]
+    public async Task ActivityService_AutoDedupes_TrackerWorkouts_Against_Watch_And_BandSamples()
+    {
+        await using var db = NewInMemoryDb();
+        db.Tenant.UseSystem();
+        db.Households.Add(new Household { Id = 1, Name = "Dom" });
+        db.People.Add(new Person { Id = 1, HouseholdId = 1, Name = "Ania" });
+        await db.SaveChangesAsync();
+
+        db.Tenant.UseHousehold(1);
+        var person = new PersonScope(1);
+        var svc = new ActivityService(db, person);
+
+        var d1 = new DateOnly(2026, 11, 10); // Standalone tracker only → counts kcal
+        var d2 = new DateOnly(2026, 11, 11); // Tracker + overlapping Strava → hidden & 0 double-count
+        var d3 = new DateOnly(2026, 11, 12); // Tracker + band Active samples in window → shows band kcal, 0 extra kcal
+        var d4 = new DateOnly(2026, 11, 13); // Morning Strava + evening Tracker (6h apart) → both count!
+
+        var t1 = new DateTimeOffset(2026, 11, 10, 17, 0, 0, TimeSpan.Zero);
+        var t2 = new DateTimeOffset(2026, 11, 11, 17, 0, 0, TimeSpan.Zero);
+        var t3 = new DateTimeOffset(2026, 11, 12, 17, 0, 0, TimeSpan.Zero);
+        var t4Morning = new DateTimeOffset(2026, 11, 13, 8, 0, 0, TimeSpan.Zero);
+        var t4Evening = new DateTimeOffset(2026, 11, 13, 18, 0, 0, TimeSpan.Zero);
+
+        db.Workouts.AddRange(
+            // Day 1: tracker only
+            new Workout { PersonId = 1, Date = d1, StartedAt = t1, Minutes = 45, Kcal = 200, Type = "Dół A", Source = MeasurementSource.Training, ExternalKey = "training:1" },
+            // Day 2: tracker + overlapping Strava (starts 10 min later)
+            new Workout { PersonId = 1, Date = d2, StartedAt = t2, Minutes = 50, Kcal = 225, Type = "Góra A", Source = MeasurementSource.Training, ExternalKey = "training:2" },
+            new Workout { PersonId = 1, Date = d2, StartedAt = t2.AddMinutes(10), Minutes = 48, Kcal = 310, Type = "Trening siłowy", Source = MeasurementSource.Strava, ExternalKey = "strava:2" },
+            // Day 3: tracker + band Active energy samples inside its window
+            new Workout { PersonId = 1, Date = d3, StartedAt = t3, Minutes = 40, Kcal = 180, Type = "FBW", Source = MeasurementSource.Training, ExternalKey = "training:3" },
+            // Day 4: morning Strava run + evening Pichci strength (separate sessions)
+            new Workout { PersonId = 1, Date = d4, StartedAt = t4Morning, Minutes = 35, Kcal = 350, Type = "Bieganie", Source = MeasurementSource.Strava, ExternalKey = "strava:4" },
+            new Workout { PersonId = 1, Date = d4, StartedAt = t4Evening, Minutes = 45, Kcal = 200, Type = "Siłowy", Source = MeasurementSource.Training, ExternalKey = "training:4" }
+        );
+        db.EnergySamples.Add(new EnergySample
+        {
+            PersonId = 1, Kind = EnergyKind.Active, Date = d3,
+            Start = t3.AddMinutes(5), End = t3.AddMinutes(35), Kcal = 240m,
+        });
+        await db.SaveChangesAsync();
+
+        var days = (await svc.DaysAsync(d1, d4, bmr: 1500)).ToDictionary(x => x.Date);
+
+        // Day 1: tracker shows and adds 200 kcal
+        Assert.Equal(200, days[d1].ActiveKcal);
+        Assert.Single(days[d1].Workouts);
+        Assert.Equal(MeasurementSource.Training, days[d1].Workouts[0].Workout.Source);
+
+        // Day 2: overlapping Strava wins — tracker copy hidden, ActiveKcal == 310 (not 535!)
+        Assert.Equal(310, days[d2].ActiveKcal);
+        Assert.Single(days[d2].Workouts);
+        Assert.Equal(MeasurementSource.Strava, days[d2].Workouts[0].Workout.Source);
+
+        // Day 3: band Active samples (240) win — tracker stays visible displaying band's 240 kcal, 0 extra kcal added!
+        Assert.Equal(240, days[d3].ActiveKcal);
+        Assert.Single(days[d3].Workouts);
+        Assert.Equal(240, days[d3].Workouts[0].Kcal);
+
+        // Day 4: separate sessions — both visible, both contribute (350 + 200 = 550)
+        Assert.Equal(550, days[d4].ActiveKcal);
+        Assert.Equal(2, days[d4].Workouts.Count);
+    }
+
     // ---- Test host harness ----
 
     private static MiseDbContext NewInMemoryDb() =>

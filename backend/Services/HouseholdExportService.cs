@@ -57,6 +57,12 @@ public sealed class HouseholdExportService(MiseDbContext db, ContextExportServic
             .AsSplitQuery()
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(ct);
+        var trainingSessions = (await db.TrainingSessions.AsNoTracking()
+            .Include(s => s.Sets)
+            .AsSplitQuery()
+            .ToListAsync(ct))
+            .OrderByDescending(s => s.Date).ThenByDescending(s => s.StartedAt)
+            .ToList();
 
         var cookbookMd = await contextExport.BuildCookbookAsync(ct);
 
@@ -192,6 +198,19 @@ public sealed class HouseholdExportService(MiseDbContext db, ContextExportServic
                                 e.Order, e.ExerciseId, e.Sets, e.RepsMin, e.RepsMax, e.Seconds,
                                 e.RestSeconds, e.TargetKg, e.Notes, e.SupersetGroup,
                             }),
+                        }),
+                    }),
+                    sessions = trainingSessions.Select(s => new
+                    {
+                        s.Id, s.PersonId, s.ProgramId, s.ProgramDayId, s.Name,
+                        Kind = s.Kind.ToString().ToLowerInvariant(), s.Date, s.StartedAt, s.FinishedAt,
+                        s.DurationMinutes, s.EstimatedKcal, s.Notes, s.WorkoutId,
+                        sets = s.Sets.OrderBy(x => x.ExerciseOrder).ThenBy(x => x.SetNumber).Select(x => new
+                        {
+                            x.ExerciseId, x.ExerciseOrder, x.SetNumber,
+                            x.TargetRepsMin, x.TargetRepsMax, x.TargetSeconds, x.TargetKg,
+                            x.RestSeconds, x.SupersetGroup, x.Reps, x.Seconds, x.WeightKg,
+                            x.Completed, x.CompletedAt, x.Notes, x.IsPr,
                         }),
                     }),
                 }, ct);

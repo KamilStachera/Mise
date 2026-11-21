@@ -247,8 +247,9 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
   const actDay = activity?.days.find((a) => a.date === day)
   const hasStravaWorkout = actDay?.workouts.some((w) => w.source === 'strava') ?? false
   const hasBandWorkout = actDay?.workouts.some((w) => w.source === 'band') ?? false
+  const hasTrainingWorkout = actDay?.workouts.some((w) => w.source === 'training') ?? false
   const hasManualWorkout = actDay?.workouts.some((w) => w.source === 'manual') ?? false
-  const showBandTag = hasBandWorkout || (activity?.state !== 'none' && !hasStravaWorkout && !hasManualWorkout)
+  const showBandTag = hasBandWorkout || (activity?.state !== 'none' && !hasStravaWorkout && !hasManualWorkout && !hasTrainingWorkout)
   const activityBlock = !future && activity && (activity.state !== 'none' || (actDay?.activeKcal ?? 0) > 0) && (
     <button
       type="button"
@@ -260,7 +261,8 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
           <Eyebrow tone="ink">Aktywność</Eyebrow>
           {showBandTag && <SourceTag band />}
           {hasStravaWorkout && <SourceTag strava />}
-          {!showBandTag && !hasStravaWorkout && (hasManualWorkout || (actDay?.activeKcal ?? 0) > 0) && <SourceTag />}
+          {hasTrainingWorkout && <SourceTag training />}
+          {!showBandTag && !hasStravaWorkout && !hasTrainingWorkout && (hasManualWorkout || (actDay?.activeKcal ?? 0) > 0) && <SourceTag />}
           {activity.lastSyncAt && <span style={{ font: mono(11.5), color: activity.state === 'stale' ? 'var(--gold-text)' : 'var(--text-3)' }}>zsynchronizowano {syncLabel(activity.lastSyncAt)}</span>}
         </span>
         <span style={{ font: mono(13.5), lineHeight: 1.5 }}>

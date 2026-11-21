@@ -35,10 +35,13 @@ public static class TrainingEndpoints
 
         // ---- programs ----
 
-        g.MapGet("/program", async (MiseDbContext db, PersonScope person) =>
-            await LoadAsync(db, person).FirstOrDefaultAsync(x => x.Status == ProgramStatus.Active) is { } p
-                ? Results.Ok(ToDto(p))
-                : Results.NoContent());
+        g.MapGet("/program", async (MiseDbContext db, PersonScope person, CancellationToken ct) =>
+        {
+            if (await LoadAsync(db, person).FirstOrDefaultAsync(x => x.Status == ProgramStatus.Active, ct) is not { } p)
+                return Results.NoContent();
+            var completed = await new TrainingSessionService(db, person).GetCompletedDayMapAsync(p.Days.Select(d => d.Id), ct);
+            return Results.Ok(ToDto(p, completed));
+        });
 
         g.MapGet("/programs", async (MiseDbContext db, PersonScope person) =>
         {
@@ -49,10 +52,13 @@ public static class TrainingEndpoints
             return Results.Ok(list.Select(ToSummary).ToList());
         });
 
-        g.MapGet("/programs/{id:guid}", async (Guid id, MiseDbContext db, PersonScope person) =>
-            await LoadAsync(db, person).FirstOrDefaultAsync(x => x.Id == id) is { } p
-                ? Results.Ok(ToDto(p))
-                : Results.NotFound());
+        g.MapGet("/programs/{id:guid}", async (Guid id, MiseDbContext db, PersonScope person, CancellationToken ct) =>
+        {
+            if (await LoadAsync(db, person).FirstOrDefaultAsync(x => x.Id == id, ct) is not { } p)
+                return Results.NotFound();
+            var completed = await new TrainingSessionService(db, person).GetCompletedDayMapAsync(p.Days.Select(d => d.Id), ct);
+            return Results.Ok(ToDto(p, completed));
+        });
 
         g.MapPost("/programs", (TrainingProgramInput input, MiseDbContext db, PersonScope person,
             YouTubeVerifier youtube, EnrichmentState enrichment, CancellationToken ct) =>
@@ -275,11 +281,17 @@ public static class TrainingEndpoints
 
         // ---- today ----
 
-        g.MapGet("/today", async (DateOnly? date, MiseDbContext db, PersonScope person) =>
+        g.MapGet("/today", async (DateOnly? date, MiseDbContext db, PersonScope person, CancellationToken ct) =>
         {
             var day = date ?? DateOnly.FromDateTime(DateTime.Today);
-            var p = await LoadAsync(db, person).FirstOrDefaultAsync(x => x.Status == ProgramStatus.Active);
-            if (p is null) return Results.Ok(new TrainingTodayDto(day, "none", null, null, null, null));
+            var sessions = new TrainingSessionService(db, person);
+            var activeSession = await sessions.GetActiveSummaryAsync(ct);
+            var completedToday = await sessions.GetCompletedOnDateAsync(day, ct);
+
+            var p = await LoadAsync(db, person).FirstOrDefaultAsync(x => x.Status == ProgramStatus.Active, ct);
+            if (p is null)
+                return Results.Ok(new TrainingTodayDto(day, "none", null, null, null, null, activeSession, completedToday));
+
             var t = ProgramSchedule.Resolve(p, day);
             var status = t.State switch
             {
@@ -288,9 +300,16 @@ public static class TrainingEndpoints
                 ProgramSchedule.State.Rest => "rest",
                 _ => "finished",
             };
+            var dayIds = new[] { t.Day?.Id, t.Next?.Id }.OfType<Guid>().ToList();
+            var completed = await sessions.GetCompletedDayMapAsync(dayIds, ct);
             return Results.Ok(new TrainingTodayDto(day, status, ToSummary(p), t.Week,
-                t.Day is null ? null : ToDto(p, t.Day), t.Next is null ? null : ToDto(p, t.Next)));
+                t.Day is null ? null : ToDto(p, t.Day, completed),
+                t.Next is null ? null : ToDto(p, t.Next, completed),
+                activeSession, completedToday));
         });
+
+        // ---- live sessions & personal records (P4) ----
+        g.MapTrainingSessions();
 
         return api;
     }
@@ -386,14 +405,28 @@ public static class TrainingEndpoints
     public static TrainingProgramSummaryDto ToSummary(TrainingProgram p) => new(p.Id, p.Name, p.StartDate,
         ProgramSchedule.EndDate(p), p.Weeks, ExerciseTokens.Of(p.Status), p.CreatedBy, p.Days.Count, p.UpdatedAt);
 
-    public static TrainingProgramDto ToDto(TrainingProgram p) => new(p.Id, p.Name, p.Description, p.Rationale,
+    public static TrainingProgramDto ToDto(TrainingProgram p,
+        IReadOnlyDictionary<Guid, (Guid SessionId, DateTimeOffset FinishedAt)>? completedDays = null) => new(
+        p.Id, p.Name, p.Description, p.Rationale,
         p.StartDate, ProgramSchedule.EndDate(p), p.Weeks, ExerciseTokens.Of(p.Status), p.CreatedBy, p.CreatedAt,
-        p.UpdatedAt, p.Days.OrderBy(d => d.Week).ThenBy(d => d.Weekday).Select(d => ToDto(p, d)).ToList());
+        p.UpdatedAt, p.Days.OrderBy(d => d.Week).ThenBy(d => d.Weekday).Select(d => ToDto(p, d, completedDays)).ToList());
 
-    public static ProgramDayDto ToDto(TrainingProgram p, ProgramDay d) => new(d.Id, d.Week, d.Weekday,
-        ProgramSchedule.DateOf(p, d), d.Name, ExerciseTokens.Of(d.Kind), ExerciseTokens.Of(d.Location), d.Notes,
-        d.VideoYoutubeId is null ? null : new ProgramVideoDto(d.VideoYoutubeId, d.VideoTitle, d.VideoMinutes, d.WorkoutType),
-        d.Exercises.OrderBy(e => e.Order).Select(ToDto).ToList());
+    public static ProgramDayDto ToDto(TrainingProgram p, ProgramDay d,
+        IReadOnlyDictionary<Guid, (Guid SessionId, DateTimeOffset FinishedAt)>? completedDays = null)
+    {
+        Guid? completedSessionId = null;
+        DateTimeOffset? completedAt = null;
+        if (completedDays is not null && completedDays.TryGetValue(d.Id, out var done))
+        {
+            completedSessionId = done.SessionId;
+            completedAt = done.FinishedAt;
+        }
+        return new(d.Id, d.Week, d.Weekday,
+            ProgramSchedule.DateOf(p, d), d.Name, ExerciseTokens.Of(d.Kind), ExerciseTokens.Of(d.Location), d.Notes,
+            d.VideoYoutubeId is null ? null : new ProgramVideoDto(d.VideoYoutubeId, d.VideoTitle, d.VideoMinutes, d.WorkoutType),
+            d.Exercises.OrderBy(e => e.Order).Select(ToDto).ToList(),
+            completedSessionId, completedAt);
+    }
 
     public static ProgramExerciseDto ToDto(ProgramExercise s)
     {

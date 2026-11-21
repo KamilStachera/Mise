@@ -21,6 +21,7 @@ export const PLAN_PAGES: SubPage[] = [
 export const TRAINING_PAGES: SubPage[] = [
   { key: 'dzis', label: 'Dziś', to: '/trening/dzis', match: (p) => p.startsWith('/trening/dzis') },
   { key: 'plan', label: 'Plan', to: '/trening/plan', match: (p) => p.startsWith('/trening/plan') || p.startsWith('/trening/ankieta') },
+  { key: 'historia', label: 'Historia', to: '/trening/historia', match: (p) => p.startsWith('/trening/historia') },
   { key: 'cwiczenia', label: 'Ćwiczenia', to: '/trening/cwiczenia', match: (p) => p.startsWith('/trening/cwiczenia') },
 ]
 
@@ -40,6 +41,7 @@ function mePages(canEdit: boolean): SubPage[] {
  */
 export function phoneSubPages(pathname: string, canEdit: boolean): SubPage[] | null {
   if (pathname.startsWith('/plan')) return canEdit ? PLAN_PAGES : null
+  if (pathname.startsWith('/trening/sesja/')) return null
   if (pathname.startsWith('/trening')) return canEdit ? TRAINING_PAGES : null
   if (pathname.startsWith('/profile') || pathname.startsWith('/history')) return mePages(canEdit)
   return null

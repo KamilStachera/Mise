@@ -170,7 +170,7 @@ export function ActivityView() {
                   </div>
                   {d.workouts.map((w) => (
                     <span key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, font: sans(14), color: 'var(--text-2)' }}>
-                      {w.type} · {w.minutes} min <SourceTag band={w.source === 'band'} strava={w.source === 'strava'} />
+                      {w.type} · {w.minutes} min <SourceTag band={w.source === 'band'} strava={w.source === 'strava'} training={w.source === 'training'} />
                     </span>
                   ))}
                 </div>
@@ -196,7 +196,7 @@ function WorkoutRow({ w, onDelete }: { w: Workout; onDelete: () => void }) {
       <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <span style={{ font: sans(16, 500) }}>{w.type}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, font: mono(12), color: 'var(--text-2)' }}>
-          {w.minutes} min{w.startedAt ? ` · ${hhmm(w.startedAt)}` : ''} <SourceTag band={w.source === 'band'} strava={w.source === 'strava'} />
+          {w.minutes} min{w.startedAt ? ` · ${hhmm(w.startedAt)}` : ''} <SourceTag band={w.source === 'band'} strava={w.source === 'strava'} training={w.source === 'training'} />
         </span>
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -35,6 +35,7 @@ const Goal = lazyNamed(() => import('./pages/Goal'), 'Goal')
 const Questionnaire = lazyNamed(() => import('./pages/Questionnaire'), 'Questionnaire')
 const History = lazyNamed(() => import('./pages/History'), 'History')
 const Training = lazyNamed(() => import('./pages/Training'), 'Training')
+const LiveWorkoutView = lazyNamed(() => import('./pages/training/LiveWorkoutView'), 'LiveWorkoutView')
 const AdminPage = lazyNamed(() => import('./pages/admin/AdminPage'), 'AdminPage')
 const SharedRecipePage = lazyNamed(() => import('./pages/SharedRecipePage'), 'SharedRecipePage')
 const TwilightQuiz = lazyNamed(() => import('./zmierzch/TwilightQuiz'), 'TwilightQuiz')
@@ -69,8 +70,8 @@ export default function App() {
   const { data: chatHealth } = useChatHealth()
   const [chatOpen, setChatOpen] = useState(false)
   const { pathname } = useLocation()
-  // Recipe pages bring their own sticky action bar on phones (design screen 02).
-  const showTabs = isMobile && !pathname.startsWith('/recipe/')
+  // Recipe pages and the live workout tracker bring their own sticky bottom bars on phones.
+  const showTabs = isMobile && !pathname.startsWith('/recipe/') && !pathname.startsWith('/trening/sesja/')
   const hasSectionNav = showTabs && !authLoading && phoneSubPages(pathname, canEdit) != null
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   useScrollMemory(mainEl)
@@ -161,8 +162,10 @@ export default function App() {
               <Route path="/trening" element={<Training />} />
               <Route path="/trening/dzis" element={<Training />} />
               <Route path="/trening/plan" element={<Training />} />
+              <Route path="/trening/historia" element={<Training />} />
               <Route path="/trening/cwiczenia" element={<Training />} />
               <Route path="/trening/ankieta" element={<Training />} />
+              <Route path="/trening/sesja/:id" element={<LiveWorkoutView />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/:tab" element={<AdminPage />} />
               <Route path="/s/:token" element={<SharedRecipePage />} />

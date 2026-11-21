@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { ApiError, errorText } from '../../api/client'
 import { useAuth, useChatHealth } from '../../api/hooks'
-import { useTrainingProgram, type ProgramExercise, type TrainingProgram, type TrainingLocation } from '../../api/training'
+import { useStartSession, useTrainingProgram, type ProgramDay, type ProgramExercise, type TrainingProgram, type TrainingLocation } from '../../api/training'
 import { DayCard } from '../../components/training/DayCard'
 import { DayEditorSheet, type DayEditorTarget } from '../../components/training/DayEditorSheet'
 import { ExerciseSheet } from '../../components/training/ExerciseSheet'
@@ -11,6 +12,7 @@ import { TrainingNav } from '../../components/training/TrainingNav'
 import { Button, Chip, PageTitle, mono, sans, usePagePad } from '../../components/ui'
 import { requestChat } from '../../lib/chatBus'
 import { addDays, dayShortMonth, mondayOf, parseISODate, toISO, todayIso, WEEKDAY_SHORT } from '../../lib/dates'
+import { showToast } from '../../lib/toastBus'
 import { useIsMobile } from '../../lib/useIsMobile'
 
 /** Week of the program a date falls into (1-based, may fall outside 1..weeks). */
@@ -31,6 +33,7 @@ export function ProgramView() {
   const { canEdit, isLoading: authLoading } = useAuth()
   const { data: chat } = useChatHealth()
   const { data: program, isLoading } = useTrainingProgram()
+  const startSession = useStartSession()
   const [pickedWeek, setPickedWeek] = useState<number | null>(null)
   const [exercise, setExercise] = useState<string | null>(null)
   const [swap, setSwap] = useState<{ slot: ProgramExercise; location: TrainingLocation } | null>(null)
@@ -39,6 +42,33 @@ export function ProgramView() {
   if (!authLoading && !canEdit) return <Navigate to="/trening" replace />
 
   const today = todayIso()
+
+  const handleStartDay = async (day: ProgramDay) => {
+    try {
+      if (day.kind === 'follow-along') {
+        const created = await startSession.mutateAsync({
+          programDayId: day.id,
+          date: today,
+          completeNow: true,
+          durationMinutes: day.video?.minutes ?? 30,
+        })
+        showToast(`Zapisano trening z filmem (${created.durationMinutes ?? 30} min)`)
+        return
+      }
+      const created = await startSession.mutateAsync({ programDayId: day.id, date: today })
+      nav(`/trening/sesja/${created.id}`)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const activeId = typeof err.payload?.activeSessionId === 'string' ? err.payload.activeSessionId : null
+        if (activeId) {
+          showToast('Masz już aktywny trening — wznawiam go.')
+          nav(`/trening/sesja/${activeId}`)
+          return
+        }
+      }
+      showToast(errorText(err, 'Nie udało się rozpocząć treningu.'))
+    }
+  }
   const currentWeek = program ? Math.min(Math.max(weekOf(program, today), 1), program.weeks) : 1
   const week = pickedWeek && program && pickedWeek <= program.weeks ? pickedWeek : currentWeek
   const monday = program ? addDays(mondayOf(parseISODate(program.startDate)), (week - 1) * 7) : null
@@ -112,6 +142,15 @@ export function ProgramView() {
                     <DayCard
                       day={day}
                       compact
+                      eyebrow={day.completedSessionId ? (
+                        <button
+                          type="button"
+                          onClick={() => nav(`/trening/sesja/${day.completedSessionId}`)}
+                          style={{ border: 0, background: 'transparent', padding: 0, cursor: 'pointer', font: mono(11, 600), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--sage-text)' }}
+                        >
+                          ✓ Ukończono · zobacz
+                        </button>
+                      ) : undefined}
                       onOpenExercise={setExercise}
                       exerciseAction={(e) => (
                         <button
@@ -123,7 +162,17 @@ export function ProgramView() {
                         </button>
                       )}
                       actions={
-                        <Button variant="quiet" size="sm" onClick={() => setEditor({ program, day, week, weekday })}>Edytuj</Button>
+                        <>
+                          <Button
+                            variant={isToday && !day.completedSessionId ? 'primary' : 'quiet'}
+                            size="sm"
+                            onClick={() => handleStartDay(day)}
+                            disabled={startSession.isPending}
+                          >
+                            {day.kind === 'follow-along' ? 'Ukończ ✓' : 'Rozpocznij'}
+                          </Button>
+                          <Button variant="quiet" size="sm" onClick={() => setEditor({ program, day, week, weekday })}>Edytuj</Button>
+                        </>
                       }
                     />
                   ) : (

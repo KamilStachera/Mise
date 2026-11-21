@@ -59,6 +59,8 @@ public class MiseDbContext : DbContext
     public DbSet<TrainingProgram> TrainingPrograms => Set<TrainingProgram>();
     public DbSet<ProgramDay> ProgramDays => Set<ProgramDay>();
     public DbSet<ProgramExercise> ProgramExercises => Set<ProgramExercise>();
+    public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
+    public DbSet<TrainingSessionSet> TrainingSessionSets => Set<TrainingSessionSet>();
     public DbSet<Household> Households => Set<Household>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
@@ -442,6 +444,34 @@ public class MiseDbContext : DbContext
             e.HasOne(x => x.Exercise).WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        b.Entity<TrainingSession>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(120);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.HasIndex(x => new { x.PersonId, x.Date });
+            e.HasIndex(x => new { x.PersonId, x.ProgramDayId });
+            // At most one in-progress workout per person at a time.
+            e.HasIndex(x => x.PersonId).IsUnique().HasFilter("\"FinishedAt\" IS NULL")
+                .HasDatabaseName("IX_TrainingSessions_PersonId_Active");
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Program).WithMany().HasForeignKey(x => x.ProgramId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.ProgramDay).WithMany().HasForeignKey(x => x.ProgramDayId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.Workout).WithMany().HasForeignKey(x => x.WorkoutId).OnDelete(DeleteBehavior.SetNull);
+            e.HasMany(x => x.Sets).WithOne(s => s.Session!).HasForeignKey(s => s.SessionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<TrainingSessionSet>(e =>
+        {
+            e.Property(x => x.TargetKg).HasPrecision(6, 2);
+            e.Property(x => x.WeightKg).HasPrecision(6, 2);
+            e.Property(x => x.SupersetGroup).HasMaxLength(8);
+            e.Property(x => x.Notes).HasMaxLength(200);
+            e.HasIndex(x => new { x.SessionId, x.ExerciseOrder, x.SetNumber });
+            e.HasIndex(x => x.ExerciseId);
+            e.HasOne(x => x.Exercise).WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         ConfigureTenancy(b);
     }
 
@@ -464,6 +494,7 @@ public class MiseDbContext : DbContext
         b.Entity<ShoppingContribution>().HasQueryFilter(e => TenantIsSystem || e.ShoppingItem!.HouseholdId == TenantHouseholdId);
         b.Entity<ProgramDay>().HasQueryFilter(e => TenantIsSystem || e.Program!.HouseholdId == TenantHouseholdId);
         b.Entity<ProgramExercise>().HasQueryFilter(e => TenantIsSystem || e.Day!.Program!.HouseholdId == TenantHouseholdId);
+        b.Entity<TrainingSessionSet>().HasQueryFilter(e => TenantIsSystem || e.Session!.HouseholdId == TenantHouseholdId);
         // The shared catalog (null) plus this household's custom exercises.
         b.Entity<Exercise>().HasQueryFilter(e => TenantIsSystem || e.HouseholdId == null || e.HouseholdId == TenantHouseholdId);
     }

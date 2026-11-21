@@ -488,8 +488,8 @@ public class BodyProfile : IHouseholdOwned, IPersonOwned
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-/// <summary>Where a weigh-in or workout came from. Strava = a watch (Garmin, Polar…) via the Strava API.</summary>
-public enum MeasurementSource { Manual, HealthConnect, Strava }
+/// <summary>Where a weigh-in or workout came from. Strava = a watch (Garmin, Polar…) via the Strava API; Training = Pichci live workout tracker.</summary>
+public enum MeasurementSource { Manual, HealthConnect, Strava, Training }
 
 /// <summary>
 /// One weigh-in per person per day. A manual entry always wins; from the scale (Health Connect)
@@ -916,6 +916,67 @@ public class ProgramExercise
     public decimal? TargetKg { get; set; }
     public string Notes { get; set; } = "";
     public string? SupersetGroup { get; set; }
+}
+
+/// <summary>
+/// A live or completed workout session logged by one person (from a program day, a follow-along
+/// video, or an ad-hoc training). Links softly to <see cref="TrainingProgram"/> / <see cref="ProgramDay"/>
+/// so editing or deleting a plan never erases workout history, and optionally links to an auto-deduped
+/// <see cref="Workout"/> for the daily activity budget.
+/// </summary>
+public class TrainingSession : IHouseholdOwned, IPersonOwned
+{
+    public int HouseholdId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; }
+    public Guid? ProgramId { get; set; }
+    public TrainingProgram? Program { get; set; }
+    public Guid? ProgramDayId { get; set; }
+    public ProgramDay? ProgramDay { get; set; }
+    public string Name { get; set; } = "";
+    public ProgramDayKind Kind { get; set; } = ProgramDayKind.Exercises;
+    /// <summary>Local (Europe/Warsaw) calendar date the session belongs to.</summary>
+    public DateOnly Date { get; set; }
+    public DateTimeOffset StartedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Null while the workout is in progress.</summary>
+    public DateTimeOffset? FinishedAt { get; set; }
+    public int? DurationMinutes { get; set; }
+    public int? EstimatedKcal { get; set; }
+    public string Notes { get; set; } = "";
+    /// <summary>Linked <see cref="MeasurementSource.Training"/> activity entry created on finish.</summary>
+    public Guid? WorkoutId { get; set; }
+    public Workout? Workout { get; set; }
+    public List<TrainingSessionSet> Sets { get; set; } = [];
+}
+
+/// <summary>
+/// One logged set inside a <see cref="TrainingSession"/>. Target fields are snapshotted from the
+/// program when the workout starts so later edits to the plan never alter past or active sessions.
+/// </summary>
+public class TrainingSessionSet
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid SessionId { get; set; }
+    public TrainingSession? Session { get; set; }
+    public Guid ExerciseId { get; set; }
+    public Exercise? Exercise { get; set; }
+    public Guid? ProgramExerciseId { get; set; }
+    public int ExerciseOrder { get; set; }
+    public int SetNumber { get; set; } = 1;
+    public int? TargetRepsMin { get; set; }
+    public int? TargetRepsMax { get; set; }
+    public int? TargetSeconds { get; set; }
+    public decimal? TargetKg { get; set; }
+    public int RestSeconds { get; set; } = 60;
+    public string? SupersetGroup { get; set; }
+    public int? Reps { get; set; }
+    public int? Seconds { get; set; }
+    public decimal? WeightKg { get; set; }
+    public bool Completed { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public string Notes { get; set; } = "";
+    /// <summary>Stamped on finish when this set beats the person's prior personal best for this exercise.</summary>
+    public bool IsPr { get; set; }
 }
 
 // ───────────────────────────── Access ─────────────────────────────

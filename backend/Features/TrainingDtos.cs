@@ -67,7 +67,8 @@ public record ProgramExerciseDto(Guid Id, int Order, Guid ExerciseId, string Nam
 public record ProgramVideoDto(string YoutubeId, string? Title, int? Minutes, string? WorkoutType);
 
 public record ProgramDayDto(Guid Id, int Week, int Weekday, DateOnly Date, string Name, string Kind, string Location,
-    string Notes, ProgramVideoDto? Video, IReadOnlyList<ProgramExerciseDto> Exercises);
+    string Notes, ProgramVideoDto? Video, IReadOnlyList<ProgramExerciseDto> Exercises,
+    Guid? CompletedSessionId = null, DateTimeOffset? CompletedAt = null);
 
 public record TrainingProgramDto(Guid Id, string Name, string Description, string Rationale, DateOnly StartDate,
     DateOnly EndDate, int Weeks, string Status, string CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
@@ -99,7 +100,87 @@ public record ProgramExercisePatch(Guid? ExerciseId, int? Sets, int? RepsMin, in
 /// rest (no workout today) · finished (program ended). next = the next scheduled day after today.
 /// </summary>
 public record TrainingTodayDto(DateOnly Date, string Status, TrainingProgramSummaryDto? Program, int? Week,
-    ProgramDayDto? Day, ProgramDayDto? Next);
+    ProgramDayDto? Day, ProgramDayDto? Next,
+    TrainingSessionSummaryDto? ActiveSession = null,
+    IReadOnlyList<TrainingSessionSummaryDto>? CompletedToday = null);
 
 public record ExerciseAlternativesDto(Guid ExerciseId, string Direction, string Location,
     IReadOnlyList<ExerciseListItemDto> Items);
+
+// ---- training: live workout sessions & personal records (P4) ----
+
+public record TrainingSessionSummaryDto(
+    Guid Id, Guid? ProgramId, Guid? ProgramDayId, string Name, string Kind, DateOnly Date,
+    DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, int? DurationMinutes, int? EstimatedKcal,
+    int ExerciseCount, int TotalSets, int CompletedSets, decimal TotalVolumeKg, int PrCount,
+    string Notes, Guid? WorkoutId);
+
+public record SessionSetDto(
+    Guid Id, int SetNumber, int? TargetRepsMin, int? TargetRepsMax, int? TargetSeconds,
+    decimal? TargetKg, int RestSeconds, int? Reps, int? Seconds, decimal? WeightKg,
+    bool Completed, DateTimeOffset? CompletedAt, string Notes, bool IsPr);
+
+public record LastSetSnapshotDto(decimal? WeightKg, int? Reps, int? Seconds);
+
+public record ExerciseLastPerformanceDto(DateOnly Date, IReadOnlyList<LastSetSnapshotDto> Sets);
+
+public record ExercisePrBaselineDto(
+    decimal? BestWeightKg, int? BestWeightReps, decimal? BestEst1RmKg,
+    int? BestBodyweightReps, int? BestSeconds);
+
+public record SessionExerciseGroupDto(
+    int Order, Guid ExerciseId, string Name, string NameEn, string Equipment,
+    IReadOnlyList<string> PrimaryMuscles, bool IsTimed, bool HasVideo, string? ThumbnailUrl,
+    int RestSeconds, string? SupersetGroup,
+    ExerciseLastPerformanceDto? LastPerformance,
+    ExercisePrBaselineDto? PrBaseline,
+    IReadOnlyList<SessionSetDto> Sets);
+
+public record TrainingSessionDetailDto(
+    Guid Id, Guid? ProgramId, Guid? ProgramDayId, string Name, string Kind, DateOnly Date,
+    DateTimeOffset StartedAt, DateTimeOffset? FinishedAt, int? DurationMinutes, int? EstimatedKcal,
+    string Notes, Guid? WorkoutId, bool HasFutureProgramWeeks,
+    int CompletedSets, int TotalSets, decimal TotalVolumeKg, int PrCount,
+    IReadOnlyList<SessionExerciseGroupDto> Exercises);
+
+public record StartSessionInput(
+    Guid? ProgramDayId, string? Name, DateOnly? Date, List<Guid>? ExerciseIds,
+    bool? CompleteNow, int? DurationMinutes, int? EstimatedKcal, string? Notes);
+
+public record PatchSessionInput(string? Name, string? Notes);
+
+public record PatchSessionSetInput(
+    decimal? WeightKg, bool? ClearWeight,
+    int? Reps, bool? ClearReps,
+    int? Seconds, bool? ClearSeconds,
+    bool? Completed, string? Notes);
+
+public record AddSessionSetInput(
+    Guid ExerciseId, int? ExerciseOrder, decimal? WeightKg, int? Reps, int? Seconds, int? RestSeconds);
+
+public record FinishSessionInput(
+    int? DurationMinutes, int? EstimatedKcal, bool? ClearEstimatedKcal,
+    string? Notes, bool? UpdateFutureTargets, bool? LogActivity);
+
+public record SessionNewPrDto(
+    Guid ExerciseId, string ExerciseName, string Metric,
+    decimal? WeightKg, int? Reps, int? Seconds, decimal? Est1RmKg,
+    decimal? PreviousValue, decimal NewValue);
+
+public record FinishSessionResultDto(
+    TrainingSessionDetailDto Session,
+    IReadOnlyList<SessionNewPrDto> NewPrs,
+    decimal TotalVolumeKg,
+    int CompletedSets,
+    int UpdatedFutureTargets,
+    bool ActivityLinked,
+    bool DedupedWithWatch);
+
+public record ExercisePrDto(
+    Guid ExerciseId, string Name, string NameEn, string Equipment,
+    IReadOnlyList<string> PrimaryMuscles, bool IsTimed, string? ThumbnailUrl,
+    decimal? BestWeightKg, int? BestWeightReps, DateOnly? BestWeightDate,
+    decimal? BestEst1RmKg, DateOnly? BestEst1RmDate,
+    int? BestBodyweightReps, DateOnly? BestBodyweightRepsDate,
+    int? BestSeconds, DateOnly? BestSecondsDate,
+    int TotalSessions, int TotalCompletedSets, DateOnly LastPerformedDate);
