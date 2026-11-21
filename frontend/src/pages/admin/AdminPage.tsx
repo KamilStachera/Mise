@@ -6,9 +6,10 @@ import { AdminCodes } from './AdminCodes'
 import { AdminHouseholds } from './AdminHouseholds'
 import { AdminKeys } from './AdminKeys'
 import { AdminPeople } from './AdminPeople'
+import { AdminSystem } from './AdminSystem'
 import { AuditList } from './shared'
 
-type Tab = 'przeglad' | 'domy' | 'ludzie' | 'kody' | 'klucze' | 'dziennik'
+type Tab = 'przeglad' | 'domy' | 'ludzie' | 'kody' | 'klucze' | 'dziennik' | 'system'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'przeglad', label: 'Przegląd' },
@@ -17,9 +18,10 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'kody', label: 'Kody' },
   { key: 'klucze', label: 'Klucze API' },
   { key: 'dziennik', label: 'Dziennik' },
+  { key: 'system', label: 'System' },
 ]
 
-/** The admin panel: households, people, invite codes, API keys and the audit log (admins only). */
+/** The admin panel: households, people, invite codes, API keys, audit log and diagnostics (admins only). */
 export function AdminPage() {
   const { data: auth, isLoading } = useAuth()
   const { pathname } = useLocation()
@@ -33,7 +35,7 @@ export function AdminPage() {
 
   return (
     <div style={{ ...pad, maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <PageTitle title="Panel admina" sub="Domy, ludzie, kody zaproszeń, klucze API i dziennik zmian — dla wszystkich domów na tym serwerze." />
+      <PageTitle title="Panel admina" sub="Domy, ludzie, kody zaproszeń, klucze API, dziennik zmian i stan serwera." />
       <UnderlineTabs items={TABS} value={tab} onChange={(k) => nav(k === 'przeglad' ? '/admin' : `/admin/${k}`)} />
       {tab === 'przeglad' && <Overview onOpen={(k) => nav(`/admin/${k}`)} />}
       {tab === 'domy' && <AdminHouseholds />}
@@ -41,6 +43,7 @@ export function AdminPage() {
       {tab === 'kody' && <AdminCodes />}
       {tab === 'klucze' && <AdminKeys />}
       {tab === 'dziennik' && <AdminAudit />}
+      {tab === 'system' && <AdminSystem />}
     </div>
   )
 }

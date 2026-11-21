@@ -7,13 +7,17 @@ namespace Mise.Api.Services.AiChat;
 
 public record ChatTurn(string Role, string Content);
 
+/// <summary>An EXIF-stripped JPEG photo attached to the current chat turn.</summary>
+public record ChatImageAttachment(string Name, string MediaType, string DataBase64);
+
 /// <summary>
 /// One turn as a provider sees it. History ends with Message. SystemPrompt is null for
 /// providers that read ./context themselves; ThreadId is the provider's own conversation
 /// handle from the previous turn (Codex), null on a fresh chat.
 /// </summary>
 public record ChatTurnRequest(string? SystemPrompt, IReadOnlyList<ChatTurn> History, string Message,
-    PersonInfo Person, string? RecipeFocus, string? ThreadId);
+    PersonInfo Person, string? RecipeFocus, string? ThreadId,
+    IReadOnlyList<ChatImageAttachment>? Images = null);
 
 /// <summary>Streamed piece of a reply: text, a progress line for the UI, a transient runner error, or a new thread handle.</summary>
 public record ChatChunk(string? Delta = null, string? Status = null, string? ThreadId = null, string? Error = null);
@@ -59,7 +63,22 @@ public sealed class OpenAiChatProvider : IChatProvider
     public async IAsyncEnumerable<ChatChunk> StreamAsync(ChatTurnRequest turn, [EnumeratorCancellation] CancellationToken ct)
     {
         var messages = new List<object> { new { role = "system", content = turn.SystemPrompt ?? "" } };
-        messages.AddRange(turn.History.Select(h => new { role = h.Role == "user" ? "user" : "assistant", content = h.Content }));
+        for (var i = 0; i < turn.History.Count; i++)
+        {
+            var h = turn.History[i];
+            var isLastUser = i == turn.History.Count - 1 && h.Role == "user" && turn.Images is { Count: > 0 };
+            if (isLastUser)
+            {
+                var parts = new List<object> { new { type = "text", text = h.Content } };
+                foreach (var img in turn.Images!)
+                    parts.Add(new { type = "image_url", image_url = new { url = $"data:{img.MediaType};base64,{img.DataBase64}" } });
+                messages.Add(new { role = "user", content = (object)parts });
+            }
+            else
+            {
+                messages.Add(new { role = h.Role == "user" ? "user" : "assistant", content = (object)h.Content });
+            }
+        }
 
         var body = JsonSerializer.Serialize(new { model = _model, stream = true, messages });
         using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
@@ -112,7 +131,24 @@ public sealed class OllamaChatProvider : IChatProvider
     public async IAsyncEnumerable<ChatChunk> StreamAsync(ChatTurnRequest turn, [EnumeratorCancellation] CancellationToken ct)
     {
         var messages = new List<object> { new { role = "system", content = turn.SystemPrompt ?? "" } };
-        messages.AddRange(turn.History.Select(h => new { role = h.Role == "user" ? "user" : "assistant", content = h.Content }));
+        for (var i = 0; i < turn.History.Count; i++)
+        {
+            var h = turn.History[i];
+            var isLastUser = i == turn.History.Count - 1 && h.Role == "user" && turn.Images is { Count: > 0 };
+            if (isLastUser)
+            {
+                messages.Add(new
+                {
+                    role = "user",
+                    content = h.Content,
+                    images = turn.Images!.Select(img => img.DataBase64).ToList(),
+                });
+            }
+            else
+            {
+                messages.Add(new { role = h.Role == "user" ? "user" : "assistant", content = h.Content });
+            }
+        }
 
         var body = JsonSerializer.Serialize(new { model = _model, stream = true, messages });
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/api/chat");
@@ -179,6 +215,7 @@ public sealed class CodexChatProvider : IChatProvider
             person = turn.Person.Id,
             household = turn.Person.HouseholdId,
             token = turnToken,
+            images = turn.Images?.Select(i => new { name = i.Name, mediaType = i.MediaType, dataBase64 = i.DataBase64 }).ToList(),
         });
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/turn");
         if (_access.SousSecret is { Length: > 0 } secret)

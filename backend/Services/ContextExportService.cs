@@ -296,7 +296,7 @@ public sealed class ContextExportService
     private async Task<Dictionary<string, string>> LoadAnswersAsync(CancellationToken ct) =>
         await _db.ProfileAnswers.AsNoTracking().ToDictionaryAsync(a => a.Key, a => a.Value, ct);
 
-    private static string BuildRecipeMarkdown(Recipe r, List<CookLogEntry>? history = null)
+    internal static string BuildRecipeMarkdown(Recipe r, List<CookLogEntry>? history = null)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"# {r.Title}");

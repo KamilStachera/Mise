@@ -29,6 +29,7 @@ public class MiseDbContext : DbContext
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
     public DbSet<RecipeImage> RecipeImages => Set<RecipeImage>();
+    public DbSet<RecipeShare> RecipeShares => Set<RecipeShare>();
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
     public DbSet<ReceiptNameMapping> ReceiptNameMappings => Set<ReceiptNameMapping>();
     public DbSet<Preferences> Preferences => Set<Preferences>();
@@ -262,6 +263,15 @@ public class MiseDbContext : DbContext
             e.Property(x => x.Prefix).HasMaxLength(16);
             e.HasIndex(x => x.KeyHash).IsUnique();
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<RecipeShare>(e =>
+        {
+            e.Property(x => x.Token).HasMaxLength(64);
+            e.HasIndex(x => x.Token).IsUnique();
+            e.HasIndex(x => x.RecipeId);
+            e.HasOne(x => x.Recipe).WithMany().HasForeignKey(x => x.RecipeId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.CreatedByPersonId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<Catering>(e =>

@@ -1,12 +1,27 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Mise.Api.Data;
 using Mise.Api.Domain;
 using Mise.Api.Services;
+using Mise.Api.Services.AiChat;
+using Mise.Api.Services.Strava;
+using Mise.Api.Services.Training;
 
 namespace Mise.Api.Features;
 
 public record AdminStatsDto(int Households, int People, int ActiveLast7Days, int PendingInvites, int LiveKeys, int BlockedPeople);
 public record AdminOverviewDto(AdminStatsDto Stats, List<StarterSourceDto> Sources, int SourceRecipes, List<AuditEventDto> Recent);
+public record AdminTableCountsDto(int Recipes, int PantryItems, int PlanEntries, int CookLog, int ChatMessages,
+    int Exercises, int ExercisesEnriched, int Workouts, int RecipeShares);
+public record AdminSousHealthDto(bool Configured, string Provider, bool Reachable, bool LoggedIn, string? Error);
+public record AdminEnrichmentDto(bool Enabled, bool Running, DateTimeOffset? LastRunAt, string? LastError,
+    DateTimeOffset? PausedUntil, int EnrichedCount, int TotalCount);
+public record AdminStravaDto(bool Configured, bool WebhookRegistered, long SubscriptionId, int ConnectionsCount, DateTimeOffset? LastActivityAt);
+public record AdminStorageDto(int ImageFiles, long ImageBytes, int ThumbnailFiles, long ThumbnailBytes,
+    long? DiskFreeBytes, long? DiskTotalBytes, int PendingContextExports, DateTimeOffset? LastContextExportAt);
+public record AdminSystemDto(string DotnetVersion, string Environment, DateTimeOffset StartedAt, long UptimeSeconds,
+    bool PublicHouseholdEnabled, bool DbConnected, int AppliedMigrationsCount, List<string> PendingMigrations,
+    AdminTableCountsDto Counts, AdminSousHealthDto Sous, AdminEnrichmentDto Enrichment, AdminStravaDto Strava, AdminStorageDto Storage);
 public record AdminMemberDto(int Id, string Name, string Role, bool Blocked);
 public record AdminHouseholdDto(int Id, string Name, bool SousEnabled, bool Blocked, DateTimeOffset CreatedAt,
     List<AdminMemberDto> Members, int Recipes, int PlanEntries, DateTimeOffset? LastSeenAt);
@@ -234,7 +249,157 @@ public static class AdminEndpoints
         g.MapGet("/audit", async (DateTimeOffset? before, int? take, MiseDbContext db, CancellationToken ct) =>
             Results.Ok(await AuditAsync(db, before, Math.Clamp(take ?? 50, 1, 200), ct)));
 
+        // ---- system diagnostics ----
+        g.MapGet("/system", SystemAsync);
+
+        g.MapPost("/enrichment/wake", async ([Microsoft.AspNetCore.Mvc.FromServices] EnrichmentState state,
+            Audit audit, MiseDbContext db, CancellationToken ct) =>
+        {
+            state.ForceKick();
+            audit.Add("enrichment.woken", "Ręcznie wznowiono wzbogacanie ćwiczeń.");
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(new { ok = true });
+        });
+
         return api;
+    }
+
+    private static readonly DateTimeOffset AppStartedAt = DateTimeOffset.UtcNow;
+
+    private static async Task<IResult> SystemAsync(MiseDbContext db, IConfiguration config, IHostEnvironment env,
+        [Microsoft.AspNetCore.Mvc.FromServices] IHttpClientFactory http,
+        [Microsoft.AspNetCore.Mvc.FromServices] RecipeImageStore images,
+        [Microsoft.AspNetCore.Mvc.FromServices] ContextExportQueue exportQueue,
+        [Microsoft.AspNetCore.Mvc.FromServices] EnrichmentState enrichment,
+        [Microsoft.AspNetCore.Mvc.FromServices] StravaOptions stravaOptions,
+        AccessControl access, IServiceProvider sp, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var dbConnected = await db.Database.CanConnectAsync(ct);
+        int appliedCount = 0;
+        var pending = new List<string>();
+        if (dbConnected && db.Database.IsRelational())
+        {
+            appliedCount = (await db.Database.GetAppliedMigrationsAsync(ct)).Count();
+            pending = (await db.Database.GetPendingMigrationsAsync(ct)).ToList();
+        }
+
+        var totalEx = await db.Exercises.IgnoreQueryFilters().CountAsync(e => e.HouseholdId == null && !e.Hidden, ct);
+        var enrichedEx = await db.Exercises.IgnoreQueryFilters().CountAsync(e => e.HouseholdId == null && !e.Hidden && e.EnrichedAt != null, ct);
+        var counts = new AdminTableCountsDto(
+            await db.Recipes.IgnoreQueryFilters().CountAsync(ct),
+            await db.PantryItems.IgnoreQueryFilters().CountAsync(ct),
+            await db.PlanEntries.IgnoreQueryFilters().CountAsync(ct),
+            await db.CookLog.IgnoreQueryFilters().CountAsync(ct),
+            await db.ChatMessages.IgnoreQueryFilters().CountAsync(ct),
+            totalEx,
+            enrichedEx,
+            await db.Workouts.IgnoreQueryFilters().CountAsync(ct),
+            await db.RecipeShares.IgnoreQueryFilters().CountAsync(s => s.RevokedAt == null && s.ExpiresAt > now, ct));
+
+        var providerName = (config["AI_PROVIDER"] ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(providerName)) providerName = "disabled";
+        var sousHealth = await ProbeSousAsync(providerName, config, http, ct);
+
+        var enrichmentDto = new AdminEnrichmentDto(
+            enrichment.Enabled, enrichment.Running, enrichment.LastRunAt, enrichment.LastError,
+            enrichment.PausedUntil, enrichedEx, totalEx);
+
+        var stravaQueue = sp.GetService<StravaEventQueue>();
+        var subId = stravaQueue?.SubscriptionId ?? 0;
+        var stravaCount = await db.StravaConnections.IgnoreQueryFilters().CountAsync(ct);
+        var stravaLast = await db.StravaConnections.IgnoreQueryFilters().MaxAsync(c => c.LastActivityAt, ct);
+        var stravaDto = new AdminStravaDto(stravaOptions.Configured, subId > 0, subId, stravaCount, stravaLast);
+
+        var storage = InspectStorage(images.Root, exportQueue);
+
+        return Results.Ok(new AdminSystemDto(
+            Environment.Version.ToString(),
+            env.EnvironmentName,
+            AppStartedAt,
+            Math.Max(0, (long)(now - AppStartedAt).TotalSeconds),
+            access.PublicHouseholdId is not null,
+            dbConnected,
+            appliedCount,
+            pending,
+            counts,
+            sousHealth,
+            enrichmentDto,
+            stravaDto,
+            storage));
+    }
+
+    private static async Task<AdminSousHealthDto> ProbeSousAsync(string provider, IConfiguration config,
+        IHttpClientFactory http, CancellationToken ct)
+    {
+        if (provider == "disabled")
+            return new AdminSousHealthDto(false, "disabled", false, false, null);
+        if (provider != "codex")
+            return new AdminSousHealthDto(true, provider, true, true, null);
+
+        var baseUrl = (config["SOUS_URL"] is { Length: > 0 } u ? u : "http://sous:8090").TrimEnd('/');
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(3));
+            var client = http.CreateClient();
+            using var res = await client.GetAsync($"{baseUrl}/health", timeout.Token);
+            if (!res.IsSuccessStatusCode)
+                return new AdminSousHealthDto(true, "codex", false, false, $"HTTP {(int)res.StatusCode}");
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(timeout.Token));
+            var loggedIn = doc.RootElement.TryGetProperty("loggedIn", out var l) && l.ValueKind == JsonValueKind.True;
+            return new AdminSousHealthDto(true, "codex", true, loggedIn, loggedIn ? null : "Wymaga logowania: codex login --device-auth");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return new AdminSousHealthDto(true, "codex", false, false, "Nieosiągalny (kontener sous nie odpowiada).");
+        }
+    }
+
+    private static AdminStorageDto InspectStorage(string imagesRoot, ContextExportQueue exportQueue)
+    {
+        int imgFiles = 0, thumbFiles = 0;
+        long imgBytes = 0, thumbBytes = 0;
+        try
+        {
+            if (Directory.Exists(imagesRoot))
+            {
+                foreach (var f in Directory.EnumerateFiles(imagesRoot, "*", SearchOption.TopDirectoryOnly))
+                {
+                    imgFiles++;
+                    imgBytes += new FileInfo(f).Length;
+                }
+                var variants = Path.Combine(imagesRoot, "card-v1");
+                if (Directory.Exists(variants))
+                {
+                    foreach (var f in Directory.EnumerateFiles(variants, "*", SearchOption.TopDirectoryOnly))
+                    {
+                        thumbFiles++;
+                        thumbBytes += new FileInfo(f).Length;
+                    }
+                }
+            }
+        }
+        catch { /* ignore transient filesystem errors */ }
+
+        long? freeBytes = null, totalBytes = null;
+        try
+        {
+            var rootPath = Path.GetPathRoot(Path.GetFullPath(imagesRoot));
+            if (!string.IsNullOrEmpty(rootPath))
+            {
+                var drive = new DriveInfo(rootPath);
+                if (drive.IsReady)
+                {
+                    freeBytes = drive.AvailableFreeSpace;
+                    totalBytes = drive.TotalSize;
+                }
+            }
+        }
+        catch { /* DriveInfo may be unavailable on virtual mounts */ }
+
+        return new AdminStorageDto(imgFiles, imgBytes, thumbFiles, thumbBytes,
+            freeBytes, totalBytes, exportQueue.PendingCount, exportQueue.LastExportAt);
     }
 
     private static async Task<IResult> OverviewAsync(MiseDbContext db, AccessControl access, CancellationToken ct)

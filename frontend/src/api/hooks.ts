@@ -81,6 +81,11 @@ export function useAdminOverview() {
   return useQuery({ queryKey: ['admin', 'overview'], queryFn: api.admin.overview, enabled: auth?.isAdmin === true })
 }
 
+export function useAdminSystem() {
+  const { data: auth } = useAuth()
+  return useQuery({ queryKey: ['admin', 'system'], queryFn: api.admin.system, enabled: auth?.isAdmin === true, staleTime: 0 })
+}
+
 export function useAdminHouseholds() {
   const { data: auth } = useAuth()
   return useQuery({ queryKey: ['admin', 'households'], queryFn: api.admin.households, enabled: auth?.isAdmin === true })
@@ -133,6 +138,7 @@ export function useAdminActions() {
     extendInvite: useMutation({ mutationFn: (id: string) => api.admin.extendInvite(id), ...opts }),
     revokeInvite: useMutation({ mutationFn: api.admin.revokeInvite, ...opts }),
     revokeKey: useMutation({ mutationFn: api.admin.revokeKey, ...opts }),
+    wakeEnrichment: useMutation({ mutationFn: api.admin.wakeEnrichment, ...opts }),
   }
 }
 
@@ -708,6 +714,58 @@ export function useSetRecipeTags() {
     meta: OWN_ERRORS,
     onSuccess: (_res, { id }) => {
       qc.invalidateQueries({ queryKey: ['recipe', id] })
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['cookbook'] })
+    },
+  })
+}
+
+export function useRecipeShare(id: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ['recipeShare', id],
+    queryFn: () => api.recipeShare(id!),
+    enabled: !!id && enabled,
+    staleTime: 0,
+  })
+}
+
+export function useCreateRecipeShare() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.createRecipeShare(id),
+    meta: OWN_ERRORS,
+    onSuccess: (data, id) => {
+      qc.setQueryData(['recipeShare', id], data)
+    },
+  })
+}
+
+export function useRevokeRecipeShare() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.revokeRecipeShare(id),
+    meta: OWN_ERRORS,
+    onSuccess: (_res, id) => {
+      qc.setQueryData(['recipeShare', id], { active: false, token: null, path: null, createdAt: null, expiresAt: null })
+    },
+  })
+}
+
+export function useSharedRecipe(token: string | undefined) {
+  return useQuery({
+    queryKey: ['sharedRecipe', token],
+    queryFn: () => api.sharedRecipe(token!),
+    enabled: !!token,
+    retry: false,
+  })
+}
+
+export function useImportSharedRecipe() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (token: string) => api.importSharedRecipe(token),
+    meta: OWN_ERRORS,
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['recipes'] })
       qc.invalidateQueries({ queryKey: ['cookbook'] })
     },

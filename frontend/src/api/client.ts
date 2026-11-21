@@ -875,6 +875,117 @@ export interface ImportDocumentInfo {
   looksScanned: boolean
 }
 
+export interface ChatImageInfo {
+  id: string
+  name: string
+  bytes: number
+}
+
+export interface RecipeShareStatus {
+  active: boolean
+  token: string | null
+  path: string | null
+  createdAt: string | null
+  expiresAt: string | null
+}
+
+export interface SharedIngredient {
+  name: string
+  quantity: string
+  displayText: string | null
+  alternativeGroup: string | null
+}
+
+export interface SharedImage {
+  id: string
+  url: string
+  isDefault: boolean
+}
+
+export interface SharedRecipe {
+  token: string
+  sharedByHousehold: string
+  expiresAt: string
+  isOwnHousehold: boolean
+  ownRecipeId: string | null
+  title: string
+  source: Source
+  sourceName: string | null
+  time: number
+  servings: number
+  difficulty: string
+  tint: string
+  blurb: string
+  tip: string | null
+  imageUrl: string | null
+  images: SharedImage[]
+  dishType: DishType | null
+  cuisine: Cuisine | null
+  usesAirFryer: boolean
+  kcal: number | null
+  protein: number | null
+  fat: number | null
+  carbs: number | null
+  tags: string[]
+  ingredients: SharedIngredient[]
+  steps: string[]
+}
+
+export interface AdminSystem {
+  dotnetVersion: string
+  environment: string
+  startedAt: string
+  uptimeSeconds: number
+  publicHouseholdEnabled: boolean
+  dbConnected: boolean
+  appliedMigrationsCount: number
+  pendingMigrations: string[]
+  counts: {
+    recipes: number
+    pantryItems: number
+    planEntries: number
+    cookLog: number
+    chatMessages: number
+    exercises: number
+    exercisesEnriched: number
+    workouts: number
+    recipeShares: number
+  }
+  sous: {
+    configured: boolean
+    provider: string
+    reachable: boolean
+    loggedIn: boolean
+    error: string | null
+  }
+  enrichment: {
+    enabled: boolean
+    running: boolean
+    lastRunAt: string | null
+    lastError: string | null
+    pausedUntil: string | null
+    enrichedCount: number
+    totalCount: number
+  }
+  strava: {
+    configured: boolean
+    webhookRegistered: boolean
+    subscriptionId: number
+    connectionsCount: number
+    lastActivityAt: string | null
+  }
+  storage: {
+    imageFiles: number
+    imageBytes: number
+    thumbnailFiles: number
+    thumbnailBytes: number
+    diskFreeBytes: number | null
+    diskTotalBytes: number | null
+    pendingContextExports: number
+    lastContextExportAt: string | null
+  }
+}
+
 export class ApiError extends Error {
   status: number
   /** The server's Polish `{ error }` message, when it sent one (validation 400s, 409s). */
@@ -979,6 +1090,43 @@ export const api = {
       throw new ApiError(res.status, res.statusText, body?.error ?? null)
     }
     return (await res.json()) as ImportDocumentInfo
+  },
+  /** Ephemeral photo for Sous chat (receipt, fridge, plate, cookbook page; EXIF-stripped JPEG). */
+  uploadChatImage: async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`${BASE}/chat/images`, { method: 'POST', body: form })
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null
+      throw new ApiError(res.status, res.statusText, body?.error ?? null)
+    }
+    return (await res.json()) as ChatImageInfo
+  },
+  recipeShare: (id: string) => http<RecipeShareStatus>(`/recipes/${id}/share`),
+  createRecipeShare: (id: string) => http<RecipeShareStatus>(`/recipes/${id}/share`, { method: 'POST' }),
+  revokeRecipeShare: (id: string) => http<void>(`/recipes/${id}/share`, { method: 'DELETE' }),
+  sharedRecipe: (token: string) => http<SharedRecipe>(`/shared/${encodeURIComponent(token)}`, undefined, true),
+  importSharedRecipe: (token: string) =>
+    http<{ id: string; title: string }>(`/shared/${encodeURIComponent(token)}/import`, { method: 'POST' }, true),
+  downloadHouseholdExport: async () => {
+    const res = await fetch(`${BASE}/household/export.zip`)
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null
+      throw new ApiError(res.status, res.statusText, body?.error ?? null)
+    }
+    const cd = res.headers.get('Content-Disposition') ?? ''
+    const match = /filename="?([^";]+)"?/i.exec(cd)
+    const filename = match?.[1] ?? `pichci-backup.zip`
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 5_000)
+    return filename
   },
   deleteRecipeImage: (id: string, imageId: string) =>
     http<{ images: RecipeImage[] }>(`/recipes/${id}/images/${imageId}`, { method: 'DELETE' }),
@@ -1163,6 +1311,8 @@ export const api = {
     revokeKey: (id: string) => http<void>(`/admin/keys/${id}`, { method: 'DELETE' }, true),
     audit: (before?: string) =>
       http<AuditEvent[]>(`/admin/audit?take=50${before ? `&before=${encodeURIComponent(before)}` : ''}`, undefined, true),
+    system: () => http<AdminSystem>(`/admin/system`, undefined, true),
+    wakeEnrichment: () => http<{ ok: boolean }>(`/admin/enrichment/wake`, { method: 'POST' }, true),
   },
   apiKeys: () => http<ApiKeyInfo[]>(`/keys`, undefined, true),
   createApiKey: (name: string) => http<CreatedApiKey>(`/keys`, { method: 'POST', body: JSON.stringify({ name }) }, true),
@@ -1186,11 +1336,18 @@ export async function streamChat(
   onStatus?: (text: string) => void,
   /** PDF uploaded via `api.uploadImportDocument`, attached to this message. */
   documentId?: string,
+  /** Up to 3 photos uploaded via `api.uploadChatImage`, attached to this message. */
+  imageIds?: string[],
 ): Promise<void> {
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, recipeId, documentId }),
+    body: JSON.stringify({
+      message,
+      recipeId,
+      documentId,
+      imageIds: imageIds && imageIds.length > 0 ? imageIds : undefined,
+    }),
     signal,
   })
   if (!res.ok || !res.body) {

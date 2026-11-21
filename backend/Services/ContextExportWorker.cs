@@ -10,6 +10,20 @@ public sealed class ContextExportQueue
 {
     private readonly ConcurrentDictionary<int, byte> _dirty = new();
     private readonly SemaphoreSlim _signal = new(0, 1);
+    private long _lastExportUtcTicks;
+
+    public int PendingCount => _dirty.Count;
+
+    public DateTimeOffset? LastExportAt
+    {
+        get
+        {
+            var ticks = Volatile.Read(ref _lastExportUtcTicks);
+            return ticks > 0 ? new DateTimeOffset(ticks, TimeSpan.Zero) : null;
+        }
+    }
+
+    internal void MarkExported(DateTimeOffset at) => Volatile.Write(ref _lastExportUtcTicks, at.UtcTicks);
 
     public void Enqueue(int householdId)
     {
@@ -58,6 +72,7 @@ public sealed class ContextExportWorker(IServiceScopeFactory scopes, ContextExpo
                     var export = scope.ServiceProvider.GetRequiredService<ContextExportService>();
                     // Run to completion even during a quiet reload so recipes/ is never left half-written.
                     await export.ExportAsync(CancellationToken.None);
+                    queue.MarkExported(DateTimeOffset.UtcNow);
                 }
                 catch (Exception ex)
                 {

@@ -38,18 +38,20 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
         new("/api/plan/shopping-preview"),
     ];
 
-    /// <summary>Readable by anyone: the shared exercise catalog.</summary>
+    /// <summary>Readable by anyone: the shared exercise catalog and token-gated recipe share links.</summary>
     private static readonly PathString[] OpenReadPrefixes =
     [
         new("/api/exercises"),
+        new("/api/shared"),
     ];
 
-    /// <summary>Account-management endpoints forbidden to Sous turn tokens and internal system keys.</summary>
+    /// <summary>Account-management and bulk-export endpoints forbidden to Sous turn tokens and internal system keys.</summary>
     private static readonly PathString[] InternalForbiddenPrefixes =
     [
         new("/api/keys"),
         new("/api/household/invites"),
         new("/api/household/people"),
+        new("/api/household/export.zip"),
         new("/api/activity/connection"),
         new("/api/admin"),
     ];

@@ -995,3 +995,23 @@ public class AuditEvent
     public string Kind { get; set; } = "";
     public string Summary { get; set; } = "";
 }
+
+/// <summary>
+/// A revocable, time-bounded share link for a single recipe (/s/{token}). Allows anyone with the
+/// unguessable 128-bit token to read the recipe and signed-in members of other households to clone
+/// an independent copy into their own cookbook (with copied photos and relinked pantry ingredients).
+/// </summary>
+public class RecipeShare : IHouseholdOwned
+{
+    public static readonly TimeSpan DefaultLifetime = TimeSpan.FromDays(30);
+    public int HouseholdId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid RecipeId { get; set; }
+    public Recipe? Recipe { get; set; }
+    /// <summary>URL-safe 128-bit cryptographic token.</summary>
+    public string Token { get; set; } = "";
+    public int? CreatedByPersonId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+}

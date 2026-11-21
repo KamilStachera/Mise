@@ -12,7 +12,9 @@ namespace Mise.Api.Features;
 
 /// <param name="RecipeId">Recipe the user is looking at; its full text is appended to the system prompt.</param>
 /// <param name="DocumentId">A PDF uploaded via POST /import/documents and attached to this message.</param>
-public record ChatRequest(string Message, string? SessionId, Guid? RecipeId = null, Guid? DocumentId = null);
+/// <param name="ImageIds">Up to 3 photos uploaded via POST /chat/images and attached to this message.</param>
+public record ChatRequest(string Message, string? SessionId, Guid? RecipeId = null, Guid? DocumentId = null,
+    List<Guid>? ImageIds = null);
 
 public static class ChatEndpoints
 {
@@ -53,8 +55,32 @@ public static class ChatEndpoints
             return Results.NoContent();
         });
 
+        // Upload an ephemeral photo (receipt, fridge, plate, cookbook page) to attach to the next chat message.
+        g.MapPost("/images", async (IFormFile file, Caller caller, PersonScope person, MiseDbContext db,
+            IChatProvider provider, ChatImageStore chatImages, CancellationToken ct) =>
+        {
+            if (!provider.Enabled || !await SousAllowedAsync(db, caller, ct))
+                return Results.Json(new { error = "Czat Sous jest wyłączony." }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            var who = await People.FindAsync(db, person.Id, ct);
+            if (who is null || who.HouseholdId != caller.HouseholdId)
+                return Results.Unauthorized();
+            if (file.Length is 0 or > ChatImageStore.MaxUploadBytes)
+                return Results.BadRequest(new { error = "Zdjęcie musi mieć od 1 B do 5 MB." });
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms, ct);
+            try
+            {
+                var saved = await chatImages.StoreAsync(who.HouseholdId, who.Id, file.FileName, ms.ToArray(), ct);
+                return Results.Ok(new { id = saved.Id, name = saved.Name, bytes = saved.Bytes.Length });
+            }
+            catch (InvalidImageException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        }).DisableAntiforgery().RequireRateLimiting(HouseholdEndpoints.ImportRateLimit);
+
         g.MapPost("/", async (ChatRequest req, HttpContext ctx, MiseDbContext db, PersonScope person, Caller caller,
-            IChatProvider provider, ContextExportService export, ImportService import,
+            IChatProvider provider, ContextExportService export, ImportService import, ChatImageStore chatImages,
             ILogger<IChatProvider> logger, CancellationToken ct) =>
         {
             if (!provider.Enabled || !await SousAllowedAsync(db, caller, ct))
@@ -67,18 +93,33 @@ public static class ChatEndpoints
             if (req.Message is { Length: > MaxMessageChars })
                 return Results.BadRequest(new { error = $"Wiadomość jest za długa (maks. {MaxMessageChars} znaków)." });
 
+            var who = await People.FindAsync(db, person.Id, ct);
+            if (who is null || who.HouseholdId != caller.HouseholdId)
+                return Results.Unauthorized();
+
             DocumentInfo? attachment = null;
             if (req.DocumentId is Guid docId)
             {
                 attachment = await import.InfoAsync(docId, ct);
                 if (attachment is null) return Results.BadRequest(new { error = "Załącznik wygasł — dodaj PDF jeszcze raz." });
             }
-            if (string.IsNullOrWhiteSpace(req.Message) && attachment is null)
-                return Results.BadRequest();
 
-            var who = await People.FindAsync(db, person.Id, ct);
-            if (who is null || who.HouseholdId != caller.HouseholdId)
-                return Results.Unauthorized();
+            var images = new List<ChatImageEntry>();
+            if (req.ImageIds is { Count: > 0 })
+            {
+                var distinctIds = req.ImageIds.Distinct().ToList();
+                if (distinctIds.Count > ChatImageStore.MaxPerTurn)
+                    return Results.BadRequest(new { error = $"Możesz załączyć maks. {ChatImageStore.MaxPerTurn} zdjęcia naraz." });
+                foreach (var imgId in distinctIds)
+                {
+                    var img = chatImages.TryGet(imgId, who.HouseholdId, who.Id);
+                    if (img is null) return Results.BadRequest(new { error = "Zdjęcie wygasło — dodaj je jeszcze raz." });
+                    images.Add(img);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(req.Message) && attachment is null && images.Count == 0)
+                return Results.BadRequest();
 
             var sid = SessionOf(person);
             var gate = SessionLocks.GetOrAdd(sid, _ => new SemaphoreSlim(1, 1));
@@ -88,11 +129,19 @@ public static class ChatEndpoints
 
             try
             {
-                var message = string.IsNullOrWhiteSpace(req.Message) ? "Przejrzyj załączony PDF." : req.Message.Trim();
+                var defaultText = images.Count > 0
+                    ? (images.Count == 1 ? "Przeanalizuj załączone zdjęcie." : "Przeanalizuj załączone zdjęcia.")
+                    : "Przejrzyj załączony PDF.";
+                var message = string.IsNullOrWhiteSpace(req.Message) ? defaultText : req.Message.Trim();
                 // What the chat shows; the provider additionally gets how to read the attachment.
-                var shown = attachment is null ? message : $"{message}\n📎 {attachment.Name}";
+                var shownParts = new List<string> { message };
+                if (attachment is not null) shownParts.Add($"📎 {attachment.Name}");
+                if (images.Count > 0) shownParts.Add($"📷 {string.Join(", ", images.Select(i => i.Name))}");
+                var shown = string.Join("\n", shownParts);
                 var providerMessage = attachment is null ? message
                     : $"{message}\n\n{await AttachmentNoteAsync(attachment, inlineText: provider.NeedsSystemPrompt, import, ct)}";
+                var imagePayloads = images.Count == 0 ? null
+                    : images.Select(i => new ChatImageAttachment(i.Name, i.MediaType, Convert.ToBase64String(i.Bytes))).ToList();
 
                 db.ChatMessages.Add(new ChatMessage { SessionId = sid, Role = "user", Content = shown });
                 await db.SaveChangesAsync(ct);
@@ -125,7 +174,7 @@ public static class ChatEndpoints
                 string? transientError = null;
                 try
                 {
-                    var turn = new ChatTurnRequest(systemPrompt, turns, providerMessage, who, focus, threadId);
+                    var turn = new ChatTurnRequest(systemPrompt, turns, providerMessage, who, focus, threadId, imagePayloads);
                     await foreach (var chunk in provider.StreamAsync(turn, ct))
                     {
                         if (chunk.ThreadId is { } t) threadId = t;

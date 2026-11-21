@@ -257,6 +257,17 @@ public sealed class EnrichmentState
         }
     }
 
+    /// <summary>Admin override: clear any backoff pause and wake the worker immediately.</summary>
+    public void ForceKick()
+    {
+        lock (gate)
+        {
+            pausedUntil = null;
+            lastError = null;
+            if (kick.CurrentCount == 0) kick.Release();
+        }
+    }
+
     /// <summary>Sleep up to <paramref name="delay"/>, or until kicked.</summary>
     public async Task WaitAsync(TimeSpan delay, CancellationToken ct)
     {

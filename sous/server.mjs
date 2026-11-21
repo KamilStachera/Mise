@@ -8,8 +8,9 @@
 //               A one-off background task (exercise descriptions): fresh thread, live web
 //               search, no MCP tools — the api validates and saves the result itself.
 //   GET  /health → { ok, loggedIn }
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 import { existsSync } from 'node:fs'
+import { unlink, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { Codex } from '@openai/codex-sdk'
@@ -17,7 +18,8 @@ import { Codex } from '@openai/codex-sdk'
 const PORT = Number(process.env.PORT ?? 8090)
 const MCP_ENTRY = process.env.MCP_ENTRY ?? '/app/mcp/dist/index.js'
 const CODEX_HOME = process.env.CODEX_HOME ?? join(process.env.HOME ?? '/data', '.codex')
-const MAX_BODY_BYTES = 256 * 1024
+const MAX_BODY_BYTES = 8 * 1024 * 1024
+const MAX_IMAGES = 3
 const MAX_CONCURRENT = Number(process.env.SOUS_MAX_CONCURRENT ?? 3)
 const SOUS_SECRET = process.env.SOUS_SECRET?.trim()
   || (process.env.MISE_API_KEY?.trim()
@@ -96,48 +98,69 @@ function statusOf(item) {
   }
 }
 
-async function runTurn({ prompt, instructions, threadId, person, household, token }, send, signal) {
+async function runTurn({ prompt, instructions, threadId, person, household, token, images }, send, signal) {
   if (!Number.isInteger(person) || person <= 0) throw new Error('person is required')
   if (!Number.isInteger(household) || household <= 0) throw new Error('household is required')
   if (typeof token !== 'string' || !token) throw new Error('token is required')
-  const codex = codexFor(person, token)
-  const options = threadOptions
-  let thread = threadId ? codex.resumeThread(threadId, options) : codex.startThread(options)
-  let input = threadId ? prompt : `${instructions}\n\n${prompt}`
-  let started = false
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const { events } = await thread.runStreamed(input, { signal })
-      // Agent messages before the last one are progress notes („Sprawdzę spiżarnię”); only
-      // the final one is the answer, so hold each until the next one or the turn's end.
-      let pending = null
-      for await (const ev of events) {
-        started = true
-        if (ev.type === 'thread.started') send({ threadId: ev.thread_id })
-        else if (ev.type === 'item.started' || (ev.type === 'item.completed' && ev.item.type !== 'agent_message')) {
-          const s = statusOf(ev.item)
-          if (s) send({ status: s })
-          if (ev.item.type === 'mcp_tool_call' && ev.item.status === 'failed')
-            console.warn(`tool ${ev.item.tool} failed: ${ev.item.error?.message}`)
-        } else if (ev.type === 'item.completed' && ev.item.type === 'agent_message') {
-          if (pending) send({ status: firstLine(pending) })
-          pending = ev.item.text
-        } else if (ev.type === 'turn.failed') throw new Error(ev.error.message)
-        else if (ev.type === 'error') throw new Error(ev.message)
+  const tempImages = []
+  try {
+    if (Array.isArray(images) && images.length > 0) {
+      for (const img of images.slice(0, MAX_IMAGES)) {
+        if (!img || typeof img.dataBase64 !== 'string' || !img.dataBase64) continue
+        const buf = Buffer.from(img.dataBase64, 'base64')
+        if (buf.length === 0) continue
+        const path = `/tmp/sous-img-${randomUUID()}.jpg`
+        await writeFile(path, buf, { mode: 0o600 })
+        tempImages.push(path)
       }
-      if (pending) send({ delta: pending })
-      return
-    } catch (e) {
-      // A thread lost with the volume (or never saved) can't resume: start over once.
-      if (threadId && !started && attempt === 0 && !signal.aborted) {
-        console.warn(`resume ${threadId} failed (${e.message}); starting a new thread`)
-        thread = codex.startThread(options)
-        input = `${instructions}\n\n${prompt}`
-        continue
-      }
-      throw e
     }
+
+    const codex = codexFor(person, token)
+    const options = threadOptions
+    const buildInput = (text) => (tempImages.length > 0
+      ? [{ type: 'text', text }, ...tempImages.map((path) => ({ type: 'local_image', path }))]
+      : text)
+
+    let thread = threadId ? codex.resumeThread(threadId, options) : codex.startThread(options)
+    let input = buildInput(threadId ? prompt : `${instructions}\n\n${prompt}`)
+    let started = false
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const { events } = await thread.runStreamed(input, { signal })
+        // Agent messages before the last one are progress notes („Sprawdzę spiżarnię”); only
+        // the final one is the answer, so hold each until the next one or the turn's end.
+        let pending = null
+        for await (const ev of events) {
+          started = true
+          if (ev.type === 'thread.started') send({ threadId: ev.thread_id })
+          else if (ev.type === 'item.started' || (ev.type === 'item.completed' && ev.item.type !== 'agent_message')) {
+            const s = statusOf(ev.item)
+            if (s) send({ status: s })
+            if (ev.item.type === 'mcp_tool_call' && ev.item.status === 'failed')
+              console.warn(`tool ${ev.item.tool} failed: ${ev.item.error?.message}`)
+          } else if (ev.type === 'item.completed' && ev.item.type === 'agent_message') {
+            if (pending) send({ status: firstLine(pending) })
+            pending = ev.item.text
+          } else if (ev.type === 'turn.failed') throw new Error(ev.error.message)
+          else if (ev.type === 'error') throw new Error(ev.message)
+        }
+        if (pending) send({ delta: pending })
+        return
+      } catch (e) {
+        // A thread lost with the volume (or never saved) can't resume: start over once.
+        if (threadId && !started && attempt === 0 && !signal.aborted) {
+          console.warn(`resume ${threadId} failed (${e.message}); starting a new thread`)
+          thread = codex.startThread(options)
+          input = buildInput(`${instructions}\n\n${prompt}`)
+          continue
+        }
+        throw e
+      }
+    }
+  } finally {
+    await Promise.allSettled(tempImages.map((p) => unlink(p)))
   }
 }
 

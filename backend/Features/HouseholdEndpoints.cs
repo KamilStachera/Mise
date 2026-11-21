@@ -135,6 +135,18 @@ public static class HouseholdEndpoints
             return Results.NoContent();
         });
 
+        // Portable ZIP backup of the caller's own household (Google session only — never API keys or Sous tokens).
+        g.MapGet("/export.zip", async (HttpContext ctx, Caller caller,
+            [Microsoft.AspNetCore.Mvc.FromServices] HouseholdExportService exporter, CancellationToken ct) =>
+        {
+            if (caller.Kind != CallerKind.Member || caller.HouseholdId is not int householdId)
+                return Results.Json(new { error = "Eksport danych wymaga sesji w przeglądarce." }, statusCode: StatusCodes.Status403Forbidden);
+            var stream = await exporter.CreateArchiveStreamAsync(householdId, ct);
+            ctx.Response.Headers.CacheControl = "no-store";
+            var fileName = $"pichci-backup-{DateOnly.FromDateTime(DateTime.Today):yyyy-MM-dd}.zip";
+            return Results.File(stream, "application/zip", fileName);
+        }).RequireRateLimiting(ImportRateLimit);
+
         api.MapPost("/onboarding/redeem", RedeemAsync).WithTags("Household").RequireRateLimiting(RedeemRateLimit);
         return api;
     }

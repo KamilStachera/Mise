@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useBody, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire, useCookLog } from '../api/hooks'
-import { loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
+import { api, errorText, loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
 import { HouseholdCard } from '../components/HouseholdCards'
 import { LoginPrompt } from '../components/LoginPrompt'
+import { showToast } from '../lib/toastBus'
 import { useIsMobile } from '../lib/useIsMobile'
 import { Avatar, Button, Chip, Eyebrow, PageTitle, SectionHead, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
@@ -23,6 +24,20 @@ export function Profile() {
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Preferences | null>(null)
+  const [downloadingBackup, setDownloadingBackup] = useState(false)
+
+  async function onDownloadBackup() {
+    if (downloadingBackup) return
+    setDownloadingBackup(true)
+    try {
+      const name = await api.downloadHouseholdExport()
+      showToast(`Pobrano kopię zapasową: ${name}`)
+    } catch (err) {
+      showToast(errorText(err, 'Nie udało się przygotować kopii zapasowej.'))
+    } finally {
+      setDownloadingBackup(false)
+    }
+  }
 
   useEffect(() => {
     if (prefs && !editing) setDraft(prefs)
@@ -142,6 +157,13 @@ export function Profile() {
             <ConnectAgentCard />
           </Collapsible>
         )}
+        {canEdit && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+            <Button variant="outline" onClick={onDownloadBackup} disabled={downloadingBackup}>
+              {downloadingBackup ? 'Przygotowuję archiwum…' : 'Pobierz kopię danych (.zip)'}
+            </Button>
+          </div>
+        )}
 
         {canEdit ? (
           <Button variant="text" style={{ alignSelf: 'flex-start', font: sans(14, 600) }} onClick={() => logout.mutate()}>Wyloguj</Button>
@@ -184,7 +206,17 @@ export function Profile() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 8 }}>
-        <SectionHead title="Asystent i dane" size={24} />
+        <SectionHead
+          title="Asystent i dane"
+          size={24}
+          meta={
+            canEdit && (
+              <Button variant="outline" size="sm" onClick={onDownloadBackup} disabled={downloadingBackup}>
+                {downloadingBackup ? 'Przygotowuję .zip…' : 'Pobierz kopię danych (.zip)'}
+              </Button>
+            )
+          }
+        />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56 }}>
           {tastes}
           {avoid}

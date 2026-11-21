@@ -1,5 +1,7 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -19,9 +21,11 @@ using Mise.Api.Data;
 using Mise.Api.Domain;
 using Mise.Api.Features;
 using Mise.Api.Services;
+using Mise.Api.Services.AiChat;
 using Mise.Api.Services.Import;
 using Mise.Api.Services.Strava;
 using Mise.Api.Services.Training;
+using SkiaSharp;
 using Xunit;
 
 namespace Mise.Api.Tests;
@@ -1004,16 +1008,248 @@ public class AuditRegressionTests
             .Count(e => e.GetProperty("isCatering").GetBoolean()));
     }
 
+    // ---- 7. Batch C — Sous Vision (#4), Cross-Household Recipe Sharing (#7), Admin Ops & ZIP Export (#13) ----
+
+    [Fact]
+    public async Task ChatVision_UploadsValidImage_BlocksCrossTenantIds_AndForwardsToProvider()
+    {
+        await using var host = await BuildTestAppAsync();
+        using (var scope = host.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiseDbContext>();
+            db.Tenant.UseSystem();
+            foreach (var h in await db.Households.ToListAsync()) h.SousEnabled = true;
+            await db.SaveChangesAsync();
+        }
+
+        // Invalid non-image rejected with 400
+        var bad = await host.SendFileAsync("/api/chat/images", "bad.jpg", "image/jpeg",
+            Encoding.UTF8.GetBytes("not an image"), email: AdminEmail);
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+
+        // Valid PNG decoded, EXIF-stripped, and stored as JPEG
+        var png = MakeTestPng();
+        var ok = await host.SendFileAsync("/api/chat/images", "paragon.png", "image/png", png, email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        var uploaded = JsonDocument.Parse(await ok.Content.ReadAsStringAsync()).RootElement;
+        var imageId = uploaded.GetProperty("id").GetGuid();
+        Assert.Equal("paragon.png", uploaded.GetProperty("name").GetString());
+        Assert.True(uploaded.GetProperty("bytes").GetInt32() > 0);
+
+        // Another household (Member) and another person in the same household (ActivePartner) cannot use Admin's imageId
+        var crossHousehold = await host.SendAsync(HttpMethod.Post, "/api/chat", email: MemberEmail, body: new
+        {
+            message = "Sprawdź", imageIds = new[] { imageId },
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, crossHousehold.StatusCode);
+
+        var crossPerson = await host.SendAsync(HttpMethod.Post, "/api/chat", email: "partner@example.com", body: new
+        {
+            message = "Sprawdź", imageIds = new[] { imageId },
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, crossPerson.StatusCode);
+
+        // Owner sends photo with empty text → provider receives JPEG base64 attachment and history records camera marker
+        var chat = await host.SendAsync(HttpMethod.Post, "/api/chat", email: AdminEmail, body: new
+        {
+            message = "", imageIds = new[] { imageId },
+        });
+        Assert.Equal(HttpStatusCode.OK, chat.StatusCode);
+        var sse = await chat.Content.ReadAsStringAsync();
+        var deltaText = string.Concat(sse.Split('\n')
+            .Where(l => l.StartsWith("data:"))
+            .Select(l => JsonDocument.Parse(l["data:".Length..].Trim()).RootElement)
+            .Where(el => el.TryGetProperty("delta", out _))
+            .Select(el => el.GetProperty("delta").GetString()));
+        Assert.Contains("Widzę zdjęcie", deltaText);
+
+        var lastTurn = host.ChatProvider.LastTurn;
+        Assert.NotNull(lastTurn);
+        var forwarded = Assert.Single(lastTurn!.Images!);
+        Assert.Equal("image/jpeg", forwarded.MediaType);
+        Assert.True(Convert.FromBase64String(forwarded.DataBase64).Length > 0);
+
+        var hist = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, "/api/chat/history", email: AdminEmail))
+            .Content.ReadAsStringAsync()).RootElement;
+        Assert.Contains("📷 paragon.png", hist[0].GetProperty("content").GetString()!);
+    }
+
+    [Fact]
+    public async Task RecipeSharing_TokenFlow_ClonesIndependentlyAcrossHouseholds_AndRevokesCleanly()
+    {
+        await using var host = await BuildTestAppAsync();
+
+        var created = await host.SendAsync(HttpMethod.Post, "/api/recipes", email: AdminEmail, body: new
+        {
+            title = "Sernik baskijski",
+            source = "manual",
+            time = 55,
+            servings = 8,
+            kcal = 320,
+            protein = 12m,
+            fat = 22m,
+            carbs = 18m,
+            tags = new[] { "deser" },
+            ingredients = new[] { new { name = "Twaróg", quantity = "500 g", amountValue = 500m, amountUnit = "g" } },
+            steps = new[] { "Wymieszaj i piecz 40 min w 220°C." },
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var recipeId = JsonDocument.Parse(await created.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        // Attach a recipe photo in Household 1
+        var imgUpload = await host.SendFileAsync($"/api/recipes/{recipeId}/image", "sernik.png", "image/png", MakeTestPng(), email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, imgUpload.StatusCode);
+        var h1ImageUrl = JsonDocument.Parse(await imgUpload.Content.ReadAsStringAsync()).RootElement.GetProperty("imageUrl").GetString()!;
+
+        // Create share link (idempotent on repeat call)
+        var s1 = await host.SendAsync(HttpMethod.Post, $"/api/recipes/{recipeId}/share", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, s1.StatusCode);
+        var shareDoc = JsonDocument.Parse(await s1.Content.ReadAsStringAsync()).RootElement;
+        var token = shareDoc.GetProperty("token").GetString()!;
+        Assert.True(shareDoc.GetProperty("active").GetBoolean());
+
+        var s2 = await host.SendAsync(HttpMethod.Post, $"/api/recipes/{recipeId}/share", email: AdminEmail);
+        Assert.Equal(token, JsonDocument.Parse(await s2.Content.ReadAsStringAsync()).RootElement.GetProperty("token").GetString());
+
+        // Anonymous GET /api/shared/{token} and its image work, while anonymous POST import is rejected with 401
+        var anonGet = await host.SendAsync(HttpMethod.Get, $"/api/shared/{token}");
+        Assert.Equal(HttpStatusCode.OK, anonGet.StatusCode);
+        var sharedJson = JsonDocument.Parse(await anonGet.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("Sernik baskijski", sharedJson.GetProperty("title").GetString());
+        Assert.Equal("Dom 1", sharedJson.GetProperty("sharedByHousehold").GetString());
+        Assert.False(sharedJson.GetProperty("isOwnHousehold").GetBoolean());
+        var sharedImgUrl = sharedJson.GetProperty("imageUrl").GetString()!;
+        Assert.StartsWith($"/api/shared/{token}/image/", sharedImgUrl);
+
+        var anonImg = await host.SendAsync(HttpMethod.Get, sharedImgUrl);
+        Assert.Equal(HttpStatusCode.OK, anonImg.StatusCode);
+        Assert.Equal("image/webp", anonImg.Content.Headers.ContentType?.MediaType);
+
+        var anonImport = await host.SendAsync(HttpMethod.Post, $"/api/shared/{token}/import");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonImport.StatusCode);
+
+        // Household 2 has "Twaróg" in its pantry → importing clones recipe, copies photo independently, and relinks pantry
+        var h2Pantry = await host.SendAsync(HttpMethod.Post, "/api/pantry", email: MemberEmail, body: new
+        {
+            name = "Twaróg", category = "Fridge", unit = "g", quantity = 500m,
+        });
+        Assert.Equal(HttpStatusCode.Created, h2Pantry.StatusCode);
+
+        var imported = await host.SendAsync(HttpMethod.Post, $"/api/shared/{token}/import", email: MemberEmail);
+        Assert.Equal(HttpStatusCode.Created, imported.StatusCode);
+        var copyId = JsonDocument.Parse(await imported.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        Assert.NotEqual(recipeId, copyId);
+
+        var copyDetail = JsonDocument.Parse(await (await host.SendAsync(HttpMethod.Get, $"/api/recipes/{copyId}", email: MemberEmail))
+            .Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("Sernik baskijski", copyDetail.GetProperty("title").GetString());
+        Assert.Equal(1, copyDetail.GetProperty("have").GetInt32());
+        Assert.Equal(["deser"], copyDetail.GetProperty("tags").EnumerateArray().Select(t => t.GetString()!).ToArray());
+        var h2ImageUrl = copyDetail.GetProperty("imageUrl").GetString()!;
+        Assert.NotEqual(h1ImageUrl, h2ImageUrl);
+
+        // Revoking immediately cuts off preview, image, and import
+        var revoke = await host.SendAsync(HttpMethod.Delete, $"/api/recipes/{recipeId}/share", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.NoContent, revoke.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await host.SendAsync(HttpMethod.Get, $"/api/shared/{token}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await host.SendAsync(HttpMethod.Get, sharedImgUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await host.SendAsync(HttpMethod.Post, $"/api/shared/{token}/import", email: MemberEmail)).StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminDiagnostics_AndHouseholdExportZip_EnforceAuthAndTenantIsolation()
+    {
+        await using var host = await BuildTestAppAsync();
+
+        // Non-admin blocked from /api/admin/system
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.SendAsync(HttpMethod.Get, "/api/admin/system", email: MemberEmail)).StatusCode);
+
+        // Admin reads system diagnostics + triggers enrichment wake
+        var sysRes = await host.SendAsync(HttpMethod.Get, "/api/admin/system", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, sysRes.StatusCode);
+        var sys = JsonDocument.Parse(await sysRes.Content.ReadAsStringAsync()).RootElement;
+        Assert.True(sys.GetProperty("dbConnected").GetBoolean());
+        Assert.True(sys.GetProperty("counts").GetProperty("exercises").GetInt32() >= 2);
+
+        var wake = await host.SendAsync(HttpMethod.Post, "/api/admin/enrichment/wake", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, wake.StatusCode);
+
+        // Seed distinct recipes in Household 1 & Household 2 (plus a photo in Household 1)
+        var r1 = await host.SendAsync(HttpMethod.Post, "/api/recipes", email: AdminEmail, body: new
+        {
+            title = "Pierogi Domu 1", source = "manual", time = 30, servings = 2,
+            ingredients = new[] { new { name = "Mąka", quantity = "300 g" } }, steps = new[] { "Ulep pierogi." },
+        });
+        var r1Id = JsonDocument.Parse(await r1.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await host.SendFileAsync($"/api/recipes/{r1Id}/image", "pierogi.png", "image/png", MakeTestPng(), email: AdminEmail)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Created, (await host.SendAsync(HttpMethod.Post, "/api/recipes", email: MemberEmail, body: new
+        {
+            title = "Bigos Domu 2", source = "manual", time = 60, servings = 4,
+            ingredients = new[] { new { name = "Kapusta", quantity = "500 g" } }, steps = new[] { "Duś kapustę." },
+        })).StatusCode);
+
+        // System/Sous tokens are forbidden from downloading household ZIP backup
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await host.SendAsync(HttpMethod.Get, "/api/household/export.zip", apiKey: "test-system-secret", xPerson: "1")).StatusCode);
+
+        // Household 1 member downloads ZIP containing ONLY Household 1's data and photo
+        var zipRes = await host.SendAsync(HttpMethod.Get, "/api/household/export.zip", email: AdminEmail);
+        Assert.Equal(HttpStatusCode.OK, zipRes.StatusCode);
+        Assert.Equal("application/zip", zipRes.Content.Headers.ContentType?.MediaType);
+
+        await using var zipStream = await zipRes.Content.ReadAsStreamAsync();
+        using var zip = new ZipArchive(zipStream, ZipArchiveMode.Read);
+        var entryNames = zip.Entries.Select(e => e.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("README.txt", entryNames);
+        Assert.Contains("cookbook.md", entryNames);
+        Assert.Contains("recipes.json", entryNames);
+        Assert.Contains("pantry.json", entryNames);
+        Assert.Contains("recipes/pierogi-domu-1.md", entryNames);
+        Assert.Contains(entryNames, n => n.StartsWith("images/", StringComparison.OrdinalIgnoreCase));
+
+        using var reader = new StreamReader(zip.GetEntry("recipes.json")!.Open(), Encoding.UTF8);
+        var recipesJson = await reader.ReadToEndAsync();
+        Assert.Contains("Pierogi Domu 1", recipesJson);
+        Assert.DoesNotContain("Bigos Domu 2", recipesJson);
+    }
+
+    private static byte[] MakeTestPng()
+    {
+        using var bmp = new SKBitmap(16, 16);
+        bmp.Erase(SKColors.Coral);
+        using var img = SKImage.FromBitmap(bmp);
+        using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
+
     // ---- Test host harness ----
 
     private static MiseDbContext NewInMemoryDb() =>
         new(new DbContextOptionsBuilder<MiseDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
 
-    private sealed class TestHostApp(WebApplication app, Guid sharedExerciseId, Guid timedExerciseId) : IAsyncDisposable
+    private sealed class RecordingChatProvider : IChatProvider
+    {
+        public bool Enabled => true;
+        public string Name => "test";
+        public bool NeedsSystemPrompt => false;
+        public ChatTurnRequest? LastTurn { get; private set; }
+
+        public async IAsyncEnumerable<ChatChunk> StreamAsync(ChatTurnRequest turn, [EnumeratorCancellation] CancellationToken ct)
+        {
+            LastTurn = turn;
+            await Task.Yield();
+            yield return new ChatChunk(Delta: turn.Images is { Count: > 0 } ? "Widzę zdjęcie." : "OK");
+        }
+    }
+
+    private sealed class TestHostApp(WebApplication app, Guid sharedExerciseId, Guid timedExerciseId,
+        RecordingChatProvider chatProvider) : IAsyncDisposable
     {
         public WebApplication App { get; } = app;
         public Guid SharedExerciseId { get; } = sharedExerciseId;
         public Guid TimedExerciseId { get; } = timedExerciseId;
+        public RecordingChatProvider ChatProvider { get; } = chatProvider;
 
         public async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path,
             string? email = null, string? apiKey = null, string? xPerson = null, object? body = null)
@@ -1024,6 +1260,20 @@ public class AuditRegressionTests
             if (apiKey is not null) req.Headers.Add(AccessControl.ApiKeyHeader, apiKey);
             if (xPerson is not null) req.Headers.Add(People.Header, xPerson);
             if (body is not null) req.Content = JsonContent.Create(body);
+            return await client.SendAsync(req);
+        }
+
+        public async Task<HttpResponseMessage> SendFileAsync(string path, string fileName, string contentType,
+            byte[] bytes, string? email = null)
+        {
+            using var client = App.GetTestClient();
+            using var req = new HttpRequestMessage(HttpMethod.Post, path);
+            if (email is not null) req.Headers.Add("X-Test-Email", email);
+            var form = new MultipartFormDataContent();
+            var content = new ByteArrayContent(bytes);
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            form.Add(content, "file", fileName);
+            req.Content = form;
             return await client.SendAsync(req);
         }
 
@@ -1038,6 +1288,7 @@ public class AuditRegressionTests
         Directory.CreateDirectory(ctxDir);
         Directory.CreateDirectory(imgDir);
 
+        var chatProvider = new RecordingChatProvider();
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration["MISE_API_KEY"] = "test-system-secret";
@@ -1062,6 +1313,7 @@ public class AuditRegressionTests
         builder.Services.AddScoped<BodyService>();
         builder.Services.AddScoped<ActivityService>();
         builder.Services.AddSingleton(StravaOptions.From(builder.Configuration));
+        builder.Services.AddSingleton<StravaEventQueue>();
         builder.Services.AddHttpClient<StravaClient>();
         builder.Services.AddScoped<StravaService>();
         builder.Services.AddScoped<CateringService>();
@@ -1070,8 +1322,12 @@ public class AuditRegressionTests
         builder.Services.AddScoped<HouseholdProvisioner>();
         builder.Services.AddSingleton<CookbookMarkdownBuilder>();
         builder.Services.AddSingleton<RecipeImageStore>();
+        builder.Services.AddSingleton<ChatImageStore>();
+        builder.Services.AddSingleton<IChatProvider>(chatProvider);
         builder.Services.AddSingleton<ContextExportQueue>();
         builder.Services.AddScoped<ContextExportService>();
+        builder.Services.AddScoped<HouseholdExportService>();
+        builder.Services.AddScoped<ImportService>();
         builder.Services.AddSingleton<YouTubeVerifier>();
         builder.Services.AddSingleton<EnrichmentState>();
         builder.Services.AddSingleton<ISousJobs, SousJobs>();
@@ -1092,11 +1348,13 @@ public class AuditRegressionTests
         app.UseRateLimiter();
         app.UseSwagger(c => c.RouteTemplate = "api/swagger/{documentName}/swagger.json");
         var api = app.MapGroup("/api");
+        api.MapImages();
         api.MapAuth();
         api.MapHouseholds();
         api.MapAdmin();
         api.MapKeys();
         api.MapRecipes();
+        api.MapSharedRecipes();
         api.MapPantry();
         api.MapShopping();
         api.MapSupplies();
@@ -1110,6 +1368,8 @@ public class AuditRegressionTests
         api.MapActivity();
         api.MapExercises();
         api.MapTraining();
+        api.MapChat();
+        api.MapImport();
         await app.StartAsync();
 
         Guid sharedExId, timedExId;
@@ -1133,7 +1393,7 @@ public class AuditRegressionTests
             timedExId = timed.Id;
         }
 
-        return new TestHostApp(app, sharedExId, timedExId);
+        return new TestHostApp(app, sharedExId, timedExId, chatProvider);
     }
 
     private sealed class HeaderAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,

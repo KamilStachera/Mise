@@ -1,20 +1,31 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ClipboardEvent } from 'react'
 import { useMatch, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useChatHealth, useChatHistory, useRecipe } from '../api/hooks'
-import { ApiError, api, streamChat, type ImportDocumentInfo } from '../api/client'
+import { ApiError, api, streamChat, type ChatImageInfo, type ImportDocumentInfo } from '../api/client'
 import { registerPromptConsumer } from '../lib/chatBus'
+import { IMAGE_ACCEPT } from '../lib/images'
 import { plural } from '../lib/labels'
 import { showToast } from '../lib/toastBus'
 import { mono, sans } from './ui'
 
-type Msg = { role: 'ai' | 'user'; content: string }
+type Msg = { role: 'ai' | 'user'; content: string; previews?: string[] }
+type AttachedPhoto = ChatImageInfo & { previewUrl: string }
+
+const MAX_PHOTOS = 3
 
 const QUICKS = [
   'Co mogę zrobić na dziś?',
   'Zaplanuj 3 obiady na tydzień',
   'Wykorzystaj udka z kurczaka',
   'Coś z frytkownicy',
+]
+
+const PHOTO_QUICKS = [
+  'Rozlicz paragon',
+  'Zaktualizuj stan lodówki',
+  'Policz kcal z tego talerza',
+  'Zapisz przepis z tego zdjęcia',
 ]
 
 /**
@@ -37,16 +48,23 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
   // held until the health check confirms chat is enabled.
   const [queued, setQueued] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  // A PDF waiting to go out with the next message (uploaded as soon as it's picked).
+  // A PDF and/or up to 3 photos waiting to go out with the next message.
   const [attachment, setAttachment] = useState<ImportDocumentInfo | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [photos, setPhotos] = useState<AttachedPhoto[]>([])
+  const [uploading, setUploading] = useState<'pdf' | 'photo' | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const photoRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const previewUrlsRef = useRef<string[]>([])
 
   const enabled = health?.enabled ?? false
 
-  useEffect(() => () => { abortRef.current?.abort() }, [])
+  useEffect(() => () => {
+    abortRef.current?.abort()
+    for (const url of previewUrlsRef.current) URL.revokeObjectURL(url)
+    previewUrlsRef.current = []
+  }, [])
 
   useEffect(() => {
     if (history) setMessages(history.map((m) => ({ role: m.role, content: m.content })))
@@ -66,38 +84,105 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [messages, typing])
 
-  const quicks = recipe
-    ? [
-        `Przelicz na ${plural(recipe.selectedServings * 2, 'porcję', 'porcje', 'porcji')}`,
-        recipe.missing[0] ? `Czym zastąpić: ${recipe.missing[0]}?` : 'Co podać do tego?',
-        recipe.usesAirFryer ? 'Ile to trwa we frytkownicy?' : 'Czy da się to zrobić we frytkownicy?',
-      ]
-    : QUICKS
+  const quicks = photos.length > 0
+    ? PHOTO_QUICKS
+    : recipe
+      ? [
+          `Przelicz na ${plural(recipe.selectedServings * 2, 'porcję', 'porcje', 'porcji')}`,
+          recipe.missing[0] ? `Czym zastąpić: ${recipe.missing[0]}?` : 'Co podać do tego?',
+          recipe.usesAirFryer ? 'Ile to trwa we frytkownicy?' : 'Czy da się to zrobić we frytkownicy?',
+        ]
+      : QUICKS
 
   async function attach(file: File | undefined) {
     if (!file) return
     setUploadError(null)
-    setUploading(true)
+    setUploading('pdf')
     try {
       setAttachment(await api.uploadImportDocument(file))
     } catch (e) {
       setUploadError(e instanceof ApiError && e.detail ? e.detail : 'Nie udało się wgrać PDF-a.')
     } finally {
-      setUploading(false)
+      setUploading(null)
       if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function attachPhotos(fileList: FileList | File[] | null) {
+    if (!fileList || fileList.length === 0) return
+    const remaining = MAX_PHOTOS - photos.length
+    if (remaining <= 0) {
+      setUploadError(`Możesz załączyć maks. ${MAX_PHOTOS} zdjęcia naraz.`)
+      return
+    }
+    const picked = Array.from(fileList).slice(0, remaining)
+    setUploadError(null)
+    setUploading('photo')
+    try {
+      const uploaded: AttachedPhoto[] = []
+      for (const file of picked) {
+        const info = await api.uploadChatImage(file)
+        const previewUrl = URL.createObjectURL(file)
+        previewUrlsRef.current.push(previewUrl)
+        uploaded.push({ ...info, previewUrl })
+      }
+      setPhotos((prev) => [...prev, ...uploaded].slice(0, MAX_PHOTOS))
+    } catch (e) {
+      setUploadError(e instanceof ApiError && e.detail ? e.detail : 'Nie udało się wgrać zdjęcia (JPG/PNG/WebP, maks. 5 MB).')
+    } finally {
+      setUploading(null)
+      if (photoRef.current) photoRef.current.value = ''
+    }
+  }
+
+  function removePhoto(id: string) {
+    setPhotos((prev) => {
+      const target = prev.find((p) => p.id === id)
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl)
+        previewUrlsRef.current = previewUrlsRef.current.filter((u) => u !== target.previewUrl)
+      }
+      return prev.filter((p) => p.id !== id)
+    })
+  }
+
+  function onPaste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    if (!enabled || typing || uploading) return
+    const files: File[] = []
+    for (const item of Array.from(e.clipboardData.items)) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile()
+        if (f) files.push(f)
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault()
+      void attachPhotos(files)
     }
   }
 
   async function send(text: string) {
     const doc = attachment
-    if ((!text.trim() && !doc) || !enabled || typing || uploading) return
+    const imgs = photos
+    if ((!text.trim() && !doc && imgs.length === 0) || !enabled || typing || uploading) return
     // Mirrors what the server stores, so the history reload shows the same bubble.
-    const shownText = text.trim() || 'Przejrzyj załączony PDF.'
-    const shown = doc ? `${shownText}\n📎 ${doc.name}` : shownText
+    const defaultText = imgs.length > 0
+      ? (imgs.length === 1 ? 'Przeanalizuj załączone zdjęcie.' : 'Przeanalizuj załączone zdjęcia.')
+      : 'Przejrzyj załączony PDF.'
+    const shownParts = [text.trim() || defaultText]
+    if (doc) shownParts.push(`📎 ${doc.name}`)
+    if (imgs.length > 0) shownParts.push(`📷 ${imgs.map((i) => i.name).join(', ')}`)
+    const shown = shownParts.join('\n')
+    const sentPreviews = imgs.map((i) => i.previewUrl)
     setInput('')
     setAttachment(null)
+    setPhotos([])
     setUploadError(null)
-    setMessages((m) => [...m, { role: 'user', content: shown }, { role: 'ai', content: '' }])
+    setMessages((m) => [
+      ...m,
+      { role: 'user', content: shown, previews: sentPreviews.length > 0 ? sentPreviews : undefined },
+      { role: 'ai', content: '' },
+    ])
     setTyping(true)
     const ctrl = new AbortController()
     abortRef.current = ctrl
@@ -115,6 +200,7 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
         recipeId,
         setStatus,
         doc?.id,
+        imgs.length > 0 ? imgs.map((i) => i.id) : undefined,
       )
       // Sous may have logged food, planned meals or edited lists — refresh everything including chatHistory.
       qc.invalidateQueries()
@@ -233,39 +319,72 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
       </div>
 
       <div style={{ flex: 'none', padding: '16px 18px 20px', borderTop: '1px solid var(--panel-border)' }}>
-        {(attachment || uploading || uploadError) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, font: sans(13), color: uploadError ? 'var(--accent-warm)' : 'var(--panel-text-2)' }}>
-            {uploading && <span>Wgrywam PDF…</span>}
-            {uploadError && <span>{uploadError}</span>}
-            {attachment && (
-              <>
-                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--panel-text)' }}>
-                  📎 {attachment.name}
-                </span>
-                <span style={{ flex: 'none', font: mono(11.5) }}>
-                  {attachment.looksScanned ? 'skan — bez tekstu' : plural(attachment.pageCount, 'strona', 'strony', 'stron')}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setAttachment(null)}
-                  aria-label="Usuń załącznik"
-                  style={{ flex: 'none', border: 0, background: 'transparent', color: 'var(--panel-text-2)', cursor: 'pointer', padding: '0 4px', fontSize: 12 }}
-                >
-                  ✕
-                </button>
-              </>
+        {(attachment || photos.length > 0 || uploading || uploadError) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+            {photos.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {photos.map((p) => (
+                  <div key={p.id} style={{ position: 'relative', width: 48, height: 48, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--panel-border)' }}>
+                    <img src={p.previewUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(p.id)}
+                      aria-label={`Usuń ${p.name}`}
+                      style={{ position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: '50%', border: 0, background: 'rgba(0,0,0,.68)', color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(attachment || uploading || uploadError) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(13), color: uploadError ? 'var(--accent-warm)' : 'var(--panel-text-2)' }}>
+                {uploading === 'pdf' && <span>Wgrywam PDF…</span>}
+                {uploading === 'photo' && <span>Wgrywam zdjęcie…</span>}
+                {uploadError && <span>{uploadError}</span>}
+                {attachment && (
+                  <>
+                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--panel-text)' }}>
+                      📎 {attachment.name}
+                    </span>
+                    <span style={{ flex: 'none', font: mono(11.5) }}>
+                      {attachment.looksScanned ? 'skan — bez tekstu' : plural(attachment.pageCount, 'strona', 'strony', 'stron')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachment(null)}
+                      aria-label="Usuń załącznik"
+                      style={{ flex: 'none', border: 0, background: 'transparent', color: 'var(--panel-text-2)', cursor: 'pointer', padding: '0 4px', fontSize: 12 }}
+                    >
+                      ✕
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}
         <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={(e) => attach(e.target.files?.[0])} />
-        <div style={{ minHeight: 48, borderRadius: 12, background: 'var(--panel-card)', display: 'flex', alignItems: 'flex-end', gap: 8, padding: '6px 6px 6px 8px', opacity: enabled ? 1 : 0.55 }}>
+        <input ref={photoRef} type="file" accept={IMAGE_ACCEPT} multiple hidden onChange={(e) => attachPhotos(e.target.files)} />
+        <div style={{ minHeight: 48, borderRadius: 12, background: 'var(--panel-card)', display: 'flex', alignItems: 'flex-end', gap: 6, padding: '6px 6px 6px 8px', opacity: enabled ? 1 : 0.55 }}>
+          <button
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            disabled={!enabled || typing || Boolean(uploading) || photos.length >= MAX_PHOTOS}
+            title="Dodaj zdjęcie (paragon, lodówka, talerz, przepis)"
+            aria-label="Dodaj zdjęcie"
+            style={{ flex: '0 0 auto', height: 36, padding: '0 8px', borderRadius: 9, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text-2)', fontSize: 15, cursor: enabled && !typing && photos.length < MAX_PHOTOS ? 'pointer' : 'not-allowed' }}
+          >
+            📷
+          </button>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            disabled={!enabled || typing || uploading}
+            disabled={!enabled || typing || Boolean(uploading)}
             title="Dodaj PDF z przepisami"
             aria-label="Dodaj PDF z przepisami"
-            style={{ flex: '0 0 auto', height: 36, padding: '0 8px', borderRadius: 9, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text-2)', font: mono(10.5, 500), letterSpacing: '.06em', cursor: enabled && !typing ? 'pointer' : 'not-allowed' }}
+            style={{ flex: '0 0 auto', height: 36, padding: '0 7px', borderRadius: 9, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text-2)', font: mono(10.5, 500), letterSpacing: '.06em', cursor: enabled && !typing ? 'pointer' : 'not-allowed' }}
           >
             PDF
           </button>
@@ -273,6 +392,7 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
             value={input}
             disabled={!enabled}
             onChange={(e) => setInput(e.target.value)}
+            onPaste={onPaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -280,13 +400,13 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
               }
             }}
             rows={1}
-            placeholder={!enabled ? 'Czat w aplikacji jest wyłączony' : recipe ? 'Zapytaj o przepis…' : attachment ? 'Co zrobić z tym PDF-em?' : 'Pytanie lub link do przepisu…'}
+            placeholder={!enabled ? 'Czat w aplikacji jest wyłączony' : photos.length > 0 ? 'Co zrobić z tym zdjęciem?' : recipe ? 'Zapytaj o przepis…' : attachment ? 'Co zrobić z tym PDF-em?' : 'Pytanie, zdjęcie lub link…'}
             style={{ flex: 1, alignSelf: 'center', border: 0, background: 'transparent', resize: 'none', font: sans(fullscreen ? 16 : 14.5), color: 'var(--panel-text)', lineHeight: 1.4, maxHeight: 96, padding: '6px 0' }}
           />
           <button
             type="button"
             onClick={() => send(input)}
-            disabled={!enabled || typing || uploading}
+            disabled={!enabled || typing || Boolean(uploading)}
             aria-label="Wyślij"
             style={{ flex: '0 0 36px', width: 36, height: 36, borderRadius: 9, border: 0, background: 'var(--accent)', color: '#fff', fontSize: 16, cursor: enabled && !typing && !uploading ? 'pointer' : 'not-allowed', opacity: enabled && !typing && !uploading ? 1 : 0.5 }}
           >
@@ -313,9 +433,19 @@ function Bubble({ msg }: { msg: Msg }) {
         lineHeight: isAi ? 1.5 : 1.45,
         whiteSpace: 'pre-wrap',
         animation: 'msgIn .2s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
       }}
     >
-      {msg.content}
+      {msg.previews && msg.previews.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {msg.previews.map((url, idx) => (
+            <img key={idx} src={url} alt="" style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 8, display: 'block' }} />
+          ))}
+        </div>
+      )}
+      <span>{msg.content}</span>
     </div>
   )
 }

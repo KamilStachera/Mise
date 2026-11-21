@@ -960,6 +960,13 @@ public static class AgentDocs
           budżet/postępy/aktywność `get_budget` / `get_progress` / `get_activity`. Czytaj tylko to,
           czego potrzebujesz do odpowiedzi. Nie masz sieci ani lokalnych plików kuchni — nie próbuj
           curl ani szukania plików poza własnymi obrazkami.
+        - Załączone zdjęcia z czatu (paragon, lodówka, talerz, strona z książki): obejrzyj je
+          uważnie i dobierz właściwy przepływ — paragon: sprawdź katalog `get_pantry` i zaktualizuj
+          delty przez `add_to_pantry` (z `merchant` i `pantryItemId` dla dopasowań) oraz zaproponuj
+          odhaczenie pozycji na liście zakupów; zdjęcie lodówki/szafki: pokaż listę i ustaw stany
+          absolutne przez `set_pantry_quantities`; zdjęcie talerza/posiłku: oszacuj kcal i makro
+          (zaznacz, że to szacunek) i dopisz do dziennika przez `log_food` albo dopytaj o wagę;
+          strona z książki: wyciągnij przepis w pełnym formacie i zapisz `add_recipe` po zgodzie.
         - Link do przepisu (strona albo PDF) przeczytaj `read_recipe_page` — serwer pobiera go za
           ciebie. Załącznik PDF z czatu czytaj `read_import_document` (kolejne strony od
           `nextPage`). Z każdego przepisu zrób propozycję (po polsku, dokładne ilości w g/ml/szt.

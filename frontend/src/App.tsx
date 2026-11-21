@@ -36,6 +36,7 @@ const Questionnaire = lazyNamed(() => import('./pages/Questionnaire'), 'Question
 const History = lazyNamed(() => import('./pages/History'), 'History')
 const Training = lazyNamed(() => import('./pages/Training'), 'Training')
 const AdminPage = lazyNamed(() => import('./pages/admin/AdminPage'), 'AdminPage')
+const SharedRecipePage = lazyNamed(() => import('./pages/SharedRecipePage'), 'SharedRecipePage')
 const TwilightQuiz = lazyNamed(() => import('./zmierzch/TwilightQuiz'), 'TwilightQuiz')
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -83,6 +84,20 @@ export default function App() {
         <Suspense fallback={routeFallback}>
           <TwilightQuiz />
         </Suspense>
+      </ErrorBoundary>
+    )
+  }
+
+  // Shared recipe link (/s/:token): readable without signing in; signed-in members see it inside the app shell.
+  if (pathname.startsWith('/s/') && !auth?.authenticated) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={routeFallback}>
+          <Routes>
+            <Route path="/s/:token" element={<SharedRecipePage />} />
+          </Routes>
+        </Suspense>
+        <ToastHost />
       </ErrorBoundary>
     )
   }
@@ -150,6 +165,7 @@ export default function App() {
               <Route path="/trening/ankieta" element={<Training />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/admin/:tab" element={<AdminPage />} />
+              <Route path="/s/:token" element={<SharedRecipePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

@@ -68,27 +68,65 @@ public sealed class HouseholdProvisioner(MiseDbContext db, IngredientMatcher mat
     }
 
     /// <summary>A fresh copy owned by the current tenant (HouseholdId 0 = stamped on save).</summary>
-    private Recipe Copy(Recipe source)
-    {
-        var copy = (Recipe)db.Entry(source).CurrentValues.ToObject();
-        copy.Id = Guid.NewGuid();
-        copy.HouseholdId = 0;
-        copy.SelectedServings = null;
-        copy.IsFavorite = false;
-        copy.Tags = [..source.Tags];
-        copy.CreatedAt = copy.UpdatedAt = DateTimeOffset.UtcNow;
-        copy.Ingredients = source.Ingredients.Select(i =>
-        {
-            var c = (RecipeIngredient)db.Entry(i).CurrentValues.ToObject();
-            c.Id = Guid.NewGuid();
-            c.RecipeId = copy.Id;
-            c.PantryItemId = null;
-            return c;
-        }).ToList();
-        copy.Steps = source.Steps.Select(s => new RecipeStep { RecipeId = copy.Id, Order = s.Order, Text = s.Text }).ToList();
+    private Recipe Copy(Recipe source) => CloneRecipe(images, source);
 
-        copy.Images = [];
-        copy.ImagePath = null;
+    /// <summary>
+    /// Clones a recipe into a fresh, unlinked <see cref="Recipe"/> owned by whichever household
+    /// saves it (HouseholdId = 0, PantryItemId = null, IsFavorite = false, independent photo copies).
+    /// Used both for new-household starter provisioning and cross-household share imports.
+    /// </summary>
+    public static Recipe CloneRecipe(RecipeImageStore images, Recipe source)
+    {
+        var id = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var copy = new Recipe
+        {
+            Id = id,
+            HouseholdId = 0,
+            Title = source.Title,
+            Source = source.Source,
+            SourceName = source.SourceName,
+            TimeMinutes = source.TimeMinutes,
+            Servings = source.Servings,
+            SelectedServings = null,
+            Difficulty = source.Difficulty,
+            Tint = source.Tint,
+            UsesAirFryer = source.UsesAirFryer,
+            Blurb = source.Blurb,
+            Tip = source.Tip,
+            DishType = source.DishType,
+            Cuisine = source.Cuisine,
+            IsFavorite = false,
+            Tags = [..source.Tags],
+            KcalPerServing = source.KcalPerServing,
+            ProteinGrams = source.ProteinGrams,
+            FatGrams = source.FatGrams,
+            CarbGrams = source.CarbGrams,
+            CreatedAt = now,
+            UpdatedAt = now,
+            Ingredients = source.Ingredients.OrderBy(i => i.Order).Select(i => new RecipeIngredient
+            {
+                Id = Guid.NewGuid(),
+                RecipeId = id,
+                Name = i.Name,
+                Quantity = i.Quantity,
+                DisplayText = i.DisplayText,
+                AlternativeGroup = i.AlternativeGroup,
+                Order = i.Order,
+                AmountValue = i.AmountValue,
+                AmountUnit = i.AmountUnit,
+                PantryItemId = null,
+            }).ToList(),
+            Steps = source.Steps.OrderBy(s => s.Order).Select(s => new RecipeStep
+            {
+                RecipeId = id,
+                Order = s.Order,
+                Text = s.Text,
+            }).ToList(),
+            Images = [],
+            ImagePath = null,
+        };
+
         foreach (var image in source.Images.OrderBy(i => i.CreatedAt))
         {
             if (images.CopyFor(copy.Id, image.Path) is not { } path) continue;

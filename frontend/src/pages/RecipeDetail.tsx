@@ -4,6 +4,7 @@ import {
   useAuth, useChatHealth, useRecipe, useRecipes, useAddMissingToShopping, useDeleteRecipe, useCookLog, useAddCookLog, useDeleteCookLog,
   useCookProposal, useUploadRecipeImage, useDeleteRecipeImage, useSetDefaultRecipeImage, useSetRecipeServings,
   useSetRecipeFavorite, useSetRecipeTags, useSetRecipeNutrition,
+  useRecipeShare, useCreateRecipeShare, useRevokeRecipeShare,
 } from '../api/hooks'
 import { errorText, type CookProposalItem, type RecipeDetail as Recipe, type RecipeImage } from '../api/client'
 import { dishLine, formatGrams, formatQty, plural, sourceEyebrow, unitLabel } from '../lib/labels'
@@ -39,6 +40,7 @@ export function RecipeDetail() {
   const [planOpen, setPlanOpen] = useState(false)
   const [nutritionOpen, setNutritionOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   // "Ugotuj ponownie" (History) lands here with { cook: true } in router state.
   // Capture it before clearing — CookLogSection mounts only after the recipe
@@ -236,6 +238,7 @@ export function RecipeDetail() {
   const planSheet = canEdit && <AddToPlanSheet open={planOpen} onClose={() => setPlanOpen(false)} recipe={r} />
   const nutritionSheet = canEdit && <NutritionSheet open={nutritionOpen} onClose={() => setNutritionOpen(false)} recipe={r} />
   const tagsSheet = canEdit && <TagsSheet open={tagsOpen} onClose={() => setTagsOpen(false)} recipe={r} />
+  const shareSheet = canEdit && <ShareRecipeSheet open={shareOpen} onClose={() => setShareOpen(false)} recipe={r} />
   const cook = cookMode && (
     <Suspense fallback={null}>
       <CookMode title={r.title} steps={r.steps} ingredients={r.ingredients} servings={r.selectedServings} onClose={() => setCookMode(false)} />
@@ -299,6 +302,7 @@ export function RecipeDetail() {
             <MenuRow onClick={() => { setMenuOpen(false); setNutritionOpen(true) }}>Edytuj kcal i makro</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); setTagsOpen(true) }}>Edytuj tagi</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); setPlanOpen(true) }}>Dodaj do planu</MenuRow>
+            <MenuRow onClick={() => { setMenuOpen(false); setShareOpen(true) }}>Udostępnij przepis</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); pickPhoto() }}>{photoLabel}</MenuRow>
             <MenuRow onClick={() => { setMenuOpen(false); onDelete() }} danger>Usuń przepis</MenuRow>
           </div>
@@ -306,6 +310,7 @@ export function RecipeDetail() {
         {planSheet}
         {nutritionSheet}
         {tagsSheet}
+        {shareSheet}
         {cook}
       </div>
     )
@@ -328,6 +333,7 @@ export function RecipeDetail() {
             </button>
             <button type="button" onClick={() => nav(`/recipe/${r.id}/edit`)} style={linkBtn}>Edytuj</button>
             <button type="button" onClick={() => setPlanOpen(true)} style={linkBtn}>Dodaj do planu</button>
+            <button type="button" onClick={() => setShareOpen(true)} style={linkBtn}>Udostępnij</button>
             <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={linkBtn}>{photoLabel}</button>
             <button type="button" onClick={onDelete} style={linkBtn}>Usuń</button>
           </span>
@@ -357,6 +363,7 @@ export function RecipeDetail() {
       {planSheet}
       {nutritionSheet}
       {tagsSheet}
+      {shareSheet}
       {cook}
     </div>
   )
@@ -926,6 +933,109 @@ function TagsSheet({ open, onClose, recipe }: { open: boolean; onClose: () => vo
             {save.isPending ? 'Zapisywanie…' : 'Zapisz tagi'}
           </Button>
         </div>
+      </div>
+    </Sheet>
+  )
+}
+
+function ShareRecipeSheet({ open, onClose, recipe }: { open: boolean; onClose: () => void; recipe: Recipe }) {
+  const { data: share, isLoading } = useRecipeShare(recipe.id, open)
+  const create = useCreateRecipeShare()
+  const revoke = useRevokeRecipeShare()
+  const [error, setError] = useState<string | null>(null)
+
+  const fullUrl = share?.active && share.path ? `${window.location.origin}${share.path}` : null
+  const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+
+  async function onCreate() {
+    setError(null)
+    try {
+      const created = await create.mutateAsync(recipe.id)
+      if (created.path) {
+        const url = `${window.location.origin}${created.path}`
+        await navigator.clipboard.writeText(url).catch(() => undefined)
+        showToast('Utworzono i skopiowano link do przepisu.')
+      }
+    } catch (err) {
+      setError(errorText(err, 'Nie udało się utworzyć linku.'))
+    }
+  }
+
+  async function onCopy() {
+    if (!fullUrl) return
+    try {
+      await navigator.clipboard.writeText(fullUrl)
+      showToast('Skopiowano link do schowka.')
+    } catch {
+      showToast('Nie udało się skopiować linku.')
+    }
+  }
+
+  async function onNativeShare() {
+    if (!fullUrl || !canNativeShare) return
+    try {
+      await navigator.share({ title: recipe.title, url: fullUrl })
+    } catch {
+      /* user cancelled share sheet */
+    }
+  }
+
+  async function onRevoke() {
+    setError(null)
+    try {
+      await revoke.mutateAsync(recipe.id)
+      showToast('Cofnięto udostępnianie przepisu.')
+    } catch (err) {
+      setError(errorText(err, 'Nie udało się cofnąć linku.'))
+    }
+  }
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Udostępnij przepis" width={520}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <p style={{ margin: 0, font: sans(14.5), lineHeight: 1.5, color: 'var(--text-2)' }}>
+          Każdy z tym linkiem zobaczy sam przepis ze zdjęciem (bez Twojej spiżarni, notatek z historii ani planu).
+          Zalogowani znajomi z innego domu w Pichci zapiszą własną kopię jednym kliknięciem.
+        </p>
+
+        {isLoading ? (
+          <span style={{ font: sans(14), color: 'var(--text-3)' }}>Sprawdzam aktywny link…</span>
+        ) : fullUrl ? (
+          <>
+            <input
+              readOnly
+              value={fullUrl}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label="Link do udostępnionego przepisu"
+              style={{ ...inputStyle, font: mono(13), color: 'var(--text)' }}
+            />
+            {share?.expiresAt && (
+              <span style={{ font: mono(12), color: 'var(--text-3)' }}>
+                Ważny do {new Date(share.expiresAt).toLocaleDateString('pl-PL')}
+              </span>
+            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button size="lg" style={{ flex: 1 }} onClick={onCopy}>Kopiuj link</Button>
+              {canNativeShare && (
+                <Button variant="outline" size="lg" onClick={onNativeShare}>Wyślij…</Button>
+              )}
+            </div>
+            <Button
+              variant="text"
+              style={{ alignSelf: 'flex-start', color: 'var(--accent-text)', font: sans(13.5, 600) }}
+              disabled={revoke.isPending}
+              onClick={onRevoke}
+            >
+              {revoke.isPending ? 'Cofam…' : 'Cofnij udostępnianie'}
+            </Button>
+          </>
+        ) : (
+          <Button size="xl" disabled={create.isPending} onClick={onCreate}>
+            {create.isPending ? 'Tworzę link…' : 'Utwórz link (ważny 30 dni)'}
+          </Button>
+        )}
+
+        {error && <span role="alert" style={{ font: sans(13.5, 500), color: 'var(--accent-text)' }}>{error}</span>}
       </div>
     </Sheet>
   )
