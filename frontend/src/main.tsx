@@ -3,8 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
-import { ApiError, api, type SupplyCategory } from './api/client'
-import { flushOfflineQueue, type OfflineAction } from './lib/offlineQueue'
+import { ApiError, api, type AuthMe, type SupplyCategory } from './api/client'
+import { flushOfflineQueue, setOfflineQueueOwner, type OfflineAction } from './lib/offlineQueue'
 import { plural } from './lib/labels'
 import { showToast } from './lib/toastBus'
 import './theme/tokens.css'
@@ -73,7 +73,20 @@ window.addEventListener('online', () => { void syncOfflineQueue() })
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && navigator.onLine) void syncOfflineQueue()
 })
-if (navigator.onLine) void syncOfflineQueue()
+
+// The queue replays only in the household it was written in, so it waits for /api/auth/me
+// (useAuth's ['auth'] query) and re-checks whenever the signed-in account changes.
+let lastOwner: string | null | undefined
+queryClient.getQueryCache().subscribe((event) => {
+  if (event.type !== 'updated' || event.query.queryKey[0] !== 'auth') return
+  const me = event.query.state.data as AuthMe | undefined
+  if (!me) return
+  const owner = me.authenticated && me.household ? String(me.household.id) : null
+  if (owner === lastOwner) return
+  lastOwner = owner
+  setOfflineQueueOwner(owner)
+  if (owner !== null && navigator.onLine) void syncOfflineQueue()
+})
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {

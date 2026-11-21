@@ -5,7 +5,45 @@ export type OfflineAction =
   | { kind: 'supply-add'; name: string; category?: string }
 
 const STORAGE_KEY = 'pichci.offline.queue.v1'
+/** Household the queued actions were made in: they only make sense replayed there. */
+const OWNER_KEY = 'pichci.offline.queue.owner.v1'
 const listeners = new Set<() => void>()
+
+/** The signed-in household (from /api/auth/me); null until known or when not a member. */
+let currentOwner: string | null = null
+
+function readOwner(): string | null {
+  try {
+    return localStorage.getItem(OWNER_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeOwner(owner: string | null): void {
+  try {
+    if (owner === null) localStorage.removeItem(OWNER_KEY)
+    else localStorage.setItem(OWNER_KEY, owner)
+  } catch {
+    /* private browsing / quota full */
+  }
+}
+
+/**
+ * Pure rule for a queue written by `stored` while `current` is signed in: wait until we know who
+ * is signed in, replay in the same household (or for a legacy queue with no owner), otherwise
+ * discard — another household's check-offs can't be applied to this list.
+ */
+export function offlineQueueDecision(stored: string | null, current: string | null): 'wait' | 'replay' | 'discard' {
+  if (current === null) return 'wait'
+  return stored === null || stored === current ? 'replay' : 'discard'
+}
+
+/** Called whenever /api/auth/me resolves; drops a queue left behind by a different household. */
+export function setOfflineQueueOwner(owner: string | null): void {
+  currentOwner = owner
+  if (offlineQueueDecision(readOwner(), owner) === 'discard') clearOfflineQueue()
+}
 
 function emit() {
   for (const fn of listeners) fn()
@@ -34,6 +72,7 @@ function writeOfflineQueue(items: OfflineAction[]): void {
   } catch {
     /* private browsing / quota full */
   }
+  if (items.length === 0) writeOwner(null)
   emit()
 }
 
@@ -49,6 +88,7 @@ export function appendOfflineAction(queue: OfflineAction[], action: OfflineActio
 export function enqueueOfflineAction(action: OfflineAction): number {
   const next = appendOfflineAction(readOfflineQueue(), action)
   writeOfflineQueue(next)
+  if (currentOwner !== null && readOwner() === null) writeOwner(currentOwner)
   return next.length
 }
 
@@ -82,6 +122,12 @@ export async function flushOfflineQueue(
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return 0
     const initial = readOfflineQueue()
     if (initial.length === 0) return 0
+    const decision = offlineQueueDecision(readOwner(), currentOwner)
+    if (decision === 'wait') return 0
+    if (decision === 'discard') {
+      clearOfflineQueue()
+      return 0
+    }
 
     let synced = 0
     const remaining = [...initial]

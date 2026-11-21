@@ -7,8 +7,13 @@
 const SHELL_CACHE = 'pichci-shell-v1'
 const API_CACHE = 'pichci-api-v1'
 const KEEP_CACHES = new Set([SHELL_CACHE, API_CACHE])
+// Each deploy adds ~20 content-hashed chunks and old ones are never requested again. Hits move an
+// entry to the end (Cache.put re-appends), so trimming from the front drops what's unused longest.
+const SHELL_CACHE_LIMIT = 150
 
 const CACHEABLE_API_PATHS = [
+  // Lets the installed app boot as a member when offline (network-first, so stale only offline).
+  // Logout clears this cache, and the offline queue replays only in the household that queued it.
   /^\/api\/auth\/me$/,
   /^\/api\/shopping$/,
   /^\/api\/supplies$/,
@@ -59,13 +64,23 @@ async function networkFirst(request, cacheName, fallbackUrl) {
   }
 }
 
+async function trimCache(cache, limit) {
+  const keys = await cache.keys()
+  for (const key of keys.slice(0, Math.max(0, keys.length - limit))) await cache.delete(key)
+}
+
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName)
   const cached = await cache.match(request)
-  if (cached) return cached
+  if (cached) {
+    cache.put(request, cached.clone()).catch(() => undefined) // mark as recently used
+    return cached
+  }
   const response = await fetch(request)
   if (response && response.ok && response.type === 'basic') {
-    cache.put(request, response.clone()).catch(() => undefined)
+    cache.put(request, response.clone())
+      .then(() => trimCache(cache, SHELL_CACHE_LIMIT))
+      .catch(() => undefined)
   }
   return response
 }

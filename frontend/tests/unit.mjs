@@ -133,6 +133,13 @@ test('offlineQueue: appendOfflineAction coalesces repeated checks per item while
   ])
 })
 
+test('offlineQueue: replays only in the household that queued it', () => {
+  assert.equal(offlineQueue.offlineQueueDecision('7', null), 'wait')   // auth not known yet
+  assert.equal(offlineQueue.offlineQueueDecision('7', '7'), 'replay')
+  assert.equal(offlineQueue.offlineQueueDecision(null, '7'), 'replay') // queue from before owners existed
+  assert.equal(offlineQueue.offlineQueueDecision('7', '9'), 'discard') // another account signed in
+})
+
 test('trainingStats: Epley 1RM, volume, live PR detection and wall-clock rest timer', () => {
   assert.equal(trainingStats.estimated1Rm(100, 1), 100)
   assert.equal(trainingStats.estimated1Rm(60, 10), 80)

@@ -35,8 +35,15 @@ import { clearOfflineQueue, clearSwApiCache, enqueueOfflineAction, isNetworkErro
 
 // Session state; the react-query cache is the shared auth state (no context needed).
 // staleTime: Infinity — refreshed only by explicit invalidation (logout, 401 backstop).
+/**
+ * For queries public/sw.js caches (auth/me, shopping, supplies, recipes): fetch even when the
+ * browser says offline, so the service worker can answer from its cache. The v5 default
+ * ('online') would pause them and an offline PWA start would never render the list.
+ */
+const swCached = { networkMode: 'offlineFirst' } as const
+
 export function useAuth() {
-  const query = useQuery({ queryKey: ['auth'], queryFn: api.authMe, staleTime: Infinity })
+  const query = useQuery({ queryKey: ['auth'], queryFn: api.authMe, staleTime: Infinity, ...swCached })
   return { ...query, canEdit: query.data?.authenticated === true }
 }
 
@@ -194,11 +201,11 @@ export function useLogout() {
 }
 
 export function useRecipes(source: string, q: string) {
-  return useQuery({ queryKey: ['recipes', source, q], queryFn: () => api.recipes(source, q) })
+  return useQuery({ queryKey: ['recipes', source, q], queryFn: () => api.recipes(source, q), ...swCached })
 }
 
 export function useRecipe(id: string | undefined) {
-  return useQuery({ queryKey: ['recipe', id], queryFn: () => api.recipe(id!), enabled: !!id })
+  return useQuery({ queryKey: ['recipe', id], queryFn: () => api.recipe(id!), enabled: !!id, ...swCached })
 }
 
 /** Unscaled base recipe (?base=true) for the edit screen so edits never save scaled portions as base. */
@@ -230,6 +237,7 @@ export function useShopping(opts?: { live?: boolean }) {
     queryKey: ['shopping'],
     queryFn: api.shopping,
     enabled: canEdit,
+    ...swCached,
     ...(opts?.live ? livePollOptions : undefined),
   })
 }
@@ -240,6 +248,7 @@ export function useSupplies(opts?: { live?: boolean }) {
     queryKey: ['supplies'],
     queryFn: api.supplies,
     enabled: canEdit,
+    ...swCached,
     ...(opts?.live ? livePollOptions : undefined),
   })
 }
@@ -367,6 +376,8 @@ export function useDeletePantry() {
 export function useCheckShopping() {
   const qc = useQueryClient()
   return useMutation({
+    // Runs offline too: mutationFn queues the change itself (v5 would otherwise pause it in memory).
+    networkMode: 'always',
     onMutate: async (input: string | { id: string; checked: boolean }) => {
       const id = typeof input === 'string' ? input : input.id
       await qc.cancelQueries({ queryKey: ['shopping'] })
@@ -441,6 +452,8 @@ export function useDeleteShopping() {
 export function useAddShopping() {
   const qc = useQueryClient()
   return useMutation({
+    // Runs offline too: mutationFn queues the change itself (v5 would otherwise pause it in memory).
+    networkMode: 'always',
     onMutate: async ({ name, category }: { name: string; category?: string }) => {
       await qc.cancelQueries({ queryKey: ['shopping'] })
       const prev = qc.getQueryData<ShoppingList>(['shopping'])
@@ -504,6 +517,8 @@ function useSupplyMutation<TArgs>(mutationFn: (args: TArgs) => Promise<unknown>)
 export function useAddSupply() {
   const qc = useQueryClient()
   return useMutation({
+    // Runs offline too: mutationFn queues the change itself (v5 would otherwise pause it in memory).
+    networkMode: 'always',
     onMutate: async ({ name, category }: { name: string; category?: SupplyCategory }) => {
       await qc.cancelQueries({ queryKey: ['supplies'] })
       const prev = qc.getQueryData<SupplyList>(['supplies'])
@@ -550,6 +565,8 @@ export function useAddSupply() {
 export function useCheckSupply() {
   const qc = useQueryClient()
   return useMutation({
+    // Runs offline too: mutationFn queues the change itself (v5 would otherwise pause it in memory).
+    networkMode: 'always',
     onMutate: async (input: string | { id: string; checked: boolean }) => {
       const id = typeof input === 'string' ? input : input.id
       await qc.cancelQueries({ queryKey: ['supplies'] })
