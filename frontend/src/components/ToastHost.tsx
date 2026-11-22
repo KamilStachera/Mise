@@ -39,8 +39,8 @@ export function ToastHost() {
         gap: 16,
         padding: '11px 18px',
         borderRadius: 12,
-        background: 'var(--text)',
-        color: 'var(--bg)',
+        background: 'var(--ink)',
+        color: 'var(--on-ink)',
         font: "500 13.5px var(--sans)",
         boxShadow: '0 6px 24px rgba(0,0,0,.25)',
         cursor: 'pointer',
@@ -55,7 +55,7 @@ export function ToastHost() {
             toast.action!.run()
             setToast(null)
           }}
-          style={{ border: 0, background: 'transparent', padding: 0, color: 'var(--accent-warm)', font: "600 13.5px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap' }}
+          style={{ border: 0, background: 'transparent', padding: 0, color: 'var(--on-ink-accent)', font: "600 13.5px var(--sans)", cursor: 'pointer', whiteSpace: 'nowrap' }}
         >
           {toast.action.label}
         </button>

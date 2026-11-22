@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire, useHousehold } from '../api/hooks'
 import { api, errorText, loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
+import { AppearanceSettings } from '../components/AppearanceSettings'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
 import { HouseholdCard, PortionSettingsCard } from '../components/HouseholdCards'
 import { LoginPrompt } from '../components/LoginPrompt'
@@ -10,7 +11,7 @@ import { showToast } from '../lib/toastBus'
 import { useIsMobile } from '../lib/useIsMobile'
 import { Button, Chip, Eyebrow, PageTitle, SectionHead, UnderlineTabs, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
-type ProfileTab = 'kuchnia' | 'domownicy' | 'polaczenia'
+type ProfileTab = 'kuchnia' | 'domownicy' | 'polaczenia' | 'wyglad'
 
 /**
  * Profile ("Profil i dom" on desktop, "Profil" under "Ja" on phones).
@@ -134,6 +135,7 @@ export function Profile() {
           { key: 'kuchnia', label: 'Kuchnia' },
           { key: 'domownicy', label: 'Domownicy', count: household?.members.length },
           { key: 'polaczenia', label: 'Połączenia' },
+          { key: 'wyglad', label: 'Wygląd' },
         ]}
       />
 
@@ -220,6 +222,12 @@ export function Profile() {
               </Button>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === 'wyglad' && (
+        <div style={{ maxWidth: 680 }}>
+          <AppearanceSettings />
         </div>
       )}
 

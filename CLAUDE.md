@@ -56,6 +56,13 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   - Look (2026-10 redesign): paper background, 1px ink rules instead of cards,
     Newsreader titles / Schibsted Grotesk UI / JetBrains Mono numbers — use
     `var(--serif|--sans|--mono)`, never literal family names.
+  - Themes (Profil → Wygląd, per device): Domyślny, Ciemny, Róż i śliwka (three grounds).
+    Pure CSS: `tokens.css` re-points variables under `[data-theme]` (`lib/theme.ts`;
+    index.html applies the saved choice before paint). So **no literal colours**, and use the
+    role tokens instead of pairing palette ones: filled emphasis = `--ink` / `--on-ink`
+    (not `--text` + `--bg`), text on accent = `--on-accent`, on sage = `--on-sage`,
+    active tab marker/label = `--nav-active` / `--nav-active-text`, titles = `--title`,
+    overlays = `--scrim` / `--shadow-tint`. Check new UI in all three themes.
   - Build pages from `components/ui.tsx` (PageTitle, Button, Chip, UnderlineTabs,
     Segmented, Toggle, StatStrip, SearchField, Eyebrow, SectionHead, Sheet…).
     Editors and pickers open in a `Sheet` (bottom sheet on phones, dialog on

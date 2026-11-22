@@ -103,7 +103,7 @@ export function PortionChip({ on, onClick, children }: { on: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      style={{ height: 44, minWidth: 58, padding: '0 14px', borderRadius: 999, border: on ? 0 : '1px solid var(--border)', background: on ? 'var(--text)' : 'transparent', color: on ? 'var(--bg)' : 'var(--text)', font: sans(14, 600), cursor: 'pointer' }}
+      style={{ height: 44, minWidth: 58, padding: '0 14px', borderRadius: 999, border: on ? 0 : '1px solid var(--border)', background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--on-ink)' : 'var(--text)', font: sans(14, 600), cursor: 'pointer' }}
     >
       {children}
     </button>

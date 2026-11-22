@@ -76,8 +76,8 @@ export function SectionNav() {
                   padding: '3px 2px 0',
                   whiteSpace: 'nowrap',
                   font: sans(14, 600),
-                  color: on ? 'var(--text)' : 'var(--text-3)',
-                  boxShadow: on ? 'inset 0 -3px 0 var(--accent)' : undefined,
+                  color: on ? 'var(--nav-active-text)' : 'var(--text-3)',
+                  boxShadow: on ? 'inset 0 -3px 0 var(--nav-active)' : undefined,
                 }}
               >
                 {p.label}

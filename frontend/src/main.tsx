@@ -7,7 +7,10 @@ import { ApiError, api, type AuthMe, type SupplyCategory } from './api/client'
 import { flushOfflineQueue, setOfflineQueueOwner, type OfflineAction } from './lib/offlineQueue'
 import { plural } from './lib/labels'
 import { showToast } from './lib/toastBus'
+import { initTheme } from './lib/theme'
 import './theme/tokens.css'
+
+initTheme()
 
 // Reload once if a new deploy replaces hashed lazy chunks while an older tab is still open.
 window.addEventListener('vite:preloadError', (e) => {

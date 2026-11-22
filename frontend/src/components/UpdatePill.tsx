@@ -25,8 +25,8 @@ export function UpdatePill() {
         border: 0,
         cursor: 'pointer',
         whiteSpace: 'nowrap',
-        background: 'var(--text)',
-        color: 'var(--bg)',
+        background: 'var(--ink)',
+        color: 'var(--on-ink)',
         font: '500 13.5px var(--sans)',
         boxShadow: '0 6px 24px rgba(0,0,0,.25)',
       }}

@@ -95,7 +95,7 @@ function StepPhotos({ urls, alt }: { urls: string[]; alt: string }) {
         />
       ))}
       {urls.length > 1 && (
-        <span style={{ position: 'absolute', left: 8, bottom: 6, font: mono(10, 600), color: 'var(--text-2)', background: 'rgba(245,240,230,.85)', padding: '2px 6px', borderRadius: 6 }}>
+        <span style={{ position: 'absolute', left: 8, bottom: 6, font: mono(10, 600), color: 'var(--text-2)', background: 'color-mix(in srgb, var(--bg) 85%, transparent)', padding: '2px 6px', borderRadius: 6 }}>
           {i === 0 ? 'START' : 'KONIEC'}
         </span>
       )}

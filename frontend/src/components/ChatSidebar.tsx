@@ -408,7 +408,7 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
             onClick={() => send(input)}
             disabled={!enabled || typing || Boolean(uploading)}
             aria-label="Wyślij"
-            style={{ flex: '0 0 36px', width: 36, height: 36, borderRadius: 9, border: 0, background: 'var(--accent)', color: '#fff', fontSize: 16, cursor: enabled && !typing && !uploading ? 'pointer' : 'not-allowed', opacity: enabled && !typing && !uploading ? 1 : 0.5 }}
+            style={{ flex: '0 0 36px', width: 36, height: 36, borderRadius: 9, border: 0, background: 'var(--accent)', color: 'var(--on-accent)', fontSize: 16, cursor: enabled && !typing && !uploading ? 'pointer' : 'not-allowed', opacity: enabled && !typing && !uploading ? 1 : 0.5 }}
           >
             ↑
           </button>

@@ -200,7 +200,7 @@ export function AddBar({ value, onChange, onSubmit, placeholder }: {
         type="button"
         onClick={onSubmit}
         aria-label="Dodaj"
-        style={{ width: 52, height: 52, flex: '0 0 52px', border: 0, borderRadius: 14, background: 'var(--accent)', color: '#fff', font: sans(24, 500), cursor: 'pointer' }}
+        style={{ width: 52, height: 52, flex: '0 0 52px', border: 0, borderRadius: 14, background: 'var(--accent)', color: 'var(--on-accent)', font: sans(24, 500), cursor: 'pointer' }}
       >
         +
       </button>
@@ -263,7 +263,7 @@ export function CheckRow({ checked, name, sub, qty, onToggle, onRemove, last }: 
           borderRadius: isMobile ? 8 : 7,
           border: checked ? 0 : '1.5px solid var(--rule)',
           background: checked ? 'var(--sage)' : 'transparent',
-          color: '#fff',
+          color: 'var(--on-sage)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

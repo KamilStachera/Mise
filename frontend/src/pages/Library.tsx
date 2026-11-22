@@ -682,8 +682,8 @@ function Tile({ eyebrow, title, dark, onClick }: { eyebrow: string; title: strin
         border: 0,
         cursor: 'pointer',
         textAlign: 'left',
-        background: dark ? 'var(--text)' : 'var(--accent-soft)',
-        color: dark ? 'var(--bg)' : 'var(--text)',
+        background: dark ? 'var(--ink)' : 'var(--accent-soft)',
+        color: dark ? 'var(--on-ink)' : 'var(--text)',
       }}
     >
       <Eyebrow tone={dark ? 'light' : 'muted'} style={dark ? undefined : { color: 'var(--accent-soft-text)' }}>{eyebrow}</Eyebrow>

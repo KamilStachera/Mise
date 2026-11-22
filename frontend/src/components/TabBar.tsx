@@ -55,10 +55,10 @@ export function TabBar() {
             border: 0,
             // Active marker as a 3px background strip: an inset box-shadow on these
             // fractional-width cells (e.g. 412/5 px) leaves grey slivers at the edges.
-            background: t.active ? 'linear-gradient(var(--accent), var(--accent)) top / 100% 3px no-repeat' : 'transparent',
+            background: t.active ? 'linear-gradient(var(--nav-active), var(--nav-active)) top / 100% 3px no-repeat' : 'transparent',
             cursor: 'pointer',
             font: sans(13, 600),
-            color: t.active ? 'var(--text)' : 'var(--text-3)',
+            color: t.active ? 'var(--nav-active-text)' : 'var(--text-3)',
             WebkitTapHighlightColor: 'transparent',
           }}
         >

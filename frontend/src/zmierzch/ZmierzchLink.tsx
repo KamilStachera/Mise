@@ -17,14 +17,14 @@ export function ZmierzchLink() {
         gap: 14,
         padding: '12px 16px',
         borderRadius: 12,
-        background: 'var(--text)',
-        color: 'var(--bg)',
+        background: 'var(--ink)',
+        color: 'var(--on-ink)',
       }}
     >
       <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
         <Eyebrow tone="light">POP Quiz · Mova · 28.11</Eyebrow>
         <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 21, lineHeight: 1.15 }}>
-          Zmierzch<span style={{ fontStyle: 'italic', color: 'var(--accent-warm)' }}>.</span> Trening do quizu
+          Zmierzch<span style={{ fontStyle: 'italic', color: 'var(--on-ink-accent)' }}>.</span> Trening do quizu
         </span>
       </span>
       <span style={{ font: sans(20, 500), flexShrink: 0 }}>→</span>

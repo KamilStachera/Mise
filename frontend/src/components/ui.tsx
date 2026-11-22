@@ -34,7 +34,7 @@ export function PageTitle({ eyebrow, title, count, sub, right, size }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 12, minWidth: isMobile ? 0 : 320, flex: isMobile ? '1 1 auto' : '1 1 0' }}>
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <h1 style={{ margin: 0, minWidth: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: fs, lineHeight: isMobile ? 1 : 0.95, letterSpacing: '-0.03em' }}>
+        <h1 style={{ margin: 0, minWidth: 0, color: 'var(--title)', fontFamily: 'var(--serif)', fontWeight: 500, fontSize: fs, lineHeight: isMobile ? 1 : 0.95, letterSpacing: '-0.03em' }}>
           {title}
           {count != null && (
             <sup style={{ font: mono(isMobile ? 12 : 13, 500), letterSpacing: 0, color: 'var(--text-3)', verticalAlign: 'top', marginLeft: isMobile ? 4 : 6 }}>
@@ -68,7 +68,7 @@ export function Eyebrow({ children, tone = 'muted', size = 11, style }: {
 export function SectionHead({ title, meta, size = 22, style }: { title: ReactNode; meta?: ReactNode; size?: number; style?: CSSProperties }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, paddingBottom: 8, borderBottom: '1px solid var(--rule)', ...style }}>
-      <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: size }}>{title}</span>
+      <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: size, color: 'var(--title)' }}>{title}</span>
       {meta != null && <span style={{ font: mono(12), color: 'var(--text-2)', textAlign: 'right' }}>{meta}</span>}
     </div>
   )
@@ -107,9 +107,9 @@ export function buttonStyle(variant: ButtonVariant = 'primary', size: ButtonSize
   }
   switch (variant) {
     case 'primary':
-      return { ...base, border: 0, background: 'var(--accent)', color: '#fff' }
+      return { ...base, border: 0, background: 'var(--accent)', color: 'var(--on-accent)' }
     case 'dark':
-      return { ...base, border: 0, background: 'var(--text)', color: 'var(--bg)' }
+      return { ...base, border: 0, background: 'var(--ink)', color: 'var(--on-ink)' }
     case 'outline':
       return { ...base, border: '1px solid var(--rule)', background: 'transparent', color: 'var(--text)' }
     case 'quiet':
@@ -148,9 +148,9 @@ export function Chip({ active, onClick, children, style, title }: {
       style={{
         padding: '7px 12px',
         borderRadius: 999,
-        border: active ? '1px solid var(--text)' : '1px solid var(--border)',
-        background: active ? 'var(--text)' : 'transparent',
-        color: active ? 'var(--bg)' : 'var(--text)',
+        border: active ? '1px solid var(--ink)' : '1px solid var(--border)',
+        background: active ? 'var(--ink)' : 'transparent',
+        color: active ? 'var(--on-ink)' : 'var(--text)',
         font: sans(13, 500),
         cursor: onClick ? 'pointer' : 'default',
         whiteSpace: 'nowrap',
@@ -220,8 +220,8 @@ export function UnderlineTabs<K extends string>({ items, value, onChange, rule =
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               font: sans(isMobile ? 14 : 15, 600),
-              color: on ? 'var(--text)' : 'var(--text-3)',
-              boxShadow: on ? 'inset 0 -3px 0 var(--accent)' : undefined,
+              color: on ? 'var(--nav-active-text)' : 'var(--text-3)',
+              boxShadow: on ? 'inset 0 -3px 0 var(--nav-active)' : undefined,
             }}
           >
             {t.label}
@@ -260,7 +260,7 @@ export function Segmented<K extends string>({ items, value, onChange, style }: {
               gap: 6,
               font: sans(14, 600),
               background: on ? 'var(--surface)' : 'transparent',
-              color: on ? 'var(--text)' : 'var(--text-2)',
+              color: on ? 'var(--nav-active-text)' : 'var(--text-2)',
               boxShadow: on ? '0 1px 2px rgba(40,25,10,.12)' : undefined,
             }}
           >
@@ -431,7 +431,7 @@ export function StatStrip({ items, stacked, style }: { items: StatItem[]; stacke
               borderLeft: first ? 0 : '1px solid var(--border)',
               borderTop: i >= cols ? '1px solid var(--border)' : 0,
               background: s.highlight ? 'var(--accent-soft)' : 'transparent',
-              boxShadow: s.active ? 'inset 0 -3px 0 var(--accent)' : undefined,
+              boxShadow: s.active ? 'inset 0 -3px 0 var(--nav-active)' : undefined,
               cursor: s.onClick ? 'pointer' : 'default',
               textAlign: 'left',
               color: 'var(--text)',
@@ -466,7 +466,7 @@ export function Avatar({ name, picture, size = 30 }: { name?: string | null; pic
         flex: `0 0 ${size}px`,
         borderRadius: '50%',
         background: 'var(--accent)',
-        color: '#fff',
+        color: 'var(--on-accent)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -531,7 +531,7 @@ export function Sheet({ open, onClose, title, children, footer, width = 480 }: {
         position: 'fixed',
         inset: 0,
         zIndex: 80,
-        background: 'rgba(29,24,19,.38)',
+        background: 'var(--scrim)',
         display: 'flex',
         alignItems: isMobile ? 'flex-end' : 'center',
         justifyContent: 'center',
@@ -552,7 +552,7 @@ export function Sheet({ open, onClose, title, children, footer, width = 480 }: {
           background: 'var(--bg)',
           borderRadius: isMobile ? '20px 20px 0 0' : 16,
           padding: footer ? 0 : isMobile ? '18px 20px calc(20px + env(safe-area-inset-bottom))' : '24px 26px 26px',
-          boxShadow: '0 40px 90px -40px rgba(40,25,10,.55), 0 0 0 1px rgba(29,24,19,.18)',
+          boxShadow: '0 40px 90px -40px var(--shadow-tint), 0 0 0 1px color-mix(in srgb, var(--text) 18%, transparent)',
           animation: 'sheetUp .2s ease',
         }}
       >
@@ -583,7 +583,7 @@ function SheetHead({ isMobile, title, onClose }: { isMobile: boolean; title?: Re
         {isMobile && <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 14px' }} />}
         {title && (
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, paddingBottom: 10, marginBottom: 14, borderBottom: '1px solid var(--rule)' }}>
-            <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24 }}>{title}</span>
+            <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24, color: 'var(--title)' }}>{title}</span>
             <button type="button" onClick={onClose} aria-label="Zamknij" style={{ border: 0, background: 'transparent', cursor: 'pointer', fontSize: 15, color: 'var(--text-2)' }}>
               ✕
             </button>

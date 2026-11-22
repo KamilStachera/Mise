@@ -104,7 +104,7 @@ export function FoodShoppingList() {
           {recipe.imageUrl ? (
             <RecipeThumb r={{ imageUrl: recipe.imageUrl, tint: '#c9bca8', title: recipe.title }} style={{ width: 48, height: 48, borderRadius: 8 }} />
           ) : (
-            <span style={{ width: 48, height: 48, flex: '0 0 48px', borderRadius: 8, background: 'repeating-linear-gradient(135deg,#e6dac7 0 8px,#ece2d2 8px 16px)' }} />
+            <span style={{ width: 48, height: 48, flex: '0 0 48px', borderRadius: 8, background: 'repeating-linear-gradient(135deg, var(--seg-bg) 0 8px, var(--surface) 8px 16px)' }} />
           )}
           <span style={{ flex: 1, minWidth: 0, font: sans(15, 500) }}>{recipe.title}</span>
           <span style={{ font: mono(12), color: 'var(--text-2)' }}>{count} poz.</span>

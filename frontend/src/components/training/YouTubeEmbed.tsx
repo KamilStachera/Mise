@@ -17,7 +17,7 @@ export function YouTubeEmbed({ id, start, title, channel }: {
 
   return (
     <figure style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: 'var(--text)' }}>
+      <div style={{ position: 'relative', aspectRatio: '16 / 9', borderRadius: 12, overflow: 'hidden', background: '#14100c' }}>
         {playing ? (
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${id}?${params}`}

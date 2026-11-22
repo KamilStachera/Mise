@@ -182,7 +182,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                 type="button"
                 aria-pressed={on}
                 onClick={() => setFocusDay(on ? null : d)}
-                style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 5, padding: '6px 4px', border: 0, borderRadius: 10, background: on ? 'var(--text)' : 'transparent', color: on ? 'var(--bg)' : 'var(--text)', cursor: 'pointer' }}
+                style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 5, padding: '6px 4px', border: 0, borderRadius: 10, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--on-ink)' : 'var(--text)', cursor: 'pointer' }}
               >
                 <span style={{ font: mono(10.5, 500), color: on ? 'var(--on-dark-muted)' : today ? 'var(--accent-text)' : 'var(--text-3)' }}>{today ? 'DZIŚ' : WEEKDAY_SHORT[i].slice(0, 2).toUpperCase()}</span>
                 <span style={{ font: mono(16, 500) }}>{parseISODate(d).getDate()}</span>
@@ -308,7 +308,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                 key={d}
                 type="button"
                 onClick={() => canEdit && onDay(d)}
-                style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 12px', border: 0, borderLeft: today ? 0 : '1px solid var(--border)', background: today ? 'var(--text)' : 'transparent', color: today ? 'var(--bg)' : 'var(--text)', cursor: canEdit ? 'pointer' : 'default', textAlign: 'left', minWidth: 0 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 12px', border: 0, borderLeft: today ? 0 : '1px solid var(--border)', background: today ? 'var(--ink)' : 'transparent', color: today ? 'var(--on-ink)' : 'var(--text)', cursor: canEdit ? 'pointer' : 'default', textAlign: 'left', minWidth: 0 }}
               >
                 <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 20 }}>
                   {WEEKDAY_SHORT[i]} <span style={{ fontStyle: 'italic', color: today ? 'var(--on-dark-muted)' : 'var(--text-3)' }}>{parseISODate(d).getDate()}</span>
@@ -495,9 +495,9 @@ function ShoppingReview({ items, pantry, pending, onCancel, onCommit }: {
     height: 40,
     padding: '0 8px',
     borderRadius: 10,
-    border: on ? '1px solid var(--text)' : '1px solid var(--border)',
-    background: on ? 'var(--text)' : 'transparent',
-    color: on ? 'var(--bg)' : 'var(--text)',
+    border: on ? '1px solid var(--ink)' : '1px solid var(--border)',
+    background: on ? 'var(--ink)' : 'transparent',
+    color: on ? 'var(--on-ink)' : 'var(--text)',
     font: sans(13.5, 600),
     cursor: 'pointer',
     whiteSpace: 'nowrap',

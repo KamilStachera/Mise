@@ -37,8 +37,8 @@ function NavLink({ active, open, onClick, children }: { active: boolean; open?: 
     background: 'transparent',
     cursor: 'pointer',
     font: sans(15, 600),
-    color: active || open ? 'var(--text)' : 'var(--text-3)',
-    boxShadow: active ? 'inset 3px 0 0 var(--accent)' : undefined,
+    color: active ? 'var(--nav-active-text)' : open ? 'var(--text)' : 'var(--text-3)',
+    boxShadow: active ? 'inset 3px 0 0 var(--nav-active)' : undefined,
     textAlign: 'left',
   }
   return (
@@ -63,8 +63,8 @@ function SubLink({ active, onClick, children }: { active: boolean; onClick: () =
         cursor: 'pointer',
         textAlign: 'left',
         font: sans(14, active ? 600 : 500),
-        color: active ? 'var(--text)' : 'var(--text-3)',
-        boxShadow: active ? 'inset 3px 0 0 var(--accent)' : undefined,
+        color: active ? 'var(--nav-active-text)' : 'var(--text-3)',
+        boxShadow: active ? 'inset 3px 0 0 var(--nav-active)' : undefined,
       }}
     >
       {children}
@@ -144,8 +144,8 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
               height: 46,
               borderRadius: 12,
               border: chatOpen ? '1px solid var(--rule)' : 0,
-              background: chatOpen ? 'transparent' : 'var(--text)',
-              color: chatOpen ? 'var(--text)' : 'var(--bg)',
+              background: chatOpen ? 'transparent' : 'var(--ink)',
+              color: chatOpen ? 'var(--text)' : 'var(--on-ink)',
               font: sans(14.5, 600),
               display: 'flex',
               alignItems: 'center',
@@ -154,7 +154,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
               cursor: 'pointer',
             }}
           >
-            <span style={{ color: chatOpen ? 'var(--accent)' : 'var(--accent-warm)' }}>✦</span>
+            <span style={{ color: chatOpen ? 'var(--accent)' : 'var(--on-ink-accent)' }}>✦</span>
             {chatOpen ? 'Sous otwarty' : 'Zapytaj Sous'}
           </button>
         )}

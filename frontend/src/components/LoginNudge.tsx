@@ -51,7 +51,7 @@ export function LoginNudge() {
         borderRadius: open ? 18 : 999,
         border: 0,
         background: 'var(--accent)',
-        color: '#fff',
+        color: 'var(--on-accent)',
         cursor: 'pointer',
         boxShadow: '0 6px 20px rgba(0,0,0,.22)',
       }}

@@ -8,6 +8,17 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#f5f0e6" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <script>
+      // Apply the saved look before first paint (no flash of the default theme). Mirrors
+      // src/lib/theme.ts — same storage key and attributes.
+      try {
+        var t = JSON.parse(localStorage.getItem('pichci:theme') || 'null')
+        if (t && (t.theme === 'night' || t.theme === 'rose')) {
+          document.documentElement.setAttribute('data-theme', t.theme)
+          if (t.roseBg) document.documentElement.setAttribute('data-rose-bg', t.roseBg)
+        }
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

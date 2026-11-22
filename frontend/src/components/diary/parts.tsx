@@ -31,7 +31,7 @@ export function dayTotals(entries: PlanEntry[]): DayTotals {
 
 /** 17 px circle with the pot's letter: filled ink = cook day, outline = a leftover portion. */
 export function CookMark({ letter, filled, size = 17, onDark }: { letter: string; filled: boolean; size?: number; onDark?: boolean }) {
-  const ink = onDark ? 'var(--bg)' : 'var(--text)'
+  const ink = onDark ? 'var(--on-ink)' : 'var(--text)'
   return (
     <span
       aria-hidden
@@ -45,7 +45,7 @@ export function CookMark({ letter, filled, size = 17, onDark }: { letter: string
         justifyContent: 'center',
         font: mono(size * 0.56, 600),
         background: filled ? ink : 'transparent',
-        color: filled ? (onDark ? 'var(--text)' : 'var(--bg)') : ink,
+        color: filled ? (onDark ? 'var(--ink)' : 'var(--bg)') : ink,
         boxShadow: filled ? undefined : `inset 0 0 0 1px ${ink}`,
       }}
     >
@@ -108,15 +108,15 @@ function MeterBar({ eaten, planned, budget, height, onDark, base }: {
   const within = budget == null ? eaten : Math.min(eaten, budget)
   const over = budget == null ? 0 : Math.max(0, eaten - budget)
   const plannedShown = budget == null ? planned : Math.max(0, Math.min(planned, scale - eaten))
-  const ink = onDark ? 'var(--bg)' : 'var(--text)'
+  const ink = onDark ? 'var(--on-ink)' : 'var(--text)'
   return (
     <div
       style={{
         position: 'relative',
         height,
         display: 'flex',
-        background: onDark ? '#4a3e32' : 'var(--surface)',
-        boxShadow: height > 6 ? `inset 0 0 0 1px ${onDark ? 'var(--bg)' : 'var(--rule)'}` : undefined,
+        background: onDark ? 'var(--on-ink-track)' : 'var(--surface)',
+        boxShadow: height > 6 ? `inset 0 0 0 1px ${onDark ? 'var(--on-ink)' : 'var(--rule)'}` : undefined,
         overflow: 'hidden',
       }}
     >
@@ -307,7 +307,7 @@ export function DiaryItem({ entry, recipe, letter, onToggleEaten, onOpen, canEdi
             borderRadius: '50%',
             border: eaten ? 0 : `1.5px dashed ${canEdit ? 'var(--text-3)' : 'var(--border-2)'}`,
             background: eaten ? 'var(--sage)' : 'transparent',
-            color: '#fff',
+            color: 'var(--on-sage)',
             font: sans(13, 700),
             display: 'flex',
             alignItems: 'center',

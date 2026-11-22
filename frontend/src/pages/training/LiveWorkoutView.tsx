@@ -1042,7 +1042,7 @@ function SetRow({ sessionId, set, group, isActive, showDelete, onCompleted, onDe
           borderRadius: 10,
           border: set.completed ? 0 : '1.5px solid var(--border-2)',
           background: set.completed ? 'var(--sage)' : 'var(--bg)',
-          color: set.completed ? '#fff' : 'var(--text-3)',
+          color: set.completed ? 'var(--on-sage)' : 'var(--text-3)',
           font: sans(16, 700),
           cursor: 'pointer',
           display: 'inline-flex',

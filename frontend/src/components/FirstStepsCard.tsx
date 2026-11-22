@@ -51,7 +51,7 @@ export function FirstStepsCard() {
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', border: 0, background: 'transparent', textAlign: 'left', color: 'var(--text)', cursor: s.done ? 'default' : 'pointer' }}
               >
                 <span aria-hidden style={{ flex: '0 0 22px', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: s.done ? 0 : '1px solid var(--rule)', background: s.done ? 'var(--accent)' : 'transparent' }}>
-                  {s.done && <CheckMark size={13} color="#fff" />}
+                  {s.done && <CheckMark size={13} color="var(--on-accent)" />}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ font: sans(15, 500), color: s.done ? 'var(--text-3)' : 'var(--text)', textDecoration: s.done ? 'line-through' : 'none' }}>

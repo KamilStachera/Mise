@@ -112,7 +112,7 @@ export function CookMode({ title, steps, ingredients, servings, onClose }: {
       <button
         type="button"
         onClick={isLast ? onClose : next}
-        style={{ flex: isMobile ? 2 : 1, height: 64, borderRadius: 16, border: 0, background: 'var(--panel-text)', color: 'var(--text)', font: sans(16, 600), cursor: 'pointer' }}
+        style={{ flex: isMobile ? 2 : 1, height: 64, borderRadius: 16, border: 0, background: 'var(--panel-text)', color: 'var(--cook-bg)', font: sans(16, 600), cursor: 'pointer' }}
       >
         {isLast ? 'Gotowe ✓' : isMobile ? 'Dalej →' : `Dalej: krok ${step + 2} →`}
       </button>
@@ -234,7 +234,7 @@ function IngredientChecklist({ ingredients, checked, onToggle }: { ingredients: 
                 borderRadius: 6,
                 border: done ? 0 : '1.5px solid var(--panel-text-2)',
                 background: done ? 'var(--sage)' : 'transparent',
-                color: '#fff',
+                color: 'var(--on-sage)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -329,7 +329,7 @@ function TimerCard({ timer }: { timer: Timer }) {
       <Label>{done ? 'Czas minął!' : 'Minutnik'}</Label>
       <span style={{ font: mono(64, 500), letterSpacing: '-0.03em', lineHeight: 1, color: done ? 'var(--accent-warm)' : undefined }}>{formatCountdown(timer.left)}</span>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={timer.toggle} disabled={timer.left <= 0 && timer.state !== 'done'} style={{ flex: 1, height: 46, borderRadius: 12, border: 0, background: 'var(--accent)', color: '#fff', font: sans(15, 600), cursor: 'pointer', opacity: timer.left <= 0 && timer.state !== 'done' ? 0.45 : 1 }}>
+        <button type="button" onClick={timer.toggle} disabled={timer.left <= 0 && timer.state !== 'done'} style={{ flex: 1, height: 46, borderRadius: 12, border: 0, background: 'var(--accent)', color: 'var(--on-accent)', font: sans(15, 600), cursor: 'pointer', opacity: timer.left <= 0 && timer.state !== 'done' ? 0.45 : 1 }}>
           {timerButtonLabel(timer)}
         </button>
         <button type="button" onClick={timer.addMinute} style={{ height: 46, padding: '0 14px', borderRadius: 12, border: '1px solid var(--cook-line)', background: 'transparent', color: 'var(--panel-text)', font: sans(14, 600), cursor: 'pointer' }}>
@@ -353,7 +353,7 @@ function TimerRow({ timer }: { timer: Timer }) {
         <button type="button" onClick={timer.addMinute} style={{ height: 48, padding: '0 14px', borderRadius: 999, border: '1px solid var(--cook-line)', background: 'transparent', color: 'var(--panel-text)', font: sans(14, 600), cursor: 'pointer' }}>
           +1
         </button>
-        <button type="button" onClick={timer.toggle} disabled={timer.left <= 0 && !done} style={{ height: 48, padding: '0 20px', borderRadius: 999, border: 0, background: 'var(--accent)', color: '#fff', font: sans(15, 600), cursor: 'pointer', opacity: timer.left <= 0 && !done ? 0.45 : 1 }}>
+        <button type="button" onClick={timer.toggle} disabled={timer.left <= 0 && !done} style={{ height: 48, padding: '0 20px', borderRadius: 999, border: 0, background: 'var(--accent)', color: 'var(--on-accent)', font: sans(15, 600), cursor: 'pointer', opacity: timer.left <= 0 && !done ? 0.45 : 1 }}>
           {timerButtonLabel(timer)}
         </button>
       </div>

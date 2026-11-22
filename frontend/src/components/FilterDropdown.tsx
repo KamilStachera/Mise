@@ -36,9 +36,9 @@ export function FilterDropdown({
     : {
         padding: '7px 12px',
         borderRadius: 999,
-        border: active ? '1px solid var(--text)' : '1px solid var(--border)',
-        background: active ? 'var(--text)' : open ? 'var(--surface)' : 'transparent',
-        color: active ? 'var(--bg)' : 'var(--text)',
+        border: active ? '1px solid var(--ink)' : '1px solid var(--border)',
+        background: active ? 'var(--ink)' : open ? 'var(--surface)' : 'transparent',
+        color: active ? 'var(--on-ink)' : 'var(--text)',
       }
 
   return (
@@ -65,7 +65,7 @@ export function FilterDropdown({
             background: 'var(--surface)',
             border: '1px solid var(--border)',
             borderRadius: 12,
-            boxShadow: '0 18px 40px -18px rgba(40,25,10,.45)',
+            boxShadow: '0 18px 40px -18px var(--shadow-tint)',
             padding: 4,
             display: 'flex',
             flexDirection: 'column',
