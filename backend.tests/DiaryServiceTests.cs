@@ -18,8 +18,8 @@ public class DiaryServiceTests
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
 
-        await new DiaryService(db).CreateCookAsync(recipe.Id, 4, Monday, MealSlot.Dinner,
-            [(Monday.AddDays(1), MealSlot.Lunch), (Monday.AddDays(2), MealSlot.Lunch)], null);
+        await new DiaryService(db).CreateCookAsync(recipe.Id, 4, Monday, "dinner",
+            [(Monday.AddDays(1), "lunch"), (Monday.AddDays(2), "lunch")], null);
 
         var selection = await PlanShoppingService.LoadAsync(db, Monday, 7);
         var source = Assert.Single(selection.Sources);
@@ -38,8 +38,8 @@ public class DiaryServiceTests
         await db.SaveChangesAsync();
 
         // My pot: tonight + tomorrow (2 portions). The partner eats the same two meals at 1.5×.
-        await new DiaryService(db).CreateCookAsync(recipe.Id, 2, Monday, MealSlot.Dinner,
-            [(Monday.AddDays(1), MealSlot.Lunch)], null, alsoFor: [(2, 1.5m)]);
+        await new DiaryService(db).CreateCookAsync(recipe.Id, 2, Monday, "dinner",
+            [(Monday.AddDays(1), "lunch")], null, alsoFor: [(2, 1.5m)]);
 
         var selection = await PlanShoppingService.LoadAsync(db, Monday, 7);
         // Leftovers never buy; each person's cook day buys their own pot: 2 + ceil(2 × 1.5) = 5
@@ -56,13 +56,13 @@ public class DiaryServiceTests
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
         var diary = new DiaryService(db);
-        var cook = await diary.CreateCookAsync(recipe.Id, 4, Monday, MealSlot.Dinner,
-            [(Monday.AddDays(1), MealSlot.Lunch)], null);
+        var cook = await diary.CreateCookAsync(recipe.Id, 4, Monday, "dinner",
+            [(Monday.AddDays(1), "lunch")], null);
 
         var fridge = Assert.Single(await diary.FridgeAsync(Monday.AddDays(1)));
         Assert.Equal(2, DiaryService.Remaining(fridge));
 
-        var eaten = await diary.EatFromCookAsync(cook.Id, Monday.AddDays(2), MealSlot.Dinner);
+        var eaten = await diary.EatFromCookAsync(cook.Id, Monday.AddDays(2), "dinner");
         Assert.True(eaten.IsLeftover);
         Assert.Equal(520, eaten.Kcal);   // snapshot of one portion
         Assert.Equal(1, DiaryService.Remaining(Assert.Single(await diary.FridgeAsync(Monday.AddDays(2)))));
@@ -79,8 +79,8 @@ public class DiaryServiceTests
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
         var diary = new DiaryService(db);
-        await diary.CreateCookAsync(recipe.Id, 4, Monday.AddDays(3), MealSlot.Dinner, [], null);
-        await diary.CreateCookAsync(recipe.Id, 4, Monday.AddDays(-20), MealSlot.Dinner, [], null);
+        await diary.CreateCookAsync(recipe.Id, 4, Monday.AddDays(3), "dinner", [], null);
+        await diary.CreateCookAsync(recipe.Id, 4, Monday.AddDays(-20), "dinner", [], null);
 
         Assert.Empty(await diary.FridgeAsync(Monday));
     }
@@ -94,7 +94,7 @@ public class DiaryServiceTests
         await db.SaveChangesAsync();
 
         await Assert.ThrowsAsync<DiaryException>(() => new DiaryService(db).CreateCookAsync(recipe.Id, 2, Monday,
-            MealSlot.Dinner, [(Monday.AddDays(1), MealSlot.Lunch), (Monday.AddDays(2), MealSlot.Lunch)], null));
+            "dinner", [(Monday.AddDays(1), "lunch"), (Monday.AddDays(2), "lunch")], null));
     }
 
     [Fact]
@@ -105,13 +105,13 @@ public class DiaryServiceTests
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
         var diary = new DiaryService(db);
-        var cook = await diary.CreateCookAsync(recipe.Id, 4, Monday, MealSlot.Dinner,
-            [(Monday.AddDays(1), MealSlot.Lunch), (Monday.AddDays(2), MealSlot.Lunch)], null);
+        var cook = await diary.CreateCookAsync(recipe.Id, 4, Monday, "dinner",
+            [(Monday.AddDays(1), "lunch"), (Monday.AddDays(2), "lunch")], null);
         var tuesday = await db.PlanEntries.SingleAsync(e => e.Date == Monday.AddDays(1));
         DiaryService.SetEaten(tuesday, true);
         await db.SaveChangesAsync();
 
-        await diary.UpdateCookAsync(cook.Id, 5, [(Monday.AddDays(3), MealSlot.Dinner)]);
+        await diary.UpdateCookAsync(cook.Id, 5, [(Monday.AddDays(3), "dinner")]);
 
         var dates = await db.PlanEntries.Where(e => e.CookId == cook.Id).Select(e => e.Date).OrderBy(d => d).ToListAsync();
         Assert.Equal([Monday, Monday.AddDays(1), Monday.AddDays(3)], dates);
@@ -126,8 +126,8 @@ public class DiaryServiceTests
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
         var diary = new DiaryService(db);
-        var cook = await diary.CreateCookAsync(recipe.Id, 4, Monday, MealSlot.Dinner,
-            [(Monday.AddDays(1), MealSlot.Lunch), (Monday.AddDays(2), MealSlot.Lunch)], null);
+        var cook = await diary.CreateCookAsync(recipe.Id, 4, Monday, "dinner",
+            [(Monday.AddDays(1), "lunch"), (Monday.AddDays(2), "lunch")], null);
         var tuesday = await db.PlanEntries.SingleAsync(e => e.Date == Monday.AddDays(1));
         DiaryService.SetEaten(tuesday, true);
         await db.SaveChangesAsync();
@@ -149,7 +149,7 @@ public class DiaryServiceTests
         var recipe = Gulasz();
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
-        var entry = await new DiaryService(db).AddEntryAsync(Monday, MealSlot.Lunch, recipe.Id, null, null,
+        var entry = await new DiaryService(db).AddEntryAsync(Monday, "lunch", recipe.Id, null, null,
             1.5m, null, null, null, null, null, eaten: true);
         Assert.Equal(780, DiaryService.Nutrition(entry).Kcal);
 
@@ -170,14 +170,14 @@ public class DiaryServiceTests
         await db.SaveChangesAsync();
         var diary = new DiaryService(db);
 
-        var planned = await diary.AddEntryAsync(Monday, MealSlot.Dinner, recipe.Id, null, null,
+        var planned = await diary.AddEntryAsync(Monday, "dinner", recipe.Id, null, null,
             null, null, null, null, null, null, eaten: false);
-        var snack = await diary.AddEntryAsync(Monday, MealSlot.Snack, null, "Kinder Bueno", null,
+        var snack = await diary.AddEntryAsync(Monday, "snack", null, "Kinder Bueno", null,
             null, 43, 245, null, null, null, eaten: true);
 
         Assert.True(DiaryService.Nutrition(planned).Missing);
         Assert.Equal(245, DiaryService.Nutrition(snack).Kcal);
-        Assert.False(PlanShoppingService.IsCookable(snack));
+        Assert.False(PlanShoppingService.IsCookable(snack, SlotDirectory.Empty));
     }
 
     [Fact]
@@ -187,7 +187,7 @@ public class DiaryServiceTests
         var recipe = Gulasz();
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
-        await new DiaryService(db).AddEntryAsync(Monday, MealSlot.Lunch, recipe.Id, null, null,
+        await new DiaryService(db).AddEntryAsync(Monday, "lunch", recipe.Id, null, null,
             1, null, null, null, null, null, eaten: true);
 
         Assert.Empty((await PlanShoppingService.LoadAsync(db, Monday, 7)).Sources);
@@ -203,7 +203,7 @@ public class DiaryServiceTests
         await diary.RememberAsync("Latte", 120, null, null, null, false, null, null);
 
         Assert.Equal(245, DiaryService.ChipKcal(bueno));
-        var entry = await diary.LogFavoriteAsync(bueno.Id, Monday, MealSlot.Snack, null);
+        var entry = await diary.LogFavoriteAsync(bueno.Id, Monday, "snack", null);
         Assert.Equal(245, entry.Kcal);
         Assert.Equal(43m, entry.Grams);
         Assert.NotNull(entry.EatenAt);

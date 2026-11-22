@@ -2,7 +2,7 @@ namespace Mise.Api.Domain;
 
 public enum RecipeSource { Ai, Web, Manual }
 
-/// <summary>What the dish is (a main, a soup…), not when it is eaten — that is <see cref="MealSlot"/>.</summary>
+/// <summary>What the dish is (a main, a soup…), not when it is eaten — that is <see cref="PlanEntry.Slot"/>.</summary>
 public enum DishType { Breakfast, Main, Soup, Salad, Side, Dessert, Snack, Baking }
 
 public enum Cuisine
@@ -23,9 +23,6 @@ public enum PantryStatus { In, Low, Out }
 public enum PantryUnit { G, Ml, Szt }
 
 public enum ShoppingOrigin { Recipe, Manual }
-
-/// <summary>Snack ("Przekąski") is diary-only: small bites and sweets, private like the rest of the diary.</summary>
-public enum MealSlot { Breakfast, Lunch, Dinner, Snack }
 
 public class Recipe : IHouseholdOwned
 {
@@ -351,7 +348,11 @@ public class PlanEntry : IHouseholdOwned, IPersonOwned
     /// </summary>
     public int PersonId { get; set; }
     public DateOnly Date { get; set; }
-    public MealSlot Slot { get; set; } = MealSlot.Lunch;
+    /// <summary>
+    /// <see cref="MealSlot.Key"/> of one of the owner's meals ("breakfast", "lunch" = Obiad,
+    /// "dinner", "snack", or a custom key). Writes resolve it through <c>MealSlots</c>.
+    /// </summary>
+    public string Slot { get; set; } = "lunch";
 
     /// <summary>Optional link to a saved recipe; Title is the freeform fallback.</summary>
     public Guid? RecipeId { get; set; }
@@ -402,6 +403,33 @@ public class PlanEntry : IHouseholdOwned, IPersonOwned
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+/// <summary>
+/// One of a person's meals of the day — the rows of their plan and diary („Śniadanie”, „Lunch”,
+/// „Kolacja”, „Przekąski”…); <see cref="PlanEntry.Slot"/> holds the <see cref="Key"/>. A person
+/// with no rows has the defaults (<c>MealSlots.Defaults</c>: breakfast/lunch/dinner/snack =
+/// Śniadanie/Obiad/Kolacja/Przekąski); their first edit writes the whole list. Removing a meal
+/// only archives it, so past entries keep their name; adding the same name again revives it.
+/// </summary>
+public class MealSlot : IHouseholdOwned, IPersonOwned
+{
+    public int HouseholdId { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public int PersonId { get; set; }
+    /// <summary>Stable token on plan entries and in the API: lowercase ASCII, unique per person, never renamed.</summary>
+    public string Key { get; set; } = "";
+    /// <summary>What the UI shows; Polish, free text.</summary>
+    public string Name { get; set; } = "";
+    /// <summary>Order through the day (0 = first).</summary>
+    public int Position { get; set; }
+    /// <summary>
+    /// Small bites („Przekąski”): diary-only. Never shown to anonymous visitors, never in the
+    /// plan export, and typed food here never asks "did you cook it?".
+    /// </summary>
+    public bool IsSnack { get; set; }
+    /// <summary>Removed from the day; entries already in it keep showing under its name.</summary>
+    public DateTimeOffset? ArchivedAt { get; set; }
 }
 
 /// <summary>

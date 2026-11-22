@@ -202,6 +202,12 @@ public record CookLogInput(Guid? RecipeId, string? DishName, int? Rating, string
 public record CookLogUpdateInput(string? DishName, int? Rating, string? Note, DateOnly? CookedAt);
 /// <summary>Upsert onto the slot's first planned meal (not a leftover); creates one when there is none.</summary>
 public record PlanEntryInput(DateOnly Date, string Slot, Guid? RecipeId, string? Title, string? Note);
+
+/// <summary>A meal of the person's day; Active=false = removed, still named on old entries.</summary>
+public record MealSlotDto(string Key, string Name, bool Snack, bool Active);
+
+/// <summary>PUT /meals: the whole day in order. Rows without a key are new meals.</summary>
+public record MealSlotsInput(List<MealSlotInput>? Meals);
 public record PartnerPortionInput(int PersonId, decimal? Portions = null);
 /// <summary>
 /// A new calendar entry — always added, never replaces. Recipe entries take Portions;
@@ -347,31 +353,13 @@ public static class Mapping
         : string.IsNullOrWhiteSpace(ingredient.Quantity) ? ingredient.Name
         : $"{ingredient.Quantity} {ingredient.Name}";
 
-    public static MealSlot ParseSlot(string? s) => (s ?? "").Trim().ToLowerInvariant() switch
-    {
-        "breakfast" => MealSlot.Breakfast,
-        "dinner" => MealSlot.Dinner,
-        "snack" => MealSlot.Snack,
-        _ => MealSlot.Lunch,
-    };
-
-    public static string SlotString(MealSlot s) => s.ToString().ToLowerInvariant();
-
-    /// <summary>Strict slot parse for diary writes — unlike <see cref="ParseSlot"/>, unknown values are an error.</summary>
-    public static MealSlot? TryParseSlot(string? s) => (s ?? "").Trim().ToLowerInvariant() switch
-    {
-        "breakfast" => MealSlot.Breakfast,
-        "lunch" => MealSlot.Lunch,
-        "dinner" => MealSlot.Dinner,
-        "snack" => MealSlot.Snack,
-        _ => null,
-    };
+    public static MealSlotDto ToDto(MealSlotView m) => new(m.Key, m.Name, m.IsSnack, m.Active);
 
     /// <summary>Needs Recipe and Cook loaded.</summary>
     public static PlanEntryDto ToDto(PlanEntry e, bool cooked)
     {
         var n = DiaryService.Nutrition(e);
-        return new(e.Id, e.Date, SlotString(e.Slot), e.RecipeId, e.Recipe?.Title, e.Title, e.Note,
+        return new(e.Id, e.Date, e.Slot, e.RecipeId, e.Recipe?.Title, e.Title, e.Note,
             cooked, e.Portions, e.Grams, n.Kcal, n.Protein, n.Fat, n.Carbs, n.Missing, e.EatenAt is not null,
             e.CookId, e.IsLeftover, e.Cook?.Date, e.Cook?.Portions, e.IsCatering);
     }

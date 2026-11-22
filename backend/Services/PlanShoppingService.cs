@@ -71,6 +71,6 @@ public static class PlanShoppingService
     /// reminder): saved recipes on their cook day, or typed meals without kcal. Leftovers,
     /// snacks and typed food with kcal are diary logs, not cooking.
     /// </summary>
-    public static bool IsCookable(PlanEntry e) =>
-        e.RecipeId is not null ? !e.IsLeftover : e.Slot != MealSlot.Snack && e.Kcal is null;
+    public static bool IsCookable(PlanEntry e, SlotDirectory slots) =>
+        e.RecipeId is not null ? !e.IsLeftover : !slots.IsSnack(e) && e.Kcal is null;
 }

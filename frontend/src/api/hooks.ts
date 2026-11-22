@@ -11,6 +11,7 @@ import {
   type CookLogUpdateInput,
   type DiaryEntryInput,
   type InviteStatus,
+  type MealSlotInput,
   type PantryAdjustItem,
   type PantryItemInput,
   type PantryConfirmation,
@@ -289,6 +290,25 @@ export function usePlan(start?: string, enabled = true) {
   const { isLoading } = useAuth()
   const { id } = usePerson()
   return useQuery({ queryKey: ['plan', id, start ?? 'current'], queryFn: () => api.plan(start), enabled: !isLoading && enabled })
+}
+
+/** The acting person's meals of the day (GET /meals) — the rows of the plan and the diary. */
+export function useMeals() {
+  const { isLoading } = useAuth()
+  const { id } = usePerson()
+  return useQuery({ queryKey: ['meals', id], queryFn: api.meals, enabled: !isLoading, staleTime: 5 * 60_000 })
+}
+
+export function useSaveMeals() {
+  const qc = useQueryClient()
+  const { id } = usePerson()
+  return useMutation({
+    mutationFn: (meals: MealSlotInput[]) => api.saveMeals(meals),
+    onSuccess: (saved) => {
+      qc.setQueryData(['meals', id], saved)
+      qc.invalidateQueries({ queryKey: ['plan'] })
+    },
+  })
 }
 
 /** Past plan entries never logged as cooked — drives the login reminder modal. */

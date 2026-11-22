@@ -44,6 +44,7 @@ public class MiseDbContext : DbContext
     public DbSet<PlanEntry> PlanEntries => Set<PlanEntry>();
     public DbSet<Cook> Cooks => Set<Cook>();
     public DbSet<FoodFavorite> FoodFavorites => Set<FoodFavorite>();
+    public DbSet<MealSlot> MealSlots => Set<MealSlot>();
     public DbSet<BodyProfile> BodyProfiles => Set<BodyProfile>();
     public DbSet<WeightEntry> WeightEntries => Set<WeightEntry>();
     public DbSet<EnergySample> EnergySamples => Set<EnergySample>();
@@ -195,7 +196,7 @@ public class MiseDbContext : DbContext
 
         b.Entity<PlanEntry>(e =>
         {
-            e.Property(x => x.Slot).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Slot).HasMaxLength(40);
             e.Property(x => x.Title).HasMaxLength(300);
             e.Property(x => x.Portions).HasPrecision(6, 2);
             e.Property(x => x.Grams).HasPrecision(8, 1);
@@ -211,6 +212,14 @@ public class MiseDbContext : DbContext
             // At most one catering box per person, day and meal slot (supports optional 3-meal split while preventing race duplicates).
             e.HasIndex(x => new { x.PersonId, x.Date, x.Slot }, Services.CateringService.OnePerSlotIndex)
                 .IsUnique().HasFilter("\"IsCatering\"");
+            e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<MealSlot>(e =>
+        {
+            e.Property(x => x.Key).HasMaxLength(40);
+            e.Property(x => x.Name).HasMaxLength(40);
+            e.HasIndex(x => new { x.PersonId, x.Key }).IsUnique();
             e.HasOne<Person>().WithMany().HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         });
 

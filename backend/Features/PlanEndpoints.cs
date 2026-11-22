@@ -15,7 +15,7 @@ public static class PlanEndpoints
         // Anonymous visitors get the meal plan only: snacks, typed food and eaten state are
         // the private diary (see Mapping.PublicView).
         g.MapGet("/", async (DateOnly? start, int? days, MiseDbContext db, HttpContext ctx, AccessControl access,
-            PersonScope person, CateringService catering) =>
+            PersonScope person, CateringService catering, MealSlots meals) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             var from = start ?? StartOfWeek(today);
@@ -34,9 +34,10 @@ public static class PlanEndpoints
             var logs = await db.CookLog.AsNoTracking()
                 .Where(c => c.CookedAt >= from.AddDays(-(DiaryService.FridgeDays + 1)) && c.CookedAt <= to.AddDays(1))
                 .ToListAsync();
+            var slots = privileged ? SlotDirectory.Empty : await meals.DirectoryAsync();
 
             var dtos = entries
-                .Where(e => privileged || (e.Slot != MealSlot.Snack && (e.RecipeId is not null || e.Kcal is null)))
+                .Where(e => privileged || (!slots.IsSnack(e) && (e.RecipeId is not null || e.Kcal is null)))
                 .Select(e => Mapping.ToDto(e, cooked: PlanShoppingService.IsCooked(e, logs)))
                 .Select(d => privileged ? d : Mapping.PublicView(d))
                 .ToList();
@@ -45,9 +46,12 @@ public static class PlanEndpoints
 
         // Upsert onto the slot's first plain planned meal so agents can write idempotently;
         // eaten food, leftovers and pots in the same slot are left alone.
-        g.MapPut("/entry", async (PlanEntryInput input, MiseDbContext db, PersonScope person, ContextExportService export) =>
+        g.MapPut("/entry", async (PlanEntryInput input, MiseDbContext db, PersonScope person, ContextExportService export,
+            MealSlots meals) =>
         {
-            var slot = Mapping.ParseSlot(input.Slot);
+            string slot;
+            try { slot = (await meals.RequireAsync(person.Id, input.Slot)).Key; }
+            catch (DiaryException ex) { return Error(ex); }
             var title = input.Title?.Trim() ?? "";
             if (title.Length > 300)
                 return Results.BadRequest(new { error = "Nazwa może mieć maks. 300 znaków." });
@@ -84,25 +88,24 @@ public static class PlanEndpoints
 
         // Always adds (several items per slot): diary food, a saved recipe with a portion size,
         // or a typed meal. Favorite also remembers it as an "Ulubione" chip.
-        g.MapPost("/entries", async (DiaryEntryInput input, DiaryService diary, ContextExportService export) =>
+        g.MapPost("/entries", async (DiaryEntryInput input, DiaryService diary, ContextExportService export, MealSlots meals) =>
         {
-            if (Mapping.TryParseSlot(input.Slot) is not MealSlot slot)
-                return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
                 var alsoFor = input.AlsoFor?.Select(a => (a.PersonId, a.Portions)).ToList();
-                var entry = await diary.AddEntryAsync(input.Date, slot, input.RecipeId, input.Title, input.Note,
+                var entry = await diary.AddEntryAsync(input.Date, input.Slot, input.RecipeId, input.Title, input.Note,
                     input.Portions, input.Grams, input.Kcal, input.Protein, input.Fat, input.Carbs, input.Eaten, alsoFor);
                 if (input.Favorite is { } f)
                     await diary.RememberAsync(f.Name, f.Kcal, f.Protein, f.Fat, f.Carbs, f.Per100g, f.LastGrams, f.Barcode);
-                if (entry.Slot != MealSlot.Snack && (entry.RecipeId is not null || entry.Kcal is null))
+                if (!(await meals.DirectoryAsync()).IsSnack(entry) && (entry.RecipeId is not null || entry.Kcal is null))
                     export.Schedule();
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
             catch (DiaryException ex) { return Error(ex); }
         });
 
-        g.MapPatch("/entry/{id:guid}", async (Guid id, PlanEntryPatch input, MiseDbContext db, PersonScope person, ContextExportService export) =>
+        g.MapPatch("/entry/{id:guid}", async (Guid id, PlanEntryPatch input, MiseDbContext db, PersonScope person,
+            ContextExportService export, MealSlots meals) =>
         {
             var entry = await db.PlanEntries.Include(e => e.Recipe).Include(e => e.Cook)
                 .FirstOrDefaultAsync(e => e.Id == id && e.PersonId == person.Id);
@@ -110,9 +113,8 @@ public static class PlanEndpoints
 
             if (input.Slot is not null)
             {
-                if (Mapping.TryParseSlot(input.Slot) is not MealSlot slot)
-                    return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
-                entry.Slot = slot;
+                try { entry.Slot = (await meals.RequireAsync(entry.PersonId, input.Slot)).Key; }
+                catch (DiaryException ex) { return Error(ex); }
             }
             if (input.Date is DateOnly date)
             {
@@ -162,7 +164,7 @@ public static class PlanEndpoints
             else if (portionsChanged) DiaryService.Snapshot(entry);
             entry.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
-            if (!entry.IsCatering && entry.Slot != MealSlot.Snack) export.Schedule();
+            if (!entry.IsCatering && !(await meals.DirectoryAsync()).IsSnack(entry)) export.Schedule();
             return Results.Ok(Mapping.ToDto(entry, cooked: false));
         });
 
@@ -172,18 +174,19 @@ public static class PlanEndpoints
         // the window absorbs "planned Monday, cooked Tuesday" without swallowing a
         // repeat of the same recipe planned a few days later. Leftovers and snack logs
         // are not cooking, so they never ask.
-        g.MapGet("/pending-cook", async (int? days, MiseDbContext db) =>
+        g.MapGet("/pending-cook", async (int? days, MiseDbContext db, MealSlots meals) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             var from = today.AddDays(-Math.Clamp(days ?? 14, 1, 60));
 
+            var slots = await meals.DirectoryAsync();
             var entries = (await db.PlanEntries.AsNoTracking()
                 .Include(e => e.Recipe)
                 .Include(e => e.Cook)
                 .Where(e => e.Date >= from && e.Date < today && !e.CookReminderDismissed)
                 .OrderBy(e => e.Date).ThenBy(e => e.Slot)
                 .ToListAsync())
-                .Where(PlanShoppingService.IsCookable)
+                .Where(e => PlanShoppingService.IsCookable(e, slots))
                 .ToList();
             if (entries.Count == 0) return Results.Ok(new List<PlanEntryDto>());
 

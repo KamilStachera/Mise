@@ -1722,6 +1722,7 @@ public class AuditRegressionTests
         builder.Services.AddScoped<ShoppingService>();
         builder.Services.AddScoped<SupplyService>();
         builder.Services.AddScoped<DiaryService>();
+        builder.Services.AddScoped<MealSlots>();
         builder.Services.AddScoped<BodyService>();
         builder.Services.AddScoped<ActivityService>();
         builder.Services.AddSingleton(StravaOptions.From(builder.Configuration));
@@ -1778,6 +1779,7 @@ public class AuditRegressionTests
         api.MapCookLog();
         api.MapPlan();
         api.MapDiary();
+        api.MapMeals();
         api.MapBody();
         api.MapActivity();
         api.MapExercises();

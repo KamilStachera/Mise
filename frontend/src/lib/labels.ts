@@ -1,4 +1,4 @@
-import type { Cuisine, DishType, Slot, Source, Status, SupplyCategory, Unit } from '../api/client'
+import type { Cuisine, DishType, Source, Status, SupplyCategory, Unit } from '../api/client'
 import type { Equipment, ExerciseCategory, ExerciseLevel, Muscle, TrainingGoal, TrainingLocation, TrainingStyle } from '../api/training'
 
 // Polish display labels for English API tokens (enum values stay English on the wire).
@@ -128,32 +128,6 @@ export const supplyCategoryLabel: Record<SupplyCategory, string> = {
 /** Display order for the supplies list — Inne last, the rest by how often they come up. */
 export const SUPPLY_CATEGORIES: SupplyCategory[] =
   ['cleaning', 'hygiene', 'paper', 'kitchen', 'pets', 'other']
-
-export const slotLabel: Record<Slot, string> = {
-  breakfast: 'Śniadanie',
-  lunch: 'Obiad',
-  dinner: 'Kolacja',
-  snack: 'Przekąski',
-}
-
-/** "Dodaj do Przekąsek" — slot names in the genitive for action buttons. */
-export const slotTo: Record<Slot, string> = {
-  breakfast: 'do Śniadania',
-  lunch: 'do Obiadu',
-  dinner: 'do Kolacji',
-  snack: 'do Przekąsek',
-}
-
-/** Meals you plan and cook. */
-export const SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner']
-/** The diary day: meals plus Przekąski. */
-export const DIARY_SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner', 'snack']
-
-/** Sensible slot for "now" — a fridge portion eaten at 13:00 is lunch. */
-export function slotForNow(d = new Date()): Slot {
-  const h = d.getHours()
-  return h < 11 ? 'breakfast' : h < 17 ? 'lunch' : 'dinner'
-}
 
 /** "1 265" — spaced thousands like the design (pl-PL's toLocaleString leaves 4-digit numbers ungrouped). */
 export function formatKcal(n: number): string {

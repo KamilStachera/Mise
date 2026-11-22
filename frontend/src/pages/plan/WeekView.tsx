@@ -2,7 +2,8 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useBudget, usePantry, usePlan, usePlanAddMissing, usePlanShoppingPreview, useRecipes } from '../../api/hooks'
 import type { PantryConfirmation, PantryItem, PlanEntry, ShoppingPreviewItem, Slot } from '../../api/client'
-import { DAY_NAMES_PL, DIARY_SLOTS, SLOTS, formatKcal, formatQty, plural, slotLabel, unitLabel } from '../../lib/labels'
+import { DAY_NAMES_PL, formatKcal, formatQty, plural, unitLabel } from '../../lib/labels'
+import { useDayMeals } from '../../lib/meals'
 import { MONTHS_SHORT, WEEKDAY_SHORT, addDays, dayShortMonth, mondayOf, parseISODate, toISO } from '../../lib/dates'
 import { useIsMobile } from '../../lib/useIsMobile'
 import { showToast } from '../../lib/toastBus'
@@ -64,10 +65,17 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
   const recipeById = useMemo(() => new Map((recipes ?? []).map((r) => [r.id, r])), [recipes])
   const entries = useMemo(() => (plan?.entries ?? []).filter((e) => days.includes(e.date)), [plan, days])
   const letters = useMemo(() => cookLetters(entries), [entries])
-  const slots = canEdit ? DIARY_SLOTS : SLOTS
+  const meals = useDayMeals()
+  // Visitors see the meal plan only (no snack rows); a removed meal stays while it holds something.
+  const shown = (canEdit ? meals.all : meals.planned).map((m) => m.key)
+  const slots = [...shown, ...new Set(entries.map((e) => e.slot).filter((k) => !shown.includes(k) && (canEdit || !meals.isSnack(k))))]
+  const slotLabel = meals.label
+  const isSnack = meals.isSnack
   const at = (date: string, slot: Slot) => entries.filter((e) => e.date === date && e.slot === slot)
   const totalsOf = (date: string) => dayTotals(entries.filter((e) => e.date === date))
-  const mealsPlanned = entries.filter((e) => e.slot !== 'snack').length
+  // Filled meal cells out of the week's (7 × the person's planned meals).
+  const mealsPlanned = new Set(entries.filter((e) => meals.planned.some((m) => m.key === e.slot)).map((e) => `${e.date}|${e.slot}`)).size
+  const mealCells = 7 * meals.planned.length
 
   // Pots visible this week: from the cook day (or the week's first portion) to the last portion.
   const pots = useMemo(() => {
@@ -208,10 +216,10 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
               </button>
               {slots.map((s) => {
                 const list = at(d, s)
-                const joined = s === 'snack' && list.length > 1
+                const joined = isSnack(s) && list.length > 1
                 const rows: PlanEntry[][] = list.length === 0 ? [[]] : joined ? [list] : list.map((e) => [e])
                 // Przekąski pile up through the day: a filled snack slot keeps its own „+ Dodaj”.
-                const more = canEdit && s === 'snack' && list.length > 0 && (
+                const more = canEdit && isSnack(s) && list.length > 0 && (
                   <button
                     key={`${s}-more`}
                     type="button"
@@ -219,7 +227,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                     style={{ display: 'grid', gridTemplateColumns: '78px minmax(0, 1fr)', gap: 10, padding: '0 0 8px', border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
                   >
                     <span />
-                    <span style={{ font: sans(13.5, 600), color: 'var(--text-2)' }}>+ Dodaj przekąskę</span>
+                    <span style={{ font: sans(13.5, 600), color: 'var(--text-2)' }}>+ Dodaj kolejne</span>
                   </button>
                 )
                 return [...rows.map((row, ri) => (
@@ -229,7 +237,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                     onClick={() => (joined ? (canEdit ? onDay(d) : undefined) : onCell(d, s, row))}
                     style={{ display: 'grid', gridTemplateColumns: '78px minmax(0, 1fr) auto', alignItems: row.length ? 'start' : 'center', gap: 10, padding: row.length || !canEdit ? '11px 0' : '7px 0', border: 0, borderTop: '1px solid var(--border)', background: 'transparent', cursor: canEdit || row[0]?.recipeId ? 'pointer' : 'default', textAlign: 'left', color: 'var(--text)' }}
                   >
-                    <span style={{ font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', paddingTop: row.length ? 3 : 0 }}>{ri === 0 ? slotLabel[s] : ''}</span>
+                    <span style={{ font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)', paddingTop: row.length ? 3 : 0 }}>{ri === 0 ? slotLabel(s) : ''}</span>
                     {row.length > 0 ? (
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 6, font: sans(15), color: row.every((e) => e.eaten || !canEdit) ? 'var(--text)' : 'var(--text-2)' }}>
@@ -325,7 +333,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
             const top = row === 0 ? '1px solid var(--rule)' : '1px solid var(--border)'
             return [
               <span key={s} style={{ padding: '16px 0', borderTop: top, font: mono(10.5, 500), letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
-                {slotLabel[s]}
+                {slotLabel(s)}
               </span>,
               ...days.map((d) => {
                 const list = at(d, s)
@@ -334,7 +342,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 10,
-                  minHeight: s === 'snack' ? 92 : 104,
+                  minHeight: isSnack(s) ? 92 : 104,
                   padding: list.length ? '12px 12px' : 10,
                   borderTop: top,
                   borderLeft: today ? 0 : '1px solid var(--border)',
@@ -376,10 +384,10 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
                       </button>
                     ))}
                     {list.length === 0 && canEdit && (
-                      <button type="button" onClick={() => openAdd(d, s)} aria-label={`Dodaj: ${slotLabel[s]}`} style={{ flex: 1, minHeight: 64, border: '1px dashed var(--border-2)', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 18, color: 'var(--text-3)' }}>+</button>
+                      <button type="button" onClick={() => openAdd(d, s)} aria-label={`Dodaj: ${slotLabel(s)}`} style={{ flex: 1, minHeight: 64, border: '1px dashed var(--border-2)', borderRadius: 10, background: 'transparent', cursor: 'pointer', fontSize: 18, color: 'var(--text-3)' }}>+</button>
                     )}
                     {list.length > 0 && canEdit && (
-                      <button type="button" onClick={() => openAdd(d, s)} aria-label={`Dodaj kolejne: ${slotLabel[s]}`} style={{ alignSelf: 'flex-start', height: 24, padding: '0 10px', border: '1px dashed var(--border-2)', borderRadius: 999, background: 'transparent', cursor: 'pointer', font: sans(13, 500), color: 'var(--text-3)' }}>+</button>
+                      <button type="button" onClick={() => openAdd(d, s)} aria-label={`Dodaj kolejne: ${slotLabel(s)}`} style={{ alignSelf: 'flex-start', height: 24, padding: '0 10px', border: '1px dashed var(--border-2)', borderRadius: 999, background: 'transparent', cursor: 'pointer', font: sans(13, 500), color: 'var(--text-3)' }}>+</button>
                     )}
                   </div>
                 )
@@ -409,7 +417,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 4, font: sans(14.5), color: 'var(--text-2)' }}>
-          <span>{shopMsg ?? `${mealsPlanned} z 21 posiłków zaplanowanych`}</span>
+          <span>{shopMsg ?? `${mealsPlanned} z ${mealCells} posiłków zaplanowanych`}</span>
           {pots.length > 0 && <span style={{ font: sans(13.5), color: 'var(--text-3)' }}>{leftoverNote}</span>}
         </span>
         {canEdit && (

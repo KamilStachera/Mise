@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { PartnerPortionInput, PlanEntry, Slot } from '../../api/client'
 import { useRecipes } from '../../api/hooks'
 import { toISO } from '../../lib/dates'
+import { useDayMeals } from '../../lib/meals'
 import { CookSplitSheet, type CookOrigin } from './CookSplitSheet'
 import { EntrySheet } from './EntrySheet'
 import { PlanMealSheet } from './PlanMealSheet'
@@ -19,6 +20,7 @@ type SplitState = {
  */
 export function useDiarySheets() {
   const { data: recipes } = useRecipes('all', '')
+  const meals = useDayMeals()
   const [add, setAdd] = useState<{ date: string; slot: Slot; mode: 'log' | 'plan' } | null>(null)
   const [entry, setEntry] = useState<PlanEntry | null>(null)
   const [split, setSplit] = useState<SplitState | null>(null)
@@ -33,12 +35,12 @@ export function useDiarySheets() {
 
   const sheets = (
     <>
-      <QuickAddSheet open={add?.mode === 'log'} onClose={() => setAdd(null)} date={add?.date ?? ''} initialSlot={add?.slot ?? 'snack'} />
+      <QuickAddSheet open={add?.mode === 'log'} onClose={() => setAdd(null)} date={add?.date ?? ''} initialSlot={add?.slot ?? meals.snackKey} />
       <PlanMealSheet
         open={add?.mode === 'plan'}
         onClose={() => setAdd(null)}
         date={add?.date ?? ''}
-        initialSlot={add?.slot ?? 'lunch'}
+        initialSlot={add?.slot ?? meals.mainKey}
         onSplit={(r, date, slot, alsoFor) => {
           setAdd(null)
           setSplit({

@@ -168,8 +168,10 @@ public static class AgentDocs
 
         ### Plan tygodnia
         1. Przeczytaj `plan.md`, `cooklog.md` (nie powtarzaj świeżo gotowanych dań) i `recipes/`.
-        2. Zapisuj `set_plan_entry` / `PUT {API}/plan/entry` dzień po dniu (sloty:
-           `breakfast` / `lunch` / `dinner`). To samo danie na kilka dni = jeden garnek:
+        2. Zapisuj `set_plan_entry` / `PUT {API}/plan/entry` dzień po dniu. Sloty to posiłki
+           dnia danej osoby (`get_meals` / `GET {API}/meals`, lista też w `plan.md`): domyślnie
+           `breakfast` / `lunch` (Obiad) / `dinner`, ale ktoś może mieć np. „Lunch” albo
+           „Podwieczorek”. To samo danie na kilka dni = jeden garnek:
            `plan_cook_for_days` / `POST {API}/diary/cooks` (dzień gotowania + resztki).
         3. Najpierw `preview_plan_shopping`, potem `add_plan_missing_to_shopping`.
            Jeśli użytkownik poda korekty, prześlij je jako `confirmations`; bez nich system użyje
@@ -187,7 +189,8 @@ public static class AgentDocs
           `title` + `kcal` i makro jako **sumy** dla zjedzonej ilości (przelicz ze 100 g sam).
           Najpierw sprawdź `get_food_favorites` — tam są produkty tej osoby z dokładnymi
           wartościami (`log_food_favorite`).
-          Przekąski i słodycze idą do slotu `snack`; w jednym slocie może być wiele wpisów.
+          Przekąski i słodycze idą do posiłku-przekąski (`snack: true` w `get_meals`, zwykle
+          `snack`); w jednym slocie może być wiele wpisów.
         - **Zaplanowane, a potem zjedzone**: `update_plan_entry` z `eaten: true` (id z
           `get_plan`). Zjedzenie przepisu zapisuje jego kcal na stałe — nie przeliczaj
           historii, gdy przepis się zmieni.
@@ -301,7 +304,7 @@ public static class AgentDocs
         | `cuisine` (przepis) | `polish` · `italian` · `french` · `spanish` · `greek` · `mediterranean` · `middleeastern` · `indian` · `thai` · `vietnamese` · `chinese` · `japanese` · `korean` · `mexican` · `american` · `other` |
         | `category` (spiżarnia) | `produce` — warzywa i owoce · `fridge` — lodówka · `pantry` — spiżarnia · `spices` — przyprawy |
         | `unit` (spiżarnia/składniki) | `g` — gramy · `ml` — mililitry · `szt` — sztuki |
-        | `slot` (plan) | `breakfast` · `lunch` · `dinner` · `snack` (przekąski — dziennik, prywatne) |
+        | `slot` (plan) | klucz posiłku osoby z `GET /meals` (albo jego nazwa). Domyślnie `breakfast` — Śniadanie · `lunch` — Obiad · `dinner` — Kolacja · `snack` — Przekąski (dziennik, prywatne) |
 
         Status spiżarni (`in` — jest · `low` — mało · `out` — brak) jest **wyliczany z ilości**
         (0 → `out`, poniżej progu → `low`) — nie da się go ustawić wprost; ustawia się ilości.
@@ -575,6 +578,17 @@ public static class AgentDocs
         na nią automatycznie; dodaje się je z przepisów, ręcznie albo przez agenta.
 
         ## Plan tygodnia
+
+        ### Posiłki dnia — GET/PUT /meals
+        Każda osoba ma własną listę posiłków; `slot` we wszystkich wpisach to `key` z tej listy
+        (można też podać nazwę, np. `"Lunch"`). `GET /meals` →
+        `[{ "key": "breakfast", "name": "Śniadanie", "snack": false, "active": true }, …]`
+        (`active: false` = usunięty, stare wpisy go zachowują). `PUT /meals` z
+        `{ "meals": [{ "key"?, "name", "snack"? }] }` podmienia całą listę po kolei: zachowaj
+        klucze istniejących, nowy posiłek bez klucza (klucz nada serwer, np. `lunch-2`, bo
+        `lunch` to Obiad). Pominięte są archiwizowane. 1–8 posiłków, nazwy unikalne, co najmniej
+        jeden nie-przekąska. Zmieniaj tylko na prośbę użytkownika. `alsoFor` trafia do posiłku
+        domownika o tym samym kluczu albo nazwie (inaczej 400).
 
         ### PUT /plan/entry — zaplanuj posiłek (upsert po dacie i slocie)
         ```bash

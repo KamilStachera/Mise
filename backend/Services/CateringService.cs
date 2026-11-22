@@ -242,7 +242,7 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
     private static List<PlanEntry> NewEntries(Catering c, DateOnly day)
     {
         if (!c.SplitMeals)
-            return [BuildEntry(c, day, MealSlot.Breakfast, Title, c.Kcal, c.Protein, c.Fat, c.Carbs)];
+            return [BuildEntry(c, day, "breakfast", Title, c.Kcal, c.Protein, c.Fat, c.Carbs)];
 
         var (bk, lk, dk) = SplitInt(c.Kcal);
         var (bp, lp, dp) = SplitDec(c.Protein);
@@ -250,9 +250,9 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
         var (bc, lc, dc) = SplitDec(c.Carbs);
         return
         [
-            BuildEntry(c, day, MealSlot.Breakfast, $"{Title} — Śniadanie", bk, bp, bf, bc),
-            BuildEntry(c, day, MealSlot.Lunch, $"{Title} — Obiad", lk, lp, lf, lc),
-            BuildEntry(c, day, MealSlot.Dinner, $"{Title} — Kolacja", dk, dp, df, dc),
+            BuildEntry(c, day, "breakfast", $"{Title} — Śniadanie", bk, bp, bf, bc),
+            BuildEntry(c, day, "lunch", $"{Title} — Obiad", lk, lp, lf, lc),
+            BuildEntry(c, day, "dinner", $"{Title} — Kolacja", dk, dp, df, dc),
         ];
     }
 
@@ -271,7 +271,7 @@ public class CateringService(MiseDbContext db, PersonScope? person = null)
         return (b, l, Math.Max(0m, Math.Round(v - b - l, 1, MidpointRounding.AwayFromZero)));
     }
 
-    private static PlanEntry BuildEntry(Catering c, DateOnly day, MealSlot slot, string title,
+    private static PlanEntry BuildEntry(Catering c, DateOnly day, string slot, string title,
         int kcal, decimal? protein, decimal? fat, decimal? carbs)
     {
         var entry = new PlanEntry

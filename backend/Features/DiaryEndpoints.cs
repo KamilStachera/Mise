@@ -28,13 +28,11 @@ public static class DiaryEndpoints
         // "Gotuję na kilka dni": the cook day (new, or FromEntryId) + one leftover per assignment.
         g.MapPost("/cooks", async (CookInput input, DiaryService diary, ContextExportService export) =>
         {
-            if (Mapping.TryParseSlot(input.FirstSlot) is not MealSlot firstSlot || ParseAssignments(input.Assignments) is not { } assignments)
-                return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
                 var alsoFor = input.AlsoFor?.Select(a => (a.PersonId, a.Portions)).ToList();
-                var cook = await diary.CreateCookAsync(input.RecipeId, input.Portions, input.FirstDate, firstSlot,
-                    assignments, input.FromEntryId, alsoFor);
+                var cook = await diary.CreateCookAsync(input.RecipeId, input.Portions, input.FirstDate, input.FirstSlot,
+                    Assignments(input.Assignments), input.FromEntryId, alsoFor);
                 export.Schedule();
                 return Results.Ok(Mapping.ToDto((await diary.LoadCookAsync(cook.Id))!));
             }
@@ -43,11 +41,9 @@ public static class DiaryEndpoints
 
         g.MapPut("/cooks/{id:guid}", async (Guid id, CookUpdateInput input, DiaryService diary, ContextExportService export) =>
         {
-            if (ParseAssignments(input.Assignments) is not { } assignments)
-                return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
-                await diary.UpdateCookAsync(id, input.Portions, assignments);
+                await diary.UpdateCookAsync(id, input.Portions, Assignments(input.Assignments));
                 export.Schedule();
                 return Results.Ok(Mapping.ToDto((await diary.LoadCookAsync(id))!));
             }
@@ -56,11 +52,9 @@ public static class DiaryEndpoints
 
         g.MapPost("/cooks/{id:guid}/eat", async (Guid id, CookEatInput input, DiaryService diary, ContextExportService export) =>
         {
-            if (Mapping.TryParseSlot(input.Slot) is not MealSlot slot)
-                return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
-                var entry = await diary.EatFromCookAsync(id, input.Date, slot);
+                var entry = await diary.EatFromCookAsync(id, input.Date, input.Slot);
                 export.Schedule();
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
@@ -117,11 +111,9 @@ public static class DiaryEndpoints
 
         g.MapPost("/favorites/{id:guid}/log", async (Guid id, FoodFavoriteLogInput input, DiaryService diary) =>
         {
-            if (Mapping.TryParseSlot(input.Slot) is not MealSlot slot)
-                return Results.BadRequest(new { error = "Nieznany posiłek (breakfast/lunch/dinner/snack)." });
             try
             {
-                var entry = await diary.LogFavoriteAsync(id, input.Date, slot, input.Grams);
+                var entry = await diary.LogFavoriteAsync(id, input.Date, input.Slot, input.Grams);
                 return Results.Ok(Mapping.ToDto(entry, cooked: false));
             }
             catch (DiaryException ex) { return PlanEndpoints.Error(ex); }
@@ -140,15 +132,6 @@ public static class DiaryEndpoints
         return api;
     }
 
-    /// <summary>Null when any slot is unknown.</summary>
-    private static List<(DateOnly Date, MealSlot Slot)>? ParseAssignments(List<CookAssignmentInput>? input)
-    {
-        var result = new List<(DateOnly, MealSlot)>();
-        foreach (var a in input ?? [])
-        {
-            if (Mapping.TryParseSlot(a.Slot) is not MealSlot slot) return null;
-            result.Add((a.Date, slot));
-        }
-        return result;
-    }
+    private static List<(DateOnly Date, string Slot)> Assignments(List<CookAssignmentInput>? input) =>
+        (input ?? []).Select(a => (a.Date, a.Slot)).ToList();
 }

@@ -62,7 +62,9 @@ help plan meals.
 - A **weekly meal plan** and a **cook log** ("we made this — too salty") that
   agents read and write, closing the feedback loop. Logging a cook can deduct the
   used ingredients from the pantry (the app proposes the amounts).
-- A private **food diary** on the plan (Plan → Dzień / Tydzień / Postępy): cook one
+- A private **food diary** on the plan (Plan → Dzień / Tydzień / Postępy), split into
+  each person's own **meals of the day** (Profil → Posiłki dnia: e.g. add „Lunch” next
+  to Obiad, rename, reorder, mark a meal as private snacks): cook one
   pot for several days (leftovers are bought once and show up "W lodówce"), log
   sweets and snacks with one-tap favourites, and see the day against a calorie +
   protein budget computed from **Twój cel** (Mifflin-St Jeor). Weigh-ins draw a 7-day

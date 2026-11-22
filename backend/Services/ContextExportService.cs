@@ -199,12 +199,15 @@ public sealed class ContextExportService
         var planFrom = StartOfWeek(DateOnly.FromDateTime(DateTime.Today));
         var planTo = planFrom.AddDays(14);
         // Meals only: snacks and typed food are the private diary, not the plan.
-        var plan = await _db.PlanEntries.AsNoTracking()
+        var planSlots = await new MealSlots(_db).DirectoryAsync(ct);
+        var plan = (await _db.PlanEntries.AsNoTracking()
             .Include(e => e.Cook)
             .Where(e => e.Date >= planFrom && e.Date < planTo)
-            .Where(e => e.Slot != MealSlot.Snack && (e.RecipeId != null || e.Kcal == null))
+            .Where(e => e.RecipeId != null || e.Kcal == null)
             .OrderBy(e => e.Date)
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .Where(e => !planSlots.IsSnack(e))
+            .ToList();
 
         var planPeople = await _db.People.AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.Name, ct);
 
@@ -235,7 +238,7 @@ public sealed class ContextExportService
 
         await WriteAsync(dir, "shopping.md", BuildShoppingMarkdown(shopping), files, ct);
         await WriteAsync(dir, "supplies.md", BuildSuppliesMarkdown(supplies, supplyFavorites), files, ct);
-        await WriteAsync(dir, "plan.md", BuildPlanMarkdown(plan, recipes, planPeople, planFrom), files, ct);
+        await WriteAsync(dir, "plan.md", BuildPlanMarkdown(plan, recipes, planPeople, planSlots, planFrom), files, ct);
         await WriteAsync(dir, "cooklog.md", BuildCookLogMarkdown(cookLog), files, ct);
         await WriteAsync(dir, "AGENTS.md", AgentDocs.AgentsMd(ApiBase), files, ct);
         await WriteAsync(dir, "CLAUDE.md", AgentDocs.AgentsMd(ApiBase), files, ct);
@@ -401,7 +404,7 @@ public sealed class ContextExportService
     }
 
     private static string BuildPlanMarkdown(List<PlanEntry> entries, List<Recipe> recipes,
-        Dictionary<int, string> people, DateOnly from)
+        Dictionary<int, string> people, SlotDirectory slots, DateOnly from)
     {
         var titleById = recipes.ToDictionary(r => r.Id, r => r.Title);
         var byDate = entries.ToLookup(e => e.Date);
@@ -414,6 +417,13 @@ public sealed class ContextExportService
         sb.AppendLine("Bieżący i przyszły tydzień — same posiłki. Wpisy zmieniaj przez `set_plan_entry` / `PUT /plan/entry` (patrz `api.md`). " +
             "Dziennik (przekąski, co zjedzone, kcal) jest prywatny: `get_plan` / `GET /plan` z kluczem API.");
 
+        // Agents write slots by key; custom meals ("Lunch" next to Obiad's "lunch") need the list.
+        sb.AppendLine();
+        sb.AppendLine("Posiłki dnia (klucz `slot` → nazwa; ⋆ = przekąski, prywatne):");
+        foreach (var (pid, pname) in people.OrderBy(p => p.Key))
+            sb.AppendLine($"- {pname}: " + string.Join(", ",
+                slots.Day(pid).Select(m => $"`{m.Key}` {m.Name}{(m.IsSnack ? " ⋆" : "")}")));
+
         for (var week = 0; week < 2; week++)
         {
             var weekStart = from.AddDays(week * 7);
@@ -425,7 +435,7 @@ public sealed class ContextExportService
                 var dayName = pl.DateTimeFormat.GetDayName(date.DayOfWeek);
                 dayName = char.ToUpper(dayName[0], pl) + dayName[1..];   // pl-PL day names are lowercase
                 var dayEntries = byDate[date]
-                    .OrderBy(e => e.Slot switch { MealSlot.Breakfast => 0, MealSlot.Lunch => 1, _ => 2 })
+                    .OrderBy(e => slots.Position(e.PersonId, e.Slot))
                     .ThenBy(e => e.PersonId)
                     .ToList();
                 if (dayEntries.Count == 0)
@@ -435,7 +445,7 @@ public sealed class ContextExportService
                 }
                 foreach (var e in dayEntries)
                 {
-                    var slot = SlotLabel(e.Slot);
+                    var slot = $"{slots.Name(e.PersonId, e.Slot).ToLower(pl)} [{e.Slot}]";
                     var who = showPerson && people.TryGetValue(e.PersonId, out var pname) ? $" ({pname})" : "";
                     var what = e.RecipeId is Guid rid && titleById.TryGetValue(rid, out var t)
                         ? $"{t} (zapisany przepis)"
@@ -450,14 +460,6 @@ public sealed class ContextExportService
         }
         return sb.ToString().TrimEnd() + "\n";
     }
-
-    public static string SlotLabel(MealSlot s) => s switch
-    {
-        MealSlot.Breakfast => "śniadanie",
-        MealSlot.Dinner => "kolacja",
-        MealSlot.Snack => "przekąska",
-        _ => "obiad",
-    };
 
     private static string BuildShoppingMarkdown(List<ShoppingItem> items)
     {

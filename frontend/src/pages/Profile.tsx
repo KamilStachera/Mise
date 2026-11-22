@@ -6,6 +6,7 @@ import { AppearanceSettings } from '../components/AppearanceSettings'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
 import { HouseholdCard, PortionSettingsCard } from '../components/HouseholdCards'
 import { LoginPrompt } from '../components/LoginPrompt'
+import { MealsCard } from '../components/diary/MealsEditor'
 import { SousButton } from '../components/SousButton'
 import { showToast } from '../lib/toastBus'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -152,6 +153,7 @@ export function Profile() {
             <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
               <LinkRow label="Ankieta kulinarna" meta={totalQuestions ? `${answered}/${totalQuestions}` : ''} onClick={() => nav('/profile/ankieta')} />
             </div>
+            {canEdit && <MealsCard />}
             {canEdit && <PortionSettingsCard />}
           </div>
         ) : (
@@ -166,6 +168,7 @@ export function Profile() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
                 {questionnaire && <QuestionnaireSummary q={questionnaire} answered={answered} total={totalQuestions} canEdit={canEdit} />}
+                {canEdit && <MealsCard />}
                 {canEdit && <PortionSettingsCard />}
               </div>
             </div>

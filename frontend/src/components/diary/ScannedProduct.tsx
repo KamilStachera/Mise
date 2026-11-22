@@ -1,7 +1,8 @@
 import { useState, type CSSProperties } from 'react'
 import type { BarcodeProduct, Slot } from '../../api/client'
 import { useAddDiaryEntry, useFeminine } from '../../api/hooks'
-import { formatKcal, slotTo } from '../../lib/labels'
+import { formatKcal } from '../../lib/labels'
+import { useDayMeals } from '../../lib/meals'
 import { showToast } from '../../lib/toastBus'
 import { Button, Eyebrow, inputStyle, mono, sans } from '../ui'
 import { PortionChip } from './RecipePicker'
@@ -25,6 +26,7 @@ export function ScannedProduct({ product, date, slot, onRescan, onDone }: {
   onDone: () => void
 }) {
   const add = useAddDiaryEntry()
+  const meals = useDayMeals()
   const serving = product.servingGrams
   const [grams, setGrams] = useState(dec(product.lastGrams ?? serving ?? 100))
   const [name, setName] = useState(product.name ?? '')
@@ -50,7 +52,7 @@ export function ScannedProduct({ product, date, slot, onRescan, onDone }: {
       eaten: true,
       favorite: { name: name.trim(), kcal: Math.round(k!), protein: product.protein, fat: product.fat, carbs: product.carbs, per100g: true, lastGrams: g, barcode: product.barcode },
     })
-    showToast(`Dodano ${slotTo[slot]}: ${name.trim()} · ${total} kcal`)
+    showToast(`Dodano · ${meals.label(slot)}: ${name.trim()} · ${total} kcal`)
     onDone()
   }
 
@@ -147,7 +149,7 @@ export function ScannedProduct({ product, date, slot, onRescan, onDone }: {
         {product.source === 'favorite' ? 'twoje wartości' : 'dane: Open Food Facts'} · zapisze się w ulubionych
       </span>
       <Button size="xl" disabled={!canAdd || add.isPending} onClick={save}>
-        Dodaj {slotTo[slot]}{total != null ? ` · ${formatKcal(total)} kcal` : ''}
+        Dodaj · {meals.label(slot)}{total != null ? ` · ${formatKcal(total)} kcal` : ''}
       </Button>
     </div>
   )

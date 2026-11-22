@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useAddCookLog, useAuth, useDismissCookReminder, usePendingCook } from '../api/hooks'
 import type { PlanEntry } from '../api/client'
 import { showToast } from '../lib/toastBus'
-import { plural, slotLabel } from '../lib/labels'
+import { plural } from '../lib/labels'
+import { useDayMeals } from '../lib/meals'
 import { parseISODate } from '../lib/dates'
 import { Button, Eyebrow, Sheet, mono, sans } from './ui'
 
@@ -113,6 +114,7 @@ function PendingCookSheet({ open, onClose, pending }: { open: boolean; onClose: 
 
 function PendingRow({ entry, picked, onToggle, disabled }: { entry: PlanEntry; picked: boolean; onToggle: () => void; disabled: boolean }) {
   const dismiss = useDismissCookReminder()
+  const meals = useDayMeals()
   const title = entry.recipeTitle ?? entry.title
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--border)' }}>
@@ -129,7 +131,7 @@ function PendingRow({ entry, picked, onToggle, disabled }: { entry: PlanEntry; p
         </span>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
           <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 18, lineHeight: 1.2 }}>{title}</span>
-          <span style={{ font: mono(11.5), color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{slotLabel[entry.slot]}</span>
+          <span style={{ font: mono(11.5), color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{meals.label(entry.slot)}</span>
         </span>
       </button>
       <button

@@ -7,7 +7,7 @@ import {
   useRecipeShare, useCreateRecipeShare, useRevokeRecipeShare,
 } from '../api/hooks'
 import { errorText, type CookProposalItem, type RecipeDetail as Recipe, type RecipeImage } from '../api/client'
-import { dishLine, formatGrams, formatQty, plural, sourceEyebrow, unitLabel } from '../lib/labels'
+import { dishLine, formatGrams, formatKcal, formatQty, plural, sourceEyebrow, unitLabel } from '../lib/labels'
 import { IMAGE_ACCEPT } from '../lib/images'
 import { requestChat } from '../lib/chatBus'
 import { normalizeTag, parseOptionalDecimal } from '../lib/recipeParsing'
@@ -167,16 +167,25 @@ export function RecipeDetail() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)' }}>
         <Fact first value={r.time} label="minut" />
-        <Fact value={<ServingsStepper recipe={r} canEdit={canEdit} fixed={fixedIngredients} />} label={plural(fixedIngredients ? r.servings : r.selectedServings, 'porcja', 'porcje', 'porcji').replace(/^\d+ /, '')} />
+        <Fact
+          value={<ServingsStepper recipe={r} canEdit={canEdit} fixed={fixedIngredients} />}
+          label={fixedIngredients
+            ? `dzielisz na ${plural(r.servings, 'porcję', 'porcje', 'porcji').replace(/^\d+ /, '')}`
+            : plural(r.selectedServings, 'porcja', 'porcje', 'porcji').replace(/^\d+ /, '')}
+        />
         {fixedIngredients
           ? <Fact value={r.kcal != null ? `~${r.kcal}` : '—'} label="kcal / porcja" />
-          : <Fact value={r.kcal != null ? `~${Math.round(r.kcal * r.selectedServings)}` : '—'} label="kcal" />}
+          : <Fact value={r.kcal != null ? `~${Math.round(r.kcal * r.selectedServings)}` : '—'} label={r.kcal != null && r.selectedServings > 1 ? `kcal · ${r.selectedServings} × ${r.kcal}` : 'kcal / porcja'} />}
         <Fact value={<span style={{ font: sans(15, 500), lineHeight: '21.5px' }}>{r.difficulty}</span>} label="poziom" />
       </div>
       {fixedIngredients ? (
-        <span style={{ font: sans(12.5, 500), color: 'var(--text-3)' }}>
-          Składniki na całe danie — dzielisz je na {plural(r.servings, 'porcję', 'porcje', 'porcji')}; kcal i makro na jedną.
-        </span>
+        r.kcal != null ? (
+          <DishSplitLine dishKcal={r.kcal * r.servings} portions={r.servings} />
+        ) : (
+          <span style={{ font: sans(12.5, 500), color: 'var(--text-3)' }}>
+            Składniki na całe danie — dzielisz je na {plural(r.servings, 'porcję', 'porcje', 'porcji')}; kcal i makro na jedną.
+          </span>
+        )
       ) : r.selectedServings !== r.servings && (
         <span style={{ font: sans(12.5, 500), color: 'var(--accent-text)' }}>
           Przepis oryginalnie na {plural(r.servings, 'porcję', 'porcje', 'porcji')} — ilości i kcal przeliczone na {plural(r.selectedServings, 'porcję', 'porcje', 'porcji')}.
@@ -877,8 +886,8 @@ function PortionCountSheet({ open, onClose, recipe }: { open: boolean; onClose: 
           <button type="button" aria-label="Więcej porcji" disabled={count >= 200} onClick={() => setCount(count + 1)} style={stepStyle(count >= 200)}>+</button>
         </div>
         {perPortion != null && (
-          <span style={{ font: mono(13), color: 'var(--text-2)', textAlign: 'center' }}>
-            {recipe.kcal} kcal/porcja → <strong style={{ color: 'var(--text)' }}>{perPortion} kcal/porcja</strong>
+          <span style={{ alignSelf: 'center', textAlign: 'center' }}>
+            <DishSplitLine dishKcal={recipe.kcal! * recipe.servings} portions={count} />
           </span>
         )}
         {error && <span role="alert" style={{ font: sans(13.5, 500), color: 'var(--accent-text)' }}>{error}</span>}
@@ -890,6 +899,23 @@ function PortionCountSheet({ open, onClose, recipe }: { open: boolean; onClose: 
         </div>
       </div>
     </Sheet>
+  )
+}
+
+/**
+ * „Całe danie ~2400 kcal ÷ 4 porcje = ~600 kcal na porcję” — makes plain that a portion is a
+ * share of the same dish, so fewer portions means a bigger (higher-kcal) one, not a different dish.
+ */
+function DishSplitLine({ dishKcal, portions }: { dishKcal: number; portions: number }) {
+  const per = Math.round(dishKcal / Math.max(1, portions))
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <span style={{ font: mono(13), color: 'var(--text-2)' }}>
+        Całe danie ~{formatKcal(dishKcal)} kcal ÷ {plural(portions, 'porcja', 'porcje', 'porcji')} ={' '}
+        <span style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text)', fontWeight: 600 }}>~{formatKcal(per)} kcal</strong> na porcję</span>
+      </span>
+      <span style={{ font: sans(12.5), color: 'var(--text-3)' }}>Mniej porcji = większa porcja. Składniki się nie zmieniają.</span>
+    </span>
   )
 }
 

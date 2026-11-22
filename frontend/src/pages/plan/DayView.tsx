@@ -1,6 +1,6 @@
 import { useMemo, useRef, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { loginUrl, type FridgeItem, type PlanEntry, type Slot } from '../../api/client'
+import { loginUrl, type FridgeItem, type PlanEntry } from '../../api/client'
 import { useActivity, useAuth, useBudget, useCatering, useDeletePlanEntry, useDiscardCook, useEatFromCook, useFeminine, useFridge, useLogCatering, usePatchPlanEntry, usePlan, useProgress, useRecipes } from '../../api/hooks'
 import { BudgetMeter, CookMark, DiaryItem, PortionDots, SourceTag, WeekDayBar, cookLetters, dayTotals, entryTitle } from '../../components/diary/parts'
 import { useDiarySheets } from '../../components/diary/useDiarySheets'
@@ -8,7 +8,8 @@ import { RecipeThumb } from '../../components/RecipeThumb'
 import { PinnedBar } from '../../components/Sous'
 import { PendingCookNotice } from '../../components/PendingCookModal'
 import { Button, Eyebrow, PageTitle, SectionHead, mono, sans, usePagePad } from '../../components/ui'
-import { DAY_NAMES_PL, DIARY_SLOTS, formatKcal, plural, slotForNow, slotLabel } from '../../lib/labels'
+import { DAY_NAMES_PL, formatKcal, plural } from '../../lib/labels'
+import { useDayMeals } from '../../lib/meals'
 import { WEEKDAY_SHORT, addDays, dayShortMonth, daysAgo, mondayOf, parseISODate, syncLabel, toISO } from '../../lib/dates'
 import { showToast } from '../../lib/toastBus'
 import { useIsMobile } from '../../lib/useIsMobile'
@@ -59,6 +60,9 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
   const entries = weekEntries.filter((e) => e.date === day)
   const meals = entries.filter((e) => !e.isCatering)
   const boxes = entries.filter((e) => e.isCatering)
+  const mealDay = useDayMeals()
+  // The person's meals, plus any removed meal that still holds something today.
+  const daySlots = [...mealDay.all.map((m) => m.key), ...new Set(meals.map((e) => e.slot).filter((k) => !mealDay.all.some((m) => m.key === k)))]
   const totals = dayTotals(entries)
   const future = day > today
   const prev = toISO(addDays(date, -1))
@@ -70,7 +74,7 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
 
   const toggle = (e: PlanEntry) => patch.mutate({ id: e.id, patch: { eaten: !e.eaten } })
   const addLabel = future ? '+ Zaplanuj posiłek' : '+ Dodaj jedzenie'
-  const onAdd = () => openAdd(day, future ? 'lunch' : 'snack')
+  const onAdd = () => openAdd(day, future ? mealDay.mainKey : mealDay.snackKey)
 
   const dayNav = (
     <div
@@ -169,10 +173,10 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
     </div>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-      {DIARY_SLOTS.map((s) => (
+      {daySlots.map((s) => (
         <SlotBlock
           key={s}
-          slot={s}
+          label={mealDay.label(s)}
           entries={meals.filter((e) => e.slot === s)}
           onAdd={() => openAdd(day, s)}
           canEdit={canEdit}
@@ -382,6 +386,7 @@ function FridgeStrip({ items, day, letters, recipeImage }: {
 }) {
   const eat = useEatFromCook()
   const discard = useDiscardCook()
+  const meals = useDayMeals()
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <SectionHead title="W lodówce" meta={plural(items.length, 'danie', 'dania', 'dań')} />
@@ -415,7 +420,7 @@ function FridgeStrip({ items, day, letters, recipeImage }: {
               size="sm"
               disabled={eat.isPending}
               onClick={async () => {
-                await eat.mutateAsync({ id: f.cookId, date: day, slot: slotForNow() })
+                await eat.mutateAsync({ id: f.cookId, date: day, slot: meals.forNow() })
                 showToast(`Zjedzona porcja: ${f.title}`)
               }}
             >
@@ -456,7 +461,7 @@ export function PrivateDiary({ switcher }: { switcher: ReactNode }) {
 }
 
 /** One diary slot: ink eyebrow on a strong rule, subtotal (~ while only planned), „+ Dodaj”. */
-function SlotBlock({ slot, entries: list, onAdd: add, canEdit, children }: { slot: Slot; entries: PlanEntry[]; onAdd: () => void; canEdit: boolean; children: ReactNode }) {
+function SlotBlock({ label, entries: list, onAdd: add, canEdit, children }: { label: string; entries: PlanEntry[]; onAdd: () => void; canEdit: boolean; children: ReactNode }) {
   const t = dayTotals(list)
   const planned = list.length > 0 && list.every((e) => !e.eaten)
   // What was eaten; the planned estimate only while nothing in the slot is eaten yet.
@@ -464,7 +469,7 @@ function SlotBlock({ slot, entries: list, onAdd: add, canEdit, children }: { slo
   return (
     <section style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0 8px', borderTop: '1px solid var(--rule)' }}>
-        <Eyebrow tone="ink">{slotLabel[slot]}</Eyebrow>
+        <Eyebrow tone="ink">{label}</Eyebrow>
         <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <span style={{ font: mono(12.5), color: planned ? 'var(--text-3)' : 'var(--text-2)' }}>{sum}</span>
           {canEdit && (

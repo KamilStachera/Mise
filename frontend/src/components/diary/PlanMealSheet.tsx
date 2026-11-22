@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { PartnerPortionInput, RecipeListItem, Slot } from '../../api/client'
 import { useAddDiaryEntry, usePerson } from '../../api/hooks'
-import { DIARY_SLOTS, slotLabel, slotTo } from '../../lib/labels'
+import { useDayMeals } from '../../lib/meals'
 import { showToast } from '../../lib/toastBus'
 import { Button, Segmented, Sheet, inputStyle } from '../ui'
+import { MealPicker } from './MealPicker'
 import { PartnerSyncToggle, formatAlsoForToast } from './PartnerSyncToggle'
 import { RecipePicker } from './RecipePicker'
 
@@ -20,6 +21,7 @@ export function PlanMealSheet({ open, onClose, date, initialSlot, onSplit }: {
 }) {
   const add = useAddDiaryEntry()
   const { people } = usePerson()
+  const meals = useDayMeals()
   const [slot, setSlot] = useState<Slot>(initialSlot)
   const [mode, setMode] = useState<'recipe' | 'text'>('recipe')
   const [recipe, setRecipe] = useState<RecipeListItem | null>(null)
@@ -48,14 +50,14 @@ export function PlanMealSheet({ open, onClose, date, initialSlot, onSplit }: {
       note: note.trim(),
       alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
     })
-    showToast(`Zaplanowano ${slotTo[slot]}: ${mode === 'recipe' ? recipe!.title : title.trim()}${formatAlsoForToast(alsoFor, people)}`)
+    showToast(`Zaplanowano · ${meals.label(slot)}: ${mode === 'recipe' ? recipe!.title : title.trim()}${formatAlsoForToast(alsoFor, people)}`)
     onClose()
   }
 
   return (
     <Sheet open={open} onClose={onClose} title="Zaplanuj posiłek" width={540}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Segmented value={slot} onChange={setSlot} items={DIARY_SLOTS.map((s) => ({ key: s, label: slotLabel[s] }))} />
+        <MealPicker meals={meals.all} value={slot} onChange={setSlot} />
         <Segmented
           value={mode}
           onChange={setMode}
@@ -70,9 +72,9 @@ export function PlanMealSheet({ open, onClose, date, initialSlot, onSplit }: {
         <PartnerSyncToggle value={alsoFor} onChange={setAlsoFor} labelPrefix="Zaplanuj też dla" showPortions={mode === 'recipe'} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button size="xl" style={{ flex: 1 }} disabled={!canSave || add.isPending} onClick={save}>
-            {add.isPending ? 'Zapisywanie…' : `Zaplanuj ${slotTo[slot]}`}
+            {add.isPending ? 'Zapisywanie…' : `Zaplanuj · ${meals.label(slot)}`}
           </Button>
-          {mode === 'recipe' && recipe && slot !== 'snack' && (
+          {mode === 'recipe' && recipe && !meals.isSnack(slot) && (
             <Button size="xl" variant="outline" onClick={() => onSplit(recipe, date, slot, alsoFor)}>Na kilka dni…</Button>
           )}
         </div>

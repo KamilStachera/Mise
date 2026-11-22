@@ -23,6 +23,7 @@ public sealed class DiaryException(string message, int status = StatusCodes.Stat
 public class DiaryService(MiseDbContext db, PersonScope? person = null)
 {
     private readonly int pid = (person ?? PersonScope.Default).Id;
+    private readonly MealSlots slots = new(db);
 
     public const int MaxPotPortions = 12;
     public const decimal MaxEntryPortions = 10;
@@ -93,7 +94,8 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
     // ---- entries ----
 
     /// <summary>Adds a calendar entry (never replaces); optionally clones it for household partners in AlsoFor.</summary>
-    public async Task<PlanEntry> AddEntryAsync(DateOnly date, MealSlot slot, Guid? recipeId, string? title,
+    /// <remarks><paramref name="slot"/> is a meal key or name of the person's day (<see cref="MealSlots"/>).</remarks>
+    public async Task<PlanEntry> AddEntryAsync(DateOnly date, string slot, Guid? recipeId, string? title,
         string? note, decimal? portions, decimal? grams, int? kcal, decimal? protein, decimal? fat,
         decimal? carbs, bool eaten, IReadOnlyList<(int PersonId, decimal? Portions)>? alsoFor = null,
         CancellationToken ct = default)
@@ -113,15 +115,18 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
             throw new DiaryException("Makroskładniki poza zakresem.");
         if (grams is < 0 or > 100000) throw new DiaryException("Gramatura poza zakresem.");
 
+        var meal = await slots.RequireAsync(pid, slot, ct);
         var partners = await ResolvePartnersAsync(alsoFor, ct);
+        var partnerSlots = new Dictionary<int, string>();
+        foreach (var (partnerId, _) in partners) partnerSlots[partnerId] = await slots.MatchForAsync(partnerId, meal, ct);
 
-        PlanEntry Build(int targetPersonId, decimal targetPortions, bool scaleTyped)
+        PlanEntry Build(int targetPersonId, string slotKey, decimal targetPortions, bool scaleTyped)
         {
             var e = new PlanEntry
             {
                 PersonId = targetPersonId,
                 Date = date,
-                Slot = slot,
+                Slot = slotKey,
                 RecipeId = recipe?.Id,
                 Recipe = recipe,
                 Title = recipe is null ? name : "",
@@ -147,10 +152,10 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
             return e;
         }
 
-        var entry = Build(pid, ClampPortions(portions), scaleTyped: false);
+        var entry = Build(pid, meal.Key, ClampPortions(portions), scaleTyped: false);
         db.PlanEntries.Add(entry);
         foreach (var (partnerId, partnerPortions) in partners)
-            db.PlanEntries.Add(Build(partnerId, partnerPortions, scaleTyped: true));
+            db.PlanEntries.Add(Build(partnerId, partnerSlots[partnerId], partnerPortions, scaleTyped: true));
         await db.SaveChangesAsync(ct);
         return entry;
     }
@@ -199,14 +204,15 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
     /// entry per assignment. Portions must cover the cook day and every assignment. Optionally
     /// mirrors the pot onto household partners in <paramref name="alsoFor"/> (each with their own portion multiplier).
     /// </summary>
-    public async Task<Cook> CreateCookAsync(Guid recipeId, int portions, DateOnly firstDate, MealSlot firstSlot,
-        IReadOnlyList<(DateOnly Date, MealSlot Slot)> assignments, Guid? fromEntryId,
+    public async Task<Cook> CreateCookAsync(Guid recipeId, int portions, DateOnly firstDate, string firstSlot,
+        IReadOnlyList<(DateOnly Date, string Slot)> assignments, Guid? fromEntryId,
         IReadOnlyList<(int PersonId, decimal? Portions)>? alsoFor = null, CancellationToken ct = default)
     {
         var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == recipeId, ct)
             ?? throw new DiaryException("Nie ma takiego przepisu.", StatusCodes.Status404NotFound);
         ValidatePot(portions, 1 + assignments.Count);
         var partners = await ResolvePartnersAsync(alsoFor, ct);
+        var meals = await ResolveAssignmentsAsync(pid, assignments, ct);
 
         PlanEntry cookDay;
         if (fromEntryId is Guid fid)
@@ -221,9 +227,12 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         }
         else
         {
-            cookDay = new PlanEntry { PersonId = pid, Date = firstDate, Slot = firstSlot, RecipeId = recipe.Id, Recipe = recipe };
+            var first = await slots.RequireAsync(pid, firstSlot, ct);
+            cookDay = new PlanEntry { PersonId = pid, Date = firstDate, Slot = first.Key, RecipeId = recipe.Id, Recipe = recipe };
             db.PlanEntries.Add(cookDay);
         }
+        var cookDayMeal = (await slots.ListAsync(pid, ct)).FirstOrDefault(m => m.Key == cookDay.Slot)
+            ?? new MealSlotView(cookDay.Slot, cookDay.Slot, false, true, 0);
 
         var cook = new Cook
         {
@@ -235,7 +244,7 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         cookDay.Portions = 1;
         Snapshot(cookDay);
         cookDay.UpdatedAt = DateTimeOffset.UtcNow;
-        AddLeftovers(cook, recipe, assignments, portionPerEntry: 1);
+        AddLeftovers(cook, recipe, meals.Select(m => (m.Date, m.Meal.Key)), portionPerEntry: 1);
 
         var daysCount = 1 + assignments.Count;
         foreach (var (partnerId, partnerPortions) in partners)
@@ -246,11 +255,13 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
                 PersonId = partnerId, RecipeId = recipe.Id, Title = recipe.Title, Date = cookDay.Date, Portions = potSize,
             };
             db.Cooks.Add(partnerCook);
+            var partnerAssignments = new List<(DateOnly, string)>();
+            foreach (var (date, meal) in meals) partnerAssignments.Add((date, await slots.MatchForAsync(partnerId, meal, ct)));
             var partnerDay = new PlanEntry
             {
                 PersonId = partnerId,
                 Date = cookDay.Date,
-                Slot = cookDay.Slot,
+                Slot = await slots.MatchForAsync(partnerId, cookDayMeal, ct),
                 RecipeId = recipe.Id,
                 Recipe = recipe,
                 Cook = partnerCook,
@@ -258,7 +269,7 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
                 Portions = partnerPortions,
             };
             db.PlanEntries.Add(partnerDay);
-            AddLeftovers(partnerCook, recipe, assignments, partnerPortions);
+            AddLeftovers(partnerCook, recipe, partnerAssignments, partnerPortions);
         }
 
         await db.SaveChangesAsync(ct);
@@ -267,10 +278,11 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
 
     /// <summary>Resizes the pot and replaces its planned leftovers; eaten portions stay put.</summary>
     public async Task<Cook> UpdateCookAsync(Guid id, int portions,
-        IReadOnlyList<(DateOnly Date, MealSlot Slot)> assignments, CancellationToken ct = default)
+        IReadOnlyList<(DateOnly Date, string Slot)> assignments, CancellationToken ct = default)
     {
         var cook = await LoadCookAsync(id, ct)
             ?? throw new DiaryException("Nie ma takiego gotowania.", StatusCodes.Status404NotFound);
+        var meals = await ResolveAssignmentsAsync(cook.PersonId, assignments, ct);
         var keep = cook.Entries.Where(e => !e.IsLeftover || e.EatenAt is not null).ToList();
         ValidatePot(portions, keep.Sum(e => e.Portions) + assignments.Count + cook.DiscardedPortions);
 
@@ -281,22 +293,23 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         }
         cook.Portions = portions;
         var recipe = cook.Recipe ?? (cook.RecipeId is Guid rid ? await db.Recipes.FirstOrDefaultAsync(r => r.Id == rid, ct) : null);
-        AddLeftovers(cook, recipe, assignments);
+        AddLeftovers(cook, recipe, meals.Select(m => (m.Date, m.Meal.Key)));
         await db.SaveChangesAsync(ct);
         return cook;
     }
 
     /// <summary>"Zjem porcję": one portion out of the fridge, eaten now in the given slot.</summary>
-    public async Task<PlanEntry> EatFromCookAsync(Guid id, DateOnly date, MealSlot slot, CancellationToken ct = default)
+    public async Task<PlanEntry> EatFromCookAsync(Guid id, DateOnly date, string slot, CancellationToken ct = default)
     {
         var cook = await LoadCookAsync(id, ct)
             ?? throw new DiaryException("Nie ma takiego gotowania.", StatusCodes.Status404NotFound);
+        var meal = await slots.RequireAsync(pid, slot, ct);
         if (Remaining(cook) < 1) throw new DiaryException("W lodówce nie zostało już porcji.", StatusCodes.Status409Conflict);
         var entry = new PlanEntry
         {
             PersonId = pid,
             Date = date,
-            Slot = slot,
+            Slot = meal.Key,
             RecipeId = cook.RecipeId,
             Recipe = cook.Recipe,
             Title = cook.RecipeId is null ? cook.Title : "",
@@ -366,7 +379,15 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
         return wanted;
     }
 
-    private void AddLeftovers(Cook cook, Recipe? recipe, IEnumerable<(DateOnly Date, MealSlot Slot)> assignments,
+    private async Task<List<(DateOnly Date, MealSlotView Meal)>> ResolveAssignmentsAsync(int personId,
+        IReadOnlyList<(DateOnly Date, string Slot)> assignments, CancellationToken ct)
+    {
+        var result = new List<(DateOnly, MealSlotView)>();
+        foreach (var (date, slot) in assignments) result.Add((date, await slots.RequireAsync(personId, slot, ct)));
+        return result;
+    }
+
+    private void AddLeftovers(Cook cook, Recipe? recipe, IEnumerable<(DateOnly Date, string Slot)> assignments,
         decimal portionPerEntry = 1)
     {
         foreach (var (date, slot) in assignments)
@@ -426,12 +447,13 @@ public class DiaryService(MiseDbContext db, PersonScope? person = null)
     }
 
     /// <summary>A chip tap: logs the favourite as eaten (grams override for per-100 g) and counts the use.</summary>
-    public async Task<PlanEntry> LogFavoriteAsync(Guid id, DateOnly date, MealSlot slot, decimal? grams,
+    public async Task<PlanEntry> LogFavoriteAsync(Guid id, DateOnly date, string slot, decimal? grams,
         CancellationToken ct = default)
     {
         var f = await db.FoodFavorites.FirstOrDefaultAsync(x => x.Id == id && x.PersonId == pid, ct)
             ?? throw new DiaryException("Nie ma takiego ulubionego.", StatusCodes.Status404NotFound);
-        var entry = new PlanEntry { PersonId = pid, Date = date, Slot = slot, Title = f.Name };
+        var meal = await slots.RequireAsync(pid, slot, ct);
+        var entry = new PlanEntry { PersonId = pid, Date = date, Slot = meal.Key, Title = f.Name };
         if (f.Per100g)
         {
             var g = grams is > 0 ? grams.Value : f.LastGrams ?? 100;

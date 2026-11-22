@@ -342,7 +342,23 @@ export interface CookLogResult {
   deducted: { pantryItemId: string; name: string; deducted: number; newQuantity: number; status: Status }[]
 }
 
-export type Slot = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+/** Key of one of the person's meals (`MealSlot.key`): breakfast/lunch (= Obiad)/dinner/snack by default, or custom. */
+export type Slot = string
+
+/** One meal of a person's day (GET /meals). `active: false` = removed; old entries still name it. */
+export interface MealSlot {
+  key: string
+  name: string
+  snack: boolean
+  active: boolean
+}
+
+/** PUT /meals row: keep `key` for existing meals, omit it for new ones. */
+export interface MealSlotInput {
+  key?: string
+  name: string
+  snack: boolean
+}
 export interface PlanEntry {
   id: string
   date: string // YYYY-MM-DD
@@ -1228,6 +1244,9 @@ export const api = {
     http<CookLogEntry>(`/cooklog/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   deleteCookLog: (id: string) => http<void>(`/cooklog/${id}`, { method: 'DELETE' }),
 
+  meals: () => http<MealSlot[]>('/meals'),
+  saveMeals: (meals: MealSlotInput[]) =>
+    http<MealSlot[]>('/meals', { method: 'PUT', body: JSON.stringify({ meals }) }),
   plan: (start?: string, days?: number) => {
     const p = new URLSearchParams()
     if (start) p.set('start', start)

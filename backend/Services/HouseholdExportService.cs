@@ -42,6 +42,7 @@ public sealed class HouseholdExportService(MiseDbContext db, ContextExportServic
         var supplies = await db.SupplyItems.AsNoTracking().OrderBy(s => s.Category).ThenBy(s => s.Name).ToListAsync(ct);
         var supplyFavs = await db.SupplyFavorites.AsNoTracking().OrderByDescending(f => f.AddCount).ToListAsync(ct);
         var cooks = await db.Cooks.AsNoTracking().OrderByDescending(c => c.Date).ToListAsync(ct);
+        var mealSlots = await db.MealSlots.AsNoTracking().OrderBy(m => m.PersonId).ThenBy(m => m.Position).ToListAsync(ct);
         var planEntries = await db.PlanEntries.AsNoTracking().OrderByDescending(e => e.Date).ThenBy(e => e.Slot).ToListAsync(ct);
         var cookLog = await db.CookLog.AsNoTracking().OrderByDescending(c => c.CookedAt).ToListAsync(ct);
         var prefs = await db.Preferences.AsNoTracking().Include(p => p.Equipment).OrderBy(p => p.Id).FirstOrDefaultAsync(ct);
@@ -134,10 +135,11 @@ public sealed class HouseholdExportService(MiseDbContext db, ContextExportServic
                 await WriteJsonAsync(zip, "plan.json", new
                 {
                     people,
+                    meals = mealSlots.Select(m => new { m.PersonId, m.Key, m.Name, m.Position, m.IsSnack, m.ArchivedAt }),
                     cooks = cooks.Select(c => new { c.Id, c.PersonId, c.RecipeId, c.Title, c.Date, c.Portions, c.DiscardedPortions }),
                     entries = planEntries.Select(e => new
                     {
-                        e.Id, e.PersonId, e.Date, Slot = Mapping.SlotString(e.Slot), e.RecipeId, e.Title, e.Note,
+                        e.Id, e.PersonId, e.Date, e.Slot, e.RecipeId, e.Title, e.Note,
                         e.Portions, e.Grams, e.Kcal, e.Protein, e.Fat, e.Carbs, e.EatenAt, e.CookId, e.IsLeftover, e.IsCatering,
                     }),
                 }, ct);

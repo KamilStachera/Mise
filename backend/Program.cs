@@ -25,6 +25,7 @@ builder.Services.AddTenancy();
 builder.Services.AddScoped<HouseholdProvisioner>();
 builder.Services.AddHouseholdRateLimits();
 builder.Services.AddScoped<DiaryService>();
+builder.Services.AddScoped<MealSlots>();
 builder.Services.AddScoped<BodyService>();
 builder.Services.AddScoped<ActivityService>();
 // Watch workouts via Strava (Garmin, Polar…): on only with STRAVA_CLIENT_ID/SECRET.
@@ -167,6 +168,7 @@ api.MapProfileQuestionnaire();
 api.MapCookLog();
 api.MapPlan();
 api.MapDiary();
+api.MapMeals();
 api.MapBody();
 api.MapActivity();
 api.MapStrava();

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { PlanEntry, Slot } from '../../api/client'
+import type { PlanEntry } from '../../api/client'
 import { useDeletePlanEntry, usePatchPlanEntry } from '../../api/hooks'
 import { WEEKDAY_SHORT, parseISODate } from '../../lib/dates'
-import { DIARY_SLOTS, formatKcal, formatPortion, slotLabel } from '../../lib/labels'
+import { formatKcal, formatPortion } from '../../lib/labels'
+import { useDayMeals } from '../../lib/meals'
+import { MealPicker } from './MealPicker'
 import { Button, Eyebrow, Segmented, Sheet, inputStyle, mono, sans } from '../ui'
 import { entryTitle, leftoverLabel } from './parts'
 import { PortionChip } from './RecipePicker'
@@ -24,6 +26,7 @@ export function EntrySheet({ entry, onClose, onSplit, onEditCook }: {
   const nav = useNavigate()
   const patch = usePatchPlanEntry()
   const del = useDeletePlanEntry()
+  const meals = useDayMeals()
   const [current, setCurrent] = useState<PlanEntry | null>(entry)
   const [kcal, setKcal] = useState('')
 
@@ -56,7 +59,7 @@ export function EntrySheet({ entry, onClose, onSplit, onEditCook }: {
     <Sheet open onClose={onClose} title={entryTitle(e)} width={500}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <span style={{ font: sans(14), color: 'var(--text-2)', marginTop: -6 }}>
-          {WEEKDAY_SHORT[(d.getDay() + 6) % 7]} {d.getDate()} · {slotLabel[e.slot]}
+          {WEEKDAY_SHORT[(d.getDay() + 6) % 7]} {d.getDate()} · {meals.label(e.slot)}
           {e.cookId && <> · <i style={{ fontFamily: 'var(--serif)' }}>{e.isLeftover ? leftoverLabel(e) : `gotuję ×${e.cookPortions}`}</i></>}
         </span>
 
@@ -90,7 +93,11 @@ export function EntrySheet({ entry, onClose, onSplit, onEditCook }: {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Eyebrow>Posiłek</Eyebrow>
-          <Segmented value={e.slot} onChange={(s: Slot) => apply({ slot: s })} items={DIARY_SLOTS.map((s) => ({ key: s, label: slotLabel[s] }))} />
+          <MealPicker
+            meals={meals.all.some((m) => m.key === e.slot) ? meals.all : [...meals.all, { key: e.slot, name: meals.label(e.slot), snack: false, active: false }]}
+            value={e.slot}
+            onChange={(s) => apply({ slot: s })}
+          />
         </div>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingTop: 14, borderTop: '1px solid var(--rule)' }}>

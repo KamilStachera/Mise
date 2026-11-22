@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { api, type BarcodeProduct, type PartnerPortionInput, type RecipeListItem, type Slot } from '../../api/client'
 import { useAddDiaryEntry, useCatering, useDeleteCateringDay, useDeletePlanEntry, useFeminine, useFoodFavorites, useLogCatering, useLogFavorite, usePerson, usePlan } from '../../api/hooks'
 import { mondayOf, parseISODate, toISO } from '../../lib/dates'
-import { DIARY_SLOTS, formatKcal, slotLabel, slotTo } from '../../lib/labels'
+import { formatKcal } from '../../lib/labels'
+import { useDayMeals } from '../../lib/meals'
 import { showToast } from '../../lib/toastBus'
 import { Button, Chip, Eyebrow, Segmented, Sheet, Toggle, inputStyle, mono, sans } from '../ui'
 import { BarcodeScanner, canScanBarcodes } from './BarcodeScanner'
+import { MealPicker } from './MealPicker'
 import { PartnerSyncToggle, formatAlsoForToast } from './PartnerSyncToggle'
 import { RecipePicker } from './RecipePicker'
 import { ScannedProduct } from './ScannedProduct'
@@ -25,6 +27,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
   date: string
   initialSlot: Slot
 }) {
+  const meals = useDayMeals()
   const [slot, setSlot] = useState<Slot>(initialSlot)
   const [view, setView] = useState<'main' | 'recipe' | 'code' | 'product'>('main')
   const [scanning, setScanning] = useState(false)
@@ -82,7 +85,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
   async function onChip(id: string, label: string, chipKcal: number) {
     const entry = await logFavorite.mutateAsync({ id, date, slot })
     onClose()
-    showToast(`${label} · ${chipKcal} kcal ${slotTo[slot]}`, { label: 'Cofnij', run: () => del.mutate(entry.id) })
+    showToast(`${label} · ${chipKcal} kcal · ${meals.label(slot)}`, { label: 'Cofnij', run: () => del.mutate(entry.id) })
   }
 
   async function onCatering() {
@@ -111,7 +114,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
         : undefined,
       alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
     })
-    showToast(`Dodano ${slotTo[slot]}: ${name.trim()}${formatAlsoForToast(alsoFor, people)}`)
+    showToast(`Dodano · ${meals.label(slot)}: ${name.trim()}${formatAlsoForToast(alsoFor, people)}`)
     onClose()
   }
 
@@ -125,7 +128,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
       eaten: true,
       alsoFor: alsoFor.length > 0 ? alsoFor : undefined,
     })
-    showToast(`Dodano ${slotTo[slot]}: ${recipe.title}${formatAlsoForToast(alsoFor, people)}`)
+    showToast(`Dodano · ${meals.label(slot)}: ${recipe.title}${formatAlsoForToast(alsoFor, people)}`)
     onClose()
   }
 
@@ -168,12 +171,12 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
     <>
       <Button variant="quiet" size="xl" onClick={() => setView('main')}>‹</Button>
       <Button size="xl" style={{ flex: 1, minWidth: 0 }} disabled={!recipe || busy} onClick={onAddRecipe}>
-        Dodaj {slotTo[slot]}{recipeTotal != null ? ` · ${formatKcal(recipeTotal)} kcal` : ''}
+        Dodaj · {meals.label(slot)}{recipeTotal != null ? ` · ${formatKcal(recipeTotal)} kcal` : ''}
       </Button>
     </>
   ) : view === 'main' ? (
     <Button size="xl" style={{ flex: 1, minWidth: 0 }} disabled={!canTyped || busy} onClick={onAddTyped}>
-      Dodaj {slotTo[slot]}{total != null ? ` · ${formatKcal(total)} kcal` : ''}
+      Dodaj · {meals.label(slot)}{total != null ? ` · ${formatKcal(total)} kcal` : ''}
     </Button>
   ) : undefined
   const startScan = () => (canScanBarcodes() ? setScanning(true) : setView('code'))
@@ -183,7 +186,7 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
     {open && scanning && <BarcodeScanner onCode={onCode} onManual={() => { setScanning(false); setView('code') }} onClose={() => setScanning(false)} />}
     <Sheet open={open} onClose={onClose} title={title} width={520} footer={footer}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Segmented value={slot} onChange={setSlot} items={DIARY_SLOTS.map((s) => ({ key: s, label: slotLabel[s] }))} />
+        <MealPicker meals={meals.all} value={slot} onChange={setSlot} />
 
         {view === 'product' && product ? (
           <ScannedProduct key={product.barcode} product={product} date={date} slot={slot} onRescan={startScan} onDone={onClose} />

@@ -183,7 +183,12 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   `EatenAt`; eating a recipe entry **snapshots** its kcal/macros (totals, not per
   portion) — never recompute eaten history from the recipe. A `Cook` is one pot spread
   over days: the cook-day entry plus `IsLeftover` entries; shopping counts only the cook
-  day, scaled to `Cook.Portions` (`PlanShoppingService.NeedsShopping`). Rules live in
+  day, scaled to `Cook.Portions` (`PlanShoppingService.NeedsShopping`). **Meals are per person**
+  (`MealSlot`, `Services/MealSlots.cs`, `GET/PUT /api/meals`): `PlanEntry.Slot` is a meal *key*;
+  nobody has rows until their first edit — until then the defaults `breakfast`/`lunch` (= Obiad)/
+  `dinner`/`snack` apply. Writes resolve key-or-name via `MealSlots.RequireAsync`; removing a meal
+  archives it (entries keep it); snack-ness is the meal's `IsSnack`, read through `SlotDirectory`
+  (never compare against `"snack"`). Frontend: `lib/meals.ts` (`useDayMeals`). Rules live in
   `Services/DiaryService.cs` / `BodyService.cs`. `/api/diary` and `/api/body` are
   private even for reads; anonymous `GET /plan` hides snacks, typed food and eaten
   state (`Mapping.PublicView`). Spec + design: `docs/weight-loss/`.

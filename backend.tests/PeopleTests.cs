@@ -109,7 +109,7 @@ public class PeopleTests
         await using var db = NewDb();
         var monday = new DateOnly(2026, 10, 5);
         await new CateringService(db, Him).SaveAsync(true, 1996, null, null, null, 0b0011111, monday, monday);
-        await new DiaryService(db, Him).AddEntryAsync(monday, MealSlot.Snack, null, "Baton", null, null, null,
+        await new DiaryService(db, Him).AddEntryAsync(monday, "snack", null, "Baton", null, null, null,
             250, null, null, null, eaten: true);
 
         var day = (await new BodyService(db, Him).IntakeAsync(monday, monday, 2200, 50, new Dictionary<DateOnly, int>())).Single();

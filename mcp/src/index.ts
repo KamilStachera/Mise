@@ -588,11 +588,46 @@ server.tool(
   async () => text(await post('/supplies/clear', {})),
 )
 
+const SLOT = z
+  .string()
+  .min(1)
+  .describe(
+    'Posiłek dnia tej osoby: klucz z get_meals (domyślnie breakfast = Śniadanie, lunch = Obiad, ' +
+      'dinner = Kolacja, snack = Przekąski) albo jego nazwa, np. "Lunch"',
+  )
+
+server.tool(
+  'get_meals',
+  'Posiłki dnia osoby (każdy ma własne): key (wpisuj go jako slot), name, snack (przekąski — ' +
+    'prywatne, poza planem), active (false = usunięty; stare wpisy nadal go mają). Sprawdź przed ' +
+    'planowaniem, jeśli ktoś ma np. „Lunch” obok „Obiadu”.',
+  {},
+  async () => text(await get('/meals')),
+)
+
+server.tool(
+  'set_meals',
+  'Ustaw posiłki dnia osoby — CAŁA lista po kolei (pełna podmiana). Zachowaj key istniejących; ' +
+    'nowy posiłek bez key. Pominięte zostają zarchiwizowane (wpisy zostają). 1–8 posiłków, nazwy ' +
+    'unikalne, co najmniej jeden nie-przekąska. Zmieniaj tylko na wyraźną prośbę użytkownika.',
+  {
+    meals: z
+      .array(z.object({
+        key: z.string().optional().describe('istniejący klucz z get_meals; brak = nowy posiłek'),
+        name: z.string().min(1).max(30),
+        snack: z.boolean().optional().describe('przekąski: prywatne, nie do zakupów'),
+      }))
+      .min(1)
+      .max(8),
+  },
+  async (input) => text(await put('/meals', input)),
+)
+
 server.tool(
   'get_plan',
   'Kalendarz osoby: plan posiłków i dziennik jedzenia (domyślnie 14 dni od poniedziałku bieżącego ' +
     'tygodnia). Wpis ma eaten (zjedzone czy tylko w planie), kcal/protein/fat/carbs jako SUMY dla wpisu ' +
-    '(nie na porcję), portions, slot (breakfast/lunch/dinner/snack), cookId/isLeftover dla garnków ' +
+    '(nie na porcję), portions, slot (klucz posiłku z get_meals), cookId/isLeftover dla garnków ' +
     'i isCatering dla cateringu. Kilka wpisów w jednym slocie to norma.',
   {
     start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
@@ -634,7 +669,7 @@ server.tool(
     'użyj log_food.',
   {
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('YYYY-MM-DD'),
-    slot: z.enum(['breakfast', 'lunch', 'dinner']).describe('śniadanie / obiad / kolacja'),
+    slot: SLOT,
     recipeId: z.string().uuid().optional(),
     title: z.string().optional(),
     note: z.string().optional(),
@@ -650,12 +685,12 @@ server.tool(
     recipeId: z.string().uuid(),
     portions: z.number().int().min(1).max(12).describe('porcje w garnku (≥ 1 + liczba przypisań); nadwyżka czeka w lodówce (get_fridge)'),
     firstDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('dzień gotowania, YYYY-MM-DD'),
-    firstSlot: z.enum(['breakfast', 'lunch', 'dinner']),
+    firstSlot: SLOT,
     fromEntryId: z.string().uuid().optional().describe('opcjonalnie: przekształć istniejący wpis z planu w dzień gotowania garnka'),
     assignments: z
       .array(z.object({
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        slot: z.enum(['breakfast', 'lunch', 'dinner']),
+        slot: SLOT,
       }))
       .optional()
       .describe('kolejne dni z resztkami'),
@@ -769,18 +804,18 @@ server.tool(
 // ---- Dziennik jedzenia, cel i aktywność (prywatne, per osoba — MISE_PERSON) ----
 
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('YYYY-MM-DD')
-const DIARY_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 
 server.tool(
   'log_food',
   'Zapisz jedzenie w dzienniku (zawsze DOPISUJE nowy wpis — w slocie może być kilka). Domyślnie jako ' +
     'zjedzone (eaten=true); eaten=false = tylko zaplanowane. Zapisany przepis: recipeId + portions ' +
     '(kcal policzy aplikacja z przepisu). Wszystko inne: title + kcal i makro jako SUMY dla tego, co ' +
-    'zjedzono (nie na 100 g — przelicz sam, gramy podaj w grams). Przekąski i słodycze → slot "snack". ' +
+    'zjedzono (nie na 100 g — przelicz sam, gramy podaj w grams). Przekąski i słodycze → posiłek-przekąska ' +
+    '(snack: true w get_meals, zwykle "snack"). ' +
     'Szukając wartości odżywczych produktu, sprawdź najpierw get_food_favorites.',
   {
     date: DATE,
-    slot: z.enum(DIARY_SLOTS).describe('śniadanie / obiad / kolacja / przekąski'),
+    slot: SLOT,
     recipeId: z.string().uuid().optional().describe('Zapisany przepis'),
     portions: z.number().min(0.25).max(10).optional().describe('Porcje przepisu (domyślnie 1)'),
     title: z.string().optional().describe('Nazwa, gdy to nie zapisany przepis, np. "Kinder Bueno"'),
@@ -824,7 +859,7 @@ server.tool(
     id: z.string().uuid(),
     eaten: z.boolean().optional(),
     date: DATE.optional(),
-    slot: z.enum(DIARY_SLOTS).optional(),
+    slot: SLOT.optional(),
     portions: z.number().min(0.25).max(10).optional().describe('Tylko wpisy z przepisem'),
     title: z.string().optional().describe('Tylko wpisy bez przepisu'),
     kcal: z.number().int().min(0).max(10000).optional().describe('Suma kcal; tylko wpisy bez przepisu'),
@@ -863,7 +898,7 @@ server.tool(
   {
     id: z.string().uuid(),
     date: DATE,
-    slot: z.enum(DIARY_SLOTS),
+    slot: SLOT,
     grams: z.number().positive().optional(),
   },
   async ({ id, ...input }) => text(await post(`/diary/favorites/${id}/log`, input)),
@@ -880,7 +915,7 @@ server.tool(
 server.tool(
   'eat_from_fridge',
   'Zjedz jedną porcję z garnka w lodówce (cookId z get_fridge) — zapisuje ją w dzienniku jako zjedzoną.',
-  { cookId: z.string().uuid(), date: DATE, slot: z.enum(DIARY_SLOTS) },
+  { cookId: z.string().uuid(), date: DATE, slot: SLOT },
   async ({ cookId, ...input }) => text(await post(`/diary/cooks/${cookId}/eat`, input)),
 )
 

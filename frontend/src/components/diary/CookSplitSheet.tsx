@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type { CookAssignment, PartnerPortionInput, PlanEntry, Slot } from '../../api/client'
 import { useAddDiaryEntry, useCook, useCreateCook, usePerson, useUpdateCook } from '../../api/hooks'
 import { WEEKDAY_SHORT, addDays, parseISODate, toISO } from '../../lib/dates'
-import { SLOTS, plural, slotLabel } from '../../lib/labels'
+import { plural } from '../../lib/labels'
+import { useDayMeals } from '../../lib/meals'
 import { showToast } from '../../lib/toastBus'
 import { Button, Eyebrow, Sheet, mono, sans } from '../ui'
 import { PartnerSyncToggle, formatAlsoForToast } from './PartnerSyncToggle'
@@ -42,9 +43,13 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
   const createCook = useCreateCook()
   const updateCook = useUpdateCook()
   const addEntry = useAddDiaryEntry()
+  const meals = useDayMeals()
+  // A pot is usually cooked for the evening meal; leftovers default to the midday one.
+  const cookSlot = (meals.planned.find((m) => m.key === 'dinner') ?? meals.planned[meals.planned.length - 1])?.key ?? meals.mainKey
+  const slotOptions = meals.planned.map((m): [string, string] => [m.key, m.name])
 
   const [firstDate, setFirstDate] = useState(today)
-  const [firstSlot, setFirstSlot] = useState<Slot>('dinner')
+  const [firstSlot, setFirstSlot] = useState<Slot>(cookSlot)
   const [portions, setPortions] = useState(2)
   const [rows, setRows] = useState<CookAssignment[]>([])
   const [alsoFor, setAlsoFor] = useState<PartnerPortionInput[]>([])
@@ -60,7 +65,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
     setAlsoFor(initialAlsoFor ?? [])
     if (origin.kind === 'new') {
       setFirstDate(origin.date ?? today)
-      setFirstSlot(origin.slot ?? 'dinner')
+      setFirstSlot(origin.slot ?? cookSlot)
       setPortions(Math.max(1, Math.min(MAX_PORTIONS, recipe?.servings ?? 2)))
       setRows([])
     } else if (origin.kind === 'entry') {
@@ -89,7 +94,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
 
   function addRow() {
     const last = rows.length > 0 ? rows[rows.length - 1].date : firstDate
-    setRows([...rows, { date: toISO(addDays(parseISODate(last), 1)), slot: 'lunch' }])
+    setRows([...rows, { date: toISO(addDays(parseISODate(last), 1)), slot: meals.mainKey }])
   }
 
   async function save() {
@@ -151,7 +156,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
               <CookMark letter="A" filled />
               <Picker value={firstDate} onChange={setFirstDate} options={dayOptions(today, 14).map((d) => [d, dayLabel(d)])} />
               <span style={{ color: 'var(--text-3)' }}>·</span>
-              <Picker value={firstSlot} onChange={(v) => setFirstSlot(v as Slot)} options={SLOTS.map((s) => [s, slotLabel[s]])} />
+              <Picker value={firstSlot} onChange={setFirstSlot} options={slotOptions} />
               <span style={{ flex: 1 }} />
               <GotujeTag />
             </div>
@@ -159,7 +164,7 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
             (origin.kind === 'edit' ? fixed : [origin.entry]).map((e) => (
               <div key={e.id} style={rowStyle}>
                 <CookMark letter="A" filled={!e.isLeftover} />
-                <span style={{ font: sans(15, 500) }}>{dayLabel(e.date)} · {slotLabel[e.slot]}</span>
+                <span style={{ font: sans(15, 500) }}>{dayLabel(e.date)} · {meals.label(e.slot)}</span>
                 <span style={{ flex: 1 }} />
                 {e.isLeftover ? <span style={{ font: mono(11.5), color: 'var(--sage-text)' }}>zjedzone</span> : <GotujeTag />}
               </div>
@@ -176,8 +181,8 @@ export function CookSplitSheet({ open, onClose, recipe, origin, title: sheetTitl
               <span style={{ color: 'var(--text-3)' }}>·</span>
               <Picker
                 value={r.slot}
-                onChange={(v) => setRows(rows.map((x, j) => (j === i ? { ...x, slot: v as Slot } : x)))}
-                options={SLOTS.map((s) => [s, slotLabel[s]])}
+                onChange={(v) => setRows(rows.map((x, j) => (j === i ? { ...x, slot: v } : x)))}
+                options={slotOptions.some(([k]) => k === r.slot) ? slotOptions : [...slotOptions, [r.slot, meals.label(r.slot)]]}
               />
               <span style={{ flex: 1 }} />
               <button type="button" aria-label="Usuń dzień" onClick={() => setRows(rows.filter((_, j) => j !== i))} style={{ border: 0, background: 'transparent', cursor: 'pointer', fontSize: 16, color: 'var(--text-2)', padding: '6px 4px' }}>×</button>
