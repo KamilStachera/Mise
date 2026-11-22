@@ -170,8 +170,8 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
       ? (imgs.length === 1 ? 'Przeanalizuj załączone zdjęcie.' : 'Przeanalizuj załączone zdjęcia.')
       : 'Przejrzyj załączony PDF.'
     const shownParts = [text.trim() || defaultText]
-    if (doc) shownParts.push(`📎 ${doc.name}`)
-    if (imgs.length > 0) shownParts.push(`📷 ${imgs.map((i) => i.name).join(', ')}`)
+    if (doc) shownParts.push(`PDF: ${doc.name}`)
+    if (imgs.length > 0) shownParts.push(`${imgs.length === 1 ? 'Zdjęcie' : 'Zdjęcia'}: ${imgs.map((i) => i.name).join(', ')}`)
     const shown = shownParts.join('\n')
     const sentPreviews = imgs.map((i) => i.previewUrl)
     setInput('')
@@ -374,9 +374,9 @@ export function ChatSidebar({ onClose, fullscreen = false }: { onClose: () => vo
             disabled={!enabled || typing || Boolean(uploading) || photos.length >= MAX_PHOTOS}
             title="Dodaj zdjęcie (paragon, lodówka, talerz, przepis)"
             aria-label="Dodaj zdjęcie"
-            style={{ flex: '0 0 auto', height: 36, padding: '0 8px', borderRadius: 9, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text-2)', fontSize: 15, cursor: enabled && !typing && photos.length < MAX_PHOTOS ? 'pointer' : 'not-allowed' }}
+            style={{ flex: '0 0 auto', height: 36, padding: '0 8px', borderRadius: 9, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text-2)', font: mono(10.5, 600), letterSpacing: '.06em', cursor: enabled && !typing && photos.length < MAX_PHOTOS ? 'pointer' : 'not-allowed' }}
           >
-            📷
+            FOTO
           </button>
           <button
             type="button"

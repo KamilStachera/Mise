@@ -8,7 +8,8 @@ import { useIsMobile } from '../../lib/useIsMobile'
 import { showToast } from '../../lib/toastBus'
 import { CookMark, WeekDayBar, cookLetters, dayTotals, entryTitle, leftoverLabel, type DayTotals } from '../../components/diary/parts'
 import { useDiarySheets } from '../../components/diary/useDiarySheets'
-import { TAB_BAR_HEIGHT } from '../../components/TabBar'
+import { PinnedBar } from '../../components/Sous'
+import { PendingCookNotice } from '../../components/PendingCookModal'
 import { Button, Eyebrow, PageTitle, Sheet, inputStyle, mono, sans, usePagePad } from '../../components/ui'
 
 /**
@@ -51,6 +52,15 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
   const budgetOf = (date: string) => budgetRange?.days.find((b) => b.date === date)?.budget ?? null
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => toISO(addDays(weekStart, i))), [weekStart])
+  // Phones: the selected day's meals sit right under the strip — today in this week, the whole week
+  // elsewhere. Tapping a date swaps the list in place; „Pokaż cały tydzień” brings all seven back.
+  const [focusDay, setFocusDay] = useState<string | null>(() => (days.includes(todayISO) ? todayISO : null))
+  const [focusWeek, setFocusWeek] = useState(startISO)
+  if (focusWeek !== startISO) {
+    setFocusWeek(startISO)
+    setFocusDay(days.includes(todayISO) ? todayISO : null)
+  }
+  const listDays = focusDay ? [focusDay] : days
   const recipeById = useMemo(() => new Map((recipes ?? []).map((r) => [r.id, r])), [recipes])
   const entries = useMemo(() => (plan?.entries ?? []).filter((e) => days.includes(e.date)), [plan, days])
   const letters = useMemo(() => cookLetters(entries), [entries])
@@ -150,7 +160,8 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
   if (isMobile) {
     return (
       <div style={{ ...pad, paddingBottom: canEdit ? 150 : 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <PageTitle title="Plan" right={switcher} />
+        <PageTitle title="Tydzień" right={switcher} />
+        <PendingCookNotice />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', font: mono(13, 500) }}>
           <button type="button" onClick={() => goWeek(mondayOf(new Date()))} style={{ ...arrowBtn, width: 'auto', font: mono(13, 500) }} title="Ten tydzień">
             {first.getDate()}–{last.getDate()} {MONTHS_SHORT[last.getMonth()]}
@@ -162,22 +173,26 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)', padding: '10px 0' }}>
           {days.map((d, i) => {
+            // Filled = the day you're looking at; an accent dot = today.
+            const on = d === focusDay
             const today = d === todayISO
             return (
               <button
                 key={d}
                 type="button"
-                onClick={() => document.getElementById(`plan-day-${d}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 5, padding: '6px 4px', border: 0, borderRadius: 10, background: today ? 'var(--text)' : 'transparent', color: today ? 'var(--bg)' : 'var(--text)', cursor: 'pointer' }}
+                aria-pressed={on}
+                onClick={() => setFocusDay(on ? null : d)}
+                style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 5, padding: '6px 4px', border: 0, borderRadius: 10, background: on ? 'var(--text)' : 'transparent', color: on ? 'var(--bg)' : 'var(--text)', cursor: 'pointer' }}
               >
-                <span style={{ font: mono(10.5, 500), color: today ? 'var(--on-dark-muted)' : 'var(--text-3)' }}>{WEEKDAY_SHORT[i].slice(0, 2).toUpperCase()}</span>
+                <span style={{ font: mono(10.5, 500), color: on ? 'var(--on-dark-muted)' : today ? 'var(--accent-text)' : 'var(--text-3)' }}>{today ? 'DZIŚ' : WEEKDAY_SHORT[i].slice(0, 2).toUpperCase()}</span>
                 <span style={{ font: mono(16, 500) }}>{parseISODate(d).getDate()}</span>
-                <WeekDayBar totals={totalsOf(d)} budget={budgetOf(d)} onDark={today} />
+                <WeekDayBar totals={totalsOf(d)} budget={budgetOf(d)} onDark={on} />
               </button>
             )
           })}
         </div>
-        {days.map((d, i) => {
+        {listDays.map((d) => {
+          const i = days.indexOf(d)
           const t = totalsOf(d)
           return (
             <div key={d} id={`plan-day-${d}`} style={{ display: 'flex', flexDirection: 'column', scrollMarginTop: 12 }}>
@@ -242,13 +257,18 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
             </div>
           )
         })}
+        {focusDay && (
+          <button type="button" onClick={() => setFocusDay(null)} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: '4px 0', cursor: 'pointer', font: sans(14, 600), color: 'var(--text-2)' }}>
+            Pokaż cały tydzień ›
+          </button>
+        )}
         <span style={{ font: sans(13.5), lineHeight: 1.5, color: 'var(--text-2)' }}>{shopMsg ?? leftoverNote}</span>
         {canEdit && (
-          <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
+          <PinnedBar>
             <Button size="xl" style={{ width: '100%' }} onClick={onAddMissing} disabled={busy}>
               {busy ? 'Sprawdzam…' : 'Dodaj brakujące składniki do zakupów'}
             </Button>
-          </div>
+          </PinnedBar>
         )}
         {reviewSheet}
         {sheets}
@@ -260,7 +280,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
   return (
     <div style={{ ...pad, maxWidth: 1400, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
       <PageTitle
-        title="Plan"
+        title="Tydzień"
         sub={
           <>
             {first.getDate()}–{dayShortMonth(last)}. {canEdit ? 'Kropka pełna = zjedzone, przerywana = plan. Literą oznaczone jedno gotowanie i jego resztki.' : 'Plan tygodnia.'}
@@ -275,6 +295,7 @@ export function WeekView({ weekStart, onWeek, onDay, switcher }: {
           </div>
         }
       />
+      <PendingCookNotice />
 
       <div style={{ overflowX: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: gridCols, borderTop: '1px solid var(--rule)', minWidth: 760 }}>

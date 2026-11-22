@@ -4,15 +4,13 @@ import { registerChatOpener } from './lib/chatBus'
 import { phoneSubPages } from './lib/navModel'
 import { useIsMobile } from './lib/useIsMobile'
 import { useScrollMemory } from './lib/useScrollMemory'
-import { useAuth, useChatHealth } from './api/hooks'
+import { useAuth } from './api/hooks'
 import { Sidebar } from './components/Sidebar'
 import { TabBar, TAB_BAR_HEIGHT } from './components/TabBar'
 import { SectionNav } from './components/SectionNav'
-import { PendingCookModal } from './components/PendingCookModal'
 import { ToastHost } from './components/ToastHost'
 import { UpdatePill } from './components/UpdatePill'
 import { LoginNudge } from './components/LoginNudge'
-import { SousFab } from './components/SousFab'
 import { Button, sans } from './components/ui'
 import { Library } from './pages/Library'
 import { RecipeDetail } from './pages/RecipeDetail'
@@ -67,11 +65,10 @@ const routeFallback = <div style={{ padding: '32px 24px', color: 'var(--text-3)'
 export default function App() {
   const isMobile = useIsMobile()
   const { data: auth, isLoading: authLoading, canEdit } = useAuth()
-  const { data: chatHealth } = useChatHealth()
   const [chatOpen, setChatOpen] = useState(false)
   const { pathname } = useLocation()
-  // Recipe pages and the live workout tracker bring their own sticky bottom bars on phones.
-  const showTabs = isMobile && !pathname.startsWith('/recipe/') && !pathname.startsWith('/trening/sesja/')
+  // Recipe pages, adding a recipe and the live workout tracker bring their own sticky bottom bars on phones.
+  const showTabs = isMobile && !pathname.startsWith('/recipe/') && !pathname.startsWith('/add') && !pathname.startsWith('/trening/sesja/')
   const hasSectionNav = showTabs && !authLoading && phoneSubPages(pathname, canEdit) != null
   const [mainEl, setMainEl] = useState<HTMLElement | null>(null)
   useScrollMemory(mainEl)
@@ -180,11 +177,9 @@ export default function App() {
           </Suspense>
         )}
         {showTabs && <TabBar />}
-        <PendingCookModal />
         <ToastHost />
         <UpdatePill />
         <LoginNudge />
-        {showTabs && canEdit && chatHealth?.enabled && !chatOpen && <SousFab onOpen={() => setChatOpen(true)} />}
       </div>
     </ErrorBoundary>
   )

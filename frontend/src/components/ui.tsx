@@ -1,8 +1,9 @@
 // Shared building blocks of the 2026-10 redesign: ink rules instead of cards,
 // Newsreader titles, mono numbers, one accent. Inline styles + tokens.css
 // variables, like the rest of the app.
-import { useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react'
 import { useIsMobile } from '../lib/useIsMobile'
+import { SousTitleButton } from './Sous'
 
 export const mono = (size: number, weight = 400) => `${weight} ${size}px var(--mono)`
 export const sans = (size: number, weight = 400) => `${weight} ${size}px var(--sans)`
@@ -12,7 +13,10 @@ export const rowRule: CSSProperties = { borderBottom: '1px solid var(--border)' 
 
 // ---- typography ----
 
-/** Page title (Newsreader) with an optional mono superscript count, subtitle and right-hand slot. */
+/**
+ * Page title (Newsreader) with an optional mono superscript count, subtitle and right-hand slot.
+ * On phones the title row also carries the ✦ Sous button, unless a pinned bar on the page has it.
+ */
 export function PageTitle({ title, count, sub, right, size }: {
   title: ReactNode
   count?: number
@@ -24,8 +28,9 @@ export function PageTitle({ title, count, sub, right, size }: {
   const fs = size ?? (isMobile ? 44 : 64)
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 24, flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 12, minWidth: isMobile ? 0 : 320, flex: isMobile ? undefined : '1 1 0' }}>
-        <h1 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: fs, lineHeight: isMobile ? 1 : 0.95, letterSpacing: '-0.03em' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 12, minWidth: isMobile ? 0 : 320, flex: isMobile ? '1 1 auto' : '1 1 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <h1 style={{ margin: 0, minWidth: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: fs, lineHeight: isMobile ? 1 : 0.95, letterSpacing: '-0.03em' }}>
           {title}
           {count != null && (
             <sup style={{ font: mono(isMobile ? 12 : 13, 500), letterSpacing: 0, color: 'var(--text-3)', verticalAlign: 'top', marginLeft: isMobile ? 4 : 6 }}>
@@ -33,6 +38,8 @@ export function PageTitle({ title, count, sub, right, size }: {
             </sup>
           )}
         </h1>
+        {isMobile && <SousTitleButton />}
+        </div>
         {sub && <p style={{ margin: 0, maxWidth: 680, font: sans(isMobile ? 14 : 15), lineHeight: 1.5, color: 'var(--text-2)', textWrap: 'pretty' as never }}>{sub}</p>}
       </div>
       {right}
@@ -82,7 +89,8 @@ export function buttonStyle(variant: ButtonVariant = 'primary', size: ButtonSize
   const base: CSSProperties = {
     height: h,
     padding: variant === 'text' ? 0 : size === 'sm' ? '0 14px' : '0 20px',
-    borderRadius: size === 'sm' ? 999 : size === 'xl' ? 14 : 12,
+    // Rectangles at every size — a pill is a Chip (something you pick), a button is something you do.
+    borderRadius: size === 'sm' ? 9 : size === 'xl' ? 14 : 12,
     font: sans(size === 'sm' ? 14 : 15, 600),
     display: 'inline-flex',
     alignItems: 'center',
@@ -170,10 +178,22 @@ export function UnderlineTabs<K extends string>({ items, value, onChange, rule =
   style?: CSSProperties
 }) {
   const isMobile = useIsMobile()
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const strip = ref.current
+    const tab = strip?.querySelector<HTMLElement>('[aria-current="true"]')
+    if (!strip || !tab) return
+    const left = tab.offsetLeft
+    const right = left + tab.offsetWidth
+    if (left < strip.scrollLeft) strip.scrollLeft = Math.max(0, left - 16)
+    else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth + 16
+  }, [value])
   return (
     <div
+      ref={ref}
       className="no-scrollbar"
       style={{
+        position: 'relative',
         display: 'flex',
         gap: isMobile ? 20 : 28,
         overflowX: 'auto',
@@ -187,6 +207,7 @@ export function UnderlineTabs<K extends string>({ items, value, onChange, rule =
           <button
             key={t.key}
             type="button"
+            aria-current={on ? 'true' : undefined}
             onClick={() => onChange(t.key)}
             style={{
               padding: `0 0 ${isMobile ? 9 : 12}px`,
@@ -375,11 +396,13 @@ export interface StatItem {
 /** Equal columns between strong rules: big mono number + small label. */
 export function StatStrip({ items, stacked, style }: { items: StatItem[]; stacked?: boolean; style?: CSSProperties }) {
   const isMobile = useIsMobile()
+  // Phones: more than three figures wrap (4 → 2 × 2, 5–6 → rows of 3) instead of crushing the labels.
+  const cols = isMobile && items.length > 3 ? (items.length === 4 ? 2 : 3) : items.length
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+        gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
         borderTop: '1px solid var(--rule)',
         borderBottom: '1px solid var(--rule)',
         ...style,
@@ -387,6 +410,7 @@ export function StatStrip({ items, stacked, style }: { items: StatItem[]; stacke
     >
       {items.map((s, i) => {
         const Tag = s.onClick ? 'button' : 'div'
+        const first = i % cols === 0
         return (
           <Tag
             key={i}
@@ -398,9 +422,10 @@ export function StatStrip({ items, stacked, style }: { items: StatItem[]; stacke
               alignItems: stacked || isMobile ? 'flex-start' : 'baseline',
               gap: stacked || isMobile ? 4 : 12,
               minWidth: 0,
-              padding: i === 0 && !s.highlight ? (isMobile ? '10px 0' : '14px 0') : isMobile ? '10px 0 10px 14px' : '14px 20px',
+              padding: first && !s.highlight ? (isMobile ? '10px 0' : '14px 0') : isMobile ? '10px 0 10px 14px' : '14px 20px',
               border: 0,
-              borderLeft: i === 0 ? 0 : '1px solid var(--border)',
+              borderLeft: first ? 0 : '1px solid var(--border)',
+              borderTop: i >= cols ? '1px solid var(--border)' : 0,
               background: s.highlight ? 'var(--accent-soft)' : 'transparent',
               boxShadow: s.active ? 'inset 0 -3px 0 var(--accent)' : undefined,
               cursor: s.onClick ? 'pointer' : 'default',
@@ -463,12 +488,17 @@ export function Wordmark({ size = 32 }: { size?: number }) {
 
 const sheetStack: symbol[] = []
 
-/** Bottom sheet on phones, centred dialog on desktop. Escape closes only the topmost sheet. */
-export function Sheet({ open, onClose, title, children, width = 480 }: {
+/**
+ * Bottom sheet on phones, centred dialog on desktop. Escape closes only the topmost sheet.
+ * `footer` (the sheet's main action) stays pinned under the scrolling body, so a long form never
+ * hides its own save button. The title should repeat the label of the button that opened the sheet.
+ */
+export function Sheet({ open, onClose, title, children, footer, width = 480 }: {
   open: boolean
   onClose: () => void
   title?: ReactNode
   children: ReactNode
+  footer?: ReactNode
   width?: number
 }) {
   const isMobile = useIsMobile()
@@ -512,14 +542,40 @@ export function Sheet({ open, onClose, title, children, width = 480 }: {
           width: isMobile ? '100%' : width,
           maxWidth: '100%',
           maxHeight: isMobile ? '88dvh' : 'min(760px, 90dvh)',
-          overflowY: 'auto',
+          overflowY: footer ? 'hidden' : 'auto',
+          display: footer ? 'flex' : undefined,
+          flexDirection: footer ? 'column' : undefined,
           background: 'var(--bg)',
           borderRadius: isMobile ? '20px 20px 0 0' : 16,
-          padding: isMobile ? '18px 20px calc(20px + env(safe-area-inset-bottom))' : '24px 26px 26px',
+          padding: footer ? 0 : isMobile ? '18px 20px calc(20px + env(safe-area-inset-bottom))' : '24px 26px 26px',
           boxShadow: '0 40px 90px -40px rgba(40,25,10,.55), 0 0 0 1px rgba(29,24,19,.18)',
           animation: 'sheetUp .2s ease',
         }}
       >
+        {footer ? (
+          <>
+            <div style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', padding: isMobile ? '18px 20px 16px' : '24px 26px 18px' }}>
+              <SheetHead isMobile={isMobile} title={title} onClose={onClose} />
+              {children}
+            </div>
+            <div style={{ flex: '0 0 auto', display: 'flex', gap: 8, borderTop: '1px solid var(--border)', padding: isMobile ? '12px 20px calc(12px + env(safe-area-inset-bottom))' : '14px 26px 18px' }}>
+              {footer}
+            </div>
+          </>
+        ) : (
+          <>
+            <SheetHead isMobile={isMobile} title={title} onClose={onClose} />
+            {children}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SheetHead({ isMobile, title, onClose }: { isMobile: boolean; title?: ReactNode; onClose: () => void }) {
+  return (
+    <>
         {isMobile && <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)', margin: '0 auto 14px' }} />}
         {title && (
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, paddingBottom: 10, marginBottom: 14, borderBottom: '1px solid var(--rule)' }}>
@@ -529,9 +585,7 @@ export function Sheet({ open, onClose, title, children, width = 480 }: {
             </button>
           </div>
         )}
-        {children}
-      </div>
-    </div>
+    </>
   )
 }
 

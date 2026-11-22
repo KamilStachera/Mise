@@ -5,7 +5,8 @@ import { useActivity, useAuth, useBudget, useCatering, useDeletePlanEntry, useDi
 import { BudgetMeter, CookMark, DiaryItem, PortionDots, SourceTag, WeekDayBar, cookLetters, dayTotals, entryTitle } from '../../components/diary/parts'
 import { useDiarySheets } from '../../components/diary/useDiarySheets'
 import { RecipeThumb } from '../../components/RecipeThumb'
-import { TAB_BAR_HEIGHT } from '../../components/TabBar'
+import { PinnedBar } from '../../components/Sous'
+import { PendingCookNotice } from '../../components/PendingCookModal'
 import { Button, Eyebrow, PageTitle, SectionHead, mono, sans, usePagePad } from '../../components/ui'
 import { DAY_NAMES_PL, DIARY_SLOTS, formatKcal, plural, slotForNow, slotLabel } from '../../lib/labels'
 import { WEEKDAY_SHORT, addDays, dayShortMonth, daysAgo, mondayOf, parseISODate, syncLabel, toISO } from '../../lib/dates'
@@ -319,22 +320,23 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
     >
       {isMobile ? (
         <>
-          <PageTitle title="Plan" right={switcher} />
+          <PageTitle title="Dzień" right={switcher} />
           {dayNav}
+          <PendingCookNotice />
           {meter}
           {cateringBlock}
           {slots}
           {fridgeBlock}
           {activityBlock}
           <span style={{ textAlign: 'center', font: mono(11.5), color: 'var(--text-3)' }}>‹ przesuń, żeby zmienić dzień ›</span>
-          <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
+          <PinnedBar>
             <Button size="xl" style={{ width: '100%' }} onClick={onAdd}>{addLabel}</Button>
-          </div>
+          </PinnedBar>
         </>
       ) : (
         <>
           <PageTitle
-            title="Plan"
+            title="Dzień"
             sub={`${dayName(date)} ${dayShortMonth(date)}. ${future ? `W planie ~${formatKcal(totals.planned)} kcal.` : `${feminine ? 'Zjadłaś' : 'Zjadłeś'} ${formatKcal(totals.eaten)} kcal.`}`}
             right={
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -347,6 +349,7 @@ export function DayView({ day, onDay, switcher }: { day: string; onDay: (iso: st
           />
           <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 48, alignItems: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 28, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
+              <PendingCookNotice />
               {meter}
               {cateringBlock}
               {slots}

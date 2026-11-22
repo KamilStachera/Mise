@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, useBody, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire, useCookLog } from '../api/hooks'
+import { useAuth, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire } from '../api/hooks'
 import { api, errorText, loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
 import { HouseholdCard, PortionSettingsCard } from '../components/HouseholdCards'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { showToast } from '../lib/toastBus'
 import { useIsMobile } from '../lib/useIsMobile'
+import { SousTitleButton } from '../components/Sous'
 import { Avatar, Button, Chip, Eyebrow, PageTitle, SectionHead, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
 /** The profile ("Profil kulinarny" on desktop, the "Ja" tab on phones). */
@@ -18,8 +19,6 @@ export function Profile() {
   const logout = useLogout()
   const { data: prefs } = usePreferences()
   const { data: questionnaire } = useQuestionnaire()
-  const { data: cookLog } = useCookLog(undefined, 500)
-  const { data: body } = useBody()
   const save = useSavePreferences()
 
   const [editing, setEditing] = useState(false)
@@ -109,22 +108,14 @@ export function Profile() {
       <div style={{ ...pad, display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Avatar name={auth?.name ?? auth?.email} picture={auth?.picture} size={56} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
             <h1 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 30, lineHeight: 1, letterSpacing: '-0.02em' }}>Twoja kuchnia</h1>
             <span style={{ font: sans(13.5), color: 'var(--text-2)' }}>{[prefs.householdSummary, prefs.skillSummary].filter(Boolean).join(' · ')}</span>
           </div>
+          <SousTitleButton />
         </div>
 
-        {canEdit && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <SectionHead title="Ty i twój cel" meta="tylko dla ciebie" size={20} />
-            <LinkRow label="Twój cel" meta={body?.configured && body.target ? `${body.target} kcal` : 'ustaw'} onClick={() => nav('/profile/cel')} />
-            <LinkRow label="Postępy" meta={body?.currentKg != null ? `${String(body.currentKg).replace('.', ',')} kg` : ''} onClick={() => nav('/plan/postepy')} />
-          </div>
-        )}
-
         <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
-          <LinkRow label="Historia gotowania" meta={cookLog ? String(cookLog.length) : ''} onClick={() => nav('/history')} />
           <LinkRow label="Ankieta kulinarna" meta={totalQuestions ? `${answered}/${totalQuestions}` : ''} onClick={() => nav('/profile/ankieta')} />
         </div>
 

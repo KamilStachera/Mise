@@ -63,7 +63,7 @@ export function TrainingQuestionnaire() {
   return (
     <div style={{ ...pad, maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 26 }}>
       <TrainingNav />
-      <PageTitle title="Ankieta treningowa" sub="Na jej podstawie Sous (albo Claude Code) ułoży plan. Możesz ją zmienić w każdej chwili." />
+      <PageTitle title="Ankieta treningowa" sub="Na jej podstawie Sous ułoży plan. Możesz ją zmienić w każdej chwili." />
 
       <Q title="Jaki masz cel?">
         {TRAINING_GOALS.map((g: TrainingGoal) => (

@@ -48,7 +48,7 @@ function NavLink({ active, open, onClick, children }: { active: boolean; open?: 
   )
 }
 
-/** Indented Plan sub-page (Dzień / Tydzień) on the 1 px rule; active = 3 px accent. */
+/** Indented sub-page (Dzień / Tydzień …) on the 1 px rule; active = 3 px accent. */
 function SubLink({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
@@ -72,7 +72,11 @@ function SubLink({ active, onClick, children }: { active: boolean; onClick: () =
   )
 }
 
-/** Desktop navigation: full page names, less-used pages in their own group, Sous + session at the bottom. */
+/**
+ * Desktop navigation: full page names, less-used pages in their own group, Sous + session pinned at
+ * the bottom. Only the current section unfolds its sub-pages — they are the page's view switcher,
+ * so pages don't repeat them in their header.
+ */
 export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggleChat: () => void }) {
   const nav = useNavigate()
   const { pathname } = useLocation()
@@ -89,14 +93,14 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
         flex: '0 0 220px',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
-        gap: 24,
+        gap: 20,
         borderRight: '1px solid var(--rule)',
         padding: '28px 20px 24px',
-        overflowY: 'auto',
+        // The links scroll on their own, so Sous and Wyloguj stay on screen in short windows.
+        overflow: 'hidden',
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28, flex: '1 1 auto', minHeight: 0, overflowY: 'auto', margin: '0 -20px', padding: '0 20px' }}>
         <button type="button" onClick={() => nav('/')} style={{ border: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', padding: '0 0 0 12px', color: 'var(--text)' }}>
           <Wordmark />
         </button>
@@ -104,7 +108,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
           <NavLink active={section === 'recipes'} onClick={() => nav('/')}>Przepisy</NavLink>
           <NavLink active={section === 'random'} onClick={() => nav('/random')}>Losuj</NavLink>
           <NavLink active={section === 'plan' && !canEdit} open={section === 'plan'} onClick={() => nav('/plan')}>Plan</NavLink>
-          {canEdit && (
+          {canEdit && section === 'plan' && (
             <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 6px 12px', borderLeft: '1px solid var(--border)' }}>
               {PLAN_PAGES.map((p) => <SubLink key={p.key} active={p.match(pathname)} onClick={() => nav(p.to)}>{p.label}</SubLink>)}
             </div>
@@ -115,7 +119,7 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
           </NavLink>
           <NavLink active={section === 'pantry'} onClick={() => nav('/pantry')}>Spiżarnia</NavLink>
           <NavLink active={section === 'training' && !canEdit} open={section === 'training'} onClick={() => nav('/trening')}>Trening</NavLink>
-          {canEdit && (
+          {canEdit && section === 'training' && (
             <div style={{ display: 'flex', flexDirection: 'column', margin: '0 0 6px 12px', borderLeft: '1px solid var(--border)' }}>
               {TRAINING_PAGES.map((p) => <SubLink key={p.key} active={p.match(pathname)} onClick={() => nav(p.to)}>{p.label}</SubLink>)}
             </div>
@@ -123,14 +127,14 @@ export function Sidebar({ chatOpen, onToggleChat }: { chatOpen: boolean; onToggl
         </nav>
         <nav style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
           <span style={{ font: mono(10.5, 500), letterSpacing: '.1em', color: 'var(--text-3)', padding: '0 0 8px 12px' }}>TWOJA KUCHNIA</span>
-          <NavLink active={section === 'history'} onClick={() => nav('/history')}>Historia</NavLink>
+          <NavLink active={section === 'history'} onClick={() => nav('/history')}>Historia gotowania</NavLink>
           <NavLink active={section === 'profile' && !pathname.startsWith('/profile/cel')} onClick={() => nav('/profile')}>Profil kulinarny</NavLink>
           {canEdit && <NavLink active={pathname.startsWith('/profile/cel')} onClick={() => nav('/profile/cel')}>Twój cel</NavLink>}
           {auth?.isAdmin && <NavLink active={pathname.startsWith('/admin')} onClick={() => nav('/admin')}>Panel admina</NavLink>}
         </nav>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: '0 0 auto', paddingTop: 16, borderTop: '1px solid var(--border)' }}>
         {/* Sous is switched on per household (it runs on the owner's ChatGPT plan). */}
         {canEdit && chatHealth?.enabled && (
           <button

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useShopping, useSupplies } from '../api/hooks'
 import { readOfflineQueue, subscribeOfflineQueue } from '../lib/offlineQueue'
 import { useIsMobile } from '../lib/useIsMobile'
-import { TAB_BAR_HEIGHT } from './TabBar'
+import { PinnedBar } from './Sous'
 import { Eyebrow, PageTitle, Segmented, Sheet, mono, sans, usePagePad } from './ui'
 
 export interface ListAction {
@@ -117,12 +117,11 @@ export function ShoppingFrame({ counts, addBar, actions, aside, hint, children }
             </div>
           }
         />
-        {tabs}
         {children}
         {addBar && (
-          <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '10px 16px', background: 'var(--bg)' }}>
-            {addBar}
-          </div>
+          <PinnedBar sous={false} style={{ padding: '10px 16px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>{addBar}</div>
+          </PinnedBar>
         )}
         <Sheet open={menu} onClose={() => setMenu(false)} title="Lista">
           <ActionList actions={actions} onDone={() => setMenu(false)} />

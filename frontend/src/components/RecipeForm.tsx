@@ -5,7 +5,7 @@ import type { Cuisine, DishType, RecipeDetail, RecipeInput, Source } from '../ap
 import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishTypeLabel, sourceLabel } from '../lib/labels'
 import { normalizeTag, parseOptionalDecimal, type RecipeFormIngredient } from '../lib/recipeParsing'
 import { useIsMobile } from '../lib/useIsMobile'
-import { TAB_BAR_HEIGHT } from './TabBar'
+import { PinnedBar } from './Sous'
 import { Button, Chip, Eyebrow, inputStyle, mono, sans } from './ui'
 
 export interface RecipeFormValues {
@@ -168,8 +168,6 @@ export function RecipeForm({
   photoSection?: ReactNode
 }) {
   const isMobile = useIsMobile()
-  const { pathname } = useLocation()
-  const hasTabBar = !pathname.startsWith('/recipe/')
   const { data: pantry } = usePantry()
   const { data: recipes } = useRecipes('all', '')
   const [tagDraft, setTagDraft] = useState('')
@@ -455,7 +453,7 @@ export function RecipeForm({
               <RemoveBtn onClick={() => set('ings', values.ings.length > 1 ? values.ings.filter((_, j) => j !== i) : values.ings)} />
             )}
             <input
-              style={{ ...inputStyle, gridColumn: isMobile ? '1 / 3' : undefined }}
+              style={{ ...inputStyle, gridColumn: isMobile ? '1 / 4' : undefined }}
               value={ing.displayText}
               placeholder="pełny zapis, np. 2 kromki chleba na zakwasie"
               onChange={(e) => setIng(i, { displayText: e.target.value })}
@@ -463,11 +461,17 @@ export function RecipeForm({
             <input
               style={inputStyle}
               value={ing.alternativeGroup}
-              placeholder="grupa LUB"
+              placeholder={isMobile ? 'grupa zamienników' : 'grupa LUB'}
               title="Ta sama wartość łączy zamienniki, np. spód"
               onChange={(e) => setIng(i, { alternativeGroup: e.target.value })}
             />
-            {!isMobile && (
+            {isMobile ? (
+              // Phones: the substitute group gets its own row, the arrows move the whole ingredient.
+              <div style={{ gridColumn: '2 / 4', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                <OrderBtn wide dir="up" disabled={i === 0} onClick={() => set('ings', move(values.ings, i, -1))} />
+                <OrderBtn wide dir="down" disabled={i === values.ings.length - 1} onClick={() => set('ings', move(values.ings, i, 1))} />
+              </div>
+            ) : (
               <div style={{ display: 'flex', gap: 4 }}>
                 <OrderBtn dir="up" disabled={i === 0} onClick={() => set('ings', move(values.ings, i, -1))} />
                 <OrderBtn dir="down" disabled={i === values.ings.length - 1} onClick={() => set('ings', move(values.ings, i, 1))} />
@@ -484,7 +488,7 @@ export function RecipeForm({
 
       <Section title="Przygotowanie">
         {values.steps.map((s, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : undefined }}>
             <span style={{ flex: '0 0 22px', paddingTop: 10, fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 22, lineHeight: 1, color: 'var(--accent-text)' }}>
               {i + 1}
             </span>
@@ -494,13 +498,10 @@ export function RecipeForm({
               placeholder={`Krok ${i + 1}`}
               onChange={(e) => set('steps', values.steps.map((x, j) => (j === i ? e.target.value : x)))}
             />
-            <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 4 }}>
-              {!isMobile && (
-                <>
-                  <OrderBtn dir="up" disabled={i === 0} onClick={() => set('steps', move(values.steps, i, -1))} />
-                  <OrderBtn dir="down" disabled={i === values.steps.length - 1} onClick={() => set('steps', move(values.steps, i, 1))} />
-                </>
-              )}
+            {/* Phones: the step's buttons drop to their own row under the text. */}
+            <div style={{ display: 'flex', gap: isMobile ? 6 : 4, ...(isMobile ? { flex: '1 0 100%', justifyContent: 'flex-end' } : null) }}>
+              <OrderBtn wide={isMobile} dir="up" disabled={i === 0} onClick={() => set('steps', move(values.steps, i, -1))} />
+              <OrderBtn wide={isMobile} dir="down" disabled={i === values.steps.length - 1} onClick={() => set('steps', move(values.steps, i, 1))} />
               <RemoveBtn onClick={() => set('steps', values.steps.length > 1 ? values.steps.filter((_, j) => j !== i) : values.steps)} />
             </div>
           </div>
@@ -532,21 +533,9 @@ export function RecipeForm({
       )}
 
       {isMobile ? (
-        <div
-          data-pinned-bar
-          style={{
-            position: 'fixed',
-            left: 0,
-            right: 0,
-            bottom: hasTabBar ? `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))` : 0,
-            zIndex: 20,
-            padding: hasTabBar ? '10px 16px' : '10px 16px calc(10px + env(safe-area-inset-bottom))',
-            background: 'var(--bg)',
-            borderTop: '1px solid var(--border)',
-          }}
-        >
+        <PinnedBar overTabBar={false} sous={false}>
           {saveButtons}
-        </div>
+        </PinnedBar>
       ) : (
         saveButtons
       )}
@@ -597,7 +586,7 @@ function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   )
 }
 
-function OrderBtn({ dir, disabled, onClick }: { dir: 'up' | 'down'; disabled: boolean; onClick: () => void }) {
+function OrderBtn({ dir, disabled, onClick, wide }: { dir: 'up' | 'down'; disabled: boolean; onClick: () => void; wide?: boolean }) {
   return (
     <button
       type="button"
@@ -605,9 +594,9 @@ function OrderBtn({ dir, disabled, onClick }: { dir: 'up' | 'down'; disabled: bo
       disabled={disabled}
       title={dir === 'up' ? 'Przesuń wyżej' : 'Przesuń niżej'}
       style={{
-        width: 34,
+        width: wide ? 44 : 34,
         height: 46,
-        flex: '0 0 34px',
+        flex: `0 0 ${wide ? 44 : 34}px`,
         border: '1px solid var(--border)',
         borderRadius: 10,
         background: 'transparent',

@@ -1,15 +1,15 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../api/hooks'
+import { useAuth, useShopping, useSupplies } from '../api/hooks'
 import { phoneSubPages } from '../lib/navModel'
-import { sans } from './ui'
+import { mono, sans } from './ui'
 
 /** Height of the strip below the safe area. */
 export const SECTION_NAV_HEIGHT = 44
 
 /**
  * Phones: the second level of navigation, pinned to the top of <main> — what the desktop
- * sidebar shows as indented links under Plan and Trening (and the „Twoja kuchnia” group under
- * „Ja”). Equal cells like the tab bar below it; the tab bar marks its active cell on the top
+ * sidebar shows as indented links under Plan and Trening (plus Jedzenie · Dom · Spiżarnia under
+ * Zakupy and the „Twoja kuchnia” group under „Ja”). Equal cells like the tab bar below it; the tab bar marks its active cell on the top
  * edge, this strip on the bottom edge, under the label.
  */
 export function SectionNav() {
@@ -17,7 +17,13 @@ export function SectionNav() {
   const nav = useNavigate()
   const { canEdit, isLoading } = useAuth()
   const pages = isLoading ? null : phoneSubPages(pathname, canEdit)
+  const { data: food } = useShopping()
+  const { data: home } = useSupplies()
   if (!pages) return null
+  const counts = {
+    food: food ? food.total - food.checkedCount : 0,
+    home: home ? home.total - home.checkedCount : 0,
+  }
   const day = new URLSearchParams(search).get('d')
 
   return (
@@ -37,7 +43,9 @@ export function SectionNav() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${pages.length}, 1fr)`,
+          // At least the label's width („Historia gotowania”), then the rest shared equally.
+          gridTemplateColumns: `repeat(${pages.length}, minmax(max-content, 1fr))`,
+          columnGap: 8,
           borderBottom: '1px solid var(--rule)',
         }}
       >
@@ -73,6 +81,9 @@ export function SectionNav() {
                 }}
               >
                 {p.label}
+                {p.count && counts[p.count] > 0 && (
+                  <span style={{ font: mono(11, 600), color: 'var(--accent-text)', marginLeft: 5 }}>{counts[p.count]}</span>
+                )}
               </span>
             </button>
           )

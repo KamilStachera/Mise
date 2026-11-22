@@ -8,7 +8,7 @@ import { requestChat } from '../lib/chatBus'
 import { useIsMobile } from '../lib/useIsMobile'
 import { RecipeThumb, StockNote } from '../components/RecipeThumb'
 import { AddToPlanSheet } from '../components/AddToPlanSheet'
-import { TAB_BAR_HEIGHT } from '../components/TabBar'
+import { PinnedBar } from '../components/Sous'
 import { Button, Chip, Eyebrow, PageTitle, Toggle, mono, sans, usePagePad } from '../components/ui'
 
 type RndType = 'all' | 'main' | 'breakfast' | 'side'
@@ -31,7 +31,7 @@ const HISTORY_KEY = 'mise-random-history'
 const HISTORY_MAX = 4
 const RECENT_COOK_DAYS = 7
 /** Phone bottom button block (two 54px buttons + pool line). */
-const MOBILE_ACTIONS = 96
+const MOBILE_ACTIONS = 110
 
 function loadHistory(): string[] {
   try {
@@ -271,19 +271,16 @@ export function Random() {
         {pick && canEdit && <Button variant="quiet" onClick={() => setPlanOpen(true)}>Dodaj do planu</Button>}
         {askSous}
         {previous}
-        <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px 10px', background: 'var(--bg)' }}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            {pick ? (
-              <>
-                <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={spin}>Jeszcze raz</Button>
-                <Button size="xl" style={{ flex: 1.4 }} onClick={() => nav(`/recipe/${pick.id}`)}>Gotuję to</Button>
-              </>
-            ) : (
-              <Button size="xl" style={{ flex: 1 }} onClick={spin} disabled={spinning}>{spinning ? 'Kręcę…' : 'Zakręć kołem'}</Button>
-            )}
-          </div>
-          <span style={{ textAlign: 'center', font: mono(12), color: 'var(--text-3)' }}>{poolLabel}</span>
-        </div>
+        <PinnedBar below={<span style={{ textAlign: 'center', font: mono(12), color: 'var(--text-3)' }}>{poolLabel}</span>}>
+          {pick ? (
+            <>
+              <Button variant="outline" size="xl" style={{ flex: 1, minWidth: 0 }} onClick={spin}>Jeszcze raz</Button>
+              <Button size="xl" style={{ flex: 1.4, minWidth: 0 }} onClick={() => nav(`/recipe/${pick.id}`)}>Gotuję to</Button>
+            </>
+          ) : (
+            <Button size="xl" style={{ flex: 1 }} onClick={spin} disabled={spinning}>{spinning ? 'Kręcę…' : 'Zakręć kołem'}</Button>
+          )}
+        </PinnedBar>
         {planSheet}
       </div>
     )

@@ -189,7 +189,7 @@ export function HistoryView() {
                       <span style={{ font: sans(16, 600) }}>{s.name}</span>
                       {s.prCount > 0 && (
                         <span style={{ font: mono(11, 600), padding: '1px 7px', borderRadius: 999, background: 'var(--gold-soft)', color: 'var(--gold-text)', border: '1px solid var(--gold)' }}>
-                          🏆 {s.prCount} PR
+                          {s.prCount} PR
                         </span>
                       )}
                     </span>

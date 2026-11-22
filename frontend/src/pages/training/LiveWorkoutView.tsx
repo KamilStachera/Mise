@@ -235,7 +235,7 @@ export function LiveWorkoutView() {
           {session && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               {isActive ? (
-                <Button size="sm" onClick={() => setFinishOpen(true)}>Zakończ</Button>
+                <Button variant="quiet" size="sm" onClick={() => setFinishOpen(true)}>Zakończ…</Button>
               ) : (
                 <Button variant="quiet" size="sm" onClick={() => setFinishOpen(true)}>Podsumowanie</Button>
               )}
@@ -283,6 +283,7 @@ export function LiveWorkoutView() {
             onAddSet={() => addSet.mutate({ sessionId: session.id, input: { exerciseId: group.exerciseId, exerciseOrder: group.order } })}
             onDeleteSet={(setId) => delSet.mutate({ sessionId: session.id, setId })}
             addingSet={addSet.isPending}
+            deletingSet={delSet.isPending}
           />
         ))}
 
@@ -355,7 +356,7 @@ export function LiveWorkoutView() {
   )
 }
 
-function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onAddSet, onDeleteSet, addingSet }: {
+function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onAddSet, onDeleteSet, addingSet, deletingSet }: {
   sessionId: string
   group: SessionExerciseGroup
   isActive: boolean
@@ -364,9 +365,36 @@ function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onA
   onAddSet: () => void
   onDeleteSet: (setId: string) => void
   addingSet: boolean
+  deletingSet: boolean
 }) {
+  const isMobile = useIsMobile()
   const target = formatTargetSummary(group)
   const lastPerf = formatLastPerformance(group)
+  // During a session a finished exercise folds to one line, so the current set is at the top.
+  const allDone = group.sets.length > 0 && group.sets.every((s) => s.completed)
+  const [open, setOpen] = useState(!(isActive && allDone))
+  const [wasDone, setWasDone] = useState(allDone)
+  if (wasDone !== allDone) {
+    setWasDone(allDone)
+    if (isActive) setOpen(!allDone)
+  }
+  const cols = group.isTimed ? '28px 1fr auto 44px' : isMobile ? '22px minmax(0,1fr) minmax(0,1fr) 44px' : '28px 1fr 1fr 44px'
+  const lastSet = group.sets[group.sets.length - 1]
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, padding: '12px 0 0', border: 0, borderTop: '1px solid var(--rule)', background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
+      >
+        <span style={{ color: 'var(--sage-text)', font: sans(15, 700) }}>✓</span>
+        <span style={{ flex: 1, minWidth: 0, font: sans(16, 600), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.name}</span>
+        <span style={{ font: mono(12, 500), color: 'var(--text-2)' }}>{group.sets.length}/{group.sets.length} serii</span>
+        <span aria-hidden style={{ color: 'var(--text-3)' }}>▾</span>
+      </button>
+    )
+  }
 
   return (
     <section
@@ -412,7 +440,7 @@ function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onA
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: group.isTimed ? '28px 1fr auto 44px 28px' : '28px 1fr 1fr 44px 28px',
+          gridTemplateColumns: cols,
           gap: 8,
           alignItems: 'center',
           paddingBottom: 4,
@@ -436,7 +464,6 @@ function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onA
           </>
         )}
         <span style={{ textAlign: 'center' }}>OK</span>
-        <span />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -447,28 +474,42 @@ function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onA
             set={s}
             group={group}
             isActive={isActive}
+            cols={cols}
             onCompleted={() => { if (isActive && group.restSeconds > 0) onStartRest(group.restSeconds) }}
-            onDelete={() => onDeleteSet(s.id)}
           />
         ))}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 2 }}>
-        <button
-          type="button"
-          onClick={onAddSet}
-          disabled={addingSet}
-          style={{ border: 0, background: 'transparent', padding: '4px 0', cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)' }}
-        >
-          + Dodaj serię
-        </button>
+        {/* Deleting lives here, away from the ✓ it used to sit next to. */}
+        <span style={{ display: 'flex', gap: 18 }}>
+          <button
+            type="button"
+            onClick={onAddSet}
+            disabled={addingSet}
+            style={{ border: 0, background: 'transparent', padding: '8px 0', cursor: 'pointer', font: sans(13.5, 600), color: 'var(--accent-text)' }}
+          >
+            + Dodaj serię
+          </button>
+          {lastSet && (
+            <button
+              type="button"
+              onClick={() => onDeleteSet(lastSet.id)}
+              disabled={deletingSet}
+              title={`Usuń serię ${lastSet.setNumber}`}
+              style={{ border: 0, background: 'transparent', padding: '8px 0', cursor: 'pointer', font: sans(13.5, 500), color: 'var(--text-3)' }}
+            >
+              − Usuń ostatnią
+            </button>
+          )}
+        </span>
         {isActive && group.restSeconds > 0 && (
           <button
             type="button"
             onClick={() => onStartRest(group.restSeconds)}
-            style={{ border: '1px solid var(--border)', background: 'transparent', borderRadius: 999, padding: '4px 10px', cursor: 'pointer', font: mono(11.5, 500), color: 'var(--text-2)' }}
+            style={{ border: '1px solid var(--border)', background: 'transparent', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', font: mono(11.5, 500), color: 'var(--text-2)' }}
           >
-            ⏱ Przerwa {group.restSeconds} s
+            Przerwa {group.restSeconds} s
           </button>
         )}
       </div>
@@ -476,13 +517,13 @@ function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onA
   )
 }
 
-function SetRow({ sessionId, set, group, isActive, onCompleted, onDelete }: {
+function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
   sessionId: string
   set: SessionSet
   group: SessionExerciseGroup
   isActive: boolean
+  cols: string
   onCompleted: () => void
-  onDelete: () => void
 }) {
   const patchSet = usePatchSessionSet()
   const [weightStr, setWeightStr] = useState(() => formatKg(set.weightKg))
@@ -560,6 +601,12 @@ function SetRow({ sessionId, set, group, isActive, onCompleted, onDelete }: {
     commit({ weightKg: next })
   }
 
+  const nudgeReps = (delta: number) => {
+    const next = Math.max(0, (Number.isFinite(parsedReps) ? parsedReps ?? 0 : 0) + delta)
+    setRepsStr(String(next))
+    commit({ reps: next })
+  }
+
   const toggleComplete = () => {
     const next = !set.completed
     commit({ completed: next })
@@ -578,7 +625,7 @@ function SetRow({ sessionId, set, group, isActive, onCompleted, onDelete }: {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: group.isTimed ? '28px 1fr auto 44px 28px' : '28px 1fr 1fr 44px 28px',
+        gridTemplateColumns: cols,
         gap: 8,
         alignItems: 'center',
         padding: '6px 4px',
@@ -591,7 +638,7 @@ function SetRow({ sessionId, set, group, isActive, onCompleted, onDelete }: {
         <span style={{ font: mono(13, 600), color: set.completed ? 'var(--sage-text)' : 'var(--text-2)' }}>
           {set.setNumber}
         </span>
-        {livePr && <span title="Nowy rekord życiowy!" style={{ fontSize: 11, lineHeight: 1 }}>🏆</span>}
+        {livePr && <span title="Nowy rekord życiowy!" style={{ font: mono(9, 700), letterSpacing: '.04em', color: 'var(--gold-text)' }}>PR</span>}
       </div>
 
       {group.isTimed ? (
@@ -642,18 +689,20 @@ function SetRow({ sessionId, set, group, isActive, onCompleted, onDelete }: {
             />
             <button type="button" onClick={() => nudgeWeight(2.5)} aria-label="Dodaj 2,5 kg" style={nudgeBtn}>+</button>
           </div>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={500}
-            aria-label={`Seria ${set.setNumber} powtórzenia`}
-            value={repsStr}
-            onChange={(e) => setRepsStr(e.target.value)}
-            onBlur={() => commit()}
-            placeholder={set.targetRepsMin != null ? String(set.targetRepsMin) : '10'}
-            style={cellInput}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+            <button type="button" onClick={() => nudgeReps(-1)} aria-label="Odejmij powtórzenie" style={nudgeBtn}>−</button>
+            <input
+              type="text"
+              inputMode="numeric"
+              aria-label={`Seria ${set.setNumber} powtórzenia`}
+              value={repsStr}
+              onChange={(e) => setRepsStr(e.target.value.replace(/\D/g, ''))}
+              onBlur={() => commit()}
+              placeholder={set.targetRepsMin != null ? String(set.targetRepsMin) : '10'}
+              style={{ ...cellInput, minWidth: 0, flex: 1 }}
+            />
+            <button type="button" onClick={() => nudgeReps(1)} aria-label="Dodaj powtórzenie" style={nudgeBtn}>+</button>
+          </div>
         </>
       )}
 
@@ -664,7 +713,7 @@ function SetRow({ sessionId, set, group, isActive, onCompleted, onDelete }: {
         aria-label={set.completed ? `Cofnij serię ${set.setNumber}` : `Oznacz serię ${set.setNumber} jako wykonaną`}
         style={{
           width: 44,
-          height: 40,
+          height: 44,
           borderRadius: 10,
           border: set.completed ? 0 : '1.5px solid var(--border-2, var(--border))',
           background: set.completed ? 'var(--sage)' : 'var(--bg)',
@@ -680,26 +729,6 @@ function SetRow({ sessionId, set, group, isActive, onCompleted, onDelete }: {
         ✓
       </button>
 
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label={`Usuń serię ${set.setNumber}`}
-        title="Usuń serię"
-        style={{
-          width: 28,
-          height: 36,
-          border: 0,
-          background: 'transparent',
-          color: 'var(--text-3)',
-          cursor: 'pointer',
-          fontSize: 15,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        ×
-      </button>
     </div>
   )
 }
@@ -773,8 +802,8 @@ function AddExerciseSheet({ open, onClose, onPick }: {
 }
 
 const cellInput: React.CSSProperties = {
-  height: 40,
-  padding: '0 8px',
+  height: 44,
+  padding: '0 4px',
   borderRadius: 10,
   border: '1px solid var(--border)',
   background: 'var(--surface)',
@@ -786,8 +815,8 @@ const cellInput: React.CSSProperties = {
 }
 
 const nudgeBtn: React.CSSProperties = {
-  width: 26,
-  height: 40,
+  width: 34,
+  height: 44,
   borderRadius: 8,
   border: '1px solid var(--border)',
   background: 'var(--bg)',

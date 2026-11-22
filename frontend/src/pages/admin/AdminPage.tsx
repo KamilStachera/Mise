@@ -1,6 +1,7 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAdminOverview, useAuth } from '../../api/hooks'
 import { Button, PageTitle, SectionHead, StatStrip, UnderlineTabs, usePagePad } from '../../components/ui'
+import { plural } from '../../lib/labels'
 import { AdminAudit } from './AdminAudit'
 import { AdminCodes } from './AdminCodes'
 import { AdminHouseholds } from './AdminHouseholds'
@@ -48,6 +49,9 @@ export function AdminPage() {
   )
 }
 
+/** The Polish plural form alone — the number sits in its own column. */
+const word = (n: number, one: string, few: string, many: string) => plural(n, one, few, many).replace(/^\d+\s/, '')
+
 function Overview({ onOpen }: { onOpen: (tab: Tab) => void }) {
   const { data } = useAdminOverview()
   if (!data) return null
@@ -55,11 +59,11 @@ function Overview({ onOpen }: { onOpen: (tab: Tab) => void }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
       <StatStrip items={[
-        { value: s.households, label: 'domy' },
-        { value: s.people, label: 'osoby z kontem' },
+        { value: s.households, label: word(s.households, 'dom', 'domy', 'domów') },
+        { value: s.people, label: word(s.people, 'osoba z kontem', 'osoby z kontem', 'osób z kontem') },
         { value: s.activeLast7Days, label: 'aktywni (7 dni)' },
-        { value: s.pendingInvites, label: 'otwarte kody', highlight: s.pendingInvites > 0 },
-        { value: s.liveKeys, label: 'klucze API' },
+        { value: s.pendingInvites, label: word(s.pendingInvites, 'otwarty kod', 'otwarte kody', 'otwartych kodów'), highlight: s.pendingInvites > 0 },
+        { value: s.liveKeys, label: word(s.liveKeys, 'klucz API', 'klucze API', 'kluczy API') },
         { value: s.blockedPeople, label: 'zablokowani' },
       ]} />
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

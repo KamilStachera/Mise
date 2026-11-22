@@ -285,76 +285,32 @@ export function Library() {
     />
   )
 
+  // Every narrowing that isn't one of the quick chips, as a removable chip — visible after the sheet closes.
+  const activeChips: { key: string; label: string; clear: () => void }[] = [
+    ...(origin !== null ? [{ key: 'origin', label: originLabel ?? 'Źródło', clear: () => setOrigin(null) }] : []),
+    ...(dish !== 'all' ? [{ key: 'dish', label: dishTypeLabel[dish], clear: () => setDish('all') }] : []),
+    ...(cuisine !== 'all' ? [{ key: 'cuisine', label: `Kuchnia: ${cuisineLabel[cuisine]}`, clear: () => setCuisine('all') }] : []),
+    ...(timeBucket !== null && timeBucket !== '30' ? [{ key: 'time', label: TIME_BUCKETS.find((b) => b.key === timeBucket)!.label, clear: () => setTimeBucket(null) }] : []),
+    ...(difficulty !== 'all' ? [{ key: 'difficulty', label: difficulty, clear: () => setDifficulty('all') }] : []),
+    ...(stock !== 'any' && stock !== 'have' ? [{ key: 'stock', label: STOCK_OPTIONS.find((o) => o.key === stock)!.label, clear: () => setStock('any') }] : []),
+    ...(tag !== null ? [{ key: 'tag', label: `#${tag}`, clear: () => setTag(null) }] : []),
+    ...(airFryerOnly ? [{ key: 'air', label: 'Frytkownica', clear: () => setAirFryerOnly(false) }] : []),
+  ]
+
+  // Desktop uses the phone's pattern: the three everyday filters as chips, the rest in one sheet.
   const desktopFilters = (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
-      <FilterDropdown
-        {...menu('origin')}
-        label={originLabel ?? 'Źródło'}
-        active={origin !== null}
-        options={[
-          { label: 'Wszystkie źródła', selected: origin === null, onSelect: () => pick(setOrigin)(null) },
-          ...origins.map((o) => ({ label: `${o.label} (${o.count})`, selected: origin === o.key, onSelect: () => pick(setOrigin)(o.key) })),
-        ]}
-      />
-      <FilterDropdown
-        {...menu('dish')}
-        label={dish === 'all' ? 'Kategoria' : dishTypeLabel[dish]}
-        active={dish !== 'all'}
-        options={[
-          { label: 'Wszystkie kategorie', selected: dish === 'all', onSelect: () => pick(setDish)('all') },
-          ...DISH_TYPES.map((d) => ({ label: dishTypeLabel[d], selected: dish === d, onSelect: () => pick(setDish)(d) })),
-        ]}
-      />
-      <FilterDropdown
-        {...menu('cuisine')}
-        label={cuisine === 'all' ? 'Kuchnia' : cuisineLabel[cuisine]}
-        active={cuisine !== 'all'}
-        options={[
-          { label: 'Wszystkie kuchnie', selected: cuisine === 'all', onSelect: () => pick(setCuisine)('all') },
-          ...CUISINES.map((c) => ({ label: cuisineLabel[c], selected: cuisine === c, onSelect: () => pick(setCuisine)(c) })),
-        ]}
-      />
-      <FilterDropdown
-        {...menu('time')}
-        label={timeBucket === null ? 'Czas' : TIME_BUCKETS.find((b) => b.key === timeBucket)!.label}
-        active={timeBucket !== null}
-        options={[
-          { label: 'Dowolny czas', selected: timeBucket === null, onSelect: () => pick(setTimeBucket)(null) },
-          ...TIME_BUCKETS.map((b) => ({ label: b.label, selected: timeBucket === b.key, onSelect: () => pick(setTimeBucket)(b.key) })),
-        ]}
-      />
-      <FilterDropdown
-        {...menu('difficulty')}
-        label={difficulty === 'all' ? 'Trudność' : difficulty}
-        active={difficulty !== 'all'}
-        options={[
-          { label: 'Dowolna trudność', selected: difficulty === 'all', onSelect: () => pick(setDifficulty)('all') },
-          ...DIFFICULTIES.map((d) => ({ label: d, selected: difficulty === d, onSelect: () => pick(setDifficulty)(d) })),
-        ]}
-      />
-      <FilterDropdown
-        {...menu('stock')}
-        label={stock === 'any' ? 'Składniki' : STOCK_OPTIONS.find((o) => o.key === stock)!.label}
-        active={stock !== 'any'}
-        options={STOCK_OPTIONS.map((o) => ({ label: o.label, selected: stock === o.key, onSelect: () => pick(setStock)(o.key) }))}
-      />
+      <Chip active={toolbarCount > 0} onClick={() => setFilterSheet(true)}>
+        Filtry{toolbarCount > 0 ? ` · ${toolbarCount}` : ''}
+      </Chip>
       <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>
-        ★ Ulubione{counts.favorites > 0 && !favoriteOnly ? ` (${counts.favorites})` : ''}{favoriteOnly && ' ✕'}
+        ★ Ulubione{counts.favorites > 0 && !favoriteOnly ? ` (${counts.favorites})` : ''}
       </Chip>
-      {(allTags.length > 0 || tag !== null) && (
-        <FilterDropdown
-          {...menu('tag')}
-          label={tag ? `#${tag}` : 'Tag'}
-          active={tag !== null}
-          options={[
-            { label: 'Wszystkie tagi', selected: tag === null, onSelect: () => pick(setTag)(null) },
-            ...allTags.map((t) => ({ label: `#${t.tag} (${t.count})`, selected: tag === t.tag, onSelect: () => pick(setTag)(t.tag) })),
-          ]}
-        />
-      )}
-      <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>
-        Frytkownica{airFryerOnly && ' ✕'}
-      </Chip>
+      <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
+      <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
+      {activeChips.map((c) => (
+        <Chip key={c.key} active onClick={c.clear} title="Usuń filtr">{c.label} ✕</Chip>
+      ))}
       {toolbarCount > 0 && (
         <button type="button" onClick={clearToolbarFilters} style={{ border: 0, background: 'transparent', cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)', padding: '7px 4px' }}>
           Wyczyść
@@ -379,7 +335,9 @@ export function Library() {
       <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>★ Ulubione</Chip>
       <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
       <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
-      <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
+      {activeChips.map((c) => (
+        <Chip key={c.key} active onClick={c.clear} title="Usuń filtr">{c.label} ✕</Chip>
+      ))}
       <Chip onClick={() => setFilterSheet(true)}>{SORT_OPTIONS.find((o) => o.key === sort)!.label} <span aria-hidden>▾</span></Chip>
     </div>
   )
@@ -550,10 +508,23 @@ export function Library() {
         </>
       )}
 
-      <Sheet open={filterSheet} onClose={() => setFilterSheet(false)} title="Filtry">
+      <Sheet
+        open={filterSheet}
+        onClose={() => setFilterSheet(false)}
+        title="Filtry"
+        width={560}
+        footer={
+          <>
+            <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={clearToolbarFilters}>Wyczyść</Button>
+            <Button size="xl" style={{ flex: 1.4 }} onClick={() => setFilterSheet(false)}>Pokaż {view.length}</Button>
+          </>
+        }
+      >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <ChipGroup label="Szybkie">
             <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>★ Ulubione</Chip>
+            <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
+            <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
             <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
           </ChipGroup>
           {allTags.length > 0 && (
@@ -570,7 +541,7 @@ export function Library() {
             <Chip active={cuisine === 'all'} onClick={() => setCuisine('all')}>Wszystkie</Chip>
             {CUISINES.map((c) => <Chip key={c} active={cuisine === c} onClick={() => setCuisine(c)}>{cuisineLabel[c]}</Chip>)}
           </ChipGroup>
-          <ChipGroup label="Źródło">
+          <ChipGroup label="Książka lub strona">
             <Chip active={origin === null} onClick={() => setOrigin(null)}>Wszystkie</Chip>
             {origins.map((o) => <Chip key={o.key} active={origin === o.key} onClick={() => setOrigin(o.key)}>{o.label} · {o.count}</Chip>)}
           </ChipGroup>
@@ -585,13 +556,11 @@ export function Library() {
           <ChipGroup label="Składniki">
             {STOCK_OPTIONS.map((o) => <Chip key={o.key} active={stock === o.key} onClick={() => setStock(o.key)}>{o.label}</Chip>)}
           </ChipGroup>
-          <ChipGroup label="Sortowanie">
-            {SORT_OPTIONS.map((o) => <Chip key={o.key} active={sort === o.key} onClick={() => setSort(o.key)}>{o.label}</Chip>)}
-          </ChipGroup>
-          <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-            <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={clearToolbarFilters}>Wyczyść</Button>
-            <Button size="xl" style={{ flex: 1.4 }} onClick={() => setFilterSheet(false)}>Pokaż {view.length}</Button>
-          </div>
+          {isMobile && (
+            <ChipGroup label="Sortowanie">
+              {SORT_OPTIONS.map((o) => <Chip key={o.key} active={sort === o.key} onClick={() => setSort(o.key)}>{o.label}</Chip>)}
+            </ChipGroup>
+          )}
         </div>
       </Sheet>
     </div>

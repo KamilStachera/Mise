@@ -16,7 +16,7 @@ const num = (s: string): number | null => {
 }
 
 /**
- * „Szybki wpis” — log something eaten: a favourite chip (one tap + undo), a saved recipe
+ * „Dodaj jedzenie” (formerly „Szybki wpis”) — log something eaten: a favourite chip (one tap + undo), a saved recipe
  * with a portion size, or typed name + kcal (per portion or per 100 g × grams).
  */
 export function QuickAddSheet({ open, onClose, date, initialSlot }: {
@@ -154,13 +154,34 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const title = { main: 'Szybki wpis', recipe: 'Z przepisu', code: 'Wpisz kod', product: product?.found ? 'Produkt' : 'Szybki wpis' }[view]
+  // The title repeats the button that opened the sheet („+ Dodaj jedzenie”).
+  const title = { main: 'Dodaj jedzenie', recipe: 'Z przepisu', code: 'Wpisz kod', product: product?.found ? 'Produkt' : 'Dodaj jedzenie' }[view]
+  // Each view's main action stays pinned under the scrolling body.
+  const footer = view === 'code' ? (
+    <>
+      <Button variant="quiet" size="xl" onClick={() => setView('main')}>‹</Button>
+      <Button size="xl" style={{ flex: 1 }} disabled={code.length < 8 || looking} onClick={() => lookup(code)}>
+        {looking ? 'Szukam…' : 'Szukaj produktu'}
+      </Button>
+    </>
+  ) : view === 'recipe' ? (
+    <>
+      <Button variant="quiet" size="xl" onClick={() => setView('main')}>‹</Button>
+      <Button size="xl" style={{ flex: 1, minWidth: 0 }} disabled={!recipe || busy} onClick={onAddRecipe}>
+        Dodaj {slotTo[slot]}{recipeTotal != null ? ` · ${formatKcal(recipeTotal)} kcal` : ''}
+      </Button>
+    </>
+  ) : view === 'main' ? (
+    <Button size="xl" style={{ flex: 1, minWidth: 0 }} disabled={!canTyped || busy} onClick={onAddTyped}>
+      Dodaj {slotTo[slot]}{total != null ? ` · ${formatKcal(total)} kcal` : ''}
+    </Button>
+  ) : undefined
   const startScan = () => (canScanBarcodes() ? setScanning(true) : setView('code'))
 
   return (
     <>
     {open && scanning && <BarcodeScanner onCode={onCode} onManual={() => { setScanning(false); setView('code') }} onClose={() => setScanning(false)} />}
-    <Sheet open={open} onClose={onClose} title={title} width={520}>
+    <Sheet open={open} onClose={onClose} title={title} width={520} footer={footer}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Segmented value={slot} onChange={setSlot} items={DIARY_SLOTS.map((s) => ({ key: s, label: slotLabel[s] }))} />
 
@@ -180,23 +201,11 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
               onKeyDown={(e) => e.key === 'Enter' && code.length >= 8 && lookup(code)}
             />
             {lookupError && <span style={{ font: sans(13.5), color: 'var(--accent-text)' }}>{lookupError}</span>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button variant="quiet" size="xl" onClick={() => setView('main')}>‹</Button>
-              <Button size="xl" style={{ flex: 1 }} disabled={code.length < 8 || looking} onClick={() => lookup(code)}>
-                {looking ? 'Szukam…' : 'Szukaj produktu'}
-              </Button>
-            </div>
           </>
         ) : view === 'recipe' ? (
           <>
             <RecipePicker selected={recipe} onSelect={(r) => { setRecipe(r); setPortions(1) }} portions={portions} onPortions={setPortions} />
             <PartnerSyncToggle value={alsoFor} onChange={setAlsoFor} labelPrefix="Dodaj też dla" />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Button variant="quiet" size="xl" onClick={() => setView('main')}>‹</Button>
-              <Button size="xl" style={{ flex: 1 }} disabled={!recipe || busy} onClick={onAddRecipe}>
-                Dodaj {slotTo[slot]}{recipeTotal != null ? ` · ${formatKcal(recipeTotal)} kcal` : ''}
-              </Button>
-            </div>
           </>
         ) : (
           <>
@@ -264,9 +273,6 @@ export function QuickAddSheet({ open, onClose, date, initialSlot }: {
               </div>
               <Toggle on={remember} onChange={setRemember} label="Zapamiętaj jako ulubione" />
               <PartnerSyncToggle value={alsoFor} onChange={setAlsoFor} labelPrefix="Dodaj też dla" />
-              <Button size="xl" disabled={!canTyped || busy} onClick={onAddTyped}>
-                Dodaj {slotTo[slot]}{total != null ? ` · ${formatKcal(total)} kcal` : ''}
-              </Button>
             </div>
           </>
         )}

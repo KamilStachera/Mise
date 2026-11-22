@@ -8,7 +8,7 @@ import {
 import { SourceTag } from '../../components/diary/parts'
 import { PersonSwitch } from '../../components/diary/PersonSwitch'
 import { WorkoutSheet } from '../../components/diary/WorkoutSheet'
-import { TAB_BAR_HEIGHT } from '../../components/TabBar'
+import { PinnedBar } from '../../components/Sous'
 import { Button, Eyebrow, PageTitle, StatStrip, mono, sans, usePagePad } from '../../components/ui'
 import { WEEKDAY_SHORT, dayShortMonth, hhmm, parseISODate, syncLabel } from '../../lib/dates'
 import { formatKcal } from '../../lib/labels'
@@ -120,7 +120,6 @@ export function ActivityView() {
   return (
     <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto' }}>
       <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 22 }}>
-        {!isMobile && back}
         <PageTitle
           title="Aktywność"
           right={
@@ -130,27 +129,17 @@ export function ActivityView() {
             </div>
           }
         />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
-          {/* No band yet: offer the watch first, so a Garmin owner doesn't scroll past the band steps. */}
-          {state === 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="bottom" />}
-          {connection}
-          {showSetup && <Setup />}
-          {state !== 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="top" />}
-        </div>
-
+        {/* Today first, as one headline figure — what the activity adds to the day's budget. */}
         {today && (
-          <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24 }}>
-              Dziś <span style={{ fontStyle: 'italic', color: 'var(--text-3)' }}>{dayShortMonth(parseISODate(today.date))}</span>
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
+            <Eyebrow>Dziś · {dayShortMonth(parseISODate(today.date))}</Eyebrow>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ font: mono(isMobile ? 46 : 56, 500), letterSpacing: '-0.03em', lineHeight: 1 }}>+{formatKcal(today.bonus)}</span>
+              <span style={{ font: sans(isMobile ? 15 : 16), color: 'var(--text-2)' }}>kcal do budżetu</span>
+            </div>
+            <span style={{ font: mono(12.5), color: 'var(--text-2)', paddingBottom: 6 }}>
+              {today.activeKcal > 0 ? `${formatKcal(today.activeKcal)} kcal aktywnych` : 'brak kcal aktywnych'} · {workoutsCount(today.workouts.length)} · wraca {addBack} %
             </span>
-            <StatStrip
-              stacked
-              items={[
-                { value: today.activeKcal > 0 ? formatKcal(today.activeKcal) : '—', label: 'kcal aktywnych' },
-                { value: String(today.workouts.length), label: workoutsCount(today.workouts.length).replace(/^\d+\s+/, '') },
-                { value: `+${formatKcal(today.bonus)}`, label: 'do budżetu', highlight: true },
-              ]}
-            />
             {today.workouts.map((w) => <WorkoutRow key={w.id} w={w} onDelete={() => del.mutate(w.id)} />)}
           </section>
         )}
@@ -179,10 +168,20 @@ export function ActivityView() {
           </section>
         )}
 
+        {/* Where the numbers come from — setup sits under the data, not above it. */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Eyebrow tone="ink" style={{ paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>Źródła</Eyebrow>
+          {/* No band yet: offer the watch first, so a Garmin owner doesn't scroll past the band steps. */}
+          {state === 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="bottom" />}
+          {connection}
+          {showSetup && <Setup />}
+          {state !== 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="top" />}
+        </section>
+
         {isMobile ? (
-          <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
+          <PinnedBar>
             <Button size="xl" style={{ width: '100%' }} onClick={() => setSheet(true)}>{state === 'none' ? '+ Dodaj trening ręcznie' : '+ Dodaj trening'}</Button>
-          </div>
+          </PinnedBar>
         ) : null}
         <WorkoutSheet open={sheet} onClose={() => setSheet(false)} weightKg={body?.currentKg ?? null} addBackPercent={addBack} />
       </div>

@@ -9,11 +9,11 @@ import {
 import { errorText, type CookProposalItem, type RecipeDetail as Recipe, type RecipeImage } from '../api/client'
 import { dishLine, formatGrams, formatQty, plural, sourceEyebrow, unitLabel } from '../lib/labels'
 import { IMAGE_ACCEPT } from '../lib/images'
-import { requestChat } from '../lib/chatBus'
 import { normalizeTag, parseOptionalDecimal } from '../lib/recipeParsing'
 import { showToast } from '../lib/toastBus'
 import { RecipeThumb } from '../components/RecipeThumb'
 import { AddToPlanSheet } from '../components/AddToPlanSheet'
+import { SousSquare, useSousOnPhone } from '../components/Sous'
 import { Button, Chip, Eyebrow, SectionHead, Sheet, StatusDot, inputStyle, mono, sans } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { ingredientDetailText } from '../lib/ingredients'
@@ -34,6 +34,7 @@ export function RecipeDetail() {
   // „Nie łącz porcji ze składnikami” (household setting): the recipe always shows the whole dish.
   const fixedIngredients = auth?.household?.keepIngredientsFixed === true
   const [splitOpen, setSplitOpen] = useState(false)
+  const sousOn = useSousOnPhone()
   const { data: chatHealth } = useChatHealth()
   const { data: r, isLoading, isError } = useRecipe(id)
   const addMissing = useAddMissingToShopping()
@@ -193,29 +194,43 @@ export function RecipeDetail() {
     </div>
   )
 
-  const actions = (canCook || showAddMissing) && (
-    <div style={{ display: 'flex', gap: 10 }}>
-      {isMobile && showAddMissing && (
-        <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={onAddMissing} disabled={addMissing.isPending}>
-          + {r.missing.length} do zakupów
-        </Button>
-      )}
-      {canCook && (
-        <Button size={isMobile ? 'xl' : 'lg'} style={{ flex: 1.4 }} onClick={() => setCookMode(true)}>
-          Gotuj krok po kroku
-        </Button>
-      )}
-      {!isMobile && showAddMissing && (
-        <Button variant="outline" size="lg" style={{ flex: 1 }} onClick={onAddMissing} disabled={addMissing.isPending}>
-          + {r.missing.length} do zakupów
-        </Button>
-      )}
+  // In order of use: cook (primary), plan (secondary) and, on phones, Sous at the thumb.
+  // Shopping for the missing items sits in the Składniki header, next to „masz 6 z 8”.
+  const cookBtn = canCook && (
+    <Button size={isMobile ? 'xl' : 'lg'} style={{ flex: 1.5, minWidth: 0 }} onClick={() => setCookMode(true)}>
+      Gotuj krok po kroku
+    </Button>
+  )
+  const planBtn = canEdit && (
+    <Button variant="outline" size={isMobile ? 'xl' : 'lg'} style={{ flex: 1, minWidth: 0, padding: isMobile ? '0 12px' : undefined }} onClick={() => setPlanOpen(true)}>
+      {isMobile ? 'Do planu' : 'Dodaj do planu'}
+    </Button>
+  )
+  const actions = (canCook || canEdit) && (
+    <div style={{ display: 'flex', gap: isMobile ? 8 : 10, alignItems: 'center' }}>
+      {isMobile ? planBtn : cookBtn}
+      {isMobile ? cookBtn : planBtn}
+      {isMobile && sousOn && <SousSquare size={54} />}
     </div>
+  )
+  const shopMissing = showAddMissing && (
+    <button
+      type="button"
+      onClick={onAddMissing}
+      disabled={addMissing.isPending}
+      style={{ marginLeft: 10, padding: '4px 10px', border: '1px solid var(--accent)', borderRadius: 8, background: 'transparent', cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)' }}
+    >
+      + {r.missing.length} do zakupów
+    </button>
   )
 
   const ingredients = (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
-      <SectionHead title="Składniki" size={isMobile ? 21 : 22} meta={r.missing.length === 0 ? `masz wszystko · ${r.total}` : `masz ${r.have} z ${r.total}`} />
+      <SectionHead
+        title="Składniki"
+        size={isMobile ? 21 : 22}
+        meta={<span style={{ display: 'inline-flex', alignItems: 'baseline', flexWrap: 'wrap', justifyContent: 'flex-end' }}>{r.missing.length === 0 ? `masz wszystko · ${r.total}` : `masz ${r.have} z ${r.total}`}{shopMissing}</span>}
+      />
       {r.ingredients.map((ing, i) => {
         const detail = ingredientDetailText(ing.displayText, ing.quantity)
         const followsAlternative = Boolean(ing.alternativeGroup && r.ingredients[i - 1]?.alternativeGroup === ing.alternativeGroup)
@@ -277,6 +292,19 @@ export function RecipeDetail() {
     </Suspense>
   )
 
+  const menu = (
+    <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Przepis">
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <MenuRow onClick={() => { setMenuOpen(false); nav(`/recipe/${r.id}/edit`) }}>Edytuj przepis</MenuRow>
+        <MenuRow onClick={() => { setMenuOpen(false); setNutritionOpen(true) }}>Edytuj kcal i makro</MenuRow>
+        <MenuRow onClick={() => { setMenuOpen(false); setTagsOpen(true) }}>Edytuj tagi</MenuRow>
+        <MenuRow onClick={() => { setMenuOpen(false); pickPhoto() }}>{photoLabel}</MenuRow>
+        <MenuRow onClick={() => { setMenuOpen(false); setShareOpen(true) }}>Udostępnij przepis</MenuRow>
+        <MenuRow onClick={() => { setMenuOpen(false); onDelete() }} danger>Usuń przepis</MenuRow>
+      </div>
+    </Sheet>
+  )
+
   if (isMobile) {
     const roundBtn: CSSProperties = { width: 44, height: 44, borderRadius: '50%', border: 0, background: 'var(--surface)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, cursor: 'pointer' }
     return (
@@ -297,14 +325,6 @@ export function RecipeDetail() {
                 >
                   {r.isFavorite ? '★' : '☆'}
                 </button>
-              )}
-              {canEdit && (
-                <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={{ ...roundBtn, width: 'auto', padding: '0 16px', borderRadius: 999, font: sans(13, 600) }}>
-                  {upload.isPending ? '…' : 'Zdjęcie'}
-                </button>
-              )}
-              {canEdit && chatHealth?.enabled && (
-                <button type="button" aria-label="Zapytaj Sous" onClick={() => requestChat()} style={{ ...roundBtn, color: 'var(--accent)' }}>✦</button>
               )}
               {canEdit && (
                 <button type="button" aria-label="Więcej" onClick={() => setMenuOpen(true)} style={{ ...roundBtn, letterSpacing: 1 }}>···</button>
@@ -328,17 +348,7 @@ export function RecipeDetail() {
             {actions}
           </div>
         )}
-        <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Przepis">
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <MenuRow onClick={() => { setMenuOpen(false); nav(`/recipe/${r.id}/edit`) }}>Edytuj przepis</MenuRow>
-            <MenuRow onClick={() => { setMenuOpen(false); setNutritionOpen(true) }}>Edytuj kcal i makro</MenuRow>
-            <MenuRow onClick={() => { setMenuOpen(false); setTagsOpen(true) }}>Edytuj tagi</MenuRow>
-            <MenuRow onClick={() => { setMenuOpen(false); setPlanOpen(true) }}>Dodaj do planu</MenuRow>
-            <MenuRow onClick={() => { setMenuOpen(false); setShareOpen(true) }}>Udostępnij przepis</MenuRow>
-            <MenuRow onClick={() => { setMenuOpen(false); pickPhoto() }}>{photoLabel}</MenuRow>
-            <MenuRow onClick={() => { setMenuOpen(false); onDelete() }} danger>Usuń przepis</MenuRow>
-          </div>
-        </Sheet>
+        {menu}
         {planSheet}
         {nutritionSheet}
         {splitSheet}
@@ -365,10 +375,8 @@ export function RecipeDetail() {
               {r.isFavorite ? '★ Ulubiony' : '☆ Ulubiony'}
             </button>
             <button type="button" onClick={() => nav(`/recipe/${r.id}/edit`)} style={linkBtn}>Edytuj</button>
-            <button type="button" onClick={() => setPlanOpen(true)} style={linkBtn}>Dodaj do planu</button>
             <button type="button" onClick={() => setShareOpen(true)} style={linkBtn}>Udostępnij</button>
-            <button type="button" onClick={pickPhoto} disabled={upload.isPending} style={linkBtn}>{photoLabel}</button>
-            <button type="button" onClick={onDelete} style={linkBtn}>Usuń</button>
+            <button type="button" aria-label="Więcej" title="Więcej" onClick={() => setMenuOpen(true)} style={{ ...linkBtn, letterSpacing: 1, padding: '0 2px' }}>···</button>
           </span>
         )}
       </div>
@@ -393,6 +401,7 @@ export function RecipeDetail() {
         {steps}
       </div>
       {cookLog}
+      {menu}
       {planSheet}
       {nutritionSheet}
       {splitSheet}

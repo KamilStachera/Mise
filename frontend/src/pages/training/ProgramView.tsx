@@ -156,7 +156,7 @@ export function ProgramView() {
                         <button
                           type="button"
                           onClick={() => setSwap({ slot: e, location: day.location })}
-                          style={{ border: '1px solid var(--border)', borderRadius: 999, padding: '5px 10px', background: 'transparent', cursor: 'pointer', font: sans(12.5, 600), color: 'var(--text-2)', flexShrink: 0 }}
+                          style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', background: 'transparent', cursor: 'pointer', font: sans(12.5, 600), color: 'var(--text-2)', flexShrink: 0 }}
                         >
                           Zamień
                         </button>
@@ -169,7 +169,7 @@ export function ProgramView() {
                             onClick={() => handleStartDay(day)}
                             disabled={startSession.isPending}
                           >
-                            {day.kind === 'follow-along' ? 'Ukończ ✓' : 'Rozpocznij'}
+                            {day.completedSessionId ? 'Powtórz' : day.kind === 'follow-along' ? 'Ukończ ✓' : 'Rozpocznij'}
                           </Button>
                           <Button variant="quiet" size="sm" onClick={() => setEditor({ program, day, week, weekday })}>Edytuj</Button>
                         </>

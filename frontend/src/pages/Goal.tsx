@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { errorText, type ActivityLevel, type Body, type BodySex, type Catering } from '../api/client'
 import { useAddCateringPause, useAuth, useBody, useCatering, useDeleteCateringPause, usePerson, useSaveBody, useSaveCatering } from '../api/hooks'
 import { PersonSwitch } from '../components/diary/PersonSwitch'
-import { TAB_BAR_HEIGHT } from '../components/TabBar'
+import { PinnedBar } from '../components/Sous'
 import { Button, Chip, Eyebrow, PageTitle, Segmented, StatStrip, Toggle, inputStyle, mono, sans, usePagePad } from '../components/ui'
 import { dayShortMonth, parseISODate, toISO } from '../lib/dates'
 import { previewTargets } from '../lib/body'
@@ -107,7 +107,6 @@ function GoalForm({ body }: { body: Body }) {
   return (
     <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto' }}>
       <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 22 }}>
-        <button type="button" onClick={() => nav(-1)} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, font: sans(14, 600), color: 'var(--text-2)', cursor: 'pointer' }}>← Wróć</button>
         <PageTitle
           title={id === own || !person ? 'Twój cel' : `Cel · ${person.name}`}
           sub="Kilka liczb, żeby policzyć dzienny budżet. Zmienisz je w każdej chwili."
@@ -128,7 +127,7 @@ function GoalForm({ body }: { body: Body }) {
             <Segmented value={activity} onChange={setActivity} items={[
               { key: 'sedentary', label: 'siedząca' },
               { key: 'light', label: 'lekka' },
-              { key: 'moderate', label: isMobile ? 'umiark.' : 'umiarkowana' },
+              { key: 'moderate', label: 'średnia' },
               { key: 'high', label: 'wysoka' },
             ]} />
           ), 'bez treningów — te dolicza opaska')}
@@ -171,9 +170,9 @@ function GoalForm({ body }: { body: Body }) {
         {catering && <CateringSection catering={catering} />}
 
         {isMobile ? (
-          <div data-pinned-bar style={{ position: 'fixed', left: 0, right: 0, bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`, zIndex: 20, padding: '12px 16px 10px', background: 'var(--bg)', boxShadow: '0 -1px 0 var(--border)' }}>
+          <PinnedBar>
             <Button size="xl" style={{ width: '100%' }} disabled={!valid || save.isPending} onClick={onSave}>{save.isPending ? 'Zapisywanie…' : 'Zapisz cel'}</Button>
-          </div>
+          </PinnedBar>
         ) : (
           <Button size="lg" style={{ alignSelf: 'flex-start' }} disabled={!valid || save.isPending} onClick={onSave}>{save.isPending ? 'Zapisywanie…' : 'Zapisz cel'}</Button>
         )}
@@ -219,6 +218,12 @@ function CateringSection({ catering }: { catering: Catering }) {
   }, [])
 
   const valid = !enabled || (num(kcal) != null && num(kcal)! > 0)
+  const savedEnabled = catering.configured ? catering.enabled : false
+  const dirty = enabled !== savedEnabled || (enabled && (
+    kcal !== (catering.kcal ? String(catering.kcal) : '') || protein !== dec(catering.protein) || fat !== dec(catering.fat)
+    || carbs !== dec(catering.carbs) || weekdays !== catering.weekdays || start !== (catering.startDate ?? today)
+    || splitMeals !== Boolean(catering.splitMeals)
+  ))
   const box: CSSProperties = { ...inputStyle, width: '100%', textAlign: 'right', font: mono(16, 500), height: 44, padding: '0 12px' }
   const cell = (title: string, value: string, onChange: (v: string) => void, unit?: string) => (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
@@ -291,9 +296,11 @@ function CateringSection({ catering }: { catering: Catering }) {
           />
         </div>
       )}
-      <Button variant="outline" style={{ alignSelf: 'flex-start', marginTop: 8 }} disabled={!valid || save.isPending} onClick={onSave}>
-        {save.isPending ? 'Zapisywanie…' : 'Zapisz catering'}
-      </Button>
+      {(dirty || save.isPending) && (
+        <Button variant="outline" style={{ alignSelf: 'flex-start', marginTop: 8 }} disabled={!valid || save.isPending} onClick={onSave}>
+          {save.isPending ? 'Zapisywanie…' : enabled ? 'Zapisz catering' : 'Wyłącz catering'}
+        </Button>
+      )}
 
       {(enabled || pauses.length > 0) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 22, paddingTop: 16, borderTop: '1px solid var(--border)' }}>

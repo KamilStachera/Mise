@@ -128,7 +128,7 @@ export function TodayView() {
       {isLoading && <p style={{ font: sans(14), color: 'var(--text-3)' }}>Ładuję…</p>}
 
       {/* Active live session resume banner */}
-      {active && (
+      {active && !(data?.status === 'scheduled' && data.day && active.programDayId === data.day.id) && (
         <div
           style={{
             display: 'flex',
@@ -136,9 +136,9 @@ export function TodayView() {
             justifyContent: 'space-between',
             gap: 12,
             padding: '14px 16px',
-            borderRadius: 12,
             background: 'var(--accent-soft)',
-            border: '1px solid var(--accent)',
+            borderTop: '1px solid var(--accent)',
+            borderBottom: '1px solid var(--accent)',
             flexWrap: 'wrap',
           }}
         >
@@ -154,13 +154,13 @@ export function TodayView() {
 
       {/* Completed today strip */}
       {completedToday.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)' }}>
           <Eyebrow tone="ink">Ukończone dziś</Eyebrow>
           {completedToday.map((s) => (
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ font: sans(15, 600), color: 'var(--sage-text)' }}>
-                  ✓ {s.name}{s.prCount > 0 ? ` · 🏆 ${s.prCount} PR` : ''}
+                  ✓ {s.name}{s.prCount > 0 ? ` · ${s.prCount} PR` : ''}
                 </span>
                 <span style={{ font: mono(12, 500), color: 'var(--text-2)' }}>
                   {[
@@ -183,7 +183,7 @@ export function TodayView() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <DayCard
             day={data.day}
-            eyebrow={todayDayDone ? 'DZIŚ · UKOŃCZONO ✓' : 'DZIŚ'}
+            eyebrow={active?.programDayId === data.day.id ? `DZIŚ · W TOKU ${active.completedSets}/${active.totalSets}` : todayDayDone ? 'DZIŚ · UKOŃCZONO ✓' : 'DZIŚ'}
             onOpenExercise={setExercise}
             actions={
               !isMobile && (

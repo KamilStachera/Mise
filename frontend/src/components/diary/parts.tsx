@@ -236,8 +236,9 @@ export function entryTitle(e: PlanEntry): string {
 }
 
 /**
- * One diary row: status disc, thumb (recipes), title + meta, kcal. Planned rows get a
- * „✓ Zjedzone” pill. `letter` is the pot's CookMark letter within the visible week.
+ * One diary row: status disc, thumb (recipes), title + meta, kcal. The disc is the one control
+ * that marks the meal eaten and takes it back — a 44 × 44 target around a 26 px circle (dashed =
+ * planned, sage ✓ = eaten). `letter` is the pot's CookMark letter within the visible week.
  */
 export function DiaryItem({ entry, recipe, letter, onToggleEaten, onOpen, canEdit, busy }: {
   entry: PlanEntry
@@ -270,7 +271,7 @@ export function DiaryItem({ entry, recipe, letter, onToggleEaten, onOpen, canEdi
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: `22px ${thumb ? `${isMobile ? 44 : 52}px ` : ''}minmax(0, 1fr) auto`,
+        gridTemplateColumns: `34px ${thumb ? `${isMobile ? 44 : 52}px ` : ''}minmax(0, 1fr) auto`,
         alignItems: 'center',
         gap: 12,
         padding: '10px 0',
@@ -282,22 +283,39 @@ export function DiaryItem({ entry, recipe, letter, onToggleEaten, onOpen, canEdi
         disabled={!canEdit || busy}
         onClick={onToggleEaten}
         aria-label={eaten ? 'Cofnij: niezjedzone' : 'Oznacz jako zjedzone'}
+        aria-pressed={eaten}
+        title={canEdit ? (eaten ? 'Zjedzone — dotknij, żeby cofnąć' : 'Oznacz jako zjedzone') : undefined}
         style={{
-          width: 22,
-          height: 22,
+          width: 44,
+          height: 44,
+          margin: '-5px 0 -5px -5px',
           padding: 0,
-          borderRadius: '50%',
-          border: eaten ? 0 : '1.5px dashed var(--border-2)',
-          background: eaten ? 'var(--sage)' : 'transparent',
-          color: '#fff',
-          font: sans(12, 700),
+          border: 0,
+          background: 'transparent',
           cursor: canEdit ? 'pointer' : 'default',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
+          WebkitTapHighlightColor: 'transparent',
         }}
       >
-        {eaten ? '✓' : ''}
+        <span
+          style={{
+            width: 26,
+            height: 26,
+            marginLeft: 5,
+            borderRadius: '50%',
+            border: eaten ? 0 : `1.5px dashed ${canEdit ? 'var(--text-3)' : 'var(--border-2)'}`,
+            background: eaten ? 'var(--sage)' : 'transparent',
+            color: '#fff',
+            font: sans(13, 700),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {eaten ? '✓' : ''}
+        </span>
       </button>
       {thumb && (
         <button type="button" onClick={onOpen} style={{ padding: 0, border: 0, background: 'transparent', cursor: 'pointer' }} tabIndex={-1}>
@@ -319,16 +337,6 @@ export function DiaryItem({ entry, recipe, letter, onToggleEaten, onOpen, canEdi
           <span style={{ font: mono(13.5, 500), color: eaten ? 'var(--text)' : 'var(--text-3)' }}>
             {eaten ? '' : '~'}{formatKcal(entry.kcal ?? 0)}
           </span>
-        )}
-        {!eaten && canEdit && onToggleEaten && (
-          <button
-            type="button"
-            onClick={onToggleEaten}
-            disabled={busy}
-            style={{ height: 36, padding: '0 12px', borderRadius: 999, border: '1px solid var(--rule)', background: 'transparent', font: sans(13.5, 600), color: 'var(--text)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            ✓ Zjedzone
-          </button>
         )}
       </span>
     </div>

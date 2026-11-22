@@ -59,13 +59,24 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   - Build pages from `components/ui.tsx` (PageTitle, Button, Chip, UnderlineTabs,
     Segmented, Toggle, StatStrip, SearchField, Eyebrow, SectionHead, Sheet…).
     Editors and pickers open in a `Sheet` (bottom sheet on phones, dialog on
-    desktop), not inline cards.
-  - Shell: `Sidebar` (desktop) / `TabBar` (≤700px, `useIsMobile`); `<main>` is
-    the scroll container. Phone pages that pin an action bar position it
-    `fixed` at `TAB_BAR_HEIGHT` + safe area; `/recipe/*` hides the tab bar.
-    Sub-pages (Plan, Trening, and Profil/Cel/Historia under „Ja”) switch on phones in
-    `SectionNav`, a sticky strip at the top of `<main>`. Pages don't add their own view switcher
-    on phones. Sidebar and strip share one list, `lib/navModel.ts`: add new sub-pages there.
+    desktop), not inline cards. A sheet's main action goes in its `footer` prop (stays
+    pinned while the body scrolls); its title repeats the button that opened it.
+  - One shape per meaning: `Chip` (pill) = something you pick, `Button` (rectangle at every
+    size) = something you do. One headline figure per number screen (big mono figure + a
+    mono ledger line, like Dzień/Postępy/Aktywność); the accent tint only marks things to act on.
+  - Shell (2026-11 redesign): `Sidebar` (desktop) / `TabBar` (≤700px, `useIsMobile`); `<main>`
+    is the scroll container. Phone tabs: Przepisy · Plan · Trening · Zakupy · Ja — Spiżarnia
+    sits in the Zakupy strip (Jedzenie · Dom · Spiżarnia). Sub-pages switch in `SectionNav`
+    on phones (sticky strip at the top of `<main>`) and in the sidebar on desktop, where only
+    the current section unfolds. **Pages never add their own view switcher** (no header
+    `Segmented` for sub-pages); the header carries the title (named after the view), the
+    person switch and the page's own action. Sidebar and strip share one list,
+    `lib/navModel.ts`: add new sub-pages there.
+  - Phone action bars: use `PinnedBar` (`components/Sous.tsx`) — fixed above the tab bar,
+    Sous square at the end. Sous on phones is never a floating button: in the pinned bar if
+    the page has one, else a ✦ beside the `PageTitle`; hidden on focus flows (`sousHiddenOn`:
+    admin, questionnaires, add/edit recipe, live session). `/recipe/*`, `/add` and the live
+    session hide the tab bar and bring their own footer.
   - React gotcha: after `border: 0` on a `<button>`, never pass
     `borderBottom: undefined` — React writes an empty value and the UA button
     border comes back. Use `0`.

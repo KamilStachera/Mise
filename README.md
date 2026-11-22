@@ -33,10 +33,11 @@ help plan meals.
   ingredient list, a timer pre-set from the step text (space starts it, arrows
   change steps), and a screen wake lock so the display stays on at the stove.
 - **Desktop and phone layouts** from one design: on desktop a sidebar with full
-  page names (Historia and Profil kulinarny grouped under "Twoja kuchnia"); on
-  phones six tabs — Przepisy, Plan, Trening, Zakupy, Spiżarnia, Ja — with Losuj inside
-  Przepisy, Historia inside Ja, and each screen's main action pinned at the
-  bottom. A minimal PWA manifest lets you install it to your home screen (open
+  page names (Historia gotowania and Profil kulinarny grouped under "Twoja kuchnia",
+  only the current section's sub-pages unfolded); on phones five tabs — Przepisy, Plan,
+  Trening, Zakupy, Ja — with Losuj inside Przepisy, Spiżarnia next to Jedzenie and Dom in
+  the Zakupy strip, Historia gotowania inside Ja, and each screen's main action pinned at
+  the bottom with Sous beside it. A minimal PWA manifest lets you install it to your home screen (open
   `http://<host-ip>:8080` on the same LAN).
 - Recipes can carry a free-text **source name** (a book, site or diet plan, e.g.
   "Daily Dieta", "Blond Kuchara") shown above the title on cards; the library can

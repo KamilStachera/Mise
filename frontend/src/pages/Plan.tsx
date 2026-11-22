@@ -1,7 +1,6 @@
 import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/hooks'
 import { PersonSwitch } from '../components/diary/PersonSwitch'
-import { Segmented } from '../components/ui'
 import { mondayOf, parseISODate, toISO } from '../lib/dates'
 import { useIsMobile } from '../lib/useIsMobile'
 import { ActivityView } from './plan/ActivityView'
@@ -43,22 +42,9 @@ export function Plan() {
 
   const go = (v: View, iso: string) => nav(`/plan/${v}${iso === toISO(new Date()) ? '' : `?d=${iso}`}`, { replace: v === view })
 
-  // Phones switch views in the shell's section strip (SectionNav); anonymous visitors see only the week plan.
-  const switcher = !canEdit ? null : isMobile ? <PersonSwitch /> : (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-      <PersonSwitch />
-      <Segmented
-        value={view === 'aktywnosc' ? 'dzien' : view}
-        onChange={(v) => go(v, day)}
-        style={{ width: isMobile ? 230 : 300 }}
-        items={[
-          { key: 'dzien', label: 'Dzień' },
-          { key: 'tydzien', label: 'Tydzień' },
-          { key: 'postepy', label: 'Postępy' },
-        ]}
-      />
-    </div>
-  )
+  // Views switch in the sidebar (desktop) or the section strip (phones), never in the page header;
+  // anonymous visitors see only the week plan.
+  const switcher = canEdit ? <PersonSwitch /> : null
 
   if (view === 'postepy') return <ProgressView switcher={switcher} />
   if (view === 'aktywnosc') return <ActivityView />
