@@ -31,7 +31,8 @@ export function useSousOnPhone(): boolean {
   return isMobile && canEdit && !!chatHealth?.enabled && !sousHiddenOn(pathname)
 }
 
-// How many mounted pinned bars carry the square — while one does, titles drop their ✦.
+// How many mounted Sous buttons the page placed itself (pinned-bar squares, header „✦ Sous”) —
+// while there is one, PageTitle drops its automatic ✦.
 let barsWithSous = 0
 const listeners = new Set<() => void>()
 const subscribe = (fn: () => void) => {
@@ -40,7 +41,7 @@ const subscribe = (fn: () => void) => {
 }
 const emit = () => listeners.forEach((fn) => fn())
 
-function useRegisterBar(active: boolean) {
+export function useRegisterSous(active: boolean) {
   useEffect(() => {
     if (!active) return
     barsWithSous++
@@ -113,7 +114,7 @@ export function PinnedBar({ children, sous = true, overTabBar = true, below, sty
   style?: CSSProperties
 }) {
   const sousOn = useSousOnPhone() && sous
-  useRegisterBar(sousOn)
+  useRegisterSous(sousOn)
   return (
     <div
       data-pinned-bar

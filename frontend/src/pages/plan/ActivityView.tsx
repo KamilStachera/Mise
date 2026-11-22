@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { ApiError, type StravaStatus, type SyncState, type Workout } from '../../api/client'
 import {
   useActivity, useAuth, useBody, useConnectStrava, useDeleteWorkout, useDisconnectStrava, useHealthConnection,
@@ -8,8 +8,9 @@ import {
 import { SourceTag } from '../../components/diary/parts'
 import { PersonSwitch } from '../../components/diary/PersonSwitch'
 import { WorkoutSheet } from '../../components/diary/WorkoutSheet'
-import { PinnedBar } from '../../components/Sous'
-import { Button, Eyebrow, PageTitle, StatStrip, mono, sans, usePagePad } from '../../components/ui'
+import { SousButton } from '../../components/SousButton'
+import { TAB_BAR_HEIGHT } from '../../components/TabBar'
+import { Button, Eyebrow, PageTitle, Sheet, mono, sans, usePagePad } from '../../components/ui'
 import { WEEKDAY_SHORT, dayShortMonth, hhmm, parseISODate, syncLabel } from '../../lib/dates'
 import { formatKcal } from '../../lib/labels'
 import { showToast } from '../../lib/toastBus'
@@ -35,19 +36,18 @@ function workoutsCount(n: number): string {
 }
 
 /**
- * Plan → Aktywność (P19–P21): the band connection, today's active kcal and what it adds to the
- * budget, workouts, the last 7 days. Steps are deliberately not shown — only kcal and training.
+ * Plan → Aktywność: data-first hero ledger (today's active kcal, budget bonus, workouts),
+ * followed by the last 7 days, with band/Strava connection setup neatly tucked in a Sheet.
  */
 export function ActivityView() {
   const isMobile = useIsMobile()
   const pad = usePagePad()
-  const nav = useNavigate()
   const { canEdit, isLoading, data: me } = useAuth()
   const { data: activity, refetch, isFetching } = useActivity(7)
   const { data: body } = useBody()
   const del = useDeleteWorkout()
   const [sheet, setSheet] = useState(false)
-  const [setupOpen, setSetupOpen] = useState(false)
+  const [devicesOpen, setDevicesOpen] = useState(false)
   const { data: strava } = useStravaStatus(canEdit)
   const [params, setParams] = useSearchParams()
 
@@ -66,81 +66,75 @@ export function ActivityView() {
   const state: SyncState = activity?.state ?? 'none'
   const today = activity?.days[0]
   const addBack = activity?.addBackPercent ?? body?.addBackPercent ?? 50
-  const back = (
-    <button type="button" onClick={() => nav('/plan/dzien')} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, font: sans(14, 600), color: 'var(--text-2)', cursor: 'pointer' }}>← Plan</button>
-  )
+  const addBackText = addBack === 50 ? 'połowa do budżetu' : addBack === 0 ? 'nie doliczane do budżetu' : `${addBack}% do budżetu`
 
-  const connection = state === 'stale' ? (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 16, borderRadius: 12, background: 'var(--gold-soft)' }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)' }} />
-        Brak danych od {activity?.lastSyncAt ? syncLabel(activity.lastSyncAt) : 'dawna'}
-      </span>
-      <span style={{ font: sans(14.5), lineHeight: 1.5, color: 'var(--text-2)' }}>
-        Otwórz Mi Fitness na telefonie, a dane same dojdą. Jeśli nie, sprawdź, czy HC Webhook działa w tle.
-      </span>
-      <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{CHAIN}</span>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>Sprawdź ponownie</Button>
-        <Button variant="text" size="sm" style={{ color: 'var(--text)' }} onClick={() => setSetupOpen(true)}>Jak to naprawić ›</Button>
-      </div>
-    </div>
-  ) : state === 'connected' ? (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sage)' }} />
-          Opaska połączona
-        </span>
-        <span style={{ font: mono(12), color: 'var(--text-2)' }}>ostatnia synchronizacja {activity?.lastSyncAt ? syncLabel(activity.lastSyncAt) : ''}</span>
-      </div>
-      <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{CHAIN}</span>
-      <button type="button" onClick={() => setSetupOpen(!setupOpen)} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, font: sans(13.5, 600), color: 'var(--text-2)', cursor: 'pointer' }}>
-        {setupOpen ? 'Ukryj ustawienia' : 'Adres i ustawienia ›'}
-      </button>
-    </div>
-  ) : (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px solid var(--text-2)', boxSizing: 'border-box' }} />
-        Opaska niepodłączona
-      </span>
-      <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{CHAIN}</span>
-      {strava?.connected && (
-        <button type="button" onClick={() => setSetupOpen(!setupOpen)} style={{ alignSelf: 'flex-start', border: 0, background: 'transparent', padding: 0, font: sans(13.5, 600), color: 'var(--text-2)', cursor: 'pointer' }}>
-          {setupOpen ? 'Ukryj ustawienia' : 'Podłącz opaskę ›'}
-        </button>
-      )}
-    </div>
-  )
-
-  // With a watch on Strava the band steps are optional — keep them folded.
-  const showSetup = (state === 'none' && !strava?.connected) || setupOpen
+  const deviceSummary = (() => {
+    const parts: string[] = []
+    if (state === 'connected') parts.push(`Opaska połączona${activity?.lastSyncAt ? ` · ${syncLabel(activity.lastSyncAt)}` : ''}`)
+    else if (state === 'stale') parts.push(`Opaska: brak danych od ${activity?.lastSyncAt ? syncLabel(activity.lastSyncAt) : 'dawna'}`)
+    if (strava?.connected) parts.push(`Strava${strava.athleteName ? ` (${strava.athleteName})` : ''}`)
+    if (parts.length === 0) return 'Opaska i Strava niepodłączone'
+    return parts.join(' · ')
+  })()
 
   return (
-    <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto' }}>
-      <div style={{ maxWidth: 760, display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div style={{ ...pad, paddingBottom: isMobile ? 120 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto' }}>
+      <div style={{ maxWidth: 820, display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 26 }}>
         <PageTitle
+          eyebrow="Plan"
           title="Aktywność"
           right={
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <PersonSwitch />
               {!isMobile && <Button onClick={() => setSheet(true)}>+ Dodaj trening</Button>}
             </div>
           }
         />
-        {/* Today first, as one headline figure — what the activity adds to the day's budget. */}
-        {today && (
-          <section style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
-            <Eyebrow>Dziś · {dayShortMonth(parseISODate(today.date))}</Eyebrow>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ font: mono(isMobile ? 46 : 56, 500), letterSpacing: '-0.03em', lineHeight: 1 }}>+{formatKcal(today.bonus)}</span>
-              <span style={{ font: sans(isMobile ? 15 : 16), color: 'var(--text-2)' }}>kcal do budżetu</span>
-            </div>
-            <span style={{ font: mono(12.5), color: 'var(--text-2)', paddingBottom: 6 }}>
-              {today.activeKcal > 0 ? `${formatKcal(today.activeKcal)} kcal aktywnych` : 'brak kcal aktywnych'} · {workoutsCount(today.workouts.length)} · wraca {addBack} %
+
+        {state === 'stale' && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '12px 14px', borderTop: '1px solid var(--gold)', borderBottom: '1px solid var(--gold)', background: 'var(--gold-soft)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(14, 500) }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)', flexShrink: 0 }} />
+              Brak danych z opaski od {activity?.lastSyncAt ? syncLabel(activity.lastSyncAt) : 'dawna'}
             </span>
-            {today.workouts.map((w) => <WorkoutRow key={w.id} w={w} onDelete={() => del.mutate(w.id)} />)}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>Sprawdź</Button>
+              <Button variant="text" size="sm" style={{ color: 'var(--text)' }} onClick={() => setDevicesOpen(true)}>Ustawienia ›</Button>
+            </div>
+          </div>
+        )}
+
+        {today && (
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 14, borderTop: '1px solid var(--rule)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <Eyebrow>Dziś · {dayShortMonth(parseISODate(today.date))}</Eyebrow>
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ font: mono(isMobile ? 48 : 60, 500), letterSpacing: '-0.04em', lineHeight: 1 }}>
+                    {today.activeKcal > 0 ? formatKcal(today.activeKcal) : '0'}
+                  </span>
+                  <span style={{ font: mono(isMobile ? 14 : 16), color: 'var(--text-3)' }}>kcal aktywnych</span>
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: 3, paddingBottom: 4 }}>
+                <span style={{ font: mono(isMobile ? 16 : 18, 600), color: today.bonus > 0 ? 'var(--accent-text)' : 'var(--text-2)' }}>
+                  +{formatKcal(today.bonus)} kcal do budżetu
+                </span>
+                <span style={{ font: mono(12), color: 'var(--text-3)' }}>
+                  {workoutsCount(today.workouts.length)} · {addBackText}
+                </span>
+              </div>
+            </div>
+
+            {today.workouts.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)' }}>
+                {today.workouts.map((w) => <WorkoutRow key={w.id} w={w} onDelete={() => del.mutate(w.id)} />)}
+              </div>
+            ) : (
+              <span style={{ font: sans(14), color: 'var(--text-3)', paddingTop: 4 }}>
+                Brak zapisanych treningów dziś.
+              </span>
+            )}
           </section>
         )}
 
@@ -168,23 +162,114 @@ export function ActivityView() {
           </section>
         )}
 
-        {/* Where the numbers come from — setup sits under the data, not above it. */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Eyebrow tone="ink" style={{ paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>Źródła</Eyebrow>
-          {/* No band yet: offer the watch first, so a Garmin owner doesn't scroll past the band steps. */}
-          {state === 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="bottom" />}
-          {connection}
-          {showSetup && <Setup />}
-          {state !== 'none' && strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="top" />}
-        </section>
+        <button
+          type="button"
+          onClick={() => setDevicesOpen(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            width: '100%',
+            padding: '14px 0',
+            border: 0,
+            borderTop: '1px solid var(--rule)',
+            borderBottom: '1px solid var(--border)',
+            background: 'transparent',
+            cursor: 'pointer',
+            textAlign: 'left',
+            color: 'var(--text)',
+          }}
+        >
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+            <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 20 }}>Urządzenia i połączenia</span>
+            <span style={{ font: mono(12), color: 'var(--text-2)' }}>{deviceSummary}</span>
+          </span>
+          <span style={{ fontSize: 18, color: 'var(--text-2)', flexShrink: 0 }}>›</span>
+        </button>
 
-        {isMobile ? (
-          <PinnedBar>
-            <Button size="xl" style={{ width: '100%' }} onClick={() => setSheet(true)}>{state === 'none' ? '+ Dodaj trening ręcznie' : '+ Dodaj trening'}</Button>
-          </PinnedBar>
-        ) : null}
+        {isMobile && (
+          <div
+            data-pinned-bar
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`,
+              zIndex: 20,
+              padding: '10px 16px',
+              background: 'var(--bg)',
+              borderTop: '1px solid var(--rule)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <Button size="xl" style={{ flex: 1 }} onClick={() => setSheet(true)}>
+              {state === 'none' && !strava?.connected ? '+ Dodaj trening ręcznie' : '+ Dodaj trening'}
+            </Button>
+            <SousButton variant="bar" />
+          </div>
+        )}
+
         <WorkoutSheet open={sheet} onClose={() => setSheet(false)} weightKg={body?.currentKg ?? null} addBackPercent={addBack} />
+
+        <Sheet open={devicesOpen} onClose={() => setDevicesOpen(false)} title="Urządzenia i połączenia" width={540}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {strava && <StravaCard status={strava} isAdmin={!!me?.isAdmin} divider="bottom" />}
+            <BandCard state={state} lastSyncAt={activity?.lastSyncAt ?? null} onRefresh={() => refetch()} refreshing={isFetching} />
+            <Setup />
+          </div>
+        </Sheet>
       </div>
+    </div>
+  )
+}
+
+function BandCard({ state, lastSyncAt, onRefresh, refreshing }: {
+  state: SyncState
+  lastSyncAt: string | null
+  onRefresh: () => void
+  refreshing: boolean
+}) {
+  if (state === 'stale') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)' }} />
+          Opaska · brak danych od {lastSyncAt ? syncLabel(lastSyncAt) : 'dawna'}
+        </span>
+        <span style={{ font: sans(14), lineHeight: 1.5, color: 'var(--text-2)' }}>
+          Otwórz Mi Fitness na telefonie, a dane same dojdą. Jeśli nie, sprawdź, czy HC Webhook działa w tle.
+        </span>
+        <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{CHAIN}</span>
+        <Button variant="outline" size="sm" style={{ alignSelf: 'flex-start' }} onClick={onRefresh} disabled={refreshing}>
+          Sprawdź ponownie
+        </Button>
+      </div>
+    )
+  }
+  if (state === 'connected') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sage)' }} />
+            Opaska połączona
+          </span>
+          {lastSyncAt && <span style={{ font: mono(12), color: 'var(--text-2)' }}>ostatnia synchronizacja {syncLabel(lastSyncAt)}</span>}
+        </div>
+        <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{CHAIN}</span>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: sans(16, 600) }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px solid var(--text-2)', boxSizing: 'border-box' }} />
+        Opaska niepodłączona
+      </span>
+      <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>{CHAIN}</span>
     </div>
   )
 }
@@ -201,19 +286,13 @@ function WorkoutRow({ w, onDelete }: { w: Workout; onDelete: () => void }) {
       <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ font: mono(14, 500) }}>{w.kcal != null ? `${formatKcal(w.kcal)} kcal` : '—'}</span>
         {w.source === 'manual' && (
-          <button type="button" aria-label={`Usuń trening ${w.type}`} onClick={onDelete} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16 }}>×</button>
+          <button type="button" aria-label={`Usuń trening ${w.type}`} onClick={onDelete} style={{ border: 0, background: 'transparent', cursor: 'pointer', color: 'var(--text-3)', fontSize: 16, padding: '4px 6px' }}>×</button>
         )}
       </span>
     </div>
   )
 }
 
-/**
- * Watch workouts via Strava (Garmin, Polar…): one button to Strava's consent screen and back.
- * Workouts then arrive by Strava's webhook (or the server's 3-hourly poll), with the watch's kcal.
- * Shown even before the server has a Strava app (configured=false) — with the button off and
- * what to set — so the option is discoverable.
- */
 function StravaCard({ status, isAdmin, divider }: { status: StravaStatus; isAdmin: boolean; divider: 'top' | 'bottom' }) {
   const connect = useConnectStrava()
   const sync = useSyncStrava()
@@ -242,10 +321,9 @@ function StravaCard({ status, isAdmin, divider }: { status: StravaStatus; isAdmi
             {isAdmin ? (
               <>
                 Strava nie jest jeszcze ustawiona na serwerze: dodaj <code style={{ font: mono(12) }}>STRAVA_CLIENT_ID</code> i{' '}
-                <code style={{ font: mono(12) }}>STRAVA_CLIENT_SECRET</code> do <code style={{ font: mono(12) }}>.env</code> i przebuduj api
-                (README → „Optional: watch workouts via Strava”).
+                <code style={{ font: mono(12) }}>STRAVA_CLIENT_SECRET</code> do <code style={{ font: mono(12) }}>.env</code> i przebuduj api.
               </>
-            ) : 'Strava nie jest jeszcze ustawiona na serwerze — poproś administratora.'}
+            ) : 'Strava nie jest jeszcze skonfigurowana na serwerze — poproś administratora.'}
           </span>
         )}
       </div>
@@ -290,7 +368,6 @@ function StravaCard({ status, isAdmin, divider }: { status: StravaStatus; isAdmi
   )
 }
 
-/** P21: the three setup steps and the private webhook address (with copy and rotate). */
 function Setup() {
   const { data: conn } = useHealthConnection(true)
   const rotate = useRotateHealthConnection()
@@ -314,17 +391,17 @@ function Setup() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {steps.map(([title, text], i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '36px 1fr', gap: 8, padding: '12px 0', borderTop: '1px solid var(--border)' }}>
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '32px 1fr', gap: 8, padding: '12px 0', borderTop: '1px solid var(--border)' }}>
           <span style={{ font: mono(13, 600) }}>{String(i + 1).padStart(2, '0')}</span>
           <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ font: sans(15.5, 500) }}>{title}</span>
-            <span style={{ font: sans(14), lineHeight: 1.45, color: 'var(--text-2)' }}>{text}</span>
+            <span style={{ font: sans(15, 500) }}>{title}</span>
+            <span style={{ font: sans(13.5), lineHeight: 1.45, color: 'var(--text-2)' }}>{text}</span>
           </span>
         </div>
       ))}
-      <Eyebrow style={{ paddingTop: 8 }}>Adres dla tego telefonu</Eyebrow>
+      <Eyebrow style={{ paddingTop: 10 }}>Adres dla tego telefonu</Eyebrow>
       <div style={{ display: 'flex', gap: 8, paddingTop: 8 }}>
-        <span style={{ flex: 1, minWidth: 0, height: 50, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', font: mono(13), overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+        <span style={{ flex: 1, minWidth: 0, height: 46, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', font: mono(13), overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {short}
         </span>
         <Button variant="dark" disabled={!conn} onClick={copy}>Kopiuj</Button>

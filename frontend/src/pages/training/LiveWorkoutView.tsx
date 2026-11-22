@@ -93,10 +93,18 @@ function formatTargetSummary(g: SessionExerciseGroup): string {
   return parts.join(' · ')
 }
 
+function formatSetBrief(s: SessionSet, isTimed: boolean): string {
+  if (isTimed) return `${s.seconds ?? s.targetSeconds ?? 0} s`
+  const w = s.weightKg ?? s.targetKg
+  const r = s.reps ?? s.targetRepsMin
+  if (w != null && w > 0) return `${formatKg(w)} kg × ${r ?? '—'}`
+  return `${r ?? '—'} powt.`
+}
+
 /**
  * Full-screen live workout tracker (`/trening/sesja/:id`).
- * Supports active live sessions (with auto-saving set rows, hold countdown for timed exercises,
- * wall-clock rest timer, and Finish/PR summary) as well as viewing/editing completed sessions.
+ * Collapses completed exercises to 1 line, puts the active set front and center with 44×44 ± steppers
+ * for both weight and reps, keeps finish quiet in the header, and moves set deletion out of the main logging path.
  */
 export function LiveWorkoutView() {
   const { id } = useParams<{ id: string }>()
@@ -182,6 +190,14 @@ export function LiveWorkoutView() {
     }
   }
 
+  const activeGroupIndex = isActive && session
+    ? session.exercises.findIndex((g) => g.sets.some((s) => !s.completed))
+    : -1
+  const allSetsDone = Boolean(isActive && session && session.totalSets > 0 && session.completedSets >= session.totalSets)
+  const progressPct = session && session.totalSets > 0
+    ? Math.min(100, Math.round((session.completedSets / session.totalSets) * 100))
+    : 0
+
   return (
     <div style={{ minHeight: '100%', paddingBottom: restTimer ? 132 : 48 }}>
       {/* Sticky live workout header */}
@@ -195,56 +211,65 @@ export function LiveWorkoutView() {
           padding: isMobile ? 'calc(10px + env(safe-area-inset-top)) 16px 12px' : '14px 32px',
         }}
       >
-        <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <button
-              type="button"
-              onClick={() => nav(isActive ? '/trening/dzis' : '/trening/historia')}
-              aria-label="Wróć"
-              style={{
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--text)',
-                borderRadius: 999,
-                width: 36,
-                height: 36,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 16,
-                flexShrink: 0,
-              }}
-            >
-              ←
-            </button>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-              <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 20 : 24, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {session?.name ?? 'Trening'}
-              </span>
-              {session && (
-                <span style={{ font: mono(12, 500), color: isActive ? 'var(--accent-text)' : 'var(--text-3)' }}>
-                  {isActive
-                    ? `${formatTimerClock(elapsedSec)} · ${session.completedSets}/${session.totalSets} serii${session.totalVolumeKg > 0 ? ` · ${formatVolume(session.totalVolumeKg)}` : ''}`
-                    : `${dayShortMonth(parseISODate(session.date))} · ${session.durationMinutes ?? 0} min · ${session.completedSets} serii${session.totalVolumeKg > 0 ? ` · ${formatVolume(session.totalVolumeKg)}` : ''}`}
+        <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <button
+                type="button"
+                onClick={() => nav(isActive ? '/trening/dzis' : '/trening/historia')}
+                aria-label="Wróć"
+                style={{
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  borderRadius: '50%',
+                  width: 36,
+                  height: 36,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 16,
+                  flexShrink: 0,
+                }}
+              >
+                ←
+              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 21 : 24, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {session?.name ?? 'Trening'}
                 </span>
-              )}
+                {session && (
+                  <span style={{ font: mono(12, 500), color: isActive ? 'var(--text-2)' : 'var(--text-3)' }}>
+                    {isActive
+                      ? `${formatTimerClock(elapsedSec)} · ${session.completedSets}/${session.totalSets} serii${session.totalVolumeKg > 0 ? ` · ${formatVolume(session.totalVolumeKg)}` : ''}`
+                      : `${dayShortMonth(parseISODate(session.date))} · ${session.durationMinutes ?? 0} min · ${session.completedSets} serii${session.totalVolumeKg > 0 ? ` · ${formatVolume(session.totalVolumeKg)}` : ''}`}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {session && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-              {isActive ? (
-                <Button variant="quiet" size="sm" onClick={() => setFinishOpen(true)}>Zakończ…</Button>
-              ) : (
-                <Button variant="quiet" size="sm" onClick={() => setFinishOpen(true)}>Podsumowanie</Button>
-              )}
+            {session && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {isActive ? (
+                  <Button variant={allSetsDone ? 'primary' : 'outline'} size="sm" onClick={() => setFinishOpen(true)}>
+                    {allSetsDone ? 'Zakończ i zapisz' : 'Zakończ…'}
+                  </Button>
+                ) : (
+                  <Button variant="quiet" size="sm" onClick={() => setFinishOpen(true)}>Podsumowanie</Button>
+                )}
+              </div>
+            )}
+          </div>
+          {isActive && session && session.totalSets > 0 && (
+            <div style={{ height: 3, background: 'var(--border)', overflow: 'hidden' }}>
+              <div style={{ width: `${progressPct}%`, height: '100%', background: allSetsDone ? 'var(--sage)' : 'var(--text)', transition: 'width .2s' }} />
             </div>
           )}
         </div>
       </header>
 
-      <div style={{ ...pad, maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ ...pad, maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
         {isLoading && <p style={{ font: sans(14), color: 'var(--text-3)' }}>Ładuję trening…</p>}
         {isError && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -272,26 +297,28 @@ export function LiveWorkoutView() {
           </div>
         )}
 
-        {session?.exercises.map((group) => (
+        {session?.exercises.map((group, idx) => (
           <ExerciseCard
             key={`${group.order}-${group.exerciseId}`}
             sessionId={session.id}
             group={group}
+            index={idx}
+            totalExercises={session.exercises.length}
             isActive={isActive}
+            isCurrent={idx === activeGroupIndex}
             onOpenInfo={() => setExerciseInfoId(group.exerciseId)}
             onStartRest={(sec) => startRest(sec, group.name)}
             onAddSet={() => addSet.mutate({ sessionId: session.id, input: { exerciseId: group.exerciseId, exerciseOrder: group.order } })}
             onDeleteSet={(setId) => delSet.mutate({ sessionId: session.id, setId })}
             addingSet={addSet.isPending}
-            deletingSet={delSet.isPending}
           />
         ))}
 
         {session && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--rule)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTop: '1px solid var(--rule)' }}>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>+ Dodaj ćwiczenie</Button>
-              {isActive && (
+              {allSetsDone && (
                 <Button size="sm" onClick={() => setFinishOpen(true)}>Zakończ i zapisz</Button>
               )}
             </div>
@@ -335,20 +362,25 @@ export function LiveWorkoutView() {
         }}
       />
 
-      <Sheet open={confirmAbandon} onClose={() => setConfirmAbandon(false)} title={isActive ? 'Porzucić trening?' : 'Usunąć trening?'} width={420}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p style={{ margin: 0, font: sans(14.5), color: 'var(--text-2)', lineHeight: 1.5 }}>
-            {isActive
-              ? 'Usunie rozpoczętą sesję i wszystkie wpisane w niej serie. Tej operacji nie da się cofnąć.'
-              : 'Usunie ten trening z historii, przeliczy rekordy i usunie powiązany wpis z aktywności.'}
-          </p>
+      <Sheet
+        open={confirmAbandon}
+        onClose={() => setConfirmAbandon(false)}
+        title={isActive ? 'Porzucić trening?' : 'Usunąć trening?'}
+        width={420}
+        footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <Button variant="quiet" onClick={() => setConfirmAbandon(false)}>Anuluj</Button>
             <Button onClick={handleDeleteSession} disabled={delSession.isPending}>
               {delSession.isPending ? 'Usuwam…' : isActive ? 'Porzuć' : 'Usuń'}
             </Button>
           </div>
-        </div>
+        }
+      >
+        <p style={{ margin: 0, font: sans(14.5), color: 'var(--text-2)', lineHeight: 1.5 }}>
+          {isActive
+            ? 'Usunie rozpoczętą sesję i wszystkie wpisane w niej serie. Tej operacji nie da się cofnąć.'
+            : 'Usunie ten trening z historii, przeliczy rekordy i usunie powiązany wpis z aktywności.'}
+        </p>
       </Sheet>
 
       <ExerciseSheet id={exerciseInfoId} onClose={() => setExerciseInfoId(null)} />
@@ -356,158 +388,265 @@ export function LiveWorkoutView() {
   )
 }
 
-function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onAddSet, onDeleteSet, addingSet, deletingSet }: {
+function ExerciseCard({ sessionId, group, index, totalExercises, isActive, isCurrent, onOpenInfo, onStartRest, onAddSet, onDeleteSet, addingSet }: {
   sessionId: string
   group: SessionExerciseGroup
+  index: number
+  totalExercises: number
   isActive: boolean
+  isCurrent: boolean
   onOpenInfo: () => void
   onStartRest: (seconds: number) => void
   onAddSet: () => void
   onDeleteSet: (setId: string) => void
   addingSet: boolean
-  deletingSet: boolean
 }) {
   const isMobile = useIsMobile()
+  const completedCount = group.sets.filter((s) => s.completed).length
+  const allDone = group.sets.length > 0 && completedCount === group.sets.length
+  const [expanded, setExpanded] = useState(false)
+  const [editingSets, setEditingSets] = useState(false)
   const target = formatTargetSummary(group)
   const lastPerf = formatLastPerformance(group)
-  // During a session a finished exercise folds to one line, so the current set is at the top.
-  const allDone = group.sets.length > 0 && group.sets.every((s) => s.completed)
-  const [open, setOpen] = useState(!(isActive && allDone))
-  const [wasDone, setWasDone] = useState(allDone)
-  if (wasDone !== allDone) {
-    setWasDone(allDone)
-    if (isActive) setOpen(!allDone)
-  }
-  const cols = group.isTimed ? '28px 1fr auto 44px' : isMobile ? '22px minmax(0,1fr) minmax(0,1fr) 44px' : '28px 1fr 1fr 44px'
-  const lastSet = group.sets[group.sets.length - 1]
 
-  if (!open) {
+  // Completed exercises collapse cleanly to 1 line during an active session; tap to inspect or edit.
+  if (isActive && allDone && !expanded) {
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, padding: '12px 0 0', border: 0, borderTop: '1px solid var(--rule)', background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
+        onClick={() => setExpanded(true)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          width: '100%',
+          padding: '12px 0',
+          border: 0,
+          borderTop: '1px solid var(--border)',
+          borderBottom: '1px solid var(--border)',
+          background: 'transparent',
+          cursor: 'pointer',
+          textAlign: 'left',
+          color: 'var(--text)',
+        }}
       >
-        <span style={{ color: 'var(--sage-text)', font: sans(15, 700) }}>✓</span>
-        <span style={{ flex: 1, minWidth: 0, font: sans(16, 600), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.name}</span>
-        <span style={{ font: mono(12, 500), color: 'var(--text-2)' }}>{group.sets.length}/{group.sets.length} serii</span>
-        <span aria-hidden style={{ color: 'var(--text-3)' }}>▾</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <span style={{ font: mono(13, 700), color: 'var(--sage-text)', flexShrink: 0 }}>✓</span>
+          <span style={{ font: sans(15, 600), color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {group.name}
+          </span>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: mono(12, 500), color: 'var(--sage-text)', flexShrink: 0 }}>
+          {completedCount}/{group.sets.length}
+          <span style={{ color: 'var(--text-3)' }}>▾</span>
+        </span>
       </button>
     )
   }
+
+  const nextSet = isCurrent && !editingSets ? group.sets.find((s) => !s.completed) ?? null : null
+  const doneSetsInCurrent = nextSet ? group.sets.filter((s) => s.completed) : []
+  const upcomingSetsInCurrent = nextSet ? group.sets.filter((s) => !s.completed && s.id !== nextSet.id) : []
 
   return (
     <section
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
+        gap: 12,
         paddingTop: 14,
-        borderTop: '1px solid var(--rule)',
+        borderTop: isCurrent ? '2px solid var(--rule)' : '1px solid var(--rule)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <button
           type="button"
           onClick={onOpenInfo}
           style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, border: 0, padding: 0, background: 'transparent', cursor: 'pointer', textAlign: 'left', color: 'var(--text)' }}
         >
-          <span style={{ width: 52, height: 36, flexShrink: 0, borderRadius: 6, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            {group.thumbnailUrl && <img src={group.thumbnailUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
-          </span>
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          {!isCurrent && (
+            <span style={{ width: 52, height: 36, flexShrink: 0, borderRadius: 6, overflow: 'hidden', background: 'var(--seg-bg)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+              {group.thumbnailUrl
+                ? <img src={group.thumbnailUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 16, color: 'var(--text-2)' }}>{(group.name.trim()[0] ?? 'Ć').toUpperCase()}</span>}
+            </span>
+          )}
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+            {isCurrent && (
+              <Eyebrow tone="accent">
+                Teraz · ćwiczenie {index + 1} z {totalExercises}
+              </Eyebrow>
+            )}
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               {group.supersetGroup && (
                 <span style={{ font: mono(10.5, 600), padding: '1px 6px', borderRadius: 4, background: 'var(--accent-soft)', color: 'var(--accent-text)' }}>
                   Superseria {group.supersetGroup}
                 </span>
               )}
-              <span style={{ font: sans(16, 600), lineHeight: 1.2 }}>{group.name}</span>
-              {group.hasVideo && <span style={{ font: mono(10.5, 600), color: 'var(--accent-text)' }}>▶</span>}
+              <span style={isCurrent ? { fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 26 : 30, lineHeight: 1.1 } : { font: sans(16, 600), lineHeight: 1.2 }}>
+                {group.name}
+              </span>
+              {!isCurrent && group.hasVideo && <span style={{ font: mono(10.5, 600), color: 'var(--accent-text)' }}>▶</span>}
             </span>
-            {target && <span style={{ font: mono(11.5, 500), color: 'var(--text-3)' }}>{target}</span>}
+            {(target || (isCurrent && group.hasVideo)) && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', font: mono(11.5, 500), color: 'var(--text-3)' }}>
+                {target && <span>{target}</span>}
+                {isCurrent && group.hasVideo && <span style={{ color: 'var(--accent-text)', fontWeight: 600 }}>▶ Film i technika</span>}
+              </span>
+            )}
           </span>
         </button>
+
+        {isActive && allDone && (
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            style={{ border: 0, background: 'transparent', padding: '4px 0', cursor: 'pointer', font: mono(11.5, 500), color: 'var(--text-3)', flexShrink: 0 }}
+          >
+            Zwiń ▴
+          </button>
+        )}
       </div>
 
       {lastPerf && (
-        <span style={{ font: mono(11.5, 500), color: 'var(--text-2)', padding: '5px 10px', borderRadius: 8, background: 'var(--surface)', alignSelf: 'flex-start' }}>
+        <span style={{ font: mono(12, 400), color: 'var(--text-2)' }}>
           {lastPerf}
         </span>
       )}
 
-      {/* Column headers */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: cols,
-          gap: 8,
-          alignItems: 'center',
-          paddingBottom: 4,
-          borderBottom: '1px solid var(--border)',
-          font: mono(10.5, 600),
-          letterSpacing: '.06em',
-          textTransform: 'uppercase',
-          color: 'var(--text-3)',
-        }}
-      >
-        <span>#</span>
-        {group.isTimed ? (
-          <>
-            <span>Czas (s)</span>
-            <span>Stoper</span>
-          </>
-        ) : (
-          <>
-            <span>Ciężar (kg)</span>
-            <span>Powt.</span>
-          </>
-        )}
-        <span style={{ textAlign: 'center' }}>OK</span>
-      </div>
+      {nextSet ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {doneSetsInCurrent.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)' }}>
+              {doneSetsInCurrent.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setEditingSets(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 10,
+                    padding: '9px 0',
+                    border: 0,
+                    borderBottom: '1px solid var(--border)',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    color: 'var(--text-2)',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, font: mono(12.5, 500) }}>
+                    <span style={{ color: 'var(--sage-text)', fontWeight: 700 }}>✓</span>
+                    <span>Seria {s.setNumber}</span>
+                    {s.isPr && <span style={{ color: 'var(--gold-text)', fontWeight: 600 }}>★ PR</span>}
+                  </span>
+                  <span style={{ font: mono(13, 500), color: 'var(--text)' }}>{formatSetBrief(s, group.isTimed)}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {group.sets.map((s) => (
-          <SetRow
-            key={s.id}
+          <FocusedSetPanel
+            key={nextSet.id}
             sessionId={sessionId}
-            set={s}
+            set={nextSet}
+            totalSets={group.sets.length}
             group={group}
-            isActive={isActive}
-            cols={cols}
             onCompleted={() => { if (isActive && group.restSeconds > 0) onStartRest(group.restSeconds) }}
           />
-        ))}
-      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 2 }}>
-        {/* Deleting lives here, away from the ✓ it used to sit next to. */}
-        <span style={{ display: 'flex', gap: 18 }}>
+          {upcomingSetsInCurrent.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)' }}>
+              {upcomingSetsInCurrent.map((s) => (
+                <div
+                  key={s.id}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)', font: mono(12.5), color: 'var(--text-3)' }}
+                >
+                  <span>Seria {s.setNumber}</span>
+                  <span>{formatSetBrief(s, group.isTimed)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Column headers */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: group.isTimed
+                ? (editingSets ? '28px 1fr auto 44px 36px' : '28px 1fr auto 44px')
+                : (editingSets ? '28px 1fr 1fr 44px 36px' : '28px 1fr 1fr 44px'),
+              gap: 8,
+              alignItems: 'center',
+              paddingBottom: 4,
+              borderBottom: '1px solid var(--border)',
+              font: mono(10.5, 600),
+              letterSpacing: '.06em',
+              textTransform: 'uppercase',
+              color: 'var(--text-3)',
+            }}
+          >
+            <span>#</span>
+            {group.isTimed ? (
+              <>
+                <span>Czas (s)</span>
+                <span>Stoper</span>
+              </>
+            ) : (
+              <>
+                <span>Ciężar (kg)</span>
+                <span>Powt.</span>
+              </>
+            )}
+            <span style={{ textAlign: 'center' }}>OK</span>
+            {editingSets && <span />}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {group.sets.map((s) => (
+              <SetRow
+                key={s.id}
+                sessionId={sessionId}
+                set={s}
+                group={group}
+                isActive={isActive}
+                showDelete={editingSets}
+                onCompleted={() => { if (isActive && group.restSeconds > 0) onStartRest(group.restSeconds) }}
+                onDelete={() => onDeleteSet(s.id)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', paddingTop: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button
             type="button"
             onClick={onAddSet}
             disabled={addingSet}
-            style={{ border: 0, background: 'transparent', padding: '8px 0', cursor: 'pointer', font: sans(13.5, 600), color: 'var(--accent-text)' }}
+            style={{ border: 0, background: 'transparent', padding: '4px 0', cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)' }}
           >
             + Dodaj serię
           </button>
-          {lastSet && (
-            <button
-              type="button"
-              onClick={() => onDeleteSet(lastSet.id)}
-              disabled={deletingSet}
-              title={`Usuń serię ${lastSet.setNumber}`}
-              style={{ border: 0, background: 'transparent', padding: '8px 0', cursor: 'pointer', font: sans(13.5, 500), color: 'var(--text-3)' }}
-            >
-              − Usuń ostatnią
-            </button>
-          )}
-        </span>
+          <button
+            type="button"
+            onClick={() => setEditingSets((v) => !v)}
+            style={{ border: 0, background: 'transparent', padding: '4px 0', cursor: 'pointer', font: sans(13, 500), color: 'var(--text-3)' }}
+          >
+            {editingSets ? 'Gotowe' : 'Edytuj serie'}
+          </button>
+        </div>
         {isActive && group.restSeconds > 0 && (
           <button
             type="button"
             onClick={() => onStartRest(group.restSeconds)}
-            style={{ border: '1px solid var(--border)', background: 'transparent', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', font: mono(11.5, 500), color: 'var(--text-2)' }}
+            style={{ border: '1px solid var(--border)', background: 'transparent', borderRadius: 9, padding: '5px 10px', cursor: 'pointer', font: mono(11.5, 500), color: 'var(--text-2)' }}
           >
             Przerwa {group.restSeconds} s
           </button>
@@ -517,13 +656,207 @@ function ExerciseCard({ sessionId, group, isActive, onOpenInfo, onStartRest, onA
   )
 }
 
-function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
+/** Focused current-set card with 44×44 ± steppers for BOTH weight and reps (or hold timer). */
+function FocusedSetPanel({ sessionId, set, totalSets, group, onCompleted }: {
+  sessionId: string
+  set: SessionSet
+  totalSets: number
+  group: SessionExerciseGroup
+  onCompleted: () => void
+}) {
+  const patchSet = usePatchSessionSet()
+  const [weightStr, setWeightStr] = useState(() => formatKg(set.weightKg ?? set.targetKg))
+  const [repsStr, setRepsStr] = useState(() => {
+    const initial = set.reps ?? set.targetRepsMin
+    return initial != null ? String(initial) : ''
+  })
+  const [secStr, setSecStr] = useState(() => {
+    const initial = set.seconds ?? set.targetSeconds
+    return initial != null ? String(initial) : ''
+  })
+  const [holdEndsAt, setHoldEndsAt] = useState<number | null>(null)
+  const [holdRemaining, setHoldRemaining] = useState(0)
+  const holdTriggeredRef = useRef(false)
+
+  const parsedWeight = parseKg(weightStr)
+  const parsedReps = repsStr.trim() === '' ? null : Number.parseInt(repsStr.trim(), 10)
+  const parsedSec = secStr.trim() === '' ? null : Number.parseInt(secStr.trim(), 10)
+
+  const commit = useCallback((overrides?: { completed?: boolean; weightKg?: number | null; reps?: number | null; seconds?: number | null }) => {
+    const w = overrides && 'weightKg' in overrides ? overrides.weightKg : parsedWeight
+    const r = overrides && 'reps' in overrides ? overrides.reps : (Number.isFinite(parsedReps) ? parsedReps : null)
+    const sec = overrides && 'seconds' in overrides ? overrides.seconds : (Number.isFinite(parsedSec) ? parsedSec : null)
+    const nextCompleted = overrides?.completed ?? set.completed
+
+    patchSet.mutate({
+      sessionId,
+      setId: set.id,
+      input: {
+        weightKg: w,
+        clearWeight: !group.isTimed && w == null,
+        reps: r,
+        clearReps: !group.isTimed && r == null,
+        seconds: sec,
+        clearSeconds: group.isTimed && sec == null,
+        completed: nextCompleted,
+      },
+    })
+  }, [group.isTimed, parsedReps, parsedSec, parsedWeight, patchSet, sessionId, set.completed, set.id])
+
+  useEffect(() => {
+    if (holdEndsAt == null) return
+    holdTriggeredRef.current = false
+    const tick = () => {
+      const rem = Math.max(0, Math.ceil((holdEndsAt - Date.now()) / 1000))
+      setHoldRemaining(rem)
+      if (rem === 0 && !holdTriggeredRef.current) {
+        holdTriggeredRef.current = true
+        setHoldEndsAt(null)
+        try { navigator.vibrate?.([120, 60, 120]) } catch { /* ignore */ }
+        commit({ completed: true })
+        onCompleted()
+      }
+    }
+    tick()
+    const timer = window.setInterval(tick, 200)
+    return () => window.clearInterval(timer)
+  }, [holdEndsAt, commit, onCompleted])
+
+  const nudgeWeight = (delta: number) => {
+    const next = Math.max(0, Math.round(((parsedWeight ?? 0) + delta) * 100) / 100)
+    setWeightStr(formatKg(next))
+    commit({ weightKg: next })
+  }
+
+  const nudgeReps = (delta: number) => {
+    const base = Number.isFinite(parsedReps) ? (parsedReps ?? 0) : (set.targetRepsMin ?? 0)
+    const next = Math.max(0, base + delta)
+    setRepsStr(String(next))
+    commit({ reps: next })
+  }
+
+  const nudgeSec = (delta: number) => {
+    const base = Number.isFinite(parsedSec) ? (parsedSec ?? 0) : (set.targetSeconds ?? 30)
+    const next = Math.max(5, base + delta)
+    setSecStr(String(next))
+    commit({ seconds: next })
+  }
+
+  const toggleHoldTimer = () => {
+    if (holdEndsAt != null) {
+      setHoldEndsAt(null)
+      return
+    }
+    const targetSec = (Number.isFinite(parsedSec) && (parsedSec ?? 0) > 0 ? parsedSec! : set.targetSeconds) ?? 30
+    setSecStr(String(targetSec))
+    setHoldEndsAt(Date.now() + targetSec * 1000)
+  }
+
+  const completeCurrent = () => {
+    commit({ completed: true })
+    onCompleted()
+  }
+
+  const livePr = set.isPr || (
+    liveSetPrKind(
+      { weightKg: parsedWeight, reps: Number.isFinite(parsedReps) ? parsedReps : null, seconds: Number.isFinite(parsedSec) ? parsedSec : null, completed: true },
+      group.prBaseline,
+      group.isTimed,
+    ) != null
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 0 4px', borderTop: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <Eyebrow tone="ink">Seria {set.setNumber} z {totalSets}</Eyebrow>
+        {livePr && (
+          <span style={{ font: mono(11, 600), padding: '2px 8px', borderRadius: 6, background: 'var(--gold-soft)', color: 'var(--gold-text)', border: '1px solid var(--gold)' }}>
+            ★ Nowy rekord
+          </span>
+        )}
+      </div>
+
+      {group.isTimed ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ font: sans(13, 500), color: 'var(--text-2)' }}>Czas (sekundy)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button" onClick={() => nudgeSec(-5)} aria-label="Odejmij 5 sekund" style={bigStepBtn}>−5</button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={7200}
+                aria-label={`Seria ${set.setNumber} czas w sekundach`}
+                value={secStr}
+                onChange={(e) => setSecStr(e.target.value)}
+                onBlur={() => commit()}
+                placeholder={set.targetSeconds != null ? String(set.targetSeconds) : '30'}
+                style={bigStepperInput}
+              />
+              <button type="button" onClick={() => nudgeSec(5)} aria-label="Dodaj 5 sekund" style={bigStepBtn}>+5</button>
+            </div>
+          </div>
+          <Button variant={holdEndsAt != null ? 'dark' : 'outline'} size="lg" onClick={toggleHoldTimer}>
+            {holdEndsAt != null ? `⏹ Zatrzymaj · ${holdRemaining} s` : '▶ Uruchom stoper'}
+          </Button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ font: sans(13, 500), color: 'var(--text-2)' }}>Obciążenie (kg)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button" onClick={() => nudgeWeight(-2.5)} aria-label="Odejmij 2,5 kg" style={bigStepBtn}>−</button>
+              <input
+                type="text"
+                inputMode="decimal"
+                aria-label={`Seria ${set.setNumber} ciężar w kg`}
+                value={weightStr}
+                onChange={(e) => setWeightStr(e.target.value)}
+                onBlur={() => commit()}
+                placeholder={set.targetKg != null ? formatKg(set.targetKg) : '0'}
+                style={bigStepperInput}
+              />
+              <button type="button" onClick={() => nudgeWeight(2.5)} aria-label="Dodaj 2,5 kg" style={bigStepBtn}>+</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ font: sans(13, 500), color: 'var(--text-2)' }}>Powtórzenia</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button" onClick={() => nudgeReps(-1)} aria-label="Odejmij 1 powtórzenie" style={bigStepBtn}>−</button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={500}
+                aria-label={`Seria ${set.setNumber} powtórzenia`}
+                value={repsStr}
+                onChange={(e) => setRepsStr(e.target.value)}
+                onBlur={() => commit()}
+                placeholder={set.targetRepsMin != null ? String(set.targetRepsMin) : '10'}
+                style={bigStepperInput}
+              />
+              <button type="button" onClick={() => nudgeReps(1)} aria-label="Dodaj 1 powtórzenie" style={bigStepBtn}>+</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Button size="lg" style={{ width: '100%' }} onClick={completeCurrent} disabled={patchSet.isPending}>
+        ✓ Zapisz serię
+      </Button>
+    </div>
+  )
+}
+
+function SetRow({ sessionId, set, group, isActive, showDelete, onCompleted, onDelete }: {
   sessionId: string
   set: SessionSet
   group: SessionExerciseGroup
   isActive: boolean
-  cols: string
+  showDelete: boolean
   onCompleted: () => void
+  onDelete: () => void
 }) {
   const patchSet = usePatchSessionSet()
   const [weightStr, setWeightStr] = useState(() => formatKg(set.weightKg))
@@ -533,7 +866,6 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
   const [holdRemaining, setHoldRemaining] = useState(0)
   const holdTriggeredRef = useRef(false)
 
-  // Sync local inputs when set changes externally
   useEffect(() => { setWeightStr(formatKg(set.weightKg)) }, [set.weightKg])
   useEffect(() => { setRepsStr(set.reps != null ? String(set.reps) : '') }, [set.reps])
   useEffect(() => { setSecStr(set.seconds != null ? String(set.seconds) : '') }, [set.seconds])
@@ -563,7 +895,6 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
     })
   }, [group.isTimed, parsedReps, parsedSec, parsedWeight, patchSet, sessionId, set.completed, set.id])
 
-  // Built-in countdown stopwatch for timed exercises (plank, holds, stretches)
   useEffect(() => {
     if (holdEndsAt == null) return
     holdTriggeredRef.current = false
@@ -601,12 +932,6 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
     commit({ weightKg: next })
   }
 
-  const nudgeReps = (delta: number) => {
-    const next = Math.max(0, (Number.isFinite(parsedReps) ? parsedReps ?? 0 : 0) + delta)
-    setRepsStr(String(next))
-    commit({ reps: next })
-  }
-
   const toggleComplete = () => {
     const next = !set.completed
     commit({ completed: next })
@@ -625,12 +950,14 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: cols,
+        gridTemplateColumns: group.isTimed
+          ? (showDelete ? '28px 1fr auto 44px 36px' : '28px 1fr auto 44px')
+          : (showDelete ? '28px 1fr 1fr 44px 36px' : '28px 1fr 1fr 44px'),
         gap: 8,
         alignItems: 'center',
         padding: '6px 4px',
         borderRadius: 10,
-        background: set.completed ? 'var(--sage-soft, rgba(76, 128, 92, 0.1))' : 'transparent',
+        background: set.completed ? 'var(--sage-soft)' : 'transparent',
         transition: 'background .15s',
       }}
     >
@@ -638,7 +965,7 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
         <span style={{ font: mono(13, 600), color: set.completed ? 'var(--sage-text)' : 'var(--text-2)' }}>
           {set.setNumber}
         </span>
-        {livePr && <span title="Nowy rekord życiowy!" style={{ font: mono(9, 700), letterSpacing: '.04em', color: 'var(--gold-text)' }}>PR</span>}
+        {livePr && <span title="Nowy rekord życiowy!" style={{ font: mono(9.5, 700), color: 'var(--gold-text)', lineHeight: 1 }}>★ PR</span>}
       </div>
 
       {group.isTimed ? (
@@ -659,7 +986,7 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
             type="button"
             onClick={toggleHoldTimer}
             style={{
-              height: 40,
+              height: 44,
               padding: '0 12px',
               borderRadius: 10,
               border: holdEndsAt != null ? '1px solid var(--accent)' : '1px solid var(--border)',
@@ -689,20 +1016,18 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
             />
             <button type="button" onClick={() => nudgeWeight(2.5)} aria-label="Dodaj 2,5 kg" style={nudgeBtn}>+</button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-            <button type="button" onClick={() => nudgeReps(-1)} aria-label="Odejmij powtórzenie" style={nudgeBtn}>−</button>
-            <input
-              type="text"
-              inputMode="numeric"
-              aria-label={`Seria ${set.setNumber} powtórzenia`}
-              value={repsStr}
-              onChange={(e) => setRepsStr(e.target.value.replace(/\D/g, ''))}
-              onBlur={() => commit()}
-              placeholder={set.targetRepsMin != null ? String(set.targetRepsMin) : '10'}
-              style={{ ...cellInput, minWidth: 0, flex: 1 }}
-            />
-            <button type="button" onClick={() => nudgeReps(1)} aria-label="Dodaj powtórzenie" style={nudgeBtn}>+</button>
-          </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={500}
+            aria-label={`Seria ${set.setNumber} powtórzenia`}
+            value={repsStr}
+            onChange={(e) => setRepsStr(e.target.value)}
+            onBlur={() => commit()}
+            placeholder={set.targetRepsMin != null ? String(set.targetRepsMin) : '10'}
+            style={cellInput}
+          />
         </>
       )}
 
@@ -715,7 +1040,7 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
           width: 44,
           height: 44,
           borderRadius: 10,
-          border: set.completed ? 0 : '1.5px solid var(--border-2, var(--border))',
+          border: set.completed ? 0 : '1.5px solid var(--border-2)',
           background: set.completed ? 'var(--sage)' : 'var(--bg)',
           color: set.completed ? '#fff' : 'var(--text-3)',
           font: sans(16, 700),
@@ -729,6 +1054,28 @@ function SetRow({ sessionId, set, group, isActive, cols, onCompleted }: {
         ✓
       </button>
 
+      {showDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Usuń serię ${set.setNumber}`}
+          title="Usuń serię"
+          style={{
+            width: 36,
+            height: 44,
+            border: 0,
+            background: 'transparent',
+            color: 'var(--accent-text)',
+            cursor: 'pointer',
+            fontSize: 16,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          ✕
+        </button>
+      )}
     </div>
   )
 }
@@ -782,8 +1129,10 @@ function AddExerciseSheet({ open, onClose, onPick }: {
                 color: 'var(--text)',
               }}
             >
-              <span style={{ width: 44, height: 30, borderRadius: 6, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border)', flexShrink: 0 }}>
-                {ex.thumbnailUrl && <img src={ex.thumbnailUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+              <span style={{ width: 44, height: 30, borderRadius: 6, overflow: 'hidden', background: 'var(--seg-bg)', border: '1px solid var(--border)', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                {ex.thumbnailUrl
+                  ? <img src={ex.thumbnailUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  : <span style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--text-2)' }}>{(ex.name.trim()[0] ?? 'Ć').toUpperCase()}</span>}
               </span>
               <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ font: sans(14.5, 600) }}>{ex.name}</span>
@@ -801,9 +1150,38 @@ function AddExerciseSheet({ open, onClose, onPick }: {
   )
 }
 
+const bigStepBtn: React.CSSProperties = {
+  width: 48,
+  height: 48,
+  borderRadius: 12,
+  border: '1px solid var(--rule)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  font: mono(18, 600),
+  cursor: 'pointer',
+  flexShrink: 0,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+const bigStepperInput: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  height: 48,
+  padding: '0 12px',
+  borderRadius: 12,
+  border: '1px solid var(--border)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  font: mono(20, 600),
+  textAlign: 'center',
+  boxSizing: 'border-box',
+}
+
 const cellInput: React.CSSProperties = {
   height: 44,
-  padding: '0 4px',
+  padding: '0 8px',
   borderRadius: 10,
   border: '1px solid var(--border)',
   background: 'var(--surface)',
@@ -817,15 +1195,14 @@ const cellInput: React.CSSProperties = {
 const nudgeBtn: React.CSSProperties = {
   width: 34,
   height: 44,
-  borderRadius: 8,
+  borderRadius: 9,
   border: '1px solid var(--border)',
   background: 'var(--bg)',
   color: 'var(--text-2)',
-  font: mono(14, 600),
+  font: mono(15, 600),
   cursor: 'pointer',
   flexShrink: 0,
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: 0,
 }

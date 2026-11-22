@@ -9,6 +9,7 @@ import { ExerciseSheet } from '../../components/training/ExerciseSheet'
 import { PlanCta, SOUS_ADJUST_PROMPT } from '../../components/training/PlanCta'
 import { SwapSheet } from '../../components/training/SwapSheet'
 import { TrainingNav } from '../../components/training/TrainingNav'
+import { SousButton } from '../../components/SousButton'
 import { Button, Chip, PageTitle, mono, sans, usePagePad } from '../../components/ui'
 import { requestChat } from '../../lib/chatBus'
 import { addDays, dayShortMonth, mondayOf, parseISODate, toISO, todayIso, WEEKDAY_SHORT } from '../../lib/dates'
@@ -75,18 +76,25 @@ export function ProgramView() {
 
   return (
     <div style={{ ...pad, maxWidth: 980, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 26 }}>
-      <TrainingNav />
       <PageTitle
-        title={program?.name ?? 'Plan treningowy'}
+        eyebrow="Trening · Program"
+        title={program?.name ?? 'Program treningowy'}
         sub={program
           ? `${dayShortMonth(parseISODate(program.startDate))} – ${dayShortMonth(parseISODate(program.endDate))} · ${program.weeks} ${program.weeks === 1 ? 'tydzień' : program.weeks < 5 ? 'tygodnie' : 'tygodni'}${program.createdBy === 'ai' ? ' · ułożony przez AI' : ''}`
           : undefined}
-        right={program && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {chat?.enabled && <Button variant="quiet" size="sm" onClick={() => requestChat(SOUS_ADJUST_PROMPT)}>✦ Dostosuj z Sous</Button>}
-            <Button variant="quiet" size="sm" onClick={() => nav('/trening/ankieta')}>Ankieta</Button>
+        right={
+          // One row on phones: whose program, Sous, the questionnaire (Gemini's header).
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
+            <TrainingNav />
+            <SousButton variant="header" />
+            {program && (
+              <>
+                {!isMobile && chat?.enabled && <Button variant="quiet" size="sm" onClick={() => requestChat(SOUS_ADJUST_PROMPT)}>✦ Dostosuj z Sous</Button>}
+                <Button variant="quiet" size="sm" onClick={() => nav('/trening/ankieta')}>Ankieta</Button>
+              </>
+            )}
           </div>
-        )}
+        }
       />
 
       {isLoading && <p style={{ font: sans(14), color: 'var(--text-3)' }}>Ładuję…</p>}

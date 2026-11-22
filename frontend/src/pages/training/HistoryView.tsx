@@ -11,6 +11,7 @@ import {
 } from '../../api/training'
 import { ExerciseSheet } from '../../components/training/ExerciseSheet'
 import { TrainingNav } from '../../components/training/TrainingNav'
+import { SousButton } from '../../components/SousButton'
 import { Button, Chip, Eyebrow, PageTitle, Segmented, StatStrip, mono, sans, usePagePad } from '../../components/ui'
 import { dayShortMonth, parseISODate, WEEKDAY_SHORT } from '../../lib/dates'
 import { muscleLabel } from '../../lib/labels'
@@ -98,11 +99,17 @@ export function HistoryView() {
   }
 
   return (
-    <div style={{ ...pad, maxWidth: 880, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 24 }}>
-      <TrainingNav />
+    <div style={{ ...pad, maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 24 }}>
       <PageTitle
+        eyebrow="Trening"
         title="Historia i rekordy"
         sub={completedSessions.length > 0 ? `${completedSessions.length} ukończonych treningów · ${(prs ?? []).length} ćwiczeń z zapisanym wynikiem` : 'Twoje zapisane sesje i rekordy życiowe.'}
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <TrainingNav />
+            <SousButton variant="header" />
+          </div>
+        }
       />
 
       {activeSession && (
@@ -113,9 +120,9 @@ export function HistoryView() {
             justifyContent: 'space-between',
             gap: 12,
             padding: '14px 16px',
-            borderRadius: 12,
+            borderTop: '1px solid var(--accent)',
+            borderBottom: '1px solid var(--accent)',
             background: 'var(--accent-soft)',
-            border: '1px solid var(--accent)',
             flexWrap: 'wrap',
           }}
         >
@@ -188,8 +195,8 @@ export function HistoryView() {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ font: sans(16, 600) }}>{s.name}</span>
                       {s.prCount > 0 && (
-                        <span style={{ font: mono(11, 600), padding: '1px 7px', borderRadius: 999, background: 'var(--gold-soft)', color: 'var(--gold-text)', border: '1px solid var(--gold)' }}>
-                          {s.prCount} PR
+                        <span style={{ font: mono(11, 600), padding: '1px 7px', borderRadius: 6, background: 'var(--gold-soft)', color: 'var(--gold-text)', border: '1px solid var(--gold)' }}>
+                          ★ {s.prCount} PR
                         </span>
                       )}
                     </span>
@@ -241,6 +248,14 @@ export function HistoryView() {
 
           {(prs ?? []).length > 0 && (
             <>
+              <StatStrip
+                stacked
+                items={[
+                  { value: String((prs ?? []).length), label: 'ćwiczeń z rekordem' },
+                  { value: String(muscles.length), label: 'partii mięśni' },
+                  { value: String(completedSessions.reduce((acc, s) => acc + s.prCount, 0)), label: 'pobitych PR łącznie' },
+                ]}
+              />
               <input
                 type="search"
                 value={search}
@@ -292,8 +307,10 @@ export function HistoryView() {
                     }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
-                      <span style={{ width: 48, height: 34, borderRadius: 6, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border)', flexShrink: 0 }}>
-                        {pr.thumbnailUrl && <img src={pr.thumbnailUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                      <span style={{ width: 48, height: 34, borderRadius: 6, overflow: 'hidden', background: 'var(--seg-bg)', border: '1px solid var(--border)', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {pr.thumbnailUrl
+                          ? <img src={pr.thumbnailUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          : <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 16, color: 'var(--text-2)' }}>{(pr.name.trim()[0] ?? 'Ć').toUpperCase()}</span>}
                       </span>
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                         <span style={{ font: sans(15, 600), lineHeight: 1.2 }}>{pr.name}</span>

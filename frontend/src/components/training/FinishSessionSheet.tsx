@@ -124,7 +124,7 @@ export function FinishSessionSheet({ open, session, onClose, onCompleted }: {
 
           {result.newPrs.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14, borderRadius: 12, background: 'var(--gold-soft)', border: '1px solid var(--gold)' }}>
-              <Eyebrow tone="ink">{pluralPrs(result.newPrs.length)}</Eyebrow>
+              <Eyebrow tone="ink">★ {pluralPrs(result.newPrs.length)}</Eyebrow>
               {result.newPrs.map((pr) => (
                 <div key={`${pr.exerciseId}-${pr.metric}`} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ font: sans(14.5, 600) }}>{pr.exerciseName}</span>

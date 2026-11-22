@@ -1,16 +1,22 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire } from '../api/hooks'
+import { useAuth, useLogout, usePreferences, useCookbook, useSavePreferences, useExportContext, useQuestionnaire, useHousehold } from '../api/hooks'
 import { api, errorText, loginUrl, type Equipment, type Preferences, type Questionnaire } from '../api/client'
 import { ConnectAgentCard } from '../components/ConnectAgentCard'
 import { HouseholdCard, PortionSettingsCard } from '../components/HouseholdCards'
 import { LoginPrompt } from '../components/LoginPrompt'
+import { SousButton } from '../components/SousButton'
 import { showToast } from '../lib/toastBus'
 import { useIsMobile } from '../lib/useIsMobile'
-import { SousTitleButton } from '../components/Sous'
-import { Avatar, Button, Chip, Eyebrow, PageTitle, SectionHead, inputStyle, mono, sans, usePagePad } from '../components/ui'
+import { Button, Chip, Eyebrow, PageTitle, SectionHead, UnderlineTabs, inputStyle, mono, sans, usePagePad } from '../components/ui'
 
-/** The profile ("Profil kulinarny" on desktop, the "Ja" tab on phones). */
+type ProfileTab = 'kuchnia' | 'domownicy' | 'polaczenia'
+
+/**
+ * Profile ("Profil i dom" on desktop, "Profil" under "Ja" on phones).
+ * Organized into three focused tabs — Kuchnia, Domownicy, Połączenia — so preferences,
+ * household management, and AI/API setup never collide in one 3,000 px scroll.
+ */
 export function Profile() {
   const nav = useNavigate()
   const isMobile = useIsMobile()
@@ -19,8 +25,10 @@ export function Profile() {
   const logout = useLogout()
   const { data: prefs } = usePreferences()
   const { data: questionnaire } = useQuestionnaire()
+  const { data: household } = useHousehold()
   const save = useSavePreferences()
 
+  const [tab, setTab] = useState<ProfileTab>('kuchnia')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Preferences | null>(null)
   const [downloadingBackup, setDownloadingBackup] = useState(false)
@@ -42,7 +50,7 @@ export function Profile() {
     if (prefs && !editing) setDraft(prefs)
   }, [prefs, editing])
 
-  if (!authLoading && !canEdit) return <LoginPrompt title="Profil kulinarny" />
+  if (!authLoading && !canEdit) return <LoginPrompt title="Profil i dom" />
   if (!prefs || !draft) return <div style={{ ...pad, color: 'var(--text-3)' }}>Ładowanie…</div>
 
   const view = editing ? draft : prefs
@@ -52,21 +60,22 @@ export function Profile() {
   async function onSave() {
     await save.mutateAsync(draft!)
     setEditing(false)
+    showToast('Zapisano profil kulinarny')
   }
 
   const answered = questionnaire ? Object.values(questionnaire.answers).filter((v) => v.trim()).length : 0
   const totalQuestions = questionnaire ? questionnaire.sections.reduce((n, s) => n + s.questions.length, 0) : 0
 
-  const editControls = canEdit && (editing ? (
+  const editControls = canEdit && tab === 'kuchnia' && (editing ? (
     <div style={{ display: 'flex', gap: 8 }}>
-      <Button variant="quiet" size={isMobile ? 'sm' : 'md'} onClick={() => setEditing(false)}>Anuluj</Button>
-      <Button size={isMobile ? 'sm' : 'md'} onClick={onSave} disabled={save.isPending}>{save.isPending ? 'Zapisywanie…' : 'Zapisz'}</Button>
+      <Button variant="quiet" size="sm" onClick={() => setEditing(false)}>Anuluj</Button>
+      <Button size="sm" onClick={onSave} disabled={save.isPending}>{save.isPending ? 'Zapisuję…' : 'Zapisz'}</Button>
     </div>
   ) : (
-    <Button variant="outline" size={isMobile ? 'sm' : 'md'} onClick={() => setEditing(true)}>{isMobile ? 'Edytuj' : 'Edytuj profil'}</Button>
+    <Button variant="outline" size="sm" onClick={() => setEditing(true)}>{isMobile ? 'Edytuj' : 'Edytuj profil'}</Button>
   ))
 
-  const household = (
+  const householdFact = (
     <Fact
       label="Gospodarstwo"
       editing={editing}
@@ -76,7 +85,7 @@ export function Profile() {
       onDetail={(v) => set('householdDetail', v)}
     />
   )
-  const skills = (
+  const skillsFact = (
     <Fact
       label="Umiejętności i czas"
       editing={editing}
@@ -103,122 +112,133 @@ export function Profile() {
     <TextBlock label="Unikać / dieta" editing={editing} value={view.avoidDietary} onChange={(v) => set('avoidDietary', v)} />
   )
 
-  if (isMobile) {
-    return (
-      <div style={{ ...pad, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Avatar name={auth?.name ?? auth?.email} picture={auth?.picture} size={56} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
-            <h1 style={{ margin: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 30, lineHeight: 1, letterSpacing: '-0.02em' }}>Twoja kuchnia</h1>
-            <span style={{ font: sans(13.5), color: 'var(--text-2)' }}>{[prefs.householdSummary, prefs.skillSummary].filter(Boolean).join(' · ')}</span>
-          </div>
-          <SousTitleButton />
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
-          <LinkRow label="Ankieta kulinarna" meta={totalQuestions ? `${answered}/${totalQuestions}` : ''} onClick={() => nav('/profile/ankieta')} />
-        </div>
-
-        {canEdit && <HouseholdCard />}
-        {canEdit && <PortionSettingsCard />}
-        {auth?.isAdmin && (
-          <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
-            <LinkRow label="Panel administratora" meta="domy, ludzie, kody" onClick={() => nav('/admin')} />
-          </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 8, borderBottom: '1px solid var(--rule)' }}>
-            <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 20 }}>Co wie asystent</span>
-            {editControls}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: editing ? '1fr' : '1fr 1fr', gap: 16 }}>
-            {household}
-            {skills}
-          </div>
-          {equipment}
-          {tastes}
-          {avoid}
-        </div>
-
-        <Collapsible title="cookbook.md — plik pamięci">
-          <CookbookPanel canEdit={canEdit} />
-        </Collapsible>
-        {canEdit && (
-          <Collapsible title="Połącz agenta (Codex / Claude Code)">
-            <ConnectAgentCard />
-          </Collapsible>
-        )}
-        {canEdit && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-            <Button variant="outline" onClick={onDownloadBackup} disabled={downloadingBackup}>
-              {downloadingBackup ? 'Przygotowuję archiwum…' : 'Pobierz kopię danych (.zip)'}
-            </Button>
-          </div>
-        )}
-
-        {canEdit ? (
-          <Button variant="text" style={{ alignSelf: 'flex-start', font: sans(14, 600) }} onClick={() => logout.mutate()}>Wyloguj</Button>
-        ) : (
-          <Button variant="outline" onClick={() => { window.location.href = loginUrl('/profile') }}>Zaloguj przez Google</Button>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 32 }}>
+    <div style={{ ...pad, maxWidth: 1120, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 26 }}>
       <PageTitle
-        title="Profil kulinarny"
-        sub="Te preferencje trafiają do pliku pamięci wysyłanego asystentowi na początku każdej rozmowy — żeby nigdy nie zaproponował czegoś, czego nie ugotujesz albo nie zjesz."
-        right={canEdit ? editControls : <Button onClick={() => { window.location.href = loginUrl('/profile') }}>Zaloguj przez Google</Button>}
-      />
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.3fr)', gap: 56, alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          {household}
-          {skills}
-          {equipment}
-        </div>
-        {questionnaire && <QuestionnaireSummary q={questionnaire} answered={answered} total={totalQuestions} canEdit={canEdit} />}
-      </div>
-
-      {canEdit && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 620px) minmax(0, 1fr)', gap: 56, alignItems: 'start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
-            <HouseholdCard />
-            <PortionSettingsCard />
+        eyebrow={isMobile ? 'Ja · Ustawienia' : 'Ustawienia'}
+        title={isMobile ? 'Profil' : 'Profil i dom'}
+        sub={!isMobile ? 'Preferencje kuchni, domownicy i połączenia z asystentem oraz urządzeniami.' : undefined}
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {editControls}
+            <SousButton variant="header" />
+            {!canEdit && <Button onClick={() => { window.location.href = loginUrl('/profile') }}>Zaloguj przez Google</Button>}
           </div>
+        }
+      />
+
+      <UnderlineTabs
+        value={tab}
+        onChange={(next) => { setEditing(false); setTab(next) }}
+        items={[
+          { key: 'kuchnia', label: 'Kuchnia' },
+          { key: 'domownicy', label: 'Domownicy', count: household?.members.length },
+          { key: 'polaczenia', label: 'Połączenia' },
+        ]}
+      />
+
+      {tab === 'kuchnia' && (
+        isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: editing ? '1fr' : '1fr 1fr', gap: 16 }}>
+              {householdFact}
+              {skillsFact}
+            </div>
+            {equipment}
+            {tastes}
+            {avoid}
+            <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
+              <LinkRow label="Ankieta kulinarna" meta={totalQuestions ? `${answered}/${totalQuestions}` : ''} onClick={() => nav('/profile/ankieta')} />
+            </div>
+            {canEdit && <PortionSettingsCard />}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.25fr)', gap: 48, alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {householdFact}
+                {skillsFact}
+                {equipment}
+                {tastes}
+                {avoid}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                {questionnaire && <QuestionnaireSummary q={questionnaire} answered={answered} total={totalQuestions} canEdit={canEdit} />}
+                {canEdit && <PortionSettingsCard />}
+              </div>
+            </div>
+          </div>
+        )
+      )}
+
+      {tab === 'domownicy' && (
+        <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 28 }}>
+          {canEdit && <HouseholdCard />}
           {auth?.isAdmin && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, borderTop: '1px solid var(--rule)', paddingTop: 14 }}>
-              <span style={{ font: sans(15.5, 500) }}>Panel administratora</span>
-              <span style={{ font: sans(13.5), lineHeight: 1.5, color: 'var(--text-2)' }}>
-                Domy, ludzie, uprawnienia, kody zaproszeń, klucze API i dziennik zmian.
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--rule)', paddingTop: 14 }}>
+              <SectionHead title="Panel administratora" size={20} />
+              <span style={{ font: sans(14), lineHeight: 1.5, color: 'var(--text-2)' }}>
+                Domy, ludzie, uprawnienia, kody zaproszeń, klucze API i diagnostyka serwera.
               </span>
-              <Button variant="outline" style={{ alignSelf: 'flex-start' }} onClick={() => nav('/admin')}>Otwórz panel</Button>
+              <Button variant="outline" size="sm" style={{ alignSelf: 'flex-start' }} onClick={() => nav('/admin')}>
+                Otwórz panel admina ›
+              </Button>
             </div>
           )}
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 8 }}>
-        <SectionHead
-          title="Asystent i dane"
-          size={24}
-          meta={
-            canEdit && (
+      {tab === 'polaczenia' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 820 }}>
+          {canEdit && (
+            <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--rule)' }}>
+              <LinkRow label="Opaska, waga i zegarek (Strava)" meta="Aktywność" onClick={() => nav('/plan/aktywnosc')} />
+            </div>
+          )}
+
+          {canEdit && <ConnectAgentCard />}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <SectionHead title="Plik pamięci asystenta" size={20} meta="cookbook.md" />
+            {isMobile ? (
+              <Collapsible title="Podgląd cookbook.md i synchronizacja">
+                <CookbookPanel canEdit={canEdit} />
+              </Collapsible>
+            ) : (
+              <CookbookPanel canEdit={canEdit} />
+            )}
+          </div>
+
+          {canEdit && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', padding: '16px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ font: sans(15.5, 600) }}>Kopia danych domu</span>
+                <span style={{ font: sans(13.5), color: 'var(--text-2)' }}>Przepisy, spiżarnia, historia i preferencje w jednym archiwum .zip.</span>
+              </div>
               <Button variant="outline" size="sm" onClick={onDownloadBackup} disabled={downloadingBackup}>
-                {downloadingBackup ? 'Przygotowuję .zip…' : 'Pobierz kopię danych (.zip)'}
+                {downloadingBackup ? 'Przygotowuję .zip…' : 'Pobierz kopię (.zip)'}
               </Button>
-            )
-          }
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56 }}>
-          {tastes}
-          {avoid}
+            </div>
+          )}
         </div>
-        <CookbookPanel canEdit={canEdit} />
-        {canEdit && <ConnectAgentCard />}
-      </div>
+      )}
+
+      {isMobile && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+          {canEdit ? (
+            <Button variant="text" style={{ font: sans(14, 600), color: 'var(--text-2)' }} onClick={() => logout.mutate()}>
+              Wyloguj ({auth?.name ?? auth?.email})
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => { window.location.href = loginUrl('/profile') }}>Zaloguj przez Google</Button>
+          )}
+          {auth?.isAdmin && (
+            <Button variant="text" size="sm" style={{ color: 'var(--accent-text)' }} onClick={() => nav('/admin')}>
+              Panel admina ›
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -251,7 +271,7 @@ function Fact({ label, editing, summary, detail, onSummary, onDetail }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 4 : 6, borderTop: isMobile ? 0 : '1px solid var(--rule)', paddingTop: isMobile ? 0 : 14, minWidth: 0 }}>
       <Eyebrow size={isMobile ? 10.5 : 11}>{label}</Eyebrow>
-      <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 20 : 30, lineHeight: 1.1 }}>{summary || '—'}</span>
+      <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 20 : 28, lineHeight: 1.1 }}>{summary || '—'}</span>
       {detail && <span style={{ font: sans(isMobile ? 13 : 14.5), lineHeight: 1.45, color: 'var(--text-2)' }}>{detail}</span>}
     </div>
   )
@@ -274,10 +294,10 @@ function LinkRow({ label, meta, onClick }: { label: string; meta: string; onClic
     <button
       type="button"
       onClick={onClick}
-      style={{ height: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 0, border: 0, borderBottom: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text)' }}
+      style={{ height: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 0, border: 0, borderBottom: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', color: 'var(--text)', textAlign: 'left' }}
     >
-      <span style={{ font: sans(16, 500) }}>{label}</span>
-      <span style={{ display: 'flex', gap: 12, font: mono(13), color: 'var(--text-2)' }}>
+      <span style={{ font: sans(15.5, 500) }}>{label}</span>
+      <span style={{ display: 'flex', gap: 10, font: mono(12.5), color: 'var(--text-2)', flexShrink: 0 }}>
         {meta}
         <span style={{ color: 'var(--text)' }}>›</span>
       </span>
@@ -306,7 +326,7 @@ function QuestionnaireSummary({ q, answered, total, canEdit }: { q: Questionnair
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', paddingBottom: 10, borderBottom: '1px solid var(--rule)' }}>
-        <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24 }}>Ankieta kulinarna</span>
+        <span style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 22 }}>Ankieta kulinarna</span>
         <span style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
           <span style={{ font: mono(12), color: 'var(--text-2)' }}>{answered} / {total}</span>
           {canEdit && (
@@ -320,9 +340,9 @@ function QuestionnaireSummary({ q, answered, total, canEdit }: { q: Questionnair
         <span style={{ padding: '14px 0', font: sans(14.5), color: 'var(--text-2)' }}>Im więcej odpowiedzi, tym lepiej asystent zna Waszą kuchnię.</span>
       )}
       {shown.map((question) => (
-        <div key={question.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20, padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+        <div key={question.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 20, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
           <span style={{ font: sans(14), lineHeight: 1.45, color: 'var(--text-2)' }}>{question.label}</span>
-          <span style={{ font: sans(15), lineHeight: 1.45 }}>{q.answers[question.key]}</span>
+          <span style={{ font: sans(14.5), lineHeight: 1.45 }}>{q.answers[question.key]}</span>
         </div>
       ))}
       {rows.length > shown.length && (
@@ -346,21 +366,21 @@ function CookbookPanel({ canEdit }: { canEdit: boolean }) {
   }
 
   return (
-    <div style={{ borderRadius: 14, overflow: 'hidden', background: 'var(--panel-bg)', color: 'var(--panel-text)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '14px 18px', borderBottom: '1px solid var(--panel-border)' }}>
+    <div style={{ borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)', overflow: 'hidden', background: 'var(--panel-bg)', color: 'var(--panel-text)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--panel-border)' }}>
         <span style={{ font: mono(13, 500) }}>cookbook.md</span>
-        <span style={{ font: sans(12.5), color: 'var(--panel-text-2)' }}>— wysyłane do AI na początku każdej rozmowy</span>
+        <span style={{ font: sans(12.5), color: 'var(--panel-text-2)' }}>— wysyłane do AI na początku rozmowy</span>
         <span style={{ flex: 1 }} />
         {canEdit && (
-          <button type="button" onClick={onSync} style={{ height: 32, padding: '0 12px', borderRadius: 999, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text)', cursor: 'pointer', font: sans(12.5, 600) }}>
+          <button type="button" onClick={onSync} style={{ height: 32, padding: '0 12px', borderRadius: 9, border: '1px solid var(--panel-border)', background: 'transparent', color: 'var(--panel-text)', cursor: 'pointer', font: sans(12.5, 600) }}>
             {exportCtx.isPending ? 'Synchronizuję…' : 'Synchronizuj z ./context'}
           </button>
         )}
       </div>
-      <pre style={{ margin: 0, padding: '18px 20px', font: mono(12.5), lineHeight: 1.7, color: 'var(--panel-text)', whiteSpace: 'pre-wrap', overflowX: 'auto', maxHeight: 480, overflowY: 'auto' }}>
+      <pre style={{ margin: 0, padding: '16px 18px', font: mono(12.5), lineHeight: 1.7, color: 'var(--panel-text)', whiteSpace: 'pre-wrap', overflowX: 'auto', maxHeight: 420, overflowY: 'auto' }}>
         {cookbook?.markdown ?? 'Ładowanie…'}
       </pre>
-      {syncMsg && <div style={{ padding: '0 20px 16px', font: mono(12), color: 'var(--accent-warm)' }}>{syncMsg} — otwórz ten folder w Codex lub Claude Code.</div>}
+      {syncMsg && <div style={{ padding: '0 18px 14px', font: mono(12), color: 'var(--accent-warm)' }}>{syncMsg}</div>}
     </div>
   )
 }

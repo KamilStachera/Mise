@@ -75,7 +75,11 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Repos/CukBuk:/src" -v pichci-nuget:/ro
   - Phone action bars: use `PinnedBar` (`components/Sous.tsx`) — fixed above the tab bar,
     Sous square at the end. Sous on phones is never a floating button: in the pinned bar if
     the page has one, else a ✦ beside the `PageTitle`; hidden on focus flows (`sousHiddenOn`:
-    admin, questionnaires, add/edit recipe, live session). `/recipe/*`, `/add` and the live
+    admin, questionnaires, add/edit recipe, live session). A page may place Sous itself with
+    `SousButton` (`header` = labelled „✦ Sous” in the title row, used by the Trening, Profil,
+    Plan · Postępy/Aktywność and Przepisy headers; `bar` = square in its own footer) — that
+    suppresses the automatic ✦. Section pages with a person switch use `PageTitle eyebrow=`
+    („Trening · Dziś”) and keep switch + Sous + their action in one row. `/recipe/*`, `/add` and the live
     session hide the tab bar and bring their own footer.
   - React gotcha: after `border: 0` on a `<button>`, never pass
     `borderBottom: undefined` — React writes an empty value and the UA button

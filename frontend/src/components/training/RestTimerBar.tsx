@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatTimerClock, remainingTimerSeconds } from '../../lib/trainingStats'
+import { useIsMobile } from '../../lib/useIsMobile'
 import { mono, sans } from '../ui'
 
 export interface RestTimerState {
@@ -54,6 +55,7 @@ export function RestTimerBar({ timer, onAdjust, onDismiss }: {
   onAdjust: (deltaSeconds: number) => void
   onDismiss: () => void
 }) {
+  const isMobile = useIsMobile()
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [muted, setMuted] = useState(loadMuted)
   const [finishedLabel, setFinishedLabel] = useState<string | null>(null)
@@ -108,12 +110,12 @@ export function RestTimerBar({ timer, onAdjust, onDismiss }: {
       aria-live="polite"
       style={{
         position: 'fixed',
-        left: 0,
+        left: isMobile ? 0 : 224,
         right: 0,
         bottom: 0,
         zIndex: 60,
-        background: done ? 'var(--sage)' : 'var(--text)',
-        color: done ? '#fff' : 'var(--bg)',
+        background: done ? 'var(--sage)' : 'var(--panel-bg)',
+        color: done ? '#fff' : 'var(--panel-text)',
         padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',
         boxShadow: '0 -6px 24px rgba(0,0,0,.18)',
       }}
@@ -147,7 +149,7 @@ export function RestTimerBar({ timer, onAdjust, onDismiss }: {
               aria-label={muted ? 'Włącz dźwięk timera' : 'Wycisz dźwięk timera'}
               style={pillBtn}
             >
-              {muted ? '🔇' : '🔔'}
+              {muted ? 'Bez dźwięku' : 'Dźwięk'}
             </button>
             <button
               type="button"

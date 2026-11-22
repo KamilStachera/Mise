@@ -56,40 +56,49 @@ export function SharedRecipePage() {
   const returnPath = `/s/${encodeURIComponent(r.token)}`
 
   const cta = r.isOwnHousehold && r.ownRecipeId ? (
-    <Button variant="outline" size={isMobile ? 'md' : 'md'} onClick={() => nav(`/recipe/${r.ownRecipeId}`)}>
-      Otwórz w Twojej książce ›
+    <Button variant="outline" size={isMobile ? 'sm' : 'md'} onClick={() => nav(`/recipe/${r.ownRecipeId}`)}>
+      {isMobile ? 'Otwórz w książce ›' : 'Otwórz w Twojej książce ›'}
     </Button>
   ) : canEdit ? (
-    <Button size={isMobile ? 'md' : 'md'} disabled={importRecipe.isPending} onClick={onImport}>
-      {importRecipe.isPending ? 'Zapisywanie…' : 'Zapisz do mojej książki'}
+    <Button size={isMobile ? 'sm' : 'md'} disabled={importRecipe.isPending} onClick={onImport}>
+      {importRecipe.isPending ? 'Zapisywanie…' : isMobile ? 'Zapisz u siebie' : 'Zapisz do mojej książki'}
     </Button>
   ) : (
-    <Button size={isMobile ? 'md' : 'md'} onClick={() => { window.location.href = loginUrl(returnPath) }}>
-      Zaloguj się, aby zapisać
+    <Button size={isMobile ? 'sm' : 'md'} onClick={() => { window.location.href = loginUrl(returnPath) }}>
+      {isMobile ? 'Zaloguj, aby zapisać' : 'Zaloguj się, aby zapisać'}
     </Button>
   )
 
   return (
-    <div style={{ ...pad, maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 72 }}>
+    <div style={{ ...pad, maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 24, paddingBottom: 72 }}>
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 14,
+          gap: isMobile ? 12 : 14,
           flexWrap: 'wrap',
-          padding: '14px 16px',
-          borderRadius: 14,
-          background: 'var(--surface)',
-          border: '1px solid var(--border-2)',
+          // Phones: one ruled line instead of a card.
+          ...(isMobile
+            ? { padding: '10px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)' }
+            : { padding: '14px 16px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--border-2)' }),
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-          <Eyebrow tone="accent">Udostępniony przepis · Pichci</Eyebrow>
-          <span style={{ font: sans(14.5, 500), color: 'var(--text)' }}>
-            Od: <strong>{r.sharedByHousehold}</strong>
-            {r.isOwnHousehold && <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> (Twój dom)</span>}
-          </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 3, minWidth: 0 }}>
+          {isMobile ? (
+            <span style={{ font: sans(13.5, 500), color: 'var(--text-2)' }}>
+              Udostępnił dom <strong style={{ color: 'var(--text)' }}>{r.sharedByHousehold}</strong>
+              {r.isOwnHousehold && <span style={{ color: 'var(--text-3)' }}> (Twój)</span>}
+            </span>
+          ) : (
+            <>
+              <Eyebrow tone="accent">Udostępniony przepis · Pichci</Eyebrow>
+              <span style={{ font: sans(14.5, 500), color: 'var(--text)' }}>
+                Od: <strong>{r.sharedByHousehold}</strong>
+                {r.isOwnHousehold && <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> (Twój dom)</span>}
+              </span>
+            </>
+          )}
           {importError && <span style={{ font: sans(13), color: 'var(--accent-text)' }}>{importError}</span>}
         </div>
         {cta}
@@ -164,18 +173,30 @@ export function SharedRecipePage() {
           <SectionHead title="Przygotowanie" size={22} meta={plural(r.steps.length, 'krok', 'kroki', 'kroków')} />
           <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' }}>
             {r.steps.map((step, i) => (
-              <li key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ font: mono(13, 500), color: 'var(--text-3)' }}>{i + 1}.</span>
-                <span style={{ font: sans(15), lineHeight: 1.55 }}>{step}</span>
-              </li>
+              isMobile ? (
+                <li key={i} style={{ display: 'flex', gap: 16, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ flex: '0 0 22px', fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 24, lineHeight: 1, color: 'var(--accent-text)' }}>{i + 1}</span>
+                  <span style={{ font: sans(15), lineHeight: 1.5 }}>{step}</span>
+                </li>
+              ) : (
+                <li key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ font: mono(13, 500), color: 'var(--text-3)' }}>{i + 1}.</span>
+                  <span style={{ font: sans(15), lineHeight: 1.55 }}>{step}</span>
+                </li>
+              )
             ))}
           </ol>
-          {r.tip && (
+          {r.tip && (isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6, padding: '14px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)' }}>
+              <Eyebrow tone="accent">Wskazówka</Eyebrow>
+              <span style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 17, lineHeight: 1.5, color: 'var(--text)' }}>{r.tip}</span>
+            </div>
+          ) : (
             <div style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <Eyebrow tone="muted">Wskazówka</Eyebrow>
               <p style={{ margin: '6px 0 0', font: sans(14.5), lineHeight: 1.5, color: 'var(--text-2)' }}>{r.tip}</p>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </div>

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useActivity, useAuth, useBody, useDeleteWeight, useProgress } from '../../api/hooks'
 import { WeightChart } from '../../components/diary/WeightChart'
 import { WeightSheet } from '../../components/diary/WeightSheet'
-import { PinnedBar } from '../../components/Sous'
+import { SousButton } from '../../components/SousButton'
+import { TAB_BAR_HEIGHT } from '../../components/TabBar'
 import { Button, Eyebrow, PageTitle, SectionHead, Segmented, StatStrip, mono, sans, usePagePad } from '../../components/ui'
 import { MONTHS_SHORT, addDays, dayShortMonth, mondayOf, parseISODate, syncLabel } from '../../lib/dates'
 import { formatKcal } from '../../lib/labels'
@@ -29,25 +30,12 @@ export function ProgressView({ switcher }: { switcher: ReactNode }) {
   if (!canEdit && !isLoading) return <PrivateDiary switcher={switcher} />
 
   const p = progress
-  // One headline figure — the last weigh-in — and the trend named separately in the ledger under it.
-  const lastWeigh = p && p.weights.length > 0 ? p.weights[p.weights.length - 1] : null
-  const lastDate = lastWeigh ? parseISODate(lastWeigh.date) : null
-  const ledger = p ? [
-    p.trendKg != null ? `trend ${kg(p.trendKg)} kg` : null,
-    p.weeklyChange != null ? `${signed(p.weeklyChange)} kg / tydz.` : null,
-    p.sinceStart != null ? `${signed(p.sinceStart)} kg od startu` : null,
-    p.etaWeeks != null ? `~${p.etaWeeks} tyg. do celu${p.goalKg ? ` ${String(p.goalKg).replace('.', ',')} kg` : ''}` : null,
-  ].filter(Boolean).join(' · ') : ''
-  const hero = p && (
-    <section style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
-      <Eyebrow>Ostatnie ważenie{lastDate ? ` · ${lastDate.getDate()} ${MONTHS_SHORT[lastDate.getMonth()]}` : ''}</Eyebrow>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-        <span style={{ font: mono(isMobile ? 46 : 56, 500), letterSpacing: '-0.03em', lineHeight: 1 }}>{p.currentKg != null ? kg(p.currentKg) : '—'}</span>
-        <span style={{ font: sans(isMobile ? 15 : 16), color: 'var(--text-2)' }}>kg</span>
-      </div>
-      {ledger && <span style={{ font: mono(12.5), lineHeight: 1.6, color: 'var(--text-2)' }}>{ledger}</span>}
-    </section>
-  )
+  const secondaryStats = p && [
+    { value: p.weeklyChange != null ? `${signed(p.weeklyChange)} kg` : '—', label: isMobile ? 'na tydzień' : 'tempo z trendu' },
+    { value: p.sinceStart != null ? `${signed(p.sinceStart)} kg` : '—', label: 'od startu' },
+    { value: p.etaWeeks != null ? `~${p.etaWeeks}\u00a0tyg.` : '—', label: p.goalKg ? `do celu ${String(p.goalKg).replace('.', ',')} kg` : 'do celu' },
+  ]
+  const lastWeighIn = p?.weights.length ? p.weights[p.weights.length - 1] : null
   const monday = mondayOf(new Date())
   const week = p?.week
   const rows: [string, ReactNode][] = week ? [
@@ -129,31 +117,69 @@ export function ProgressView({ switcher }: { switcher: ReactNode }) {
   )
 
   return (
-    <div style={{ ...pad, paddingBottom: isMobile ? 150 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 28 }}>
+    <div style={{ ...pad, paddingBottom: isMobile ? 120 : 64, maxWidth: isMobile ? undefined : 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 28 }}>
       <PageTitle
+        eyebrow="Plan"
         title="Postępy"
-        sub={isMobile ? undefined : 'Waga, trend i bilans tygodnia.'}
+        sub={isMobile ? undefined : 'Ostatni pomiar, trend 7-dniowy i bilans tygodnia.'}
         right={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {switcher}
             {!isMobile && <Button onClick={() => setSheet(true)}>+ Dodaj wagę</Button>}
           </div>
         }
       />
       {body && !body.configured && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderRadius: 12, background: 'var(--accent-soft)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderTop: '1px solid var(--accent)', borderBottom: '1px solid var(--accent)', background: 'var(--accent-soft)' }}>
           <span style={{ font: sans(14.5), color: 'var(--accent-soft-text)' }}>Kilka liczb o tobie i Pichci policzy dzienny budżet.</span>
           <Button size="sm" onClick={() => nav('/profile/cel')}>Ustaw cel</Button>
         </div>
       )}
-      {hero}
+      {p && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', paddingTop: 14, borderTop: '1px solid var(--rule)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Eyebrow>Ostatni pomiar{lastWeighIn ? ` · ${dayShortMonth(parseISODate(lastWeighIn.date))}` : ''}</Eyebrow>
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ font: mono(isMobile ? 48 : 60, 500), letterSpacing: '-0.04em', lineHeight: 1 }}>
+                  {p.currentKg != null ? kg(p.currentKg) : '—'}
+                </span>
+                <span style={{ font: mono(isMobile ? 15 : 17), color: 'var(--text-3)' }}>kg</span>
+              </span>
+            </div>
+            {p.trendKg != null && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'flex-start' : 'flex-end', gap: 3, paddingBottom: 4 }}>
+                <Eyebrow tone="accent">Trend 7 dni</Eyebrow>
+                <span style={{ font: mono(isMobile ? 22 : 26, 500), color: 'var(--text)' }}>{kg(p.trendKg)} kg</span>
+              </div>
+            )}
+          </div>
+          {secondaryStats && <StatStrip items={secondaryStats} stacked style={{ borderTop: '1px solid var(--border)' }} />}
+        </div>
+      )}
       {isMobile ? (
         <>
           {chart}
           {side}
-          <PinnedBar>
-            <Button size="xl" style={{ width: '100%' }} onClick={() => setSheet(true)}>+ Dodaj wagę</Button>
-          </PinnedBar>
+          <div
+            data-pinned-bar
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              bottom: `calc(${TAB_BAR_HEIGHT}px + env(safe-area-inset-bottom))`,
+              zIndex: 20,
+              padding: '10px 16px',
+              background: 'var(--bg)',
+              borderTop: '1px solid var(--rule)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <Button size="xl" style={{ flex: 1 }} onClick={() => setSheet(true)}>+ Dodaj wagę</Button>
+            <SousButton variant="bar" />
+          </div>
         </>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 48, alignItems: 'start' }}>

@@ -1,11 +1,9 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
 import { usePantry, useRecipes } from '../api/hooks'
 import type { Cuisine, DishType, RecipeDetail, RecipeInput, Source } from '../api/client'
 import { CUISINES, DIFFICULTIES, DISH_TYPES, cuisineLabel, dishTypeLabel, sourceLabel } from '../lib/labels'
 import { normalizeTag, parseOptionalDecimal, type RecipeFormIngredient } from '../lib/recipeParsing'
 import { useIsMobile } from '../lib/useIsMobile'
-import { PinnedBar } from './Sous'
 import { Button, Chip, Eyebrow, inputStyle, mono, sans } from './ui'
 
 export interface RecipeFormValues {
@@ -236,12 +234,25 @@ export function RecipeForm({
   const cols = (desktop: string) => (isMobile ? '1fr' : desktop)
   const saveButtons = (
     <div style={{ display: 'flex', gap: 10 }}>
-      <Button size={isMobile ? 'xl' : 'lg'} style={{ flex: isMobile ? 1.4 : undefined }} onClick={onSubmit} disabled={saving}>
-        {saving ? 'Zapisywanie…' : submitLabel}
-      </Button>
-      <Button variant="quiet" size={isMobile ? 'xl' : 'lg'} style={{ flex: isMobile ? 1 : undefined }} onClick={onCancel}>
-        Anuluj
-      </Button>
+      {isMobile ? (
+        <>
+          <Button variant="quiet" size="xl" style={{ flex: 0.9 }} onClick={onCancel}>
+            Anuluj
+          </Button>
+          <Button size="xl" style={{ flex: 1.5 }} onClick={onSubmit} disabled={saving}>
+            {saving ? 'Zapisywanie…' : submitLabel}
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button size="lg" onClick={onSubmit} disabled={saving}>
+            {saving ? 'Zapisywanie…' : submitLabel}
+          </Button>
+          <Button variant="quiet" size="lg" onClick={onCancel}>
+            Anuluj
+          </Button>
+        </>
+      )}
     </div>
   )
 
@@ -300,11 +311,13 @@ export function RecipeForm({
               onChange={(e) => set('servings', Number(e.target.value))}
             />
           </Field>
-          <Field label="Trudność">
-            <select style={selectStyle} value={values.difficulty} onChange={(e) => set('difficulty', e.target.value)}>
-              {DIFFICULTIES.map((d) => <option key={d}>{d}</option>)}
-            </select>
-          </Field>
+          <div style={{ gridColumn: isMobile ? '1 / -1' : undefined }}>
+            <Field label="Trudność">
+              <select style={selectStyle} value={values.difficulty} onChange={(e) => set('difficulty', e.target.value)}>
+                {DIFFICULTIES.map((d) => <option key={d}>{d}</option>)}
+              </select>
+            </Field>
+          </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: cols('repeat(3, minmax(0, 1fr))'), gap: 12 }}>
           <Field label="Rodzaj dania">
@@ -425,60 +438,109 @@ export function RecipeForm({
           {pantryNames.map((name) => <option key={name} value={name} />)}
         </datalist>
         {values.ings.map((ing, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? 'minmax(0,1fr) 96px 44px' : 'minmax(150px,.8fr) 110px minmax(200px,1.4fr) 100px auto',
-              gap: 8,
-              paddingBottom: isMobile ? 12 : 0,
-              borderBottom: isMobile ? '1px solid var(--border)' : 0,
-              alignItems: 'center',
-            }}
-          >
-            <input
-              list="pantry-ingredient-names"
-              style={inputStyle}
-              value={ing.name}
-              placeholder="produkt w spiżarni"
-              onChange={(e) => setIng(i, { name: e.target.value })}
-            />
-            <input
-              style={inputStyle}
-              value={ing.quantity}
-              placeholder="ilość"
-              onChange={(e) => setIng(i, { quantity: e.target.value })}
-            />
-            {isMobile && (
-              <RemoveBtn onClick={() => set('ings', values.ings.length > 1 ? values.ings.filter((_, j) => j !== i) : values.ings)} />
-            )}
-            <input
-              style={{ ...inputStyle, gridColumn: isMobile ? '1 / 4' : undefined }}
-              value={ing.displayText}
-              placeholder="pełny zapis, np. 2 kromki chleba na zakwasie"
-              onChange={(e) => setIng(i, { displayText: e.target.value })}
-            />
-            <input
-              style={inputStyle}
-              value={ing.alternativeGroup}
-              placeholder={isMobile ? 'grupa zamienników' : 'grupa LUB'}
-              title="Ta sama wartość łączy zamienniki, np. spód"
-              onChange={(e) => setIng(i, { alternativeGroup: e.target.value })}
-            />
-            {isMobile ? (
-              // Phones: the substitute group gets its own row, the arrows move the whole ingredient.
-              <div style={{ gridColumn: '2 / 4', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                <OrderBtn wide dir="up" disabled={i === 0} onClick={() => set('ings', move(values.ings, i, -1))} />
-                <OrderBtn wide dir="down" disabled={i === values.ings.length - 1} onClick={() => set('ings', move(values.ings, i, 1))} />
+          isMobile ? (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                paddingBottom: 16,
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Eyebrow>Składnik {i + 1}</Eyebrow>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <OrderBtn compact dir="up" disabled={i === 0} onClick={() => set('ings', move(values.ings, i, -1))} />
+                  <OrderBtn compact dir="down" disabled={i === values.ings.length - 1} onClick={() => set('ings', move(values.ings, i, 1))} />
+                  <RemoveBtn compact onClick={() => set('ings', values.ings.length > 1 ? values.ings.filter((_, j) => j !== i) : values.ings)} />
+                </div>
               </div>
-            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px', gap: 8 }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <span style={miniLabel}>Produkt</span>
+                  <input
+                    list="pantry-ingredient-names"
+                    style={inputStyle}
+                    value={ing.name}
+                    placeholder="produkt w spiżarni"
+                    onChange={(e) => setIng(i, { name: e.target.value })}
+                  />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <span style={miniLabel}>Ilość</span>
+                  <input
+                    style={inputStyle}
+                    value={ing.quantity}
+                    placeholder="np. 200 g"
+                    onChange={(e) => setIng(i, { quantity: e.target.value })}
+                  />
+                </label>
+              </div>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={miniLabel}>Pełny zapis</span>
+                <input
+                  style={inputStyle}
+                  value={ing.displayText}
+                  placeholder="np. 2 kromki chleba na zakwasie"
+                  onChange={(e) => setIng(i, { displayText: e.target.value })}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={miniLabel}>Grupa zamienników · opcjonalna</span>
+                <input
+                  style={inputStyle}
+                  value={ing.alternativeGroup}
+                  placeholder="np. spód (łączy składniki LUB)"
+                  title="Ta sama wartość łączy zamienniki, np. spód"
+                  onChange={(e) => setIng(i, { alternativeGroup: e.target.value })}
+                />
+              </label>
+            </div>
+          ) : (
+            <div
+              key={i}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(150px,.8fr) 110px minmax(200px,1.4fr) 110px auto',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <input
+                list="pantry-ingredient-names"
+                style={inputStyle}
+                value={ing.name}
+                placeholder="produkt w spiżarni"
+                onChange={(e) => setIng(i, { name: e.target.value })}
+              />
+              <input
+                style={inputStyle}
+                value={ing.quantity}
+                placeholder="ilość"
+                onChange={(e) => setIng(i, { quantity: e.target.value })}
+              />
+              <input
+                style={inputStyle}
+                value={ing.displayText}
+                placeholder="pełny zapis, np. 2 kromki chleba na zakwasie"
+                onChange={(e) => setIng(i, { displayText: e.target.value })}
+              />
+              <input
+                style={inputStyle}
+                value={ing.alternativeGroup}
+                placeholder="grupa LUB"
+                title="Ta sama wartość łączy zamienniki, np. spód"
+                onChange={(e) => setIng(i, { alternativeGroup: e.target.value })}
+              />
               <div style={{ display: 'flex', gap: 4 }}>
                 <OrderBtn dir="up" disabled={i === 0} onClick={() => set('ings', move(values.ings, i, -1))} />
                 <OrderBtn dir="down" disabled={i === values.ings.length - 1} onClick={() => set('ings', move(values.ings, i, 1))} />
                 <RemoveBtn onClick={() => set('ings', values.ings.length > 1 ? values.ings.filter((_, j) => j !== i) : values.ings)} />
               </div>
-            )}
-          </div>
+            </div>
+          )
         ))}
         <AddBtn
           label="Dodaj składnik"
@@ -488,23 +550,43 @@ export function RecipeForm({
 
       <Section title="Przygotowanie">
         {values.steps.map((s, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: isMobile ? 'wrap' : undefined }}>
-            <span style={{ flex: '0 0 22px', paddingTop: 10, fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 22, lineHeight: 1, color: 'var(--accent-text)' }}>
-              {i + 1}
-            </span>
-            <textarea
-              style={{ ...inputStyle, height: 'auto', flex: 1, minHeight: 46, padding: '12px 14px', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }}
-              value={s}
-              placeholder={`Krok ${i + 1}`}
-              onChange={(e) => set('steps', values.steps.map((x, j) => (j === i ? e.target.value : x)))}
-            />
-            {/* Phones: the step's buttons drop to their own row under the text. */}
-            <div style={{ display: 'flex', gap: isMobile ? 6 : 4, ...(isMobile ? { flex: '1 0 100%', justifyContent: 'flex-end' } : null) }}>
-              <OrderBtn wide={isMobile} dir="up" disabled={i === 0} onClick={() => set('steps', move(values.steps, i, -1))} />
-              <OrderBtn wide={isMobile} dir="down" disabled={i === values.steps.length - 1} onClick={() => set('steps', move(values.steps, i, 1))} />
-              <RemoveBtn onClick={() => set('steps', values.steps.length > 1 ? values.steps.filter((_, j) => j !== i) : values.steps)} />
+          isMobile ? (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 22, lineHeight: 1, color: 'var(--accent-text)' }}>
+                  Krok {i + 1}
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <OrderBtn compact dir="up" disabled={i === 0} onClick={() => set('steps', move(values.steps, i, -1))} />
+                  <OrderBtn compact dir="down" disabled={i === values.steps.length - 1} onClick={() => set('steps', move(values.steps, i, 1))} />
+                  <RemoveBtn compact onClick={() => set('steps', values.steps.length > 1 ? values.steps.filter((_, j) => j !== i) : values.steps)} />
+                </div>
+              </div>
+              <textarea
+                style={{ ...inputStyle, height: 'auto', minHeight: 56, padding: '10px 14px', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }}
+                value={s}
+                placeholder={`Opisz krok ${i + 1}`}
+                onChange={(e) => set('steps', values.steps.map((x, j) => (j === i ? e.target.value : x)))}
+              />
             </div>
-          </div>
+          ) : (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <span style={{ flex: '0 0 22px', paddingTop: 10, fontFamily: 'var(--serif)', fontStyle: 'italic', fontSize: 22, lineHeight: 1, color: 'var(--accent-text)' }}>
+                {i + 1}
+              </span>
+              <textarea
+                style={{ ...inputStyle, height: 'auto', flex: 1, minHeight: 46, padding: '12px 14px', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }}
+                value={s}
+                placeholder={`Krok ${i + 1}`}
+                onChange={(e) => set('steps', values.steps.map((x, j) => (j === i ? e.target.value : x)))}
+              />
+              <div style={{ display: 'flex', gap: 4 }}>
+                <OrderBtn dir="up" disabled={i === 0} onClick={() => set('steps', move(values.steps, i, -1))} />
+                <OrderBtn dir="down" disabled={i === values.steps.length - 1} onClick={() => set('steps', move(values.steps, i, 1))} />
+                <RemoveBtn onClick={() => set('steps', values.steps.length > 1 ? values.steps.filter((_, j) => j !== i) : values.steps)} />
+              </div>
+            </div>
+          )
         ))}
         <AddBtn label="Dodaj krok" onClick={() => set('steps', [...values.steps, ''])} />
       </Section>
@@ -533,9 +615,21 @@ export function RecipeForm({
       )}
 
       {isMobile ? (
-        <PinnedBar overTabBar={false} sous={false}>
+        <div
+          data-pinned-bar
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 25,
+            padding: '10px 16px calc(12px + env(safe-area-inset-bottom))',
+            background: 'var(--bg)',
+            borderTop: '1px solid var(--rule)',
+          }}
+        >
           {saveButtons}
-        </PinnedBar>
+        </div>
       ) : (
         saveButtons
       )}
@@ -586,23 +680,26 @@ function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   )
 }
 
-function OrderBtn({ dir, disabled, onClick, wide }: { dir: 'up' | 'down'; disabled: boolean; onClick: () => void; wide?: boolean }) {
+const miniLabel: CSSProperties = { font: sans(12, 500), color: 'var(--text-3)' }
+
+function OrderBtn({ dir, disabled, compact, onClick }: { dir: 'up' | 'down'; disabled: boolean; compact?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={dir === 'up' ? 'Przesuń wyżej' : 'Przesuń niżej'}
       title={dir === 'up' ? 'Przesuń wyżej' : 'Przesuń niżej'}
       style={{
-        width: wide ? 44 : 34,
-        height: 46,
-        flex: `0 0 ${wide ? 44 : 34}px`,
+        width: compact ? 38 : 34,
+        height: compact ? 38 : 46,
+        flex: `0 0 ${compact ? 38 : 34}px`,
         border: '1px solid var(--border)',
-        borderRadius: 10,
+        borderRadius: 9,
         background: 'transparent',
-        color: disabled ? 'var(--border-2)' : 'var(--text-3)',
+        color: disabled ? 'var(--border-2)' : 'var(--text)',
         cursor: disabled ? 'default' : 'pointer',
-        fontSize: 13,
+        fontSize: 14,
       }}
     >
       {dir === 'up' ? '↑' : '↓'}
@@ -610,18 +707,19 @@ function OrderBtn({ dir, disabled, onClick, wide }: { dir: 'up' | 'down'; disabl
   )
 }
 
-function RemoveBtn({ onClick }: { onClick: () => void }) {
+function RemoveBtn({ compact, onClick }: { compact?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label="Usuń"
       title="Usuń"
       style={{
-        width: 44,
-        height: 46,
-        flex: '0 0 44px',
+        width: compact ? 38 : 44,
+        height: compact ? 38 : 46,
+        flex: `0 0 ${compact ? 38 : 44}px`,
         border: '1px solid var(--border)',
-        borderRadius: 12,
+        borderRadius: compact ? 9 : 12,
         background: 'transparent',
         color: 'var(--text-3)',
         cursor: 'pointer',

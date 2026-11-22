@@ -17,7 +17,9 @@ export const rowRule: CSSProperties = { borderBottom: '1px solid var(--border)' 
  * Page title (Newsreader) with an optional mono superscript count, subtitle and right-hand slot.
  * On phones the title row also carries the ✦ Sous button, unless a pinned bar on the page has it.
  */
-export function PageTitle({ title, count, sub, right, size }: {
+export function PageTitle({ eyebrow, title, count, sub, right, size }: {
+  /** Section label above the title („Trening · Dziś”). */
+  eyebrow?: ReactNode
   title: ReactNode
   count?: number
   sub?: ReactNode
@@ -25,10 +27,12 @@ export function PageTitle({ title, count, sub, right, size }: {
   size?: number
 }) {
   const isMobile = useIsMobile()
-  const fs = size ?? (isMobile ? 44 : 64)
+  // Eyebrowed headers (section label above, Gemini's variant) use a slightly smaller title.
+  const fs = size ?? (eyebrow ? (isMobile ? 40 : 60) : isMobile ? 44 : 64)
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: isMobile ? 12 : 24, flexWrap: 'wrap' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 8 : 12, minWidth: isMobile ? 0 : 320, flex: isMobile ? '1 1 auto' : '1 1 0' }}>
+        {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <h1 style={{ margin: 0, minWidth: 0, fontFamily: 'var(--serif)', fontWeight: 500, fontSize: fs, lineHeight: isMobile ? 1 : 0.95, letterSpacing: '-0.03em' }}>
           {title}
@@ -437,7 +441,7 @@ export function StatStrip({ items, stacked, style }: { items: StatItem[]; stacke
               style={
                 s.serif
                   ? { fontFamily: 'var(--serif)', fontWeight: 500, fontSize: isMobile ? 22 : 26, lineHeight: isMobile ? '26px' : '34px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }
-                  : { font: mono(isMobile ? 22 : 28, 500) }
+                  : { font: mono(isMobile ? (items.length >= 3 ? 19 : 22) : 28, 500), lineHeight: 1.15, whiteSpace: 'nowrap' }
               }
             >
               {s.value}

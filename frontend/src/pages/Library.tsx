@@ -9,6 +9,7 @@ import { requestChat } from '../lib/chatBus'
 import { matchesRecipeQuery, normalizeTag } from '../lib/recipeParsing'
 import { FilterDropdown } from '../components/FilterDropdown'
 import { RecipeThumb, StockNote } from '../components/RecipeThumb'
+import { SousButton } from '../components/SousButton'
 import { Button, Chip, Eyebrow, PageTitle, SearchField, Sheet, UnderlineTabs, mono, sans, usePagePad } from '../components/ui'
 import { useIsMobile } from '../lib/useIsMobile'
 import { useInfiniteScroll } from '../lib/useInfiniteScroll'
@@ -177,6 +178,16 @@ export function Library() {
   const origins = useMemo(() => originOptions(recipes), [recipes])
   const originLabel = origins.find((o) => o.key === origin)?.label
   const allTags = useMemo(() => tagOptions(recipes), [recipes])
+  const availableDishTypes = useMemo(() => {
+    const map = new Map<DishType, number>()
+    for (const r of recipes) if (r.dishType) map.set(r.dishType, (map.get(r.dishType) ?? 0) + 1)
+    return DISH_TYPES.filter((d) => map.has(d) || dish === d).map((d) => ({ key: d, count: map.get(d) ?? 0 }))
+  }, [recipes, dish])
+  const availableCuisines = useMemo(() => {
+    const map = new Map<Cuisine, number>()
+    for (const r of recipes) if (r.cuisine) map.set(r.cuisine, (map.get(r.cuisine) ?? 0) + 1)
+    return CUISINES.filter((c) => map.has(c) || cuisine === c).map((c) => ({ key: c, count: map.get(c) ?? 0 }))
+  }, [recipes, cuisine])
   const proteinFloor = budgetProtein != null ? Math.min(25, budgetProtein) : 25
 
   const view = useMemo(() => {
@@ -232,6 +243,39 @@ export function Library() {
     () => [...recipes].filter((r) => r.id !== hero?.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4),
     [recipes, hero],
   )
+  // Avoid repeating the hero and 4 newest cards as row 1 of the desktop grid when browsing newest-first.
+  const featuredIds = useMemo(() => {
+    if (!browsing || isMobile || sort !== 'newest' || recipes.length <= 8) return null
+    return new Set([hero?.id, ...newest.map((r) => r.id)].filter((x): x is string => Boolean(x)))
+  }, [browsing, isMobile, sort, recipes.length, hero, newest])
+  const gridView = useMemo(
+    () => (featuredIds ? view.filter((r) => !featuredIds.has(r.id)) : view),
+    [view, featuredIds],
+  )
+  const { visibleItems: gridVisibleItems, sentinel: gridSentinel, hasMore: gridHasMore, loadMore: gridLoadMore } =
+    useInfiniteScroll(gridView, `${resetKey}:${Boolean(featuredIds)}`, `${KEY}page-grid`)
+
+  // Extra filters beyond the 3 quick chips (Ulubione / Do 30 min / Mam składniki).
+  const sheetFilterCount =
+    Number(dish !== 'all')
+    + Number(cuisine !== 'all')
+    + Number(origin !== null)
+    + Number(tag !== null)
+    + Number(timeBucket !== null && timeBucket !== '30')
+    + Number(difficulty !== 'all')
+    + Number(stock === 'almost')
+    + Number(airFryerOnly)
+
+  const activeBadges: { key: string; label: string; clear: () => void }[] = [
+    ...(dish !== 'all' ? [{ key: 'dish', label: `Kategoria: ${dishTypeLabel[dish]}`, clear: () => setDish('all') }] : []),
+    ...(cuisine !== 'all' ? [{ key: 'cuisine', label: `Kuchnia: ${cuisineLabel[cuisine]}`, clear: () => setCuisine('all') }] : []),
+    ...(origin !== null ? [{ key: 'origin', label: `Źródło: ${originLabel ?? origin}`, clear: () => setOrigin(null) }] : []),
+    ...(tag !== null ? [{ key: 'tag', label: `#${tag}`, clear: () => setTag(null) }] : []),
+    ...(timeBucket !== null && timeBucket !== '30' ? [{ key: 'time', label: TIME_BUCKETS.find((b) => b.key === timeBucket)!.label, clear: () => setTimeBucket(null) }] : []),
+    ...(difficulty !== 'all' ? [{ key: 'diff', label: `Poziom: ${difficulty}`, clear: () => setDifficulty('all') }] : []),
+    ...(stock === 'almost' ? [{ key: 'stock', label: 'Brakuje 1–2', clear: () => setStock('any') }] : []),
+    ...(airFryerOnly ? [{ key: 'af', label: 'Frytkownica', clear: () => setAirFryerOnly(false) }] : []),
+  ]
 
   function clearBudget() {
     setBudgetKcal(null)
@@ -285,59 +329,88 @@ export function Library() {
     />
   )
 
-  // Every narrowing that isn't one of the quick chips, as a removable chip — visible after the sheet closes.
-  const activeChips: { key: string; label: string; clear: () => void }[] = [
-    ...(origin !== null ? [{ key: 'origin', label: originLabel ?? 'Źródło', clear: () => setOrigin(null) }] : []),
-    ...(dish !== 'all' ? [{ key: 'dish', label: dishTypeLabel[dish], clear: () => setDish('all') }] : []),
-    ...(cuisine !== 'all' ? [{ key: 'cuisine', label: `Kuchnia: ${cuisineLabel[cuisine]}`, clear: () => setCuisine('all') }] : []),
-    ...(timeBucket !== null && timeBucket !== '30' ? [{ key: 'time', label: TIME_BUCKETS.find((b) => b.key === timeBucket)!.label, clear: () => setTimeBucket(null) }] : []),
-    ...(difficulty !== 'all' ? [{ key: 'difficulty', label: difficulty, clear: () => setDifficulty('all') }] : []),
-    ...(stock !== 'any' && stock !== 'have' ? [{ key: 'stock', label: STOCK_OPTIONS.find((o) => o.key === stock)!.label, clear: () => setStock('any') }] : []),
-    ...(tag !== null ? [{ key: 'tag', label: `#${tag}`, clear: () => setTag(null) }] : []),
-    ...(airFryerOnly ? [{ key: 'air', label: 'Frytkownica', clear: () => setAirFryerOnly(false) }] : []),
-  ]
-
-  // Desktop uses the phone's pattern: the three everyday filters as chips, the rest in one sheet.
   const desktopFilters = (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
-      <Chip active={toolbarCount > 0} onClick={() => setFilterSheet(true)}>
-        Filtry{toolbarCount > 0 ? ` · ${toolbarCount}` : ''}
-      </Chip>
-      <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>
-        ★ Ulubione{counts.favorites > 0 && !favoriteOnly ? ` (${counts.favorites})` : ''}
-      </Chip>
-      <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
-      <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
-      {activeChips.map((c) => (
-        <Chip key={c.key} active onClick={c.clear} title="Usuń filtr">{c.label} ✕</Chip>
-      ))}
-      {toolbarCount > 0 && (
-        <button type="button" onClick={clearToolbarFilters} style={{ border: 0, background: 'transparent', cursor: 'pointer', font: sans(13, 600), color: 'var(--accent-text)', padding: '7px 4px' }}>
-          Wyczyść
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>
+          ★ Ulubione{counts.favorites > 0 && !favoriteOnly ? ` (${counts.favorites})` : ''}{favoriteOnly && ' ✕'}
+        </Chip>
+        <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>
+          Do 30 min{timeBucket === '30' && ' ✕'}
+        </Chip>
+        <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>
+          Mam składniki{stock === 'have' && ' ✕'}
+        </Chip>
+        <Button
+          variant={sheetFilterCount > 0 ? 'dark' : 'outline'}
+          size="sm"
+          style={{ height: 34, font: sans(13, 600) }}
+          onClick={() => setFilterSheet(true)}
+        >
+          Filtry{sheetFilterCount > 0 ? ` · ${sheetFilterCount}` : ''}
+        </Button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ font: mono(11.5), color: 'var(--text-3)' }}>Sortuj:</span>
+        <FilterDropdown
+          {...menu('sort')}
+          muted
+          align="right"
+          active={false}
+          label={budgetKcal !== null ? 'Dopasowanie do budżetu' : SORT_OPTIONS.find((o) => o.key === sort)!.label}
+          options={SORT_OPTIONS.map((o) => ({ label: o.label, selected: sort === o.key && budgetKcal === null, onSelect: () => { clearBudget(); pick(setSort)(o.key) } }))}
+        />
+      </div>
+    </div>
+  )
+
+  const activeFilterChips = activeBadges.length > 0 && (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {activeBadges.map((b) => (
+        <button
+          key={b.key}
+          type="button"
+          onClick={b.clear}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '5px 11px',
+            borderRadius: 999,
+            border: '1px solid var(--accent-soft-text)',
+            background: 'var(--accent-soft)',
+            color: 'var(--accent-soft-text)',
+            font: sans(12.5, 600),
+            cursor: 'pointer',
+          }}
+        >
+          {b.label}
+          <span aria-hidden style={{ fontSize: 11 }}>✕</span>
         </button>
-      )}
-      <FilterDropdown
-        {...menu('sort')}
-        muted
-        align="right"
-        active={false}
-        label={budgetKcal !== null ? 'Dopasowanie do budżetu' : SORT_OPTIONS.find((o) => o.key === sort)!.label}
-        options={SORT_OPTIONS.map((o) => ({ label: o.label, selected: sort === o.key && budgetKcal === null, onSelect: () => { clearBudget(); pick(setSort)(o.key) } }))}
-      />
+      ))}
+      <button
+        type="button"
+        onClick={clearToolbarFilters}
+        style={{ border: 0, background: 'transparent', cursor: 'pointer', font: sans(13, 600), color: 'var(--text-2)', padding: '4px 6px' }}
+      >
+        Wyczyść filtry
+      </button>
     </div>
   )
 
   const mobileFilters = (
     <div className="no-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '0 -20px', padding: '0 20px' }}>
-      <Chip active={toolbarCount > 0} onClick={() => setFilterSheet(true)}>
+      <Button
+        variant={toolbarCount > 0 ? 'dark' : 'outline'}
+        size="sm"
+        style={{ height: 34, font: sans(13, 600) }}
+        onClick={() => setFilterSheet(true)}
+      >
         Filtry{toolbarCount > 0 ? ` · ${toolbarCount}` : ''}
-      </Chip>
+      </Button>
       <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>★ Ulubione</Chip>
       <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
       <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
-      {activeChips.map((c) => (
-        <Chip key={c.key} active onClick={c.clear} title="Usuń filtr">{c.label} ✕</Chip>
-      ))}
       <Chip onClick={() => setFilterSheet(true)}>{SORT_OPTIONS.find((o) => o.key === sort)!.label} <span aria-hidden>▾</span></Chip>
     </div>
   )
@@ -402,21 +475,24 @@ export function Library() {
 
   const tiles = (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-      <Tile dark eyebrow="Nie wiem, co zjeść" title="Losuj obiad →" onClick={() => nav('/random')} />
-      <Tile eyebrow="Bez zakupów" title="Z tego, co mam →" onClick={() => setStock('have')} />
+      <Tile dark eyebrow="Nie wiem, co zjeść" title={'Losuj obiad\u00A0→'} onClick={() => nav('/random')} />
+      <Tile eyebrow="Bez zakupów" title={'Z tego, co\u00A0mam\u00A0→'} onClick={() => setStock('have')} />
     </div>
   )
 
   const searchPlaceholder = 'Szukaj po nazwie, składniku, tagu lub źródle'
 
   return (
-    <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 28 }}>
+    <div style={{ ...pad, maxWidth: 1240, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 16 : 24 }}>
       <PageTitle
         title="Przepisy"
         count={counts.all || undefined}
         right={
           isMobile ? (
-            canEdit && <Button variant="outline" size="sm" onClick={() => nav('/add')}>+ Dodaj</Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {canEdit && <Button variant="outline" size="sm" onClick={() => nav('/add')}>+ Dodaj</Button>}
+              <SousButton variant="header" />
+            </div>
           ) : (
             <div style={{ display: 'flex', gap: 10 }}>
               <SearchField value={query} onChange={setQuery} placeholder={searchPlaceholder} style={{ width: 380 }} />
@@ -436,12 +512,14 @@ export function Library() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tabs}
             {mobileFilters}
+            {activeFilterChips}
           </div>
         </>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 24, rowGap: 4, borderBottom: '1px solid var(--rule)' }}>
-          {tabs}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ borderBottom: '1px solid var(--rule)' }}>{tabs}</div>
           {desktopFilters}
+          {activeFilterChips}
         </div>
       )}
 
@@ -493,17 +571,19 @@ export function Library() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20, borderTop: browsing ? '1px solid var(--rule)' : undefined, paddingTop: browsing ? 20 : 0 }}>
-              {browsing && <Eyebrow>Wszystkie przepisy · {view.length}</Eyebrow>}
+              {browsing && <Eyebrow>{featuredIds ? `Pozostałe przepisy · ${gridView.length}` : `Wszystkie przepisy · ${view.length}`}</Eyebrow>}
               {!browsing && <Eyebrow>{view.length} z {counts.all}</Eyebrow>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', columnGap: 24, rowGap: 32 }}>
-                {visibleItems.map((r) => <GridCard key={r.id} r={r} shortfall={shortfall} showProtein={budgetKcal !== null} onOpen={() => open(r)} onToggleFav={toggleFav} />)}
+                {gridVisibleItems.map((r) => <GridCard key={r.id} r={r} shortfall={shortfall} showProtein={budgetKcal !== null} onOpen={() => open(r)} onToggleFav={toggleFav} />)}
               </div>
             </div>
           )}
 
-          <div ref={sentinel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 0', font: mono(12), color: 'var(--text-3)' }}>
-            <span role="status">Wyświetlono {visibleItems.length} z {view.length} przepisów</span>
-            {hasMore && <Chip onClick={loadMore}>Pokaż więcej</Chip>}
+          <div ref={isMobile ? sentinel : gridSentinel} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 0', font: mono(12), color: 'var(--text-3)' }}>
+            <span role="status">
+              Wyświetlono {isMobile ? visibleItems.length : gridVisibleItems.length} z {isMobile ? view.length : gridView.length} przepisów
+            </span>
+            {(isMobile ? hasMore : gridHasMore) && <Chip onClick={isMobile ? loadMore : gridLoadMore}>Pokaż więcej</Chip>}
           </div>
         </>
       )}
@@ -512,39 +592,49 @@ export function Library() {
         open={filterSheet}
         onClose={() => setFilterSheet(false)}
         title="Filtry"
-        width={560}
+        width={540}
         footer={
-          <>
-            <Button variant="outline" size="xl" style={{ flex: 1 }} onClick={clearToolbarFilters}>Wyczyść</Button>
-            <Button size="xl" style={{ flex: 1.4 }} onClick={() => setFilterSheet(false)}>Pokaż {view.length}</Button>
-          </>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button variant="outline" size={isMobile ? 'xl' : 'lg'} style={{ flex: 1 }} onClick={clearToolbarFilters}>Wyczyść</Button>
+            <Button size={isMobile ? 'xl' : 'lg'} style={{ flex: 1.4 }} onClick={() => setFilterSheet(false)}>Pokaż {view.length}</Button>
+          </div>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <ChipGroup label="Szybkie">
             <Chip active={favoriteOnly} onClick={() => setFavoriteOnly(!favoriteOnly)}>★ Ulubione</Chip>
-            <Chip active={timeBucket === '30'} onClick={() => setTimeBucket(timeBucket === '30' ? null : '30')}>Do 30 min</Chip>
-            <Chip active={stock === 'have'} onClick={() => setStock(stock === 'have' ? 'any' : 'have')}>Mam składniki</Chip>
             <Chip active={airFryerOnly} onClick={() => setAirFryerOnly(!airFryerOnly)}>Frytkownica</Chip>
           </ChipGroup>
+          <ChipGroup label="Pochodzenie">
+            <Chip active={filter === 'all'} onClick={() => setFilter('all')}>Wszystkie · {counts.all}</Chip>
+            <Chip active={filter === 'ai'} onClick={() => setFilter('ai')}>{sourceLabel.ai} · {counts.ai}</Chip>
+            <Chip active={filter === 'web'} onClick={() => setFilter('web')}>{sourceLabel.web} · {counts.web}</Chip>
+            <Chip active={filter === 'manual'} onClick={() => setFilter('manual')}>{sourceLabel.manual} · {counts.manual}</Chip>
+          </ChipGroup>
+          {origins.length > 0 && (
+            <ChipGroup label="Książka lub strona">
+              <Chip active={origin === null} onClick={() => setOrigin(null)}>Wszystkie</Chip>
+              {origins.map((o) => <Chip key={o.key} active={origin === o.key} onClick={() => setOrigin(o.key)}>{o.label} · {o.count}</Chip>)}
+            </ChipGroup>
+          )}
+          {availableDishTypes.length > 0 && (
+            <ChipGroup label="Kategoria">
+              <Chip active={dish === 'all'} onClick={() => setDish('all')}>Wszystkie</Chip>
+              {availableDishTypes.map((d) => <Chip key={d.key} active={dish === d.key} onClick={() => setDish(d.key)}>{dishTypeLabel[d.key]} · {d.count}</Chip>)}
+            </ChipGroup>
+          )}
+          {availableCuisines.length > 0 && (
+            <ChipGroup label="Kuchnia">
+              <Chip active={cuisine === 'all'} onClick={() => setCuisine('all')}>Wszystkie</Chip>
+              {availableCuisines.map((c) => <Chip key={c.key} active={cuisine === c.key} onClick={() => setCuisine(c.key)}>{cuisineLabel[c.key]} · {c.count}</Chip>)}
+            </ChipGroup>
+          )}
           {allTags.length > 0 && (
             <ChipGroup label="Tagi">
               <Chip active={tag === null} onClick={() => setTag(null)}>Wszystkie</Chip>
               {allTags.map((t) => <Chip key={t.tag} active={tag === t.tag} onClick={() => setTag(t.tag)}>#{t.tag} · {t.count}</Chip>)}
             </ChipGroup>
           )}
-          <ChipGroup label="Kategoria">
-            <Chip active={dish === 'all'} onClick={() => setDish('all')}>Wszystkie</Chip>
-            {DISH_TYPES.map((d) => <Chip key={d} active={dish === d} onClick={() => setDish(d)}>{dishTypeLabel[d]}</Chip>)}
-          </ChipGroup>
-          <ChipGroup label="Kuchnia">
-            <Chip active={cuisine === 'all'} onClick={() => setCuisine('all')}>Wszystkie</Chip>
-            {CUISINES.map((c) => <Chip key={c} active={cuisine === c} onClick={() => setCuisine(c)}>{cuisineLabel[c]}</Chip>)}
-          </ChipGroup>
-          <ChipGroup label="Książka lub strona">
-            <Chip active={origin === null} onClick={() => setOrigin(null)}>Wszystkie</Chip>
-            {origins.map((o) => <Chip key={o.key} active={origin === o.key} onClick={() => setOrigin(o.key)}>{o.label} · {o.count}</Chip>)}
-          </ChipGroup>
           <ChipGroup label="Czas">
             <Chip active={timeBucket === null} onClick={() => setTimeBucket(null)}>Dowolny</Chip>
             {TIME_BUCKETS.map((b) => <Chip key={b.key} active={timeBucket === b.key} onClick={() => setTimeBucket(b.key)}>{b.label}</Chip>)}
@@ -556,11 +646,9 @@ export function Library() {
           <ChipGroup label="Składniki">
             {STOCK_OPTIONS.map((o) => <Chip key={o.key} active={stock === o.key} onClick={() => setStock(o.key)}>{o.label}</Chip>)}
           </ChipGroup>
-          {isMobile && (
-            <ChipGroup label="Sortowanie">
-              {SORT_OPTIONS.map((o) => <Chip key={o.key} active={sort === o.key} onClick={() => setSort(o.key)}>{o.label}</Chip>)}
-            </ChipGroup>
-          )}
+          <ChipGroup label="Sortowanie">
+            {SORT_OPTIONS.map((o) => <Chip key={o.key} active={sort === o.key} onClick={() => setSort(o.key)}>{o.label}</Chip>)}
+          </ChipGroup>
         </div>
       </Sheet>
     </div>
@@ -599,7 +687,7 @@ function Tile({ eyebrow, title, dark, onClick }: { eyebrow: string; title: strin
       }}
     >
       <Eyebrow tone={dark ? 'light' : 'muted'} style={dark ? undefined : { color: 'var(--accent-soft-text)' }}>{eyebrow}</Eyebrow>
-      <span style={{ fontFamily: 'var(--serif)', fontSize: isMobile ? 22 : 24, lineHeight: 1.05 }}>{title}</span>
+      <span style={{ fontFamily: 'var(--serif)', fontSize: isMobile ? 20 : 24, lineHeight: 1.08 }}>{title}</span>
     </button>
   )
 }

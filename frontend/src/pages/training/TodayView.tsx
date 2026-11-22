@@ -7,6 +7,7 @@ import { DayCard, dayDateLabel } from '../../components/training/DayCard'
 import { ExerciseSheet } from '../../components/training/ExerciseSheet'
 import { PlanCta } from '../../components/training/PlanCta'
 import { TrainingNav } from '../../components/training/TrainingNav'
+import { SousButton } from '../../components/SousButton'
 import { Button, Eyebrow, PageTitle, mono, sans, usePagePad } from '../../components/ui'
 import { DAY_NAMES_PL } from '../../lib/labels'
 import { dayShortMonth, parseISODate, todayIso } from '../../lib/dates'
@@ -116,19 +117,26 @@ export function TodayView() {
   const todayDayDone = data?.day
     ? completedToday.find((s) => s.programDayId === data.day!.id) ?? (data.day.completedSessionId ? { id: data.day.completedSessionId } : null)
     : null
+  const activeIsToday = Boolean(active && data?.day && active.programDayId === data.day.id)
 
   return (
-    <div style={{ ...pad, maxWidth: 820, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 26 }}>
-      <TrainingNav />
+    <div style={{ ...pad, maxWidth: 1080, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 26 }}>
       <PageTitle
+        eyebrow="Trening · Dziś"
         title={title}
         sub={data?.program ? `${data.program.name}${data.week ? ` · tydzień ${data.week} z ${data.program.weeks}` : ''}` : undefined}
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <TrainingNav />
+            <SousButton variant="header" />
+          </div>
+        }
       />
 
       {isLoading && <p style={{ font: sans(14), color: 'var(--text-3)' }}>Ładuję…</p>}
 
-      {/* Active live session resume banner */}
-      {active && !(data?.status === 'scheduled' && data.day && active.programDayId === data.day.id) && (
+      {/* Active live session resume band — the single "Wznów trening" CTA on this screen */}
+      {active && (
         <div
           style={{
             display: 'flex',
@@ -136,9 +144,9 @@ export function TodayView() {
             justifyContent: 'space-between',
             gap: 12,
             padding: '14px 16px',
-            background: 'var(--accent-soft)',
             borderTop: '1px solid var(--accent)',
             borderBottom: '1px solid var(--accent)',
+            background: 'var(--accent-soft)',
             flexWrap: 'wrap',
           }}
         >
@@ -159,8 +167,13 @@ export function TodayView() {
           {completedToday.map((s) => (
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ font: sans(15, 600), color: 'var(--sage-text)' }}>
-                  ✓ {s.name}{s.prCount > 0 ? ` · ${s.prCount} PR` : ''}
+                <span style={{ font: sans(15, 600), color: 'var(--sage-text)', display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span>✓ {s.name}</span>
+                  {s.prCount > 0 && (
+                    <span style={{ font: mono(11, 600), padding: '1px 7px', borderRadius: 6, background: 'var(--gold-soft)', color: 'var(--gold-text)', border: '1px solid var(--gold)' }}>
+                      ★ {s.prCount} PR
+                    </span>
+                  )}
                 </span>
                 <span style={{ font: mono(12, 500), color: 'var(--text-2)' }}>
                   {[
@@ -180,13 +193,13 @@ export function TodayView() {
       {data?.status === 'finished' && <PlanCta finished />}
 
       {data?.status === 'scheduled' && data.day && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
           <DayCard
             day={data.day}
-            eyebrow={active?.programDayId === data.day.id ? `DZIŚ · W TOKU ${active.completedSets}/${active.totalSets}` : todayDayDone ? 'DZIŚ · UKOŃCZONO ✓' : 'DZIŚ'}
+            eyebrow={activeIsToday ? 'DZIŚ · W TOKU' : todayDayDone ? 'DZIŚ · UKOŃCZONO ✓' : 'DZIŚ'}
             onOpenExercise={setExercise}
             actions={
-              !isMobile && (
+              !isMobile && !activeIsToday && (
                 data.day.kind === 'follow-along' ? (
                   <Button
                     size="sm"
@@ -203,13 +216,13 @@ export function TodayView() {
                     onClick={() => handleStartDay(data.day!)}
                     disabled={startSession.isPending}
                   >
-                    {active?.programDayId === data.day.id ? 'Wznów trening' : todayDayDone ? 'Trenuj ponownie' : 'Rozpocznij trening'}
+                    {todayDayDone ? 'Powtórz trening' : 'Rozpocznij trening'}
                   </Button>
                 )
               )
             }
           />
-          {isMobile && (
+          {isMobile && !activeIsToday && (
             data.day.kind === 'follow-along' ? (
               <Button
                 size="lg"
@@ -228,7 +241,7 @@ export function TodayView() {
                 onClick={() => handleStartDay(data.day!)}
                 disabled={startSession.isPending}
               >
-                {active?.programDayId === data.day.id ? 'Wznów trening' : todayDayDone ? 'Trenuj ponownie' : 'Rozpocznij trening'}
+                {todayDayDone ? 'Powtórz trening' : 'Rozpocznij trening'}
               </Button>
             )
           )}
@@ -261,7 +274,7 @@ export function TodayView() {
         )}
         {data?.program && (
           <Button variant="text" style={{ color: 'var(--accent-text)' }} onClick={() => nav('/trening/plan')}>
-            Cały plan →
+            Cały program →
           </Button>
         )}
         <Button variant="text" style={{ color: 'var(--text-2)' }} onClick={() => nav('/trening/historia')}>
