@@ -87,6 +87,23 @@ for (const id of ['zm-010', 'zm-011', 'zm-012', 'zm-024', 'za-008', 'sa-027']) {
     'spoken English quotes belong in the explanation; prompts and choices use Polish')
 }
 
+// Validate fixed challenge sets in src/zmierzch/sets.ts: every referenced question id must exist
+// and appear at most once per set.
+const setsSrc = readFileSync(fileURLToPath(new URL('../src/zmierzch/sets.ts', import.meta.url)), 'utf8')
+const setBlocks = [...setsSrc.matchAll(/slug:\s*'([^']+)'[\s\S]*?scope:\s*'([^']+)'[\s\S]*?questionIds:\s*\[([\s\S]*?)\]/g)]
+if (setBlocks.length === 0) errors.push('sets.ts: no quiz sets found')
+for (const [, slug, scope, body] of setBlocks) {
+  if (scope !== `set:${slug}`) errors.push(`sets.ts (${slug}): scope "${scope}" must equal "set:${slug}"`)
+  const setIds = [...body.matchAll(/'([^']+)'/g)].map((m) => m[1])
+  if (setIds.length === 0) errors.push(`sets.ts (${slug}): empty questionIds`)
+  const seenInSet = new Set()
+  for (const id of setIds) {
+    if (!questions.has(id)) errors.push(`sets.ts (${slug}): unknown question id "${id}"`)
+    if (seenInSet.has(id)) errors.push(`sets.ts (${slug}): duplicate question id "${id}"`)
+    seenInSet.add(id)
+  }
+}
+
 if (errors.length) {
   console.error(errors.join('\n'))
   console.error(`\n${errors.length} problem(s) in ${total} questions`)

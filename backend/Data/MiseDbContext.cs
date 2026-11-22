@@ -66,6 +66,8 @@ public class MiseDbContext : DbContext
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<InviteCode> InviteCodes => Set<InviteCode>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<ZmierzchPlayer> ZmierzchPlayers => Set<ZmierzchPlayer>();
+    public DbSet<ZmierzchAttempt> ZmierzchAttempts => Set<ZmierzchAttempt>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -479,6 +481,23 @@ public class MiseDbContext : DbContext
             e.HasIndex(x => new { x.SessionId, x.ExerciseOrder, x.SetNumber });
             e.HasIndex(x => x.ExerciseId);
             e.HasOne(x => x.Exercise).WithMany().HasForeignKey(x => x.ExerciseId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<ZmierzchPlayer>(e =>
+        {
+            e.Property(x => x.UserKey).HasMaxLength(200);
+            e.Property(x => x.DisplayName).HasMaxLength(80);
+            e.Property(x => x.Picture).HasMaxLength(500);
+            e.HasIndex(x => x.UserKey).IsUnique();
+            e.HasMany(x => x.Attempts).WithOne(a => a.Player!).HasForeignKey(a => a.PlayerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ZmierzchAttempt>(e =>
+        {
+            e.Property(x => x.Scope).HasMaxLength(40);
+            e.HasIndex(x => new { x.Scope, x.PlayerId });
+            e.HasIndex(x => new { x.PlayerId, x.CompletedAt });
         });
 
         ConfigureTenancy(b);

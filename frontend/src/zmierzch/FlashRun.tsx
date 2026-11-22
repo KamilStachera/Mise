@@ -97,7 +97,7 @@ export function FlashRun({ questions, onGrade, onClose, onRetry }: {
       >
         <Eyebrow>
           {PART_LABEL[q.part]} · {SOURCE_LABEL[q.source]} · {CATEGORY_LABEL[q.category]}
-          {q.difficulty === 3 ? ' · trudne' : ''}
+          {q.difficulty === 1 ? ' · łatwe' : q.difficulty === 3 ? ' · trudne' : ''}
         </Eyebrow>
         <div style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24, lineHeight: 1.25, textWrap: 'pretty' as never }}>{q.q}</div>
         {revealed && (

@@ -1,0 +1,872 @@
+[
+  {
+    "id": "zm-041",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jaki zawód wykonuje Charlie Swan, ojciec Belli?",
+    "answer": "Jest komendantem policji w Forks",
+    "wrong": [
+      "Jest leśniczym w rezerwacie",
+      "Prowadzi warsztat samochodowy",
+      "Jest lekarzem w miejscowym szpitalu"
+    ],
+    "note": "Charlie kieruje niewielkim komisariatem w Forks, dzięki czemu Bella często słyszy o tajemniczych atakach „zwierząt” w okolicy."
+  },
+  {
+    "id": "zm-042",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jaki zawód wykonuje Carlisle Cullen?",
+    "answer": "Jest lekarzem w szpitalu w Forks",
+    "wrong": [
+      "Jest wykładowcą historii",
+      "Jest architektem",
+      "Jest adwokatem"
+    ],
+    "note": "Przez stulecia ćwiczył samokontrolę, aż zapach ludzkiej krwi przestał go kusić — dzięki temu może ratować pacjentów w szpitalu."
+  },
+  {
+    "id": "zm-043",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Od kogo Charlie kupuje stary czerwony pickup dla Belli?",
+    "answer": "Od Billy'ego Blacka, ojca Jacoba",
+    "wrong": [
+      "Od Carlisle'a Cullena",
+      "Od rodziców Mike'a Newtona",
+      "Od Harry'ego Clearwatera"
+    ],
+    "note": "To właśnie ten prezent na powitanie w Forks sprowadza Billy'ego i Jacoba pod dom Swanów już na początku historii."
+  },
+  {
+    "id": "zm-044",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jaką roślinę doniczkową Bella zabiera ze sobą z Arizony do deszczowego Forks w pierwszym filmie?",
+    "answer": "Małego kaktusa",
+    "wrong": [
+      "Storczyka",
+      "Paproć",
+      "Bonsai"
+    ],
+    "note": "Kaktus jest filmowym symbolem tego, jak bardzo Bella z słonecznego Phoenix nie pasuje do mokrego, zielonego Forks."
+  },
+  {
+    "id": "zm-045",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jak ma na imię matka Belli?",
+    "answer": "Renée",
+    "wrong": [
+      "Esme",
+      "Sue",
+      "Sarah"
+    ],
+    "note": "Renée Dwyer wyszła ponownie za mąż za młodszego od siebie baseballistę Phila, a Bella przeprowadziła się do ojca, żeby mogli razem podróżować."
+  },
+  {
+    "id": "zm-046",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Na jakim instrumencie gra Edward Cullen?",
+    "answer": "Na fortepianie",
+    "wrong": [
+      "Na skrzypcach",
+      "Na wiolonczeli",
+      "Na gitarze klasycznej"
+    ],
+    "note": "W pierwszym filmie Edward gra dla Belli „Kołysankę Belli” („Bella's Lullaby”) na fortepianie w domu Cullenów."
+  },
+  {
+    "id": "zm-047",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Dlaczego Edward ucieka z klasy tuż po pierwszej lekcji biologii z Bellą?",
+    "answer": "Zapach jej krwi jest dla niego tak kuszący, że ledwo powstrzymuje się przed atakiem",
+    "wrong": [
+      "Rozpoznaje w niej dawno zaginioną ludzką krewną",
+      "Nie znosi zapachu formaliny z pracowni",
+      "Słyszy w jej myślach, że już wie, czym są Cullenowie"
+    ],
+    "note": "Krew Belli pachnie dla Edwarda silniej niż krew kogokolwiek innego — później Aro określa ją jako „la tua cantante”."
+  },
+  {
+    "id": "zm-048",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jak Edward ratuje Bellę przed przemianą w wampira po tym, jak James gryzie ją w studiu baletowym?",
+    "answer": "Wysysa jad z jej rany",
+    "wrong": [
+      "Podaje jej antidotum przygotowane przez Carlisle'a",
+      "Wypala ranę ogniem",
+      "Przetacza jej krew w szpitalu w Phoenix"
+    ],
+    "note": "To jedna z najtrudniejszych prób samokontroli Edwarda — musi posmakować krwi Belli i zatrzymać się w porę, zanim ją zabije."
+  },
+  {
+    "id": "zm-049",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Z jakim urazem Bella idzie z Edwardem na szkolny bal pod koniec „Zmierzchu”?",
+    "answer": "Ze złamaną nogą",
+    "wrong": [
+      "Ze złamanym obojczykiem",
+      "Z ręką na temblaku po wypadku na parkingu",
+      "Z opatrunkiem na oku"
+    ],
+    "note": "James złamał Belli nogę podczas walki w studiu baletowym — na balu Edward tańczy z nią, stawiając jej zdrową i unieruchomioną stopę na swoich butach."
+  },
+  {
+    "id": "zm-050",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jaką marką samochodu Edward najczęściej jeździ w „Zmierzchu”?",
+    "answer": "Srebrnym Volvo",
+    "wrong": [
+      "Czarnym Audi",
+      "Czerwonym BMW",
+      "Białym Mercedesem"
+    ],
+    "note": "W powieści Edward jeździ srebrnym Volvo S60R, a w pierwszym filmie — srebrnym hatchbackiem Volvo C30."
+  },
+  {
+    "id": "zm-051",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "cytaty",
+    "difficulty": 1,
+    "q": "W jakiej scenie pierwszego filmu Edward mówi do Belli słowa tłumaczone jako „To jest skóra zabójcy, Bello”?",
+    "answer": "Gdy wychodzi na słońce w lesie i jego skóra zaczyna lśnić",
+    "wrong": [
+      "Gdy ratuje ją przed furgonetką Tylera na parkingu",
+      "Gdy opowiada jej o swoim okresie buntu w Chicago",
+      "Gdy wysysa jad z jej ręki w studiu baletowym"
+    ],
+    "note": "W oryginale brzmi to „This is the skin of a killer, Bella” (w pytaniu podano pomocnicze tłumaczenie). W książce nie ma tej konkretnej kwestii."
+  },
+  {
+    "id": "kn-038",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jak ma na imię ojciec Jacoba Blacka?",
+    "answer": "Billy",
+    "wrong": [
+      "Harry",
+      "Sam",
+      "Quil"
+    ],
+    "note": "Billy Black jest jednym ze starszych plemienia Quileutów i bliskim przyjacielem Charliego Swana."
+  },
+  {
+    "id": "kn-039",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jaką wyraźną zmianę w wyglądzie przechodzi Jacob po przystąpieniu do watahy w „Księżycu w nowiu”?",
+    "answer": "Ścina długie włosy na krótko",
+    "wrong": [
+      "Zapuszcza brodę",
+      "Przestaje nosić okulary",
+      "Farbuje włosy na jasny blond"
+    ],
+    "note": "Krótkie włosy i charakterystyczny tatuaż na ramieniu to znaki rozpoznawcze członków watahy z La Push."
+  },
+  {
+    "id": "kn-040",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Dlaczego Bella decyduje się na niebezpieczny skok z klifu w La Push?",
+    "answer": "Chce poczuć przypływ adrenaliny, by znowu wywołać halucynację Edwarda",
+    "wrong": [
+      "Zakłada się z chłopakami z La Push o naprawę pickupa",
+      "Ucieka przed ścigającym ją Laurentem",
+      "Próbuje dogonić Jacoba pływającego w zatoce"
+    ],
+    "note": "Po wyjeździe Edwarda Bella odkrywa, że ryzyko przywołuje jego ostrzegający głos (a w filmie także zarys postaci)."
+  },
+  {
+    "id": "kn-041",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Dlaczego Alice uważa, że Bella utonęła po skoku z klifu w „Księżycu w nowiu”?",
+    "answer": "W swoich wizjach nie widzi wilków, więc nie zobaczyła Jacoba ratującego Bellę z wody",
+    "wrong": [
+      "Jacob specjalnie zakłócił jej wizję zaklęciem Quileutów",
+      "Wizja urwała się, bo Bella miała na sobie srebrny medalion",
+      "Edward zablokował Alice dostęp do przyszłości Forks"
+    ],
+    "note": "Alice zobaczyła tylko skok Belli do wzburzonego oceanu, po czym obraz zniknął, gdy w pobliżu pojawił się Jacob."
+  },
+  {
+    "id": "kn-042",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jak nazywa się potężny włoski klan wampirów stojący na straży prawa w świecie sagi?",
+    "answer": "Volturi",
+    "wrong": [
+      "Denali",
+      "Quileuci",
+      "Rumuńscy"
+    ],
+    "note": "Volturi rządzą ze starożytnej Volterry i utrzymują porządek w świecie wampirów od tysięcy lat."
+  },
+  {
+    "id": "kn-043",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jaki nadprzyrodzony dar ma Aro, główny przywódca Volturi?",
+    "answer": "Przez dotyk poznaje każdą myśl, jaką dana osoba kiedykolwiek miała",
+    "wrong": [
+      "Potrafi wywoływać iluzję paraliżującego bólu",
+      "Odbiera ofiarom wzrok, słuch i czucie",
+      "Widzi przyszłość z kilkutygodniowym wyprzedzeniem"
+    ],
+    "note": "Dar Aro jest potężniejszy niż telepatia Edwarda — nie słyszy myśli na odległość, ale jedno uściśnięcie dłoni odsłania przed nim całe życie drugiej osoby."
+  },
+  {
+    "id": "kn-044",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jakie jest najważniejsze prawo wampirów egzekwowane przez Volturi?",
+    "answer": "Utrzymanie istnienia wampirów w tajemnicy przed ludźmi",
+    "wrong": [
+      "Zakaz polowania w miastach powyżej stu tysięcy mieszkańców",
+      "Obowiązek picia wyłącznie krwi zwierząt",
+      "Zakaz opuszczania Europy bez zgody Volterry"
+    ],
+    "note": "Właśnie dlatego Edward chce wyjść w samo południe na zatłoczony plac w Volterze — ujawnienie lśniącej skóry zmusiłoby Volturi do jego egzekucji."
+  },
+  {
+    "id": "kn-045",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jak Charlie karze Bellę za nagłe zniknięcie z Alice do Włoch?",
+    "answer": "Daje jej szlaban i ogranicza wyjścia do szkoły oraz pracy",
+    "wrong": [
+      "Odsyła ją natychmiast z powrotem do Renée na Florydę",
+      "Odbiera jej na rok czerwonego pickupa",
+      "Przenosi ją do szkoły w Port Angeles"
+    ],
+    "note": "Charlie jest wściekły, że Bella pojechała za Edwardem po tym, w jak złym stanie była po jego odejściu."
+  },
+  {
+    "id": "kn-046",
+    "part": "ksiezyc",
+    "source": "film",
+    "category": "cytaty",
+    "difficulty": 1,
+    "q": "Kto w filmowym „Księżycu w nowiu” wita Bellę słynną, często cytowaną kwestią kończącą się hiszpańskim słowem „loca”?",
+    "answer": "Jacob Black",
+    "wrong": [
+      "Mike Newton",
+      "Emmett Cullen",
+      "Eric Yorkie"
+    ],
+    "note": "W oryginale Jacob mówi w deszczu „Bella! Where the hell have you been, loca?” (pomocnicze tłumaczenie: „Bella, gdzie ty się podziewałaś, wariatko?”)."
+  },
+  {
+    "id": "za-036",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Dlaczego Sam Uley rozstał się z Leah Clearwater?",
+    "answer": "Wpoił się w jej kuzynkę, Emily Young",
+    "wrong": [
+      "Leah wyjechała na studia do Seattle",
+      "Rada plemienia zakazała mu związku z inną zmiennokształtną",
+      "Zakochał się w dziewczynie spoza rezerwatu"
+    ],
+    "note": "Złamane serce Leah i przymus słyszenia myśli Sama w telepatycznej sieci watahy są głównym źródłem jej goryczy w sadze."
+  },
+  {
+    "id": "za-037",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jak ma na imię młodszy brat Leah Clearwater, który również należy do watahy?",
+    "answer": "Seth",
+    "wrong": [
+      "Embry",
+      "Quil",
+      "Jared"
+    ],
+    "note": "Seth jest jednym z najmłodszych i najbardziej pogodnych wilków w watasze — jako jedyny od razu zaprzyjaźnia się z Edwardem."
+  },
+  {
+    "id": "za-038",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jak Jacob pomaga zamarzającej Belli podczas śnieżycy w namiocie w górach?",
+    "answer": "Wchodzi z nią do śpiwora, by ogrzać ją wysoką temperaturą swojego ciała",
+    "wrong": [
+      "Rozpala ognisko z gałęzi przed wejściem do namiotu",
+      "Znosi ją w wilczej postaci z powrotem do domu Charliego",
+      "Oddaje jej futrzany płaszcz pożyczony od Billy'ego"
+    ],
+    "note": "Edward jest lodowato zimny i nie potrafi ogrzać drżącej z zimna Belli — to właśnie wtedy dochodzi do słynnej rozmowy rywali w namiocie."
+  },
+  {
+    "id": "za-039",
+    "part": "zacmienie",
+    "source": "ksiazka",
+    "category": "kulisy",
+    "difficulty": 1,
+    "q": "Co przedstawia klasyczna okładka powieści „Zaćmienie”?",
+    "answer": "Rozrywaną czerwoną wstążkę",
+    "wrong": [
+      "Czarnego wilka na tle księżyca",
+      "Dwa skrzyżowane pierścionki",
+      "Pęknięte lustro na czarnym tle"
+    ],
+    "note": "Według Stephenie Meyer rozrywana wstążka symbolizuje wybór Belli — rozstanie z ludzkim życiem i rozdarcie między Edwardem a Jacobem."
+  },
+  {
+    "id": "za-040",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Kto stoi za stworzeniem armii nowonarodzonych wampirów w Seattle?",
+    "answer": "Victoria",
+    "wrong": [
+      "Aro",
+      "Laurent",
+      "Maria"
+    ],
+    "note": "Victoria tworzy armię po to, by pokonać Cullenów i zemścić się na Edwardzie za zabicie Jamesa, zabijając Bellę."
+  },
+  {
+    "id": "za-041",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Co skłania wrogie sobie wampiry Cullenów i wilki z La Push do sojuszu w „Zaćmieniu”?",
+    "answer": "Wspólne zagrożenie ze strony armii nowonarodzonych zmierzającej do Forks",
+    "wrong": [
+      "Nakaz wydany osobiście przez Volturi",
+      "Porwanie Charliego Swana przez wampiry z Seattle",
+      "Choroba rozprzestrzeniająca się w rezerwacie Quileutów"
+    ],
+    "note": "Choć wampiry i wilki naturalnie się nie znoszą, oba klany łączą siły, by obronić Bellę i mieszkańców okolicy."
+  },
+  {
+    "id": "za-042",
+    "part": "zacmienie",
+    "source": "film",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jaka nietypowa dekoracja wisi na ścianie przy schodach w domu Cullenów?",
+    "answer": "Gablotka z dziesiątkami biretów absolwenckich",
+    "wrong": [
+      "Kolekcja dawnych mieczy z Europy",
+      "Ściana pełna luster bez odbić",
+      "Mapa wszystkich miast, w których mieszkali od XVII wieku"
+    ],
+    "note": "To rodzinny żart Cullenów — ponieważ co kilka lat zaczynają nowe życie w kolejnym mieście, kończyli liceum niezliczoną liczbę razy."
+  },
+  {
+    "id": "za-043",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Jakie ważne szkolne wydarzenie kończy etap nauki Belli w Forks w „Zaćmieniu”?",
+    "answer": "Uroczystość ukończenia liceum",
+    "wrong": [
+      "Egzamin na prawo jazdy w Port Angeles",
+      "Wycieczka klasowa do Seattle",
+      "Bal maturalny organizowany przez Cullenów"
+    ],
+    "note": "Ukończenie Forks High School jest też umownym terminem, po którym Bella chciała zostać przemieniona w wampira."
+  },
+  {
+    "id": "ps-050",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Kto z rodziny Cullenów zajmuje się całą organizacją ślubu Belli i Edwarda?",
+    "answer": "Alice",
+    "wrong": [
+      "Esme",
+      "Rosalie",
+      "Renée"
+    ],
+    "note": "Alice traktuje ślub jak projekt swojego życia — projektuje dekoracje, dobiera buty na obcasie (które Bella ledwo wytrzymuje) i pilnuje każdego detalu."
+  },
+  {
+    "id": "ps-051",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "W jaką grę planszową Bella i Edward grają podczas miesiąca miodowego na Wyspie Esme?",
+    "answer": "W szachy",
+    "wrong": [
+      "W scrabble",
+      "W warcaby",
+      "W brydża"
+    ],
+    "note": "Partia szachów na wyspie nawiązuje też bezpośrednio do okładki powieści „Przed świtem” z białą królową i czerwonym pionkiem."
+  },
+  {
+    "id": "ps-052",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Co Edward przypadkowo łamie podczas nocy poślubnej z Bellą na Wyspie Esme?",
+    "answer": "Zagłówek łóżka",
+    "wrong": [
+      "Szklane drzwi na taras",
+      "Stolik z szachownicą",
+      "Lustro w łazience"
+    ],
+    "note": "W ferworze emocji wampirza siła Edwarda daje o sobie znać — obok rozszarpanych poduszek i siniaków Belli zniszczony zagłówek łóżka to jeden z najbardziej pamiętnych detali tej sceny."
+  },
+  {
+    "id": "ps-053",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Dlaczego ciąża Belli stanowi śmiertelne zagrożenie dla jej życia?",
+    "answer": "Półwampirze dziecko rośnie niezwykle szybko i wyniszcza jej ludzkie ciało",
+    "wrong": [
+      "Jad wampira w organizmie Belli zatruwa dziecko",
+      "Volturi rzucili klątwę na każdą ciężarną w pobliżu wampirów",
+      "Ciąża wywołuje u Belli alergię na światło słoneczne"
+    ],
+    "note": "Renesmee rozwija się w ciągu zaledwie kilku tygodni, łamie Belli żebra i nie toleruje zwykłego ludzkiego jedzenia."
+  },
+  {
+    "id": "ps-054",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Dlaczego wataha Sama przerywa atak na dom Cullenów po narodzinach Renesmee?",
+    "answer": "Jacob wpoił się w Renesmee, a prawo watahy zabrania krzywdzić wpojoną osobę",
+    "wrong": [
+      "Carlisle zawarł z Samem nowy traktat pokojowy",
+      "Volturi przybyli do Forks i rozkazali wilkom się wycofać",
+      "Bella natychmiast pokonała całą watahę w pojedynkę"
+    ],
+    "note": "Najbardziej nienaruszalne prawo Quileutów głosi, że żaden wilk nie może skrzywdzić obiektu wpojenia innego członka watahy."
+  },
+  {
+    "id": "ps-055",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Kogo Bella chce zobaczyć w pierwszej kolejności po obudzeniu się jako wampirzyca?",
+    "answer": "Swoją córkę, Renesmee",
+    "wrong": [
+      "Charliego",
+      "Alice",
+      "Jacoba"
+    ],
+    "note": "Edward nalega jednak, by najpierw poszli na polowanie — chce mieć pewność, że nowonarodzona Bella zapanuje nad pragnieniem przy półludzkim dziecku."
+  },
+  {
+    "id": "ps-056",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Czym nowonarodzona Bella zaskakuje Edwarda podczas swojego pierwszego polowania?",
+    "answer": "Potrafi opanować pragnienie i odwrócić się od zapachu krwi ludzi zamiast ich zaatakować",
+    "wrong": [
+      "Odkrywa, że potrafi czytać myśli zwierząt w lesie",
+      "Jej oczy od razu stają się złote zamiast czerwonych",
+      "Odmówiła picia krwi nawet ze zwierząt"
+    ],
+    "note": "Zwykły nowonarodzony wampir wpada przy ludzkiej krwi w niekontrolowany szał — niesamowita samokontrola Belli zdumiewa całą rodzinę."
+  },
+  {
+    "id": "ps-057",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Dlaczego Volturi surowo zakazują tworzenia „nieśmiertelnych dzieci”?",
+    "answer": "Nie da się ich wychować ani kontrolować, więc zagrażają tajemnicy wampirów",
+    "wrong": [
+      "Każde takie dziecko jest silniejsze od Aro i może go obalić",
+      "Przemiana dziecka zawsze zabija wampira, który je ugryzł",
+      "Nieśmiertelne dzieci potrafią przemieniać wilkołaki w wampiry"
+    ],
+    "note": "Zatrzymane w rozwoju małe dziecko nie rozumie zasad konspiracji i w napadzie złości mogłoby zniszczyć całą wioskę na oczach ludzi."
+  },
+  {
+    "id": "ps-058",
+    "part": "przed-switem",
+    "source": "film",
+    "category": "kulisy",
+    "difficulty": 1,
+    "q": "Na ile filmów kinowych podzielono ekranizację powieści „Przed świtem”?",
+    "answer": "Na dwa filmy",
+    "wrong": [
+      "Na trzy filmy",
+      "Pozostała jednym filmem",
+      "Na czteroodcinkowy miniserial"
+    ],
+    "note": "„Przed świtem — część 1” ukazała się w 2011 roku, a finałowa „część 2” w 2012 roku."
+  },
+  {
+    "id": "ps-059",
+    "part": "przed-switem",
+    "source": "ksiazka",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "Z czyjej perspektywy napisana jest środkowa część (Księga druga) powieści „Przed świtem”?",
+    "answer": "Jacoba Blacka",
+    "wrong": [
+      "Edwarda Cullena",
+      "Alice Cullen",
+      "Rosalie Hale"
+    ],
+    "note": "To jedyna część głównej tetralogii, w której narrację na całą księgę przejmuje Jacob — opisuje trudną ciążę Belli i rozłam w watasze."
+  },
+  {
+    "id": "sa-046",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jaki kolor oczu mają Cullenowie, gdy są dobrze nakarmieni krwią zwierząt?",
+    "answer": "Złoty (bursztynowy)",
+    "wrong": [
+      "Czerwony",
+      "Jasnoniebieski",
+      "Szmaragdowozielony"
+    ],
+    "note": "Dieta zwierzęca nadaje oczom wampirów ciepły złoty odcień — w przeciwieństwie do szkarłatnych oczu wampirów pijących ludzką krew."
+  },
+  {
+    "id": "sa-047",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jaki kolor oczu mają wampiry żywiące się ludzką krwią?",
+    "answer": "Czerwony",
+    "wrong": [
+      "Złoty",
+      "Srebrnoszary",
+      "Fioletowy"
+    ],
+    "note": "Czerwone oczy mają zarówno wampiry pijące ludzką krew (jak Volturi czy koczownicy), jak i nowonarodzeni — nawet wegetarianka Bella zaraz po przemianie."
+  },
+  {
+    "id": "sa-048",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Na jaki kolor ciemnieją oczy wampira w świecie „Zmierzchu”, gdy od dawna nie polował i jest bardzo spragniony?",
+    "answer": "Na czarny",
+    "wrong": [
+      "Na biały",
+      "Na jasnozielony",
+      "Na niebieski"
+    ],
+    "note": "To właśnie po nagłej zmianie koloru oczu Edwarda — z czarnych na lekcji biologii na złote po polowaniu — Bella zaczyna podejrzewać, że coś jest nie tak."
+  },
+  {
+    "id": "sa-049",
+    "part": "saga",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 1,
+    "q": "W jaki sposób w świecie „Zmierzchu” można trwale zabić wampira?",
+    "answer": "Rozerwać go na kawałki i spalić",
+    "wrong": [
+      "Przebić mu serce osinowym kołkiem",
+      "Wystawić go na bezpośrednie światło słoneczne",
+      "Otruć go wodą święconą i srebrem"
+    ],
+    "note": "Rozczłonkowane części ciała wampira potrafią się jeszcze zrosnąć, jeśli nie zostaną spalone — dopiero ogień kończy jego istnienie."
+  },
+  {
+    "id": "sa-050",
+    "part": "saga",
+    "source": "oba",
+    "category": "miejsca",
+    "difficulty": 1,
+    "q": "Dlaczego rodzina Cullenów wybrała właśnie Forks na miejsce zamieszkania?",
+    "answer": "To jedno z najbardziej pochmurnych i deszczowych miejsc w USA, więc mogą normalnie wychodzić w dzień",
+    "wrong": [
+      "W lasach wokół Forks żyje najwięcej niedźwiedzi w Ameryce",
+      "Miasteczko leży najbliżej siedziby klanu z Denali",
+      "Carlisle odziedziczył tam dom po swoim ludzkim ojcu"
+    ],
+    "note": "W słoneczne dni Cullenowie muszą znikać pod pretekstem wyjazdu na biwak, żeby nikt nie zobaczył ich lśniącej skóry."
+  },
+  {
+    "id": "sa-051",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Kto jest najstarszym członkiem rodziny Cullenów?",
+    "answer": "Carlisle",
+    "wrong": [
+      "Jasper",
+      "Edward",
+      "Esme"
+    ],
+    "note": "Carlisle urodził się w XVII wieku w Londynie — ma ponad trzysta lat i jest starszy nawet od Jaspera z czasów wojny secesyjnej."
+  },
+  {
+    "id": "sa-052",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Który członek rodziny Cullenów jest fizycznie najsilniejszy (zanim Bella zostaje nowonarodzoną wampirzycą)?",
+    "answer": "Emmett",
+    "wrong": [
+      "Jasper",
+      "Carlisle",
+      "Edward"
+    ],
+    "note": "Emmett uwielbia próby sił i bójki — dlatego tak boleśnie przeżywa porażkę w siłowaniu się na rękę z nowonarodzoną Bellą."
+  },
+  {
+    "id": "sa-053",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Który z członków rodziny Cullenów potrafi biegać najszybciej?",
+    "answer": "Edward",
+    "wrong": [
+      "Alice",
+      "Emmett",
+      "Rosalie"
+    ],
+    "note": "Oprócz czytania myśli Edward ma wyjątkową szybkość — nawet jak na wampira wyprzedza pozostałych Cullenów."
+  },
+  {
+    "id": "sa-054",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Na jaką chorobę umierał Edward jako człowiek w 1918 roku, zanim Carlisle go przemienił?",
+    "answer": "Na grypę hiszpankę",
+    "wrong": [
+      "Na gruźlicę",
+      "Na tyfus",
+      "Na szkarlatynę"
+    ],
+    "note": "Podczas pandemii hiszpanki w Chicago zmarli oboje rodzice Edwarda, a jego matka Elizabeth przed śmiercią błagała Carlisle'a, by ocalił jej syna."
+  },
+  {
+    "id": "sa-055",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 1,
+    "q": "Jak brzmi pełne pierwsze imię Belli Swan?",
+    "answer": "Isabella",
+    "wrong": [
+      "Annabella",
+      "Arabella",
+      "Mirabella"
+    ],
+    "note": "Bella nie przepada za pełnym imieniem „Isabella” i od zawsze prosi wszystkich, by mówili do niej po prostu Bella."
+  },
+  {
+    "id": "sa-056",
+    "part": "saga",
+    "source": "oba",
+    "category": "liczby",
+    "difficulty": 1,
+    "q": "W jakim wieku fizycznym na zawsze zatrzymał się Edward Cullen?",
+    "answer": "17 lat",
+    "wrong": [
+      "16 lat",
+      "18 lat",
+      "19 lat"
+    ],
+    "note": "Edward został przemieniony jako siedemnastolatek — stąd słynny dialog z Bellą pytającą, od jak dawna ma siedemnaście lat."
+  },
+  {
+    "id": "sa-057",
+    "part": "saga",
+    "source": "oba",
+    "category": "liczby",
+    "difficulty": 1,
+    "q": "Ile osób liczy rodzina Cullenów na początku sagi (przed dołączeniem Belli i Renesmee)?",
+    "answer": "7 osób",
+    "wrong": [
+      "5 osób",
+      "6 osób",
+      "8 osób"
+    ],
+    "note": "To Carlisle, Esme, Edward, Alice, Jasper, Rosalie i Emmett — razem siedmioro wampirów."
+  },
+  {
+    "id": "ku-055",
+    "part": "ksiezyc",
+    "source": "ksiazka",
+    "category": "kulisy",
+    "difficulty": 1,
+    "q": "Co przedstawia klasyczna okładka powieści „Księżyc w nowiu”?",
+    "answer": "Biało-czerwonego tulipana z opadającym płatkiem",
+    "wrong": [
+      "Czarny sierp księżyca na czerwonym tle",
+      "Czerwoną różę z kolcami",
+      "Srebrny zegar wskazujący północ"
+    ],
+    "note": "W przeciwieństwie do jabłka ze „Zmierzchu” czy szachów z „Przed świtem”, Stephenie Meyer przyznawała, że tulipan na okładce „Księżyca w nowiu” nie miał głębokiej autorskiej symboliki, choć fani kojarzą płatek z kroplą krwi."
+  },
+  {
+    "id": "ku-056",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 1,
+    "q": "Który aktor zagrał Charliego Swana we wszystkich pięciu filmach sagi?",
+    "answer": "Billy Burke",
+    "wrong": [
+      "Peter Facinelli",
+      "Gil Birmingham",
+      "Michael Sheen"
+    ],
+    "note": "Billy Burke stworzył jedną z najbardziej lubianych kreacji w całej serii — wiele osób żartuje, że Charlie jest jedyną rozsądną osobą w Forks."
+  },
+  {
+    "id": "ku-057",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 1,
+    "q": "Która aktorka zagrała Alice Cullen w filmowej sadze?",
+    "answer": "Ashley Greene",
+    "wrong": [
+      "Nikki Reed",
+      "Anna Kendrick",
+      "Elizabeth Reaser"
+    ],
+    "note": "Ashley Greene wcieliła się w Alice we wszystkich pięciu częściach ekranizacji."
+  },
+  {
+    "id": "ku-058",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "kulisy",
+    "difficulty": 1,
+    "q": "Jaki charakterystyczny zabieg wizualny kojarzy się z pierwszym filmem „Zmierzch” z 2008 roku?",
+    "answer": "Chłodny, niebiesko-zielony filtr kolorystyczny",
+    "wrong": [
+      "Czarno-białe retrospekcje w stylu kina niemego",
+      "Ciepła, złocista sepia w każdej scenie w Forks",
+      "Zdjęcia kręcone kamerą z ręki jak w filmie dokumentalnym"
+    ],
+    "note": "Charakterystyczna niebieskawa paleta barw Catherine Hardwicke stała się znakiem rozpoznawczym pierwszej części — w kolejnych filmach reżyserzy ją ocieplili."
+  },
+  {
+    "id": "ku-059",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 1,
+    "q": "Która piosenka zespołu Blue Foundation z pierwszego filmu stała się internetowym hymnem „pogody jak ze Zmierzchu”?",
+    "answer": "„Eyes on Fire”",
+    "wrong": [
+      "„Supermassive Black Hole”",
+      "„Decode”",
+      "„Possibility”"
+    ],
+    "note": "Słynna wokaliza „hoa-hoa-hoa” z „Eyes on Fire” rozbrzmiewa m.in. gdy Bella patrzy na Edwarda na szkolnym parkingu."
+  },
+  {
+    "id": "ku-060",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "liczby",
+    "difficulty": 1,
+    "q": "W którym roku wszedł do kin pierwszy film „Zmierzch”?",
+    "answer": "W 2008 roku",
+    "wrong": [
+      "W 2005 roku",
+      "W 2007 roku",
+      "W 2009 roku"
+    ],
+    "note": "Kolejne cztery części wchodziły do kin rok po roku — od 2008 aż do finału w 2012 roku."
+  },
+  {
+    "id": "ku-061",
+    "part": "saga",
+    "source": "film",
+    "category": "liczby",
+    "difficulty": 1,
+    "q": "Ile filmów składa się na główną filmową sagę „Zmierzch”?",
+    "answer": "5 filmów",
+    "wrong": [
+      "4 filmy",
+      "6 filmów",
+      "3 filmy"
+    ],
+    "note": "Choć główny cykl książkowy liczy cztery tomy, ostatnią powieść — „Przed świtem” — zekranizowano w dwóch częściach."
+  },
+  {
+    "id": "ku-062",
+    "part": "zacmienie",
+    "source": "ksiazka",
+    "category": "kulisy",
+    "difficulty": 1,
+    "q": "Jak nazywa się nowela towarzysząca „Zaćmieniu”, napisana przez Stephenie Meyer z perspektywy nowonarodzonej wampirzycy?",
+    "answer": "„Drugie życie Bree Tanner”",
+    "wrong": [
+      "„Słońce w mroku”",
+      "„Życie i śmierć”",
+      "„Cień w Seattle”"
+    ],
+    "note": "Nowela z 2010 roku („The Short Second Life of Bree Tanner”) pokazuje losy armii nowonarodzonych od środka aż do finału na polanie."
+  }
+]

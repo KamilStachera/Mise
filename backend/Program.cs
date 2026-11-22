@@ -177,5 +177,6 @@ api.MapTraining();
 api.MapContext();
 api.MapChat();
 api.MapImport();
+api.MapZmierzch();
 
 app.Run();

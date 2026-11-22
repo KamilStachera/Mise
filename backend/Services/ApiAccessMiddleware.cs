@@ -36,6 +36,7 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
         new("/api/cooklog"),
         new("/api/plan/pending-cook"),
         new("/api/plan/shopping-preview"),
+        new("/api/zmierzch"),
     ];
 
     /// <summary>Readable by anyone: the shared exercise catalog and token-gated recipe share links.</summary>
@@ -54,6 +55,7 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
         new("/api/household/export.zip"),
         new("/api/activity/connection"),
         new("/api/admin"),
+        new("/api/zmierzch"),
     ];
 
     private static readonly ConcurrentDictionary<string, DateTimeOffset> LastTouched = new();
@@ -96,7 +98,10 @@ public sealed class ApiAccessMiddleware(RequestDelegate next)
             return;
         }
 
-        if (path.StartsWithSegments("/api/auth") || path.StartsWithSegments("/api/onboarding") || caller.IsPrivileged)
+        if (path.StartsWithSegments("/api/auth")
+            || path.StartsWithSegments("/api/onboarding")
+            || (path.StartsWithSegments("/api/zmierzch") && caller.Kind == CallerKind.Unlinked)
+            || caller.IsPrivileged)
         {
             await next(ctx);
             return;

@@ -1116,3 +1116,43 @@ public class RecipeShare : IHouseholdOwned
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
 }
+
+// ───────────────────────────── Zmierzch quiz (temporary) ─────────────────────────────
+
+/// <summary>
+/// A signed-in Google user playing the temporary /zmierzch Twilight quiz trainer.
+/// Not household-owned: the leaderboard spans all logged-in users, including friends who
+/// signed in with Google without joining a Pichci household (<c>CallerKind.Unlinked</c>).
+/// </summary>
+public class ZmierzchPlayer
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    /// <summary>Stable normalized identity key (lowercase Google email, or dev-bypass key).</summary>
+    public string UserKey { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string? Picture { get; set; }
+    /// <summary>JSON dictionary of questionId -> { box, seen, wrong, last, part }.</summary>
+    public string ProgressJson { get; set; } = "{}";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public List<ZmierzchAttempt> Attempts { get; set; } = [];
+}
+
+/// <summary>
+/// One completed Quiz run on /zmierzch. <see cref="Scope"/> buckets the run onto a leaderboard:
+/// <c>all</c> (whole suite), <c>part:{part}</c> (single saga part), <c>set:{slug}</c> (fixed
+/// challenge set), or <c>custom</c> (filtered practice, not ranked).
+/// </summary>
+public class ZmierzchAttempt
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PlayerId { get; set; }
+    public ZmierzchPlayer? Player { get; set; }
+    public string Scope { get; set; } = "all";
+    public int Correct { get; set; }
+    public int Total { get; set; }
+    /// <summary>Active answering duration in milliseconds (excludes time spent reading explanations).</summary>
+    public int DurationMs { get; set; }
+    public int TimeLimitSeconds { get; set; }
+    public DateTimeOffset CompletedAt { get; set; } = DateTimeOffset.UtcNow;
+}

@@ -1,0 +1,1382 @@
+[
+  {
+    "id": "zm-052",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "roznice",
+    "difficulty": 2,
+    "q": "Czym różni się moment, w którym Bella konfrontuje Edwarda z prawdą o jego wampiryzmie, w książce i w pierwszym filmie?",
+    "answer": "W książce rozmawiają o tym w samochodzie wracając z Port Angeles, a w filmie Bella konfrontuje go w lesie",
+    "wrong": [
+      "W książce rozmawiają na plaży w La Push, a w filmie w stołówce szkolnej",
+      "W książce Edward wyznaje prawdę w domu Charliego, a w filmie w pracowni biologicznej",
+      "W książce Bella dowiaduje się od Alice, a w filmie od Carlisle'a"
+    ],
+    "note": "W powieści Edward przyznaje się do wszystkiego w samochodzie po kolacji w Port Angeles, a dopiero później pokazuje jej lśniącą skórę na łące. Film połączył te dwa wydarzenia w jedną słynną scenę w lesie."
+  },
+  {
+    "id": "zm-053",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "roznice",
+    "difficulty": 2,
+    "q": "Jaką zabawną nagrodę Bella i Edward wygrywają w pierwszym filmie na lekcji biologii (nieobecną w książce)?",
+    "answer": "Złotą Cebulę",
+    "wrong": [
+      "Złoty Mikroskop",
+      "Puchar Biologa",
+      "Srebrne Jabłko"
+    ],
+    "note": "Pan Molina obiecuje Złotą Cebulę pierwszej parze, która poprawnie rozpozna fazy mitozy pod mikroskopem — w kolejnej scenie Bella faktycznie wychodzi z sali ze złotą cebulą w ręku."
+  },
+  {
+    "id": "zm-054",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "roznice",
+    "difficulty": 3,
+    "q": "Która postać z pierwszego filmu — przyjaciel Charliego zabity przez koczowników na łodzi — została dodana w ekranizacji i nie pojawia się w książce?",
+    "answer": "Waylon Forge",
+    "wrong": [
+      "Harry Clearwater",
+      "Tyler Crowley",
+      "Pan Newton"
+    ],
+    "note": "Waylon Forge został wprowadzony w filmie, aby widzowie zobaczyli grozę koczowników jeszcze przed meczem baseballa."
+  },
+  {
+    "id": "zm-055",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "roznice",
+    "difficulty": 3,
+    "q": "Jakim dokładnie modelem srebrnego Volvo jeździ Edward w książce „Zmierzch”, a jakim w pierwszym filmie?",
+    "answer": "W książce sedanem Volvo S60R, a w pierwszym filmie hatchbackiem Volvo C30",
+    "wrong": [
+      "W książce kombi Volvo V70, a w filmie SUV-em Volvo XC90",
+      "W książce Volvo C30, a w filmie Volvo S80",
+      "W książce Volvo 240, a w filmie Volvo S60R"
+    ],
+    "note": "W pierwszych latach po premierze fani motoryzacji często zwracali uwagę na tę zamianę — w „Przed świtem” twórcy wrócili już do sedana S60."
+  },
+  {
+    "id": "zm-056",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "roznice",
+    "difficulty": 2,
+    "q": "Jaki charakterystyczny element stroju ma na sobie Bella na balu w pierwszym filmie (w odróżnieniu od książki)?",
+    "answer": "Na zdrowej stopie ma trampkę Converse pasującą do ortezy na złamanej nodze",
+    "wrong": [
+      "Zakłada czerwoną suknię pożyczoną od Rosalie",
+      "Przychodzi w skórzanej kurtce ojca zamiast sukienki",
+      "Ma na szyi drewniany naszyjnik z La Push"
+    ],
+    "note": "W filmie trampka podkreśla swobodny styl Belli po urazie nogi; w książce Alice ubiera ją od stóp do głów w bardziej klasyczny, elegancki zestaw."
+  },
+  {
+    "id": "zm-057",
+    "part": "zmierzch",
+    "source": "ksiazka",
+    "category": "roznice",
+    "difficulty": 3,
+    "q": "Jak nazywa się nauczyciel biologii Belli i Edwarda w książkowym „Zmierzchu”?",
+    "answer": "Pan Banner",
+    "wrong": [
+      "Pan Mason",
+      "Pan Varner",
+      "Pan Berty"
+    ],
+    "note": "W powieści zajęcia z biologii prowadzi pan Banner (w ekranizacji zastąpił go pan Molina) — to na jego lekcji Bella robi się blada przy oznaczaniu grup krwi."
+  },
+  {
+    "id": "zm-058",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "roznice",
+    "difficulty": 3,
+    "q": "Jak nazywa się włoska restauracja w Port Angeles, do której Edward zabiera Bellę w książce „Zmierzch”?",
+    "answer": "La Bella Italia",
+    "wrong": [
+      "Trattoria Volterra",
+      "Il Giardino",
+      "Osteria Forks"
+    ],
+    "note": "Restauracja Bella Italia naprawdę istnieje w Port Angeles i do dziś serwuje „ravioli z grzybami Belli”. W filmie lokal żartobliwie przemianowano na „The Bloated Toad”."
+  },
+  {
+    "id": "zm-059",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jak Bella zmusza Charliego, by nie zatrzymywał jej, gdy musi uciec z Forks i zmylić Jamesa?",
+    "answer": "Powtarza te same bolesne słowa, których użyła kiedyś Renée, odchodząc od Charliego",
+    "wrong": [
+      "Zostawia list i wymyka się w nocy przez okno bez słowa",
+      "Mówi mu, że Renée trafiła w Phoenix do szpitala",
+      "Twierdzi, że dostała stypendium na wyjazd do Seattle"
+    ],
+    "note": "Bella celowo rani ojca, mówiąc, że nie chce utknąć w Forks jak jej matka — to jedna z najbardziej emocjonalnych scen pierwszej części."
+  },
+  {
+    "id": "zm-060",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "miejsca",
+    "difficulty": 2,
+    "q": "Jak nazywa się plaża w rezerwacie La Push, na którą Bella jedzie ze znajomymi ze szkoły?",
+    "answer": "Pierwsza Plaża (First Beach)",
+    "wrong": [
+      "Zatoka Wilków (Wolf Cove)",
+      "Plaża Szmaragdowa (Emerald Beach)",
+      "Czarny Brzeg (Black Shore)"
+    ],
+    "note": "First Beach w La Push to prawdziwa plaża na wybrzeżu stanu Waszyngton — tam właśnie Bella po raz pierwszy rozmawia z Jacobem o legendach Quileutów."
+  },
+  {
+    "id": "zm-061",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "miejsca",
+    "difficulty": 3,
+    "q": "Jak nazywa się księgarnia w Port Angeles, do której zagląda Bella, zanim na ulicy osacza ją grupa mężczyzn?",
+    "answer": "Thunderbird & Whale",
+    "wrong": [
+      "Olympic Books",
+      "Rainy Day Reads",
+      "Portside Paperbacks"
+    ],
+    "note": "Bella szuka tam książki o legendach Quileutów, żeby sprawdzić historię o „zimnych ludziach” usłyszaną od Jacoba."
+  },
+  {
+    "id": "zm-062",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Który szkolny kolega Belli omal nie potrącił jej furgonetką na parkingu, a później uznał, że w ramach zadośćuczynienia zabierze ją na bal?",
+    "answer": "Tyler Crowley",
+    "wrong": [
+      "Mike Newton",
+      "Eric Yorkie",
+      "Ben Cheney"
+    ],
+    "note": "Tyler rozpowiadał w szkole, że idzie z Bellą na bal, dopóki Edward nie uświadomił mu stanowczo, że Bella jest już zajęta."
+  },
+  {
+    "id": "zm-063",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Który uczeń jako pierwszy zagaduje Bellę w szkole w Forks i żartuje, że opisze ją w szkolnej gazetce?",
+    "answer": "Eric Yorkie",
+    "wrong": [
+      "Mike Newton",
+      "Tyler Crowley",
+      "Austin Marks"
+    ],
+    "note": "Eric jest życzliwym, nieco nadgorliwym redaktorem szkolnej gazetki i często rywalizuje z Mikiem o uwagę Belli."
+  },
+  {
+    "id": "zm-064",
+    "part": "zmierzch",
+    "source": "ksiazka",
+    "category": "cytaty",
+    "difficulty": 3,
+    "q": "Z której księgi biblijnej pochodzi motto otwierające powieść „Zmierzch”?",
+    "answer": "Z Księgi Rodzaju",
+    "wrong": [
+      "Z Księgi Koheleta",
+      "Z Pieśni nad Pieśniami",
+      "Z Apokalipsy św. Jana"
+    ],
+    "note": "To werset Rdz 2,17 o zakazie jedzenia owocu z drzewa poznania dobra i zła — stąd właśnie jabłko w dłoniach na okładce „Zmierzchu”."
+  },
+  {
+    "id": "zm-065",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "cytaty",
+    "difficulty": 2,
+    "q": "Jaką refleksją o śmierci Bella rozpoczyna prolog powieści i początek pierwszego filmu „Zmierzch”?",
+    "answer": "Że oddanie życia w miejsce kogoś, kogo się kocha, wydaje się dobrym sposobem na śmierć",
+    "wrong": [
+      "Że nieśmiertelność jest przekleństwem gorszym od starości",
+      "Że w deszczowym Forks czas płynie wolniej niż gdziekolwiek indziej",
+      "Że każdy człowiek pamięta dokładnie dzień, w którym spotkał przeznaczenie"
+    ],
+    "note": "Prolog zapowiada finałową konfrontację z Jamesem w studiu baletowym, do którego Bella jedzie, sądząc, że ratuje swoją matkę."
+  },
+  {
+    "id": "zm-066",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "kulisy",
+    "difficulty": 3,
+    "q": "Jak nazywa się prawdziwy bar w stanie Oregon, który w pierwszym filmie „zagrał” miejscową jadłodajnię w Forks?",
+    "answer": "Carver Café",
+    "wrong": [
+      "The Lodge Diner",
+      "Forks Corner Café",
+      "Olympic Grill"
+    ],
+    "note": "W książce Charlie stołuje się w lokalu „The Lodge”, a na potrzeby filmu wykorzystano bar Carver Café w Damascus w Oregonie — tam też nakręcono epizod Stephenie Meyer z laptopem."
+  },
+  {
+    "id": "zm-067",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Jakim samochodem jeździ Rosalie Hale zarówno w powieści, jak i w filmie?",
+    "answer": "Czerwonym kabrioletem BMW M3",
+    "wrong": [
+      "Żółtym Porsche 911 Turbo",
+      "Czarnym Jeepem Wranglerem",
+      "Białym Mercedesem SL"
+    ],
+    "note": "Wrażliwa na punkcie stylu Rosalie jeździ rzucającym się w oczy czerwonym BMW M3, podczas gdy Emmett woli wielkiego Jeepa, a Edward srebrne Volvo."
+  },
+  {
+    "id": "zm-068",
+    "part": "zmierzch",
+    "source": "oba",
+    "category": "miejsca",
+    "difficulty": 3,
+    "q": "Na jakim półwyspie w stanie Waszyngton leży miasteczko Forks?",
+    "answer": "Na Półwyspie Olimpijskim (Olympic Peninsula)",
+    "wrong": [
+      "Na Półwyspie Kitsap",
+      "Na Półwyspie Kenai",
+      "Na Półwyspie Monterey"
+    ],
+    "note": "Półwysep Olimpijski słynie z lasów deszczowych strefy umiarkowanej i rekordowych opadów — właśnie dlatego Stephenie Meyer znalazła Forks w internecie."
+  },
+  {
+    "id": "kn-047",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "roznice",
+    "difficulty": 2,
+    "q": "Czym różni się starcie Edwarda z Feliksem w siedzibie Volturi w książce i w filmie „Księżyc w nowiu”?",
+    "answer": "W filmie dochodzi do brutalnej walki wręcz, a w książce Edward nie toczy z Feliksem takiej bójki",
+    "wrong": [
+      "W książce Edward zabija Feliksa, a w filmie jedynie go ogłusza",
+      "W filmie z Feliksem walczy Alice zamiast Edwarda",
+      "W książce walka odbywa się na głównym placu w Volterze w samo południe"
+    ],
+    "note": "Twórcy filmu dodali dynamiczną walkę w sali tronowej Volturi, by podnieść dramaturgię finału w Volterze."
+  },
+  {
+    "id": "kn-048",
+    "part": "ksiezyc",
+    "source": "ksiazka",
+    "category": "roznice",
+    "difficulty": 3,
+    "q": "Jaki prezent na 18. urodziny podarowali Belli Emmett, Rosalie i Jasper w książce „Księżyc w nowiu” (pominięty w filmie)?",
+    "answer": "Nowe radio samochodowe do jej pickupa",
+    "wrong": [
+      "Komplet opon zimowych do pickupa",
+      "Złotą bransoletkę z zawieszką",
+      "Nowy aparat fotograficzny"
+    ],
+    "note": "Ponieważ pickup Belli był stary i miał zepsute radio, Emmett zamontował jej nowoczesny sprzęt grający. W filmie Rosalie wręcza jej zamiast tego srebrny naszyjnik."
+  },
+  {
+    "id": "kn-049",
+    "part": "ksiezyc",
+    "source": "ksiazka",
+    "category": "roznice",
+    "difficulty": 3,
+    "q": "Która z książkowych koleżanek ze szkoły — zazdrosna blondynka otwarcie nielubiąca Belli — została całkowicie wycięta z filmów?",
+    "answer": "Lauren Mallory",
+    "wrong": [
+      "Angela Weber",
+      "Jessica Stanley",
+      "Katie Marshall"
+    ],
+    "note": "W ekranizacjach złośliwe uwagi Lauren zostały częściowo przeniesione na Jessicę, graną przez Annę Kendrick."
+  },
+  {
+    "id": "kn-050",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Jaki nadprzyrodzony dar ma Marek (Marcus), jeden z trzech przywódców Volturi?",
+    "answer": "Widzi więzi emocjonalne i relacje łączące ludzi oraz wampiry",
+    "wrong": [
+      "Potrafi kontrolować żywioły ognia i wiatru",
+      "Czyta myśli z odległości wielu kilometrów",
+      "Sprawia, że napastnik zapomina, po co przyszedł"
+    ],
+    "note": "To właśnie Marek dostrzega w Volterze niezwykle silną więź łączącą Bellę i Edwarda — sam po śmierci ukochanej Didyme pozostaje jednak obojętny na świat."
+  },
+  {
+    "id": "kn-051",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Jaki nadprzyrodzony dar ma Alec, brat bliźniak Jane z gwardii Volturi?",
+    "answer": "Odbiera ofiarom wszystkie zmysły (wzrok, słuch, czucie) za pomocą paraliżującej mgły",
+    "wrong": [
+      "Zadaje dotkliwy ból jednym spojrzeniem",
+      "Potrafi kopiować dary innych wampirów",
+      "Staje się całkowicie niewidzialny w cieniu"
+    ],
+    "note": "Dar Aleca jest nawet groźniejszy od mocy Jane, bo może objąć jednocześnie całą grupę przeciwników i całkowicie pozbawić ich orientacji."
+  },
+  {
+    "id": "kn-052",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Który potężny strażnik Volturi słynie z ogromnej siły fizycznej i umiejętności walki, mimo że nie ma nadprzyrodzonego daru?",
+    "answer": "Felix",
+    "wrong": [
+      "Demetri",
+      "Alec",
+      "Santiago"
+    ],
+    "note": "Felix jest głównym egzekutorem straży Volturi — nadrabia brak mentalnego daru wyjątkową siłą, wzrostem i doświadczeniem w walce."
+  },
+  {
+    "id": "kn-053",
+    "part": "ksiezyc",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Co w świecie książek oznacza odcień płaszcza noszonego przez członków klanu Volturi?",
+    "answer": "Im ciemniejszy płaszcz, tym wyższa ranga (przywódcy noszą czerń, niżsi strażnicy — odcienie szarości)",
+    "wrong": [
+      "Kolor płaszcza zależy od tego, z jakiego kraju pochodzi wampir",
+      "Czarne płaszcze noszą wyłącznie wampiry z nadprzyrodzonym darem",
+      "Odcień oznacza liczbę stuleci spędzonych w Volterze"
+    ],
+    "note": "Aro, Kajusz, Marek i ich żony noszą głęboką czerń, elita jak Jane i Alec — bardzo ciemną szarość, a zwykli strażnicy jaśniejsze szare płaszcze."
+  },
+  {
+    "id": "kn-054",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jak kończy się pierwsza samodzielna przejażdżka Belli na naprawionym motocyklu z Jacobem?",
+    "answer": "Bella traci panowanie, rozbija się i rozcina sobie czoło",
+    "wrong": [
+      "Zatrzymuje ich patrol Charliego na granicy rezerwatu",
+      "Motocykl zapala się na leśnej drodze",
+      "Wpadają na stado jeleni, ale wychodzą bez zadrapania"
+    ],
+    "note": "To przy tamowaniu krwi z rany na czole Belli Jacob po raz pierwszy okazuje niepokojąco wysoką temperaturę ciała i zdejmuje koszulkę, by zatamować krwawienie."
+  },
+  {
+    "id": "kn-055",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jaki prezent na 18. urodziny Bella dostaje od Charliego (za podpowiedzią Renée)?",
+    "answer": "Aparat fotograficzny",
+    "wrong": [
+      "Złoty zegarek po babci",
+      "Nowy telefon komórkowy",
+      "Kurtkę przeciwdeszczową"
+    ],
+    "note": "Charlie wręcza aparat, a Renée przysyła album na zdjęcia, żeby Bella dokumentowała ostatni rok w liceum."
+  },
+  {
+    "id": "kn-056",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Gdzie w „Księżycu w nowiu” Laurent zastaje Bellę samą, tuż zanim na pomoc przybiegają jej wilki?",
+    "answer": "Na leśnej łące, na którą wcześniej chodziła z Edwardem",
+    "wrong": [
+      "Na opuszczonej plaży w La Push",
+      "Na parkingu przed kinem w Port Angeles",
+      "W pustym domu Cullenów"
+    ],
+    "note": "Bella długo szukała w lesie dawnej łąki, by poczuć się bliżej Edwarda, lecz zamiast ukojenia spotkała tam Laurenta wysłanego na zwiad przez Victorię."
+  },
+  {
+    "id": "kn-057",
+    "part": "ksiezyc",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jakie ryzykowne zdarzenie w Port Angeles — podczas wyjścia do kina z Jessicą — po raz pierwszy wywołuje u Belli halucynację Edwarda?",
+    "answer": "Podejście do grupy nieznajomych motocyklistów pod barem",
+    "wrong": [
+      "Wejście na zamarznięte jezioro po zmroku",
+      "Jazda pod prąd na górskiej drodze",
+      "Samotny powrót pieszo przez las w burzę"
+    ],
+    "note": "Gdy Bella widzi mężczyzn przypominających jej dawnych napastników z Port Angeles, podchodzi do nich i słyszy wyraźny głos Edwarda ostrzegający ją przed niebezpieczeństwem."
+  },
+  {
+    "id": "kn-058",
+    "part": "ksiezyc",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Który chłopak z La Push przemienił się w wilka jako drugi — zaraz po Samie Uleyu?",
+    "answer": "Jared",
+    "wrong": [
+      "Paul",
+      "Embry",
+      "Jacob"
+    ],
+    "note": "Sam przez pewien czas był zupełnie sam z tajemnicą przemiany, dopóki nie dołączył do niego Jared Cameron, a potem Paul i Embry."
+  },
+  {
+    "id": "za-044",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jaką zawieszkę Edward dodaje do bransoletki Belli w „Zaćmieniu”, obok drewnianego wilczka od Jacoba?",
+    "answer": "Kryształowe serduszko",
+    "wrong": [
+      "Srebrny półksiężyc",
+      "Złotą różę",
+      "Rubinowe jabłko"
+    ],
+    "note": "Edward tłumaczy Belli, że skoro nosi na nadgarstku symbol Jacoba, chce dodać też coś od siebie — błyszczące diamentowe/kryształowe serce, symbolizujące jego własne."
+  },
+  {
+    "id": "za-045",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jak Bella odwraca uwagę Victorii podczas walki na górskiej polanie, naśladując legendę o trzeciej żonie?",
+    "answer": "Rozcina sobie ramię ostrym kamieniem, by zapach krwi zdekoncentrował Victorię",
+    "wrong": [
+      "Rzuca w Victorię pochodnią z płonącej gałęzi",
+      "Udaje ucieczkę w stronę urwiska",
+      "Wzywa watahę Sama za pomocą gwizdka"
+    ],
+    "note": "Tak jak trzecia żona Tahy Akiego poświęciła własną krew, by ocalić ukochanego przed wampirzycą, tak Bella wykorzystuje zapach swojej krwi, dając Edwardowi przewagę."
+  },
+  {
+    "id": "za-046",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Kto udziela pomocy medycznej ciężko rannemu Jacobowi po bitwie z nowonarodzonymi w „Zaćmieniu”?",
+    "answer": "Carlisle Cullen",
+    "wrong": [
+      "Billy Black",
+      "Lekarz ze szpitala w Port Angeles",
+      "Sue Clearwater"
+    ],
+    "note": "Mimo dawnej nieufności Quileutowie wpuszczają Carlisle'a do domu Blacków — wilki goją się niezwykle szybko, więc kości trzeba było nastawić natychmiast."
+  },
+  {
+    "id": "za-047",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jakim prezentem Edward przekupuje Alice w „Zaćmieniu”, by pilnowała Belli w domu Cullenów pod jego nieobecność?",
+    "answer": "Żółtym Porsche 911 Turbo",
+    "wrong": [
+      "Weekendem na zakupach w Paryżu",
+      "Zabytkowym naszyjnikiem z XIX wieku",
+      "Czerwonym kabrioletem BMW"
+    ],
+    "note": "Alice zakochała się w takim samym żółtym Porsche, kiedy ukradła je we Włoszech w „Księżycu w nowiu” — Edward sprowadził dla niej identyczny egzemplarz."
+  },
+  {
+    "id": "za-048",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "miejsca",
+    "difficulty": 3,
+    "q": "Na jaką uczelnię z Ligi Bluszczowej Edward potajemnie złożył wniosek o przyjęcie w imieniu Belli w „Zaćmieniu”?",
+    "answer": "Na Dartmouth College",
+    "wrong": [
+      "Na Uniwersytet Harvarda",
+      "Na Uniwersytet Yale",
+      "Na Uniwersytet Columbia"
+    ],
+    "note": "Bella starała się na Uniwersytet Alaski w Juneau, ale Edward wysłał też wniosek do prestiżowego Dartmouth — na wszelki wypadek, gdyby zmieniła zdanie co do przemiany."
+  },
+  {
+    "id": "za-049",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Jak nazywa się legendarny wódz Quileutów, który jako pierwszy przybrał postać wilka i którego trzecia żona uratowała plemię przed wampirzycą?",
+    "answer": "Taha Aki",
+    "wrong": [
+      "Ephraim Black",
+      "Utlapa",
+      "Yaha Uta"
+    ],
+    "note": "Historię Tahy Akiego i jego trzeciej żony Billy Black opowiada przy ognisku w La Push — to ona podsuwa Belli pomysł w finale „Zaćmienia”."
+  },
+  {
+    "id": "za-050",
+    "part": "zacmienie",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Jak miały na imię dwie sojuszniczki Marii z czasów wojen na Południu, które Maria i Jasper zabili, gdy przestały być potrzebne?",
+    "answer": "Nettie i Lucy",
+    "wrong": [
+      "Sasha i Irina",
+      "Charlotte i Heidi",
+      "Sulpicia i Renata"
+    ],
+    "note": "Nettie i Lucy pomogły Marii zdobyć wpływy w Teksasie, po czym zostały wyeliminowane w bezwzględnej walce o terytorium."
+  },
+  {
+    "id": "za-051",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Dlaczego Rosalie opowiada Belli bolesną historię swojego ludzkiego życia w „Zaćmieniu”?",
+    "answer": "Chce ją przekonać, by nie rezygnowała z ludzkiego życia, śmiertelności i możliwości posiadania dzieci",
+    "wrong": [
+      "Chce wyjaśnić, dlaczego nigdy nie walczy z nowonarodzonymi",
+      "Przeprasza ją za to, że nie przyszła na jej 18. urodziny",
+      "Ostrzega ją, że Volturi planują zaatakować rodzinę Swanów"
+    ],
+    "note": "Rosalie zazdrości Belli możliwości wyboru — sama nigdy nie chciała być wampirem i najmocniej tęskni za tym, by mieć własne dzieci i zestarzeć się u boku ukochanego."
+  },
+  {
+    "id": "za-052",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Jaki własny warunek stawia Bella Edwardowi, godząc się na ślub przed przemianą w „Zaćmieniu”?",
+    "answer": "Chce, by jeszcze jako człowiek spędzili razem noc poślubną",
+    "wrong": [
+      "Żąda, by Jacob mógł być świadkiem na ich ślubie",
+      "Prosi, by ślub odbył się potajemnie w Las Vegas bez udziału Alice",
+      "Chce, by to Carlisle, a nie Edward, ją przemienił"
+    ],
+    "note": "Edward początkowo panicznie boi się, że mógłby skrzywdzić ludzką Bellę, ale zgadza się na kompromis — co prowadzi wprost do wydarzeń na Wyspie Esme."
+  },
+  {
+    "id": "za-053",
+    "part": "zacmienie",
+    "source": "oba",
+    "category": "cytaty",
+    "difficulty": 2,
+    "q": "Kto w „Zaćmieniu” deklaruje Belli, że będzie o nią walczył, dopóki jej serce nie przestanie bić (pomocnicze tłumaczenie)?",
+    "answer": "Jacob Black",
+    "wrong": [
+      "Edward Cullen",
+      "Mike Newton",
+      "Riley Biers"
+    ],
+    "note": "W oryginale brzmi to „I'm gonna fight for you until your heart stops beating” — nawiązanie do zbliżającej się przemiany Belli w wampira."
+  },
+  {
+    "id": "ps-060",
+    "part": "przed-switem",
+    "source": "film",
+    "category": "roznice",
+    "difficulty": 2,
+    "q": "Jaką dodatkową wizję przyszłości Alice pokazuje w finale filmu „Przed świtem — cz. 2”, której nie ma w powieści?",
+    "answer": "Dorosłą Renesmee i Jacoba siedzących razem na plaży obok Belli i Edwarda",
+    "wrong": [
+      "Ślub Charliego i Sue Clearwater w Forks",
+      "Powrót Aro do Volterry i abdykację Marka",
+      "Pierwszy dzień Renesmee w liceum w Forks"
+    ],
+    "note": "Film dopisał krótkie spojrzenie w przyszłość, by uspokoić widzów co do losów Renesmee, Jacoba i całej rodziny."
+  },
+  {
+    "id": "ps-061",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "roznice",
+    "difficulty": 2,
+    "q": "Jak przebiega konfrontacja z Volturi na zaśnieżonej polanie w powieści „Przed świtem” w przeciwieństwie do ekranizacji?",
+    "answer": "W książce w ogóle nie ma sceny bitwy ani wizji śmierci Carlisle'a — wszystko kończy się rozmową i zeznaniem Nahuela",
+    "wrong": [
+      "W książce bitwa naprawdę się odbywa i ginie w niej Aro",
+      "W książce Volturi w ogóle nie docierają do Forks, bo zawracają w Seattle",
+      "W książce zamiast wilków Cullenów bronią wampiry z klanu rumuńskiego"
+    ],
+    "note": "Słynna bitwa z „Przed świtem — cz. 2”, w której giną m.in. Carlisle, Jasper, Seth i Aro, była mistrzowskim filmowym zwrotem akcji opartym na wizji Alice."
+  },
+  {
+    "id": "ps-062",
+    "part": "przed-switem",
+    "source": "ksiazka",
+    "category": "roznice",
+    "difficulty": 3,
+    "q": "Jaki samochód „przed przemianą” Edward kupuje Belli w książkowym „Przed świtem”, by była maksymalnie bezpieczna jako człowiek?",
+    "answer": "Opancerzonego Mercedesa (Mercedes Guardian)",
+    "wrong": [
+      "Czarnego Hummera",
+      "Srebrne Volvo XC90",
+      "Pancernego Cadillaca Escalade"
+    ],
+    "note": "W książce Edward kupuje jej dwa auta: pancernego Mercedesa Guardiana na czas, gdy jest jeszcze człowiekiem, oraz sportowe Ferrari po przemianie."
+  },
+  {
+    "id": "ps-063",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 3,
+    "q": "Jaki prezent ślubny („coś starego i coś niebieskiego”) Bella dostaje od Charliego i Renée tuż przed ceremonią?",
+    "answer": "Zabytkowe srebrne grzebienie do włosów po babci Swan, wysadzane szafirami",
+    "wrong": [
+      "Szafirowy naszyjnik ze ślubu Renée",
+      "Niebieską chusteczkę z wyszytymi inicjałami",
+      "Srebrną bransoletkę z niebieskimi topazami"
+    ],
+    "note": "Grzebienie należały do babci Swan, a Charlie i Renée kazali jubilerowi wstawić w nie szafiry — zdobią fryzurę i welon Belli podczas ceremonii."
+  },
+  {
+    "id": "ps-064",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Z którą mieszkanką La Push zaprzyjaźnia się i wiąże emocjonalnie Charlie Swan pod koniec „Przed świtem”?",
+    "answer": "Z Sue Clearwater",
+    "wrong": [
+      "Z Emily Young",
+      "Z Sarah Black",
+      "Z Rachel Black"
+    ],
+    "note": "Sue Clearwater, wdowa po przyjacielu Charliego Harrym (i matka Leah oraz Setha), wspiera Charliego i pojawia się u jego boku w finałowych scenach."
+  },
+  {
+    "id": "ps-065",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "miejsca",
+    "difficulty": 2,
+    "q": "Przez które wielkie brazylijskie miasto przejeżdżają Bella i Edward w drodze na Wyspę Esme?",
+    "answer": "Przez Rio de Janeiro",
+    "wrong": [
+      "Przez São Paulo",
+      "Przez Salvador",
+      "Przez Brasílię"
+    ],
+    "note": "Po przylocie do Rio de Janeiro przesiadają się do łodzi motorowej, którą płyną na prywatną wyspę podarowaną Esme przez Carlisle'a."
+  },
+  {
+    "id": "ps-066",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 3,
+    "q": "Na jaki zwykły produkt spożywczy ciężarna Bella ma początkowo ogromną ochotę jeszcze na Wyspie Esme (zanim odkrywa pragnienie krwi)?",
+    "answer": "Na jajka",
+    "wrong": [
+      "Na ogórki kiszone",
+      "Na owoce morza",
+      "Na gorzką czekoladę"
+    ],
+    "note": "Bella prosi Edwarda o coraz większe porcje jajek — to jeden z pierwszych dziwnych objawów nietypowej ciąży jeszcze przed powrotem do Forks."
+  },
+  {
+    "id": "ps-067",
+    "part": "przed-switem",
+    "source": "ksiazka",
+    "category": "cytaty",
+    "difficulty": 3,
+    "q": "Z wiersza której amerykańskiej poetki pochodzi motto otwierające „Przed świtem” („Childhood is the Kingdom Where Nobody Dies”)?",
+    "answer": "Edny St. Vincent Millay",
+    "wrong": [
+      "Emily Dickinson",
+      "Sylvii Plath",
+      "Mayi Angelou"
+    ],
+    "note": "Wiersz z 1937 roku otwiera Księgę pierwszą „Przed świtem” — podkreśla koniec ludzkiej młodości Belli i wkroczenie w świat śmiertelnych decyzji."
+  },
+  {
+    "id": "ps-068",
+    "part": "przed-switem",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Jak miał na imię chłopiec — nieśmiertelne dziecko stworzone przez Sashę z klanu z Denali?",
+    "answer": "Vasilii",
+    "wrong": [
+      "Aleksei",
+      "Nikolai",
+      "Dimitri"
+    ],
+    "note": "Volturi zgładzili zarówno Sashę, jak i Vasiliia, oszczędzając Tanyę, Kate i Irinę tylko dlatego, że nie wiedziały o złamaniu prawa."
+  },
+  {
+    "id": "ps-069",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Który egipski wampir — twórca Benjamina — jest przywódcą klanu egipskiego i panicznie boi się, że Aro odbierze mu Benjamina?",
+    "answer": "Amun",
+    "wrong": [
+      "Kebir",
+      "Stefan",
+      "Toshiro"
+    ],
+    "note": "Amun wraz ze swoją partnerką Kebi waha się do samego końca i opuszcza polanę natychmiast po odejściu Volturi, by uniknąć kłopotów."
+  },
+  {
+    "id": "ps-070",
+    "part": "przed-switem",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Jaki subtelny, nie do końca potwierdzony dar Carlisle podejrzewa u Siobhan z klanu irlandzkiego?",
+    "answer": "Zdolność wpływania siłą woli na pomyślny przebieg przyszłych wydarzeń",
+    "wrong": [
+      "Umiejętność leczenia ran u ludzi i wampirów",
+      "Wyczuwanie kłamstw w głosie rozmówcy",
+      "Rozmawianie ze zwierzętami w lesie"
+    ],
+    "note": "Sama Siobhan nie wierzy w swój dar, lecz Carlisle prosi ją, by intensywnie wizualizowała pokojowe zakończenie spotkania z Volturi (wykrywanie kłamstw to dar jej towarzyszki Maggie)."
+  },
+  {
+    "id": "ps-071",
+    "part": "przed-switem",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Z jakiego okresu historycznego pochodzi koczownik Garrett, jeden ze świadków Cullenów?",
+    "answer": "Z czasów amerykańskiej wojny o niepodległość (XVIII wiek)",
+    "wrong": [
+      "Z wojny secesyjnej (XIX wiek)",
+      "Z rewolucji francuskiej",
+      "Z czasów gorączki złota w Kalifornii"
+    ],
+    "note": "Garrett był amerykańskim patriotą w XVIII wieku — na polanie z właściwą sobie brawurą wygłasza płomienną przemowę o wolności przeciwko tyranii Volturi."
+  },
+  {
+    "id": "ps-072",
+    "part": "przed-switem",
+    "source": "ksiazka",
+    "category": "liczby",
+    "difficulty": 3,
+    "q": "Po mniej więcej ilu dniach od ślubu Bella uświadamia sobie na Wyspie Esme, że może być w ciąży?",
+    "answer": "Po około 17 dniach (ponad dwóch tygodniach)",
+    "wrong": [
+      "Po trzech dniach",
+      "Po dwóch miesiącach",
+      "Po pięciu dniach"
+    ],
+    "note": "Spóźniony okres, mdłości i dziwne sny sprawiają, że po niecałych trzech tygodniach miesiąca miodowego Bella dzwoni do Alice."
+  },
+  {
+    "id": "ps-073",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Jak ma na imię druga wampirzyca z klanu amazońskiego, która przybywa do Forks razem z Zafriną?",
+    "answer": "Senna",
+    "wrong": [
+      "Kebi",
+      "Tia",
+      "Carmen"
+    ],
+    "note": "Trzecia członkini klanu amazońskiego, Kachiri, wyrusza w tym czasie z Alice i Jasperem na poszukiwanie Nahuela w Ameryce Południowej."
+  },
+  {
+    "id": "ps-074",
+    "part": "przed-switem",
+    "source": "oba",
+    "category": "fabula",
+    "difficulty": 2,
+    "q": "Co natychmiast intryguje Aro, gdy zbliża się do małej Renesmee na zaśnieżonej polanie?",
+    "answer": "Słyszy bicie jej serca i wyczuwa ciepłą krew, więc odkrywa, że nie jest zwykłym nieśmiertelnym dzieckiem",
+    "wrong": [
+      "Widzi, że Renesmee nie lśni w słońcu",
+      "Zauważa, że nie potrafi czytać jej myśli z powodu tarczy",
+      "Rozpoznaje w niej rysy twarzy swojej zmarłej siostry Didyme"
+    ],
+    "note": "Gdy Aro słyszy puls półwampirzego dziecka, ze zdumieniem wita ją osobiście i dotyka jej policzka, poznając prawdę o jej narodzinach."
+  },
+  {
+    "id": "sa-058",
+    "part": "saga",
+    "source": "oba",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "W jakich okolicznościach Carlisle Cullen został przemieniony w wampira w XVII-wiecznym Londynie?",
+    "answer": "Został ugryziony przez wygłodniałego wampira podczas nocnej obławy prowadzonej przez jego ojca",
+    "wrong": [
+      "Przemienił go Aro w zamian za pomoc lekarską we Włoszech",
+      "Został zaatakowany na statku płynącym do Ameryki",
+      "Poprosił starego wampira o przemianę, gdy umierał na dżumę"
+    ],
+    "note": "Przerażony przemianą Carlisle ukrył się w piwnicy z ziemniakami, przeczekał ból w ciszy i przysiągł sobie, że nigdy nie zabije człowieka."
+  },
+  {
+    "id": "sa-059",
+    "part": "saga",
+    "source": "oba",
+    "category": "miejsca",
+    "difficulty": 2,
+    "q": "Z kim Carlisle spędził kilkadziesiąt lat we Włoszech, zanim zdecydował się wyjechać do Nowego Świata?",
+    "answer": "Z Volturi w Volterze",
+    "wrong": [
+      "Z klanem rumuńskim w Bukareszcie",
+      "Z klanem z Denali w Alpach",
+      "Z klanem egipskim w Wenecji"
+    ],
+    "note": "Aro, Kajusz i Marek podziwiali inteligencję Carlisle'a, lecz próbowali bezskutecznie nakłonić go do picia ludzkiej krwi — stąd późniejsze napięcie między dawnymi znajomymi."
+  },
+  {
+    "id": "sa-060",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Z jakiego powodu Carlisle przemienił umierającą Rosalie w 1933 roku, mając dodatkową nadzieję dla rodziny?",
+    "answer": "Miał nadzieję, że Rosalie zostanie towarzyszką samotnego Edwarda",
+    "wrong": [
+      "Potrzebował wampira o darze przewidywania przyszłości",
+      "Rosalie była daleką krewną Esme",
+      "Chciał, by zastąpiła Esme w prowadzeniu domu"
+    ],
+    "note": "Plan Carlisle'a zupełnie nie wypalił — Edward i Rosalie od początku traktowali się jak rodzeństwo, a swoją miłość Rosalie znalazła dopiero dwa lata później w Emmetcie."
+  },
+  {
+    "id": "sa-061",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Jaką szczególną cechę — zamiast klasycznego nadprzyrodzonego daru — przemiana wzmocniła u Esme?",
+    "answer": "Zdolność do głębokiej, bezgranicznej miłości",
+    "wrong": [
+      "Zdolność do błyskawicznego gojenia ran innych",
+      "Wyjątkową szybkość dorównującą Edwardowi",
+      "Zdolność do wykrywania zagrożeń z daleka"
+    ],
+    "note": "Carlisle wyjaśnia Belli, że każdy wampir wnosi w nieśmiertelność swoją najsilniejszą ludzką cechę — u Esme jest nią ogromne matczyne serce."
+  },
+  {
+    "id": "sa-062",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Która wampirzyca z klanu z Denali przed pojawieniem się Belli żywiła nieodwzajemnione uczucia do Edwarda?",
+    "answer": "Tanya",
+    "wrong": [
+      "Kate",
+      "Irina",
+      "Carmen"
+    ],
+    "note": "Gdy Edward ucieka na Alaskę po pierwszym spotkaniu z Bellą, Tanya próbuje go pocieszyć, lecz Edward delikatnie odrzuca jej zaloty."
+  },
+  {
+    "id": "sa-063",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 2,
+    "q": "Jak w świecie sagi nazywają się prawdziwe wilkołaki (przemieniające się w pełnię księżyca), które Kajusz niemal doszczętnie wytępił?",
+    "answer": "Dzieci Księżyca",
+    "wrong": [
+      "Wilki Północy",
+      "Strażnicy Nocy",
+      "Cienie Lasu"
+    ],
+    "note": "W „Przed świtem” Aro i Kajusz zdają sobie sprawę, że wilki z La Push są zmiennokształtnymi, a nie niebezpiecznymi Dziećmi Księżyca, przed którymi Kajusz ma dawny uraz."
+  },
+  {
+    "id": "sa-064",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Który z trzech przywódców Volturi nie posiada żadnego nadprzyrodzonego daru?",
+    "answer": "Kajusz (Caius)",
+    "wrong": [
+      "Aro",
+      "Marek (Marcus)",
+      "Wszyscy trzej mają nadprzyrodzone dary"
+    ],
+    "note": "Aro czyta myśli przez dotyk, a Marek widzi więzi emocjonalne — Kajusz zawdzięcza swoją pozycję bezwzględności, ambicji i sile charakteru."
+  },
+  {
+    "id": "sa-065",
+    "part": "saga",
+    "source": "oba",
+    "category": "liczby",
+    "difficulty": 2,
+    "q": "W którym roku urodził się jako człowiek Edward?",
+    "answer": "W 1901 roku",
+    "wrong": [
+      "W 1895 roku",
+      "W 1910 roku",
+      "W 1887 roku"
+    ],
+    "note": "Edward przyszedł na świat 20 czerwca 1901 roku w Chicago, a siedemnaście lat później, w 1918 roku, Carlisle przemienił go podczas pandemii hiszpanki."
+  },
+  {
+    "id": "sa-066",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "liczby",
+    "difficulty": 3,
+    "q": "W jakim wieku fizycznym Carlisle został przemieniony w wampira?",
+    "answer": "W wieku 23 lat",
+    "wrong": [
+      "W wieku 30 lat",
+      "W wieku 27 lat",
+      "W wieku 19 lat"
+    ],
+    "note": "Choć Carlisle odgrywa rolę ojca całej rodziny i ordynatora w szpitalu, fizycznie ma zaledwie 23 lata."
+  },
+  {
+    "id": "sa-067",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "liczby",
+    "difficulty": 3,
+    "q": "W jakim wieku fizycznym Esme została przemieniona w wampira?",
+    "answer": "W wieku 26 lat",
+    "wrong": [
+      "W wieku 21 lat",
+      "W wieku 32 lat",
+      "W wieku 19 lat"
+    ],
+    "note": "Esme urodziła się w 1895 roku, a w 1921 roku — w wieku 26 lat — Carlisle uratował ją w kostnicy po próbie samobójczej."
+  },
+  {
+    "id": "sa-068",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "liczby",
+    "difficulty": 3,
+    "q": "W jakim wieku fizycznym Emmett został przemieniony w wampira po ataku niedźwiedzia?",
+    "answer": "W wieku 20 lat",
+    "wrong": [
+      "W wieku 17 lat",
+      "W wieku 24 lat",
+      "W wieku 18 lat"
+    ],
+    "note": "Emmett McCarty urodził się w 1915 roku i został przemieniony przez Carlisle'a na prośbę Rosalie w 1935 roku w Tennessee."
+  },
+  {
+    "id": "sa-069",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "miejsca",
+    "difficulty": 3,
+    "q": "Z jakiego amerykańskiego miasta pochodziła jako człowiek Alice?",
+    "answer": "Z Biloxi w stanie Missisipi",
+    "wrong": [
+      "Z Nowego Orleanu w Luizjanie",
+      "Z Savannah w Georgii",
+      "Z Charleston w Karolinie Południowej"
+    ],
+    "note": "Bella odkrywa ślady ludzkiej przeszłości Alice z Biloxi w Missisipi, gdy James ujawnia nagranie i dokumenty ze starego zakładu psychiatrycznego."
+  },
+  {
+    "id": "sa-070",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "miejsca",
+    "difficulty": 3,
+    "q": "Z którego stanu USA pochodził jako człowiek Jasper, zanim zaciągnął się do armii Konfederacji?",
+    "answer": "Z Teksasu",
+    "wrong": [
+      "Z Wirginii",
+      "Z Alabamy",
+      "Z Tennessee"
+    ],
+    "note": "Jasper urodził się w Houston w Teksasie, skłamał co do swojego wieku, by wstąpić do armii, a w 1863 roku pod Galveston spotkał Marię."
+  },
+  {
+    "id": "sa-071",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "postacie",
+    "difficulty": 3,
+    "q": "Jak nazywają się dwaj najmłodsi, zaledwie trzynastoletni chłopcy z La Push, którzy przemienili się w wilki?",
+    "answer": "Brady Fuller i Collin Littlesea",
+    "wrong": [
+      "Quil Ateara i Embry Call",
+      "Jared Cameron i Paul Lahote",
+      "Seth Clearwater i Quil Ateara"
+    ],
+    "note": "Obecność coraz większej liczby wampirów (najpierw armii z Seattle, potem świadków Cullenów) sprawiła, że w wilki zaczęli się przemieniać coraz młodsi chłopcy."
+  },
+  {
+    "id": "ku-063",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 2,
+    "q": "Który aktor zagrał Emmetta Cullena we wszystkich pięciu filmach sagi?",
+    "answer": "Kellan Lutz",
+    "wrong": [
+      "Jackson Rathbone",
+      "Cam Gigandet",
+      "Taylor Lautner"
+    ],
+    "note": "Kellan Lutz wcielił się w żartobliwego, potężnego Emmetta we wszystkich częściach ekranizacji."
+  },
+  {
+    "id": "ku-064",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 2,
+    "q": "Który aktor zagrał Jaspera Hale'a w filmowej sadze?",
+    "answer": "Jackson Rathbone",
+    "wrong": [
+      "Kellan Lutz",
+      "Jamie Campbell Bower",
+      "Xavier Samuel"
+    ],
+    "note": "Jackson Rathbone jest nie tylko aktorem, ale i muzykiem — współtworzył zespół 100 Monkeys."
+  },
+  {
+    "id": "ku-065",
+    "part": "ksiezyc",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 2,
+    "q": "Który aktor — znany później jako Vecna ze „Stranger Things” — zagrał Kajusza (Caiusa) z Volturi?",
+    "answer": "Jamie Campbell Bower",
+    "wrong": [
+      "Cameron Bright",
+      "Charlie Bewley",
+      "Christopher Heyerdahl"
+    ],
+    "note": "Jamie Campbell Bower wystąpił również jako młody Gellert Grindelwald w serii o Harrym Potterze i „Fantastycznych zwierzętach”."
+  },
+  {
+    "id": "ku-066",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 2,
+    "q": "Która aktorka — znana później jako Rosita z „The Walking Dead” — zagrała Angelę Weber?",
+    "answer": "Christian Serratos",
+    "wrong": [
+      "Anna Kendrick",
+      "Ashley Greene",
+      "Sarah Clarke"
+    ],
+    "note": "Christian Serratos zagrała też później główną rolę Seleny Quintanilli w serialu „Selena” na Netfliksie."
+  },
+  {
+    "id": "ku-067",
+    "part": "ksiezyc",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 3,
+    "q": "Który aktor zagrał Marka (Marcusa), trzeciego z przywódców Volturi?",
+    "answer": "Christopher Heyerdahl",
+    "wrong": [
+      "Michael Sheen",
+      "Daniel Cudmore",
+      "Billy Burke"
+    ],
+    "note": "Kanadyjski aktor Christopher Heyerdahl znany jest także z ról w serialach „Hell on Wheels” i „Stargate Atlantis”."
+  },
+  {
+    "id": "ku-068",
+    "part": "ksiezyc",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 3,
+    "q": "Który aktor zagrał Sama Uleya, przywódcę watahy z La Push?",
+    "answer": "Chaske Spencer",
+    "wrong": [
+      "Alex Meraz",
+      "Kiowa Gordon",
+      "Gil Birmingham"
+    ],
+    "note": "Chaske Spencer pochodzi z plemienia Lakotów i wcielił się w Sama Uleya od „Księżyca w nowiu” aż po finał."
+  },
+  {
+    "id": "ku-069",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 3,
+    "q": "Który aktor zagrał koczownika Laurenta w „Zmierzchu” i „Księżycu w nowiu”?",
+    "answer": "Edi Gathegi",
+    "wrong": [
+      "Wendell Pierce",
+      "Cam Gigandet",
+      "Rami Malek"
+    ],
+    "note": "Edi Gathegi wystąpił też m.in. w serialu „Dr House” oraz filmie „X-Men: Pierwsza klasa”."
+  },
+  {
+    "id": "ku-070",
+    "part": "zacmienie",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 3,
+    "q": "Który australijski aktor zagrał Rileya Biersa, dowódcę armii nowonarodzonych w „Zaćmieniu”?",
+    "answer": "Xavier Samuel",
+    "wrong": [
+      "Cam Gigandet",
+      "Charlie Bewley",
+      "Lee Pace"
+    ],
+    "note": "Xavier Samuel za rolę Rileya zdobył m.in. nagrodę MTV Movie Award za najlepszą walkę (wraz z Robertem Pattinsonem i Bryce Dallas Howard)."
+  },
+  {
+    "id": "ku-071",
+    "part": "przed-switem",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 3,
+    "q": "Który aktor — znany z roli Mickeya w serialu „Shameless” — zagrał Vladimira z klanu rumuńskiego?",
+    "answer": "Noel Fisher",
+    "wrong": [
+      "Guri Weinberg",
+      "Lee Pace",
+      "Joe Anderson"
+    ],
+    "note": "Noel Fisher i Guri Weinberg stworzyli w „Przed świtem — cz. 2” charakterystyczny duet mściwych rumuńskich wampirów Vladimira i Stefana."
+  },
+  {
+    "id": "ku-072",
+    "part": "przed-switem",
+    "source": "film",
+    "category": "obsada",
+    "difficulty": 3,
+    "q": "Która aktorka — znana wcześniej z serialu „Lost” i filmu „Uprowadzona” — zagrała Irinę z klanu z Denali?",
+    "answer": "Maggie Grace",
+    "wrong": [
+      "MyAnna Buring",
+      "Casey LaBow",
+      "Dakota Fanning"
+    ],
+    "note": "Maggie Grace zagrała Irinę w obu częściach „Przed świtem” — to jej donos do Volturi uruchamia cały finałowy konflikt."
+  },
+  {
+    "id": "ku-073",
+    "part": "ksiezyc",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 2,
+    "q": "Który duet (zespół i wokalistka) nagrał klimatyczną piosenkę „Roslyn” ze ścieżki dźwiękowej „Księżyca w nowiu”?",
+    "answer": "Bon Iver i St. Vincent",
+    "wrong": [
+      "Iron & Wine i Lykke Li",
+      "The xx i Florence Welch",
+      "Death Cab for Cutie i Sia"
+    ],
+    "note": "„Roslyn” uchodzi za jeden z najbardziej kultowych utworów indie na ścieżkach dźwiękowych całej sagi."
+  },
+  {
+    "id": "ku-074",
+    "part": "ksiezyc",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 3,
+    "q": "Który lider zespołu Radiohead nagrał solowy utwór „Hearing Damage” do filmu „Księżyc w nowiu”?",
+    "answer": "Thom Yorke",
+    "wrong": [
+      "Matt Bellamy",
+      "Brandon Flowers",
+      "Chris Martin"
+    ],
+    "note": "„Hearing Damage” pojawia się w dynamicznej scenie pościgu watahy za Victorią w lesie (Radiohead pojawili się też wcześniej w napisach „Zmierzchu” z utworem „15 Step”)."
+  },
+  {
+    "id": "ku-075",
+    "part": "zacmienie",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 2,
+    "q": "Który zespół wykonał piosenkę „Heavy in Your Arms” z filmu „Zaćmienie”?",
+    "answer": "Florence + The Machine",
+    "wrong": [
+      "Paramore",
+      "Metric",
+      "Muse"
+    ],
+    "note": "Utwór Florence Welch rozbrzmiewa na początku napisów końcowych „Zaćmienia”."
+  },
+  {
+    "id": "ku-076",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 2,
+    "q": "Który słynny zespół rockowy nagrał utwór „Leave Out All the Rest”, słyszany w napisach końcowych pierwszego „Zmierzchu”?",
+    "answer": "Linkin Park",
+    "wrong": [
+      "Green Day",
+      "Coldplay",
+      "My Chemical Romance"
+    ],
+    "note": "„Leave Out All the Rest” z płyty „Minutes to Midnight” trafiło na album ze ścieżką dźwiękową pierwszego filmu."
+  },
+  {
+    "id": "ku-077",
+    "part": "przed-switem",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 2,
+    "q": "Który zespół punkrockowy wykonał piosenkę „The Forgotten” do napisów końcowych „Przed świtem — cz. 2”?",
+    "answer": "Green Day",
+    "wrong": [
+      "Blink-182",
+      "Linkin Park",
+      "Fall Out Boy"
+    ],
+    "note": "Ballada „The Forgotten” z albumu „¡Tré!” zamknęła muzycznie pięcioletnią filmową serię."
+  },
+  {
+    "id": "ku-078",
+    "part": "zacmienie",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 2,
+    "q": "Który słynny kompozytor — autor muzyki do „Władcy Pierścieni” — skomponował ścieżkę orkiestrową do „Zaćmienia”?",
+    "answer": "Howard Shore",
+    "wrong": [
+      "Hans Zimmer",
+      "John Williams",
+      "Danny Elfman"
+    ],
+    "note": "Howard Shore nadał „Zaćmieniu” znacznie bardziej epicki, bitewny charakter niż kameralne kompozycje z pierwszego filmu."
+  },
+  {
+    "id": "ku-079",
+    "part": "ksiezyc",
+    "source": "film",
+    "category": "muzyka",
+    "difficulty": 3,
+    "q": "Który francuski kompozytor, laureat Oscara, stworzył muzykę orkiestrową do „Księżyca w nowiu”?",
+    "answer": "Alexandre Desplat",
+    "wrong": [
+      "Carter Burwell",
+      "Howard Shore",
+      "Dario Marianelli"
+    ],
+    "note": "Carter Burwell napisał muzykę do „Zmierzchu” oraz obu części „Przed świtem”, Alexandre Desplat do „Księżyca w nowiu”, a Howard Shore do „Zaćmienia”."
+  },
+  {
+    "id": "ku-080",
+    "part": "zmierzch",
+    "source": "film",
+    "category": "kulisy",
+    "difficulty": 2,
+    "q": "Dlaczego Kristen Stewart musiała nosić w filmach brązowe soczewki kontaktowe, zanim Bella stała się wampirzycą?",
+    "answer": "Ponieważ aktorka ma naturalnie zielone oczy, a książkowa Bella miała oczy czekoladowobrązowe",
+    "wrong": [
+      "Ze względu na niebieski filtr kamery, przy którym jej oczy wyglądały na białe",
+      "Ponieważ w pierwszym filmie przeszła operację korekcji wzroku",
+      "Żeby wszystkie ludzkie postacie w Forks miały ten sam kolor tęczówek"
+    ],
+    "note": "Kristen Stewart wspominała w wywiadach, że noszenie soczewek (najpierw brązowych, a potem jaskrawoczerwonych) było jedną z najmniej wygodnych rzeczy na planie."
+  },
+  {
+    "id": "ku-081",
+    "part": "zacmienie",
+    "source": "film",
+    "category": "kulisy",
+    "difficulty": 2,
+    "q": "Dlaczego Kristen Stewart nosiła perukę podczas zdjęć do „Zaćmienia”?",
+    "answer": "Obcięła wcześniej włosy na krótko do roli Joan Jett w filmie „The Runaways”",
+    "wrong": [
+      "Zniszczyła włosy podczas farbowania na blond do innej produkcji",
+      "Reżyser uznał, że jej naturalne włosy są zbyt kręcone",
+      "Miała alergię na pianki do stylizacji używane na planie"
+    ],
+    "note": "Fani do dziś żartują z jakości peruk w „Zaćmieniu” — nosiła ją nie tylko Kristen Stewart, ale w wybranych ujęciach także inni aktorzy."
+  },
+  {
+    "id": "ku-082",
+    "part": "przed-switem",
+    "source": "film",
+    "category": "kulisy",
+    "difficulty": 2,
+    "q": "Jakim niechlubnym wynikiem zakończyła się dla „Przed świtem — cz. 2” 33. gala Złotych Malin w 2013 roku?",
+    "answer": "Film zdobył 7 Złotych Malin, w tym za najgorszy film roku",
+    "wrong": [
+      "Nie otrzymał ani jednej nominacji, jako jedyna część sagi",
+      "Dostał jedną Złotą Malinę wyłącznie za efekty specjalne z Renesmee",
+      "Został zdyskwalifikowany przez organizatorów po protestach fanów"
+    ],
+    "note": "W 2013 roku finał sagi zgarnął m.in. statuetki za najgorszy film, reżyserię (Bill Condon), aktorkę (Kristen Stewart) i ekranową parę (Taylor Lautner i Mackenzie Foy)."
+  },
+  {
+    "id": "ku-083",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "kulisy",
+    "difficulty": 2,
+    "q": "Co przedstawia okładka „Słońca w mroku” („Midnight Sun”) wydanego w 2020 roku?",
+    "answer": "Przekrojony owoc granatu",
+    "wrong": [
+      "Czarne jabłko w dłoniach",
+      "Białego kruka na czerwonym tle",
+      "Zaćmione słońce nad lasem"
+    ],
+    "note": "Owoc granatu nawiązuje do greckiego mitu o Hadesie i Persefonie, do którego Edward często przyrównuje swój związek z Bellą (a po łacinie granat to „jabłko z pestkami”)."
+  },
+  {
+    "id": "ku-084",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "kulisy",
+    "difficulty": 2,
+    "q": "Jak nazywa się wydana na 10-lecie „Zmierzchu” (2015) powieść Stephenie Meyer, w której płeć bohaterów została zamieniona?",
+    "answer": "„Życie i śmierć” („Life and Death”)",
+    "wrong": [
+      "„Zmierzch o świcie”",
+      "„Cień księżyca”",
+      "„Drugie oblicze Forks”"
+    ],
+    "note": "W jubileuszowym wydaniu ludzki chłopak Beaufort Swan przeprowadza się do Forks i zakochuje w wampirzycy Edythe Cullen — a historia ma inne zakończenie niż oryginał."
+  },
+  {
+    "id": "ku-085",
+    "part": "saga",
+    "source": "ksiazka",
+    "category": "kulisy",
+    "difficulty": 3,
+    "q": "Jak nazywają się odpowiedniki Belli i Edwarda w powieści „Życie i śmierć” ze zmienioną płcią bohaterów?",
+    "answer": "Beaufort (Beau) Swan i Edythe Cullen",
+    "wrong": [
+      "Ben Swan i Eleanor Cullen",
+      "Billy Swan i Evelyn Cullen",
+      "Brandon Swan i Edith Cullen"
+    ],
+    "note": "Inni bohaterowie też zmienili płeć i imiona — np. Jacob został Julie Black, Carlisle Carine, a Charlie pozostał ojcem Beau."
+  },
+  {
+    "id": "ku-086",
+    "part": "przed-switem",
+    "source": "film",
+    "category": "liczby",
+    "difficulty": 2,
+    "q": "W którym roku miała miejsce premiera kinowa finałowej części sagi — „Przed świtem — część 2”?",
+    "answer": "W 2012 roku",
+    "wrong": [
+      "W 2011 roku",
+      "W 2013 roku",
+      "W 2010 roku"
+    ],
+    "note": "Wszystkie pięć filmów wychodziło dokładnie co rok: 2008, 2009, 2010, 2011 i 2012."
+  }
+]

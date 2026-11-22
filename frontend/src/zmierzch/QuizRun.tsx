@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { loginUrl } from '../api/client'
 import { Button, Eyebrow, SectionHead, mono, sans } from '../components/ui'
+import { formatDurationMs, type ZmierzchAttemptResult } from './api'
 import { shuffle } from './queue'
+import { scopeLabel } from './sets'
 import { CATEGORY_LABEL, PART_LABEL, SOURCE_LABEL, type Question } from './types'
 
 const TIMEOUT = '__timeout__'
@@ -12,10 +15,26 @@ interface Result {
 }
 
 /** One timed ABCD round. `seconds` = 0 means no time limit. */
-export function QuizRun({ questions, seconds, onGrade, onClose, onRetry }: {
+export function QuizRun({
+  questions,
+  seconds,
+  scope,
+  title,
+  isLoggedIn,
+  onGrade,
+  onComplete,
+  onOpenLeaderboard,
+  onClose,
+  onRetry,
+}: {
   questions: Question[]
   seconds: number
+  scope: string
+  title?: string
+  isLoggedIn: boolean
   onGrade: (id: string, correct: boolean) => void
+  onComplete?: (summary: { correct: number; total: number; durationMs: number }) => Promise<ZmierzchAttemptResult | null>
+  onOpenLeaderboard?: (scope: string) => void
   onClose: () => void
   onRetry: (questions: Question[]) => void
 }) {
@@ -24,25 +43,40 @@ export function QuizRun({ questions, seconds, onGrade, onClose, onRetry }: {
   const [results, setResults] = useState<Result[]>([])
   const [deadline, setDeadline] = useState(0)
   const [now, setNow] = useState(Date.now())
+  const [saved, setSaved] = useState<ZmierzchAttemptResult | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState<string | null>(null)
+
+  // Active answering time only — reading explanations never hurts the tie-breaker.
+  const qStartRef = useRef<number>(Date.now())
+  const activeMsRef = useRef<number>(0)
+  const [finalMs, setFinalMs] = useState(0)
+  const submittedRef = useRef(false)
 
   const q = questions[idx] as Question | undefined
   const options = useMemo(() => (q ? shuffle([q.answer, ...q.wrong]) : []), [q])
   const done = idx >= questions.length
 
   useEffect(() => {
-    if (done || !seconds) return
-    setDeadline(Date.now() + seconds * 1000)
-    setNow(Date.now())
+    if (done) return
+    const t = Date.now()
+    qStartRef.current = t
+    if (seconds) {
+      setDeadline(t + seconds * 1000)
+      setNow(t)
+    }
   }, [idx, done, seconds])
 
   const answer = useCallback(
     (choice: string) => {
       if (!q || picked !== null) return
+      const elapsed = Math.max(0, Date.now() - qStartRef.current)
+      activeMsRef.current += seconds ? Math.min(elapsed, seconds * 1000) : elapsed
       setPicked(choice)
       setResults((r) => [...r, { q, picked: choice }])
       onGrade(q.id, choice === q.answer)
     },
-    [q, picked, onGrade],
+    [q, picked, seconds, onGrade],
   )
 
   const next = useCallback(() => {
@@ -50,6 +84,22 @@ export function QuizRun({ questions, seconds, onGrade, onClose, onRetry }: {
     setDeadline(0) // the countdown waits for the next question's deadline
     setIdx((i) => i + 1)
   }, [])
+
+  // Submit completed run once when the round finishes.
+  useEffect(() => {
+    if (!done || submittedRef.current || results.length === 0) return
+    submittedRef.current = true
+    const durationMs = Math.round(activeMsRef.current)
+    setFinalMs(durationMs)
+    if (!onComplete || !isLoggedIn) return
+    const correct = results.filter((r) => r.picked === r.q.answer).length
+    setSaving(true)
+    setSaveErr(null)
+    void onComplete({ correct, total: results.length, durationMs })
+      .then((res) => setSaved(res))
+      .catch((err: unknown) => setSaveErr(err instanceof Error ? err.message : 'Nie udało się zapisać wyniku.'))
+      .finally(() => setSaving(false))
+  }, [done, results, onComplete, isLoggedIn])
 
   // Countdown: a missed deadline counts as a wrong answer.
   useEffect(() => {
@@ -82,12 +132,56 @@ export function QuizRun({ questions, seconds, onGrade, onClose, onRetry }: {
   if (done || !q) {
     const correct = results.filter((r) => r.picked === r.q.answer).length
     const missed = results.filter((r) => r.picked !== r.q.answer)
+    const pct = results.length ? Math.round((correct / results.length) * 100) : 0
+    const ranked = scope !== 'custom'
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+        {title && <Eyebrow>{title}</Eyebrow>}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
           <span style={{ font: mono(56, 500), lineHeight: 1 }}>{correct}/{results.length}</span>
+          <span style={{ font: mono(18, 500), color: 'var(--text-2)' }}>{pct}%</span>
           <span style={{ font: sans(16), color: 'var(--text-2)' }}>{verdict(correct, results.length)}</span>
         </div>
+        <div style={{ font: mono(13), color: 'var(--text-3)' }}>
+          Czas odpowiedzi: {formatDurationMs(finalMs)}
+          {ranked ? ` · ${scopeLabel(scope)}` : ' · tryb treningowy (bez rankingu)'}
+        </div>
+
+        {ranked && isLoggedIn && (
+          <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ font: sans(14, 500), color: saveErr ? 'var(--accent-text)' : 'var(--text)' }}>
+              {saving && 'Zapisuję wynik w rankingu…'}
+              {!saving && saveErr && saveErr}
+              {!saving && saved && (
+                <>
+                  {saved.isPersonalBest ? 'Nowy rekord osobisty! ' : 'Wynik zapisany. '}
+                  {saved.rank != null && (
+                    <span style={{ font: mono(13, 600), color: 'var(--accent-text)' }}>
+                      #{saved.rank} z {saved.totalPlayers}
+                    </span>
+                  )}
+                </>
+              )}
+            </span>
+            {onOpenLeaderboard && (
+              <Button size="sm" variant="outline" onClick={() => onOpenLeaderboard(scope)}>
+                Zobacz ranking
+              </Button>
+            )}
+          </div>
+        )}
+
+        {ranked && !isLoggedIn && (
+          <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ font: sans(14), color: 'var(--text-2)' }}>
+              Zaloguj się przez Google, żeby zapisywać wyniki i porównywać się w rankingu.
+            </span>
+            <a href={loginUrl('/zmierzch')} style={{ textDecoration: 'none' }}>
+              <Button size="sm" variant="dark" type="button">Zaloguj przez Google</Button>
+            </a>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {missed.length > 0 && <Button onClick={() => onRetry(missed.map((m) => m.q))}>Powtórz błędy ({missed.length})</Button>}
           <Button variant="outline" onClick={() => onRetry(shuffle(questions))}>Jeszcze raz te same</Button>
@@ -118,9 +212,9 @@ export function QuizRun({ questions, seconds, onGrade, onClose, onRetry }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
         <span style={{ font: mono(13, 500), color: 'var(--text-2)' }}>
-          {idx + 1}/{questions.length} · wynik {score}
+          {title ? `${title} · ` : ''}{idx + 1}/{questions.length} · wynik {score}
         </span>
         <button type="button" onClick={onClose} style={{ border: 0, background: 'transparent', font: sans(14), color: 'var(--text-3)', cursor: 'pointer' }}>
           Zakończ
@@ -141,7 +235,7 @@ export function QuizRun({ questions, seconds, onGrade, onClose, onRetry }: {
       )}
       <Eyebrow>
         {PART_LABEL[q.part]} · {SOURCE_LABEL[q.source]} · {CATEGORY_LABEL[q.category]}
-        {q.difficulty === 3 ? ' · trudne' : ''}
+        {q.difficulty === 1 ? ' · łatwe' : q.difficulty === 3 ? ' · trudne' : ''}
       </Eyebrow>
       <div style={{ fontFamily: 'var(--serif)', fontWeight: 500, fontSize: 24, lineHeight: 1.25, textWrap: 'pretty' as never }}>{q.q}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -1,4 +1,4 @@
-import type { Category, Part, Question } from './types'
+import type { Category, Difficulty, Part, Question } from './types'
 import type { ProgressMap } from './progress'
 
 export interface Filters {
@@ -8,24 +8,36 @@ export interface Filters {
   source: 'all' | 'film' | 'ksiazka'
   /** Empty = all categories. */
   categories: Category[]
-  hardOnly: boolean
+  /** Empty = all difficulties (1, 2, 3). */
+  difficulties: Difficulty[]
   /** Only questions already answered wrong and not re-learned (box 0). */
   mistakesOnly: boolean
 }
 
-export const DEFAULT_FILTERS: Filters = { parts: [], source: 'all', categories: [], hardOnly: false, mistakesOnly: false }
+export const DEFAULT_FILTERS: Filters = {
+  parts: [],
+  source: 'all',
+  categories: [],
+  difficulties: [],
+  mistakesOnly: false,
+}
 
 const FILTERS_KEY = 'zmierzch.filters.v1'
 
 export function loadFilters(): Filters {
   try {
     const raw = localStorage.getItem(FILTERS_KEY)
-    const f = raw ? (JSON.parse(raw) as Partial<Filters>) : {}
+    const f = raw ? (JSON.parse(raw) as Partial<Filters> & { hardOnly?: boolean }) : {}
+    const difficulties: Difficulty[] = Array.isArray(f.difficulties)
+      ? f.difficulties.filter((d): d is Difficulty => d === 1 || d === 2 || d === 3)
+      : f.hardOnly === true
+        ? [3]
+        : []
     return {
       parts: Array.isArray(f.parts) ? f.parts : [],
       source: f.source === 'film' || f.source === 'ksiazka' ? f.source : 'all',
       categories: Array.isArray(f.categories) ? f.categories : [],
-      hardOnly: f.hardOnly === true,
+      difficulties,
       mistakesOnly: f.mistakesOnly === true,
     }
   } catch {
@@ -46,13 +58,28 @@ export function applyFilters(all: Question[], f: Filters, progress: ProgressMap)
     if (f.parts.length && !f.parts.includes(q.part)) return false
     if (f.source !== 'all' && q.source !== f.source && q.source !== 'oba') return false
     if (f.categories.length && !f.categories.includes(q.category)) return false
-    if (f.hardOnly && q.difficulty < 3) return false
+    if (f.difficulties.length && !f.difficulties.includes(q.difficulty)) return false
     if (f.mistakesOnly) {
       const p = progress[q.id]
       if (!p || p.wrong === 0 || p.box > 0) return false
     }
     return true
   })
+}
+
+/**
+ * Determines which leaderboard scope a standard Quiz run counts toward:
+ * - No extra filters & all parts → 'all' (whole suite)
+ * - No extra filters & 1 part → 'part:<part>'
+ * - Anything else (categories, source, difficulty, mistakes, multi-part) → 'custom' (unranked)
+ */
+export function resolveQuizScope(f: Filters): string {
+  if (f.source !== 'all' || f.categories.length > 0 || f.difficulties.length > 0 || f.mistakesOnly) {
+    return 'custom'
+  }
+  if (f.parts.length === 0) return 'all'
+  if (f.parts.length === 1) return `part:${f.parts[0]}`
+  return 'custom'
 }
 
 export function shuffle<T>(xs: readonly T[]): T[] {

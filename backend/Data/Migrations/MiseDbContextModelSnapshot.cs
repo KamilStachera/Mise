@@ -2111,6 +2111,82 @@ namespace Mise.Api.Data.Migrations
                     b.ToTable("Workouts");
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.ZmierzchAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Correct")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("TimeLimitSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Total")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "CompletedAt");
+
+                    b.HasIndex("Scope", "PlayerId");
+
+                    b.ToTable("ZmierzchAttempts");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.ZmierzchPlayer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Picture")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("ProgressJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserKey")
+                        .IsUnique();
+
+                    b.ToTable("ZmierzchPlayers");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.ApiKey", b =>
                 {
                     b.HasOne("Mise.Api.Domain.Household", null)
@@ -2665,6 +2741,17 @@ namespace Mise.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Mise.Api.Domain.ZmierzchAttempt", b =>
+                {
+                    b.HasOne("Mise.Api.Domain.ZmierzchPlayer", "Player")
+                        .WithMany("Attempts")
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("Mise.Api.Domain.Cook", b =>
                 {
                     b.Navigation("Entries");
@@ -2702,6 +2789,11 @@ namespace Mise.Api.Data.Migrations
             modelBuilder.Entity("Mise.Api.Domain.TrainingSession", b =>
                 {
                     b.Navigation("Sets");
+                });
+
+            modelBuilder.Entity("Mise.Api.Domain.ZmierzchPlayer", b =>
+                {
+                    b.Navigation("Attempts");
                 });
 #pragma warning restore 612, 618
         }
