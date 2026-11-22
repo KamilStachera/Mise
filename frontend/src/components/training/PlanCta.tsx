@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { errorText } from '../../api/client'
 import { useChatHealth } from '../../api/hooks'
@@ -62,6 +63,53 @@ export function PlanCta({ finished }: { finished?: boolean }) {
         <p style={{ margin: 0, font: sans(12.5), color: 'var(--text-3)' }}>
           Albo w Claude Code / Codex: <code style={{ font: mono(12, 500) }}>/plan-treningowy</code>. Polskie opisy i filmy
           ćwiczeń z planu aplikacja dopisze sama w ciągu kilku minut.
+        </p>
+      )}
+    </section>
+  )
+}
+
+export const SOUS_REBUILD_PROMPT =
+  'Moja ankieta treningowa się zmieniła (np. gdzie ćwiczę albo jaki mam sprzęt). Ułóż mi nowy plan według aktualnej ' +
+  'ankiety (zasady w AGENTS.md, sekcje „Trening”) i zastąp nim obecny. Najpierw pokaż propozycję.'
+
+/**
+ * The questionnaire changed after the active plan was made (e.g. gym → home): the plan does not
+ * rebuild itself, so offer it here — template (replaces the active plan) or Sous. „Zostaw” hides
+ * the note until the questionnaire changes again (per device).
+ */
+export function ProfileChangedNote({ programCreatedAt }: { programCreatedAt: string }) {
+  const { data: profile } = useTrainingProfile()
+  const { data: chat } = useChatHealth()
+  const template = useTemplateProgram()
+  const changedAt = profile?.configured ? profile.updatedAt : null
+  const storageKey = 'pichci.training.keepPlanAfter'
+  const [kept, setKept] = useState<string | null>(() => {
+    try { return localStorage.getItem(storageKey) } catch { return null }
+  })
+  if (!changedAt || Date.parse(changedAt) <= Date.parse(programCreatedAt) || kept === changedAt) return null
+  const keep = () => {
+    try { localStorage.setItem(storageKey, changedAt) } catch { /* private mode: hide for this visit only */ }
+    setKept(changedAt)
+  }
+  const sous = chat?.enabled ?? false
+  return (
+    <section role="status" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 0', borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--rule)' }}>
+      <span style={{ font: sans(15.5, 600) }}>Ankieta zmieniła się po ułożeniu planu</span>
+      <span style={{ font: sans(14), color: 'var(--text-2)', lineHeight: 1.5 }}>
+        Ćwiczenia w planie są dobrane do poprzednich odpowiedzi (np. siłownia zamiast domu). Ułóż plan od nowa — obecny
+        trafi do archiwum, historia treningów zostaje.
+      </span>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {sous && <Button size="sm" onClick={() => requestChat(SOUS_REBUILD_PROMPT)}>✦ Nowy plan z Sous</Button>}
+        <Button size="sm" variant={sous ? 'outline' : 'primary'} disabled={template.isPending} onClick={() => template.mutate()}>
+          {template.isPending ? 'Układam…' : 'Nowy plan z szablonu'}
+        </Button>
+        <Button size="sm" variant="quiet" onClick={keep}>Zostaw obecny</Button>
+      </div>
+      {template.isError && (
+        <p role="alert" style={{ margin: 0, font: sans(13.5), color: 'var(--accent-text)' }}>
+          {errorText(template.error, 'Nie udało się ułożyć planu.')}
         </p>
       )}
     </section>

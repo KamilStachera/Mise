@@ -6,7 +6,7 @@ import { useStartSession, useTrainingProgram, type ProgramDay, type ProgramExerc
 import { DayCard } from '../../components/training/DayCard'
 import { DayEditorSheet, type DayEditorTarget } from '../../components/training/DayEditorSheet'
 import { ExerciseSheet } from '../../components/training/ExerciseSheet'
-import { PlanCta, SOUS_ADJUST_PROMPT } from '../../components/training/PlanCta'
+import { PlanCta, ProfileChangedNote, SOUS_ADJUST_PROMPT } from '../../components/training/PlanCta'
 import { SwapSheet } from '../../components/training/SwapSheet'
 import { TrainingNav } from '../../components/training/TrainingNav'
 import { SousButton } from '../../components/SousButton'
@@ -102,6 +102,7 @@ export function ProgramView() {
 
       {program && (
         <>
+          <ProfileChangedNote programCreatedAt={program.createdAt} />
           {program.rationale && (
             <details style={{ borderTop: '1px solid var(--rule)', borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
               <summary style={{ cursor: 'pointer', font: sans(14.5, 600) }}>Dlaczego taki plan</summary>
