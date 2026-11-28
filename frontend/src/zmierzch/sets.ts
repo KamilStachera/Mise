@@ -1,3 +1,4 @@
+import { isMovieQuestion } from './queue'
 import { PART_LABEL, type Part, type Question } from './types'
 
 export interface QuizSet {
@@ -90,6 +91,37 @@ export const QUIZ_SETS: readonly QuizSet[] = [
     ],
   },
   {
+    slug: 'egzamin-filmowy',
+    scope: 'set:egzamin-filmowy',
+    title: 'Egzamin · Poziom Volturi (filmy)',
+    subtitle: '25 trudnych pytań wyłącznie z filmów — detale, obsada, muzyka i sceny z ekranu.',
+    difficultyLabel: 'Trudne · filmy',
+    seconds: 20,
+    questionIds: [
+      'zm-014', 'zm-021', 'zm-033', 'zm-054', 'zm-061',
+      'kn-012', 'kn-023', 'kn-036', 'kn-037', 'ku-021',
+      'za-003', 'za-006', 'za-007', 'za-027', 'za-048',
+      'ps-013', 'ps-025', 'ps-037', 'ps-038', 'ps-042',
+      'ku-012', 'ku-041', 'ku-045', 'ku-050', 'ku-074',
+    ],
+  },
+  {
+    slug: 'proba-mova-filmy',
+    scope: 'set:proba-mova-filmy',
+    title: 'Próba generalna Mova (tylko filmy)',
+    subtitle: 'Pełna symulacja pub quizu w wersji wyłącznie filmowej: 45 pytań z 5 filmów, bez książek.',
+    difficultyLabel: 'Wszystkie · filmy',
+    seconds: 20,
+    questionIds: [
+      'zm-003', 'zm-011', 'zm-014', 'zm-015', 'zm-027', 'zm-039', 'zm-043', 'zm-051', 'zm-059',
+      'kn-003', 'kn-004', 'kn-009', 'kn-013', 'kn-022', 'kn-027', 'kn-031', 'kn-043', 'kn-050',
+      'za-002', 'za-005', 'za-013', 'za-018', 'za-022', 'za-026', 'za-038', 'za-044', 'za-049',
+      'ps-002', 'ps-006', 'ps-010', 'ps-012', 'ps-019', 'ps-024', 'ps-030', 'ps-040', 'ps-063',
+      'sa-014', 'sa-017', 'sa-030', 'sa-051', 'sa-056',
+      'ku-015', 'ku-027', 'ku-045', 'ku-058',
+    ],
+  },
+  {
     slug: 'proba-mova',
     scope: 'set:proba-mova',
     title: 'Próba generalna Mova',
@@ -119,6 +151,12 @@ export function resolveSetQuestions(set: QuizSet, all: readonly Question[]): Que
     if (q) out.push(q)
   }
   return out
+}
+
+/** True if every question in the set is answerable from the films alone (no book-only or book-vs-film entries). */
+export function isMovieOnlySet(set: QuizSet, all: readonly Question[]): boolean {
+  const qs = resolveSetQuestions(set, all)
+  return qs.length > 0 && qs.every(isMovieQuestion)
 }
 
 export function scopeLabel(scope: string): string {

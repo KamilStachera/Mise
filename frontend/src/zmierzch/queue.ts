@@ -23,6 +23,30 @@ export const DEFAULT_FILTERS: Filters = {
 }
 
 const FILTERS_KEY = 'zmierzch.filters.v1'
+const MOVIES_ONLY_KEY = 'zmierzch.moviesOnly.v1'
+
+/** True if the question can be answered from the films alone (excludes book-only and book-vs-film comparisons). */
+export function isMovieQuestion(q: Question): boolean {
+  if (q.source === 'ksiazka') return false
+  if (q.source === 'oba' && q.category === 'roznice') return false
+  return true
+}
+
+export function loadMoviesOnly(): boolean {
+  try {
+    return localStorage.getItem(MOVIES_ONLY_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function saveMoviesOnly(on: boolean) {
+  try {
+    localStorage.setItem(MOVIES_ONLY_KEY, on ? '1' : '0')
+  } catch {
+    /* convenience only */
+  }
+}
 
 export function loadFilters(): Filters {
   try {
@@ -53,10 +77,11 @@ export function saveFilters(f: Filters) {
   }
 }
 
-export function applyFilters(all: Question[], f: Filters, progress: ProgressMap): Question[] {
+export function applyFilters(all: Question[], f: Filters, progress: ProgressMap, moviesOnly = false): Question[] {
   return all.filter((q) => {
+    if (moviesOnly && !isMovieQuestion(q)) return false
     if (f.parts.length && !f.parts.includes(q.part)) return false
-    if (f.source !== 'all' && q.source !== f.source && q.source !== 'oba') return false
+    if (!moviesOnly && f.source !== 'all' && q.source !== f.source && q.source !== 'oba') return false
     if (f.categories.length && !f.categories.includes(q.category)) return false
     if (f.difficulties.length && !f.difficulties.includes(q.difficulty)) return false
     if (f.mistakesOnly) {
@@ -73,8 +98,8 @@ export function applyFilters(all: Question[], f: Filters, progress: ProgressMap)
  * - No extra filters & 1 part → 'part:<part>'
  * - Anything else (categories, source, difficulty, mistakes, multi-part) → 'custom' (unranked)
  */
-export function resolveQuizScope(f: Filters): string {
-  if (f.source !== 'all' || f.categories.length > 0 || f.difficulties.length > 0 || f.mistakesOnly) {
+export function resolveQuizScope(f: Filters, moviesOnly = false): string {
+  if ((!moviesOnly && f.source !== 'all') || f.categories.length > 0 || f.difficulties.length > 0 || f.mistakesOnly) {
     return 'custom'
   }
   if (f.parts.length === 0) return 'all'

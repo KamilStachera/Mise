@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api, loginUrl } from '../api/client'
 import { useAuth } from '../api/hooks'
-import { Button, Eyebrow, PageTitle, SectionHead, Segmented, StatStrip, UnderlineTabs, mono, sans, usePagePad } from '../components/ui'
+import { Button, Eyebrow, PageTitle, SectionHead, Segmented, StatStrip, Toggle, UnderlineTabs, mono, sans, usePagePad } from '../components/ui'
 import {
   useRecordZmierzchAttempt,
   useZmierzchLeaderboard,
@@ -32,10 +32,13 @@ import {
 import {
   DEFAULT_FILTERS,
   applyFilters,
+  isMovieQuestion,
   loadFilters,
+  loadMoviesOnly,
   pickSession,
   resolveQuizScope,
   saveFilters,
+  saveMoviesOnly,
   shuffle,
   type Filters,
 } from './queue'
@@ -66,6 +69,7 @@ export function TwilightQuiz() {
 
   const [view, setView] = useState<View>('start')
   const [boardScope, setBoardScope] = useState<string>('all')
+  const [moviesOnly, setMoviesOnly] = useState<boolean>(loadMoviesOnly)
   const [progress, setProgress] = useState<ProgressMap>(() => enrichWithParts(loadProgress(), QUESTIONS))
   const [filters, setFilters] = useState<Filters>(loadFilters)
   const [quizLen, setQuizLen] = useState<'10' | '20' | '45'>('20')
@@ -85,6 +89,7 @@ export function TwilightQuiz() {
 
   useEffect(() => saveProgress(progress), [progress])
   useEffect(() => saveFilters(filters), [filters])
+  useEffect(() => saveMoviesOnly(moviesOnly), [moviesOnly])
   useEffect(() => {
     const prev = document.title
     document.title = 'Zmierzch · trening do quizu'
@@ -144,8 +149,25 @@ export function TwilightQuiz() {
     }
   }, [isLoggedIn, flushSync])
 
-  const pool = useMemo(() => applyFilters(QUESTIONS, filters, progress), [filters, progress])
-  const currentQuizScope = useMemo(() => resolveQuizScope(filters), [filters])
+  const activeQuestions = useMemo(
+    () => (moviesOnly ? QUESTIONS.filter(isMovieQuestion) : QUESTIONS),
+    [moviesOnly],
+  )
+  const pool = useMemo(
+    () => applyFilters(QUESTIONS, filters, progress, moviesOnly),
+    [filters, progress, moviesOnly],
+  )
+  const currentQuizScope = useMemo(
+    () => resolveQuizScope(filters, moviesOnly),
+    [filters, moviesOnly],
+  )
+
+  const handleToggleMoviesOnly = (on: boolean) => {
+    setMoviesOnly(on)
+    if (on && filters.categories.includes('roznice')) {
+      setFilters((f) => ({ ...f, categories: f.categories.filter((c) => c !== 'roznice') }))
+    }
+  }
 
   const start = (mode: 'quiz' | 'fiszki') => {
     const size = Number(mode === 'quiz' ? quizLen : flashLen)
@@ -298,11 +320,40 @@ export function TwilightQuiz() {
 
         <PageTitle
           title={<>Zmierzch<span style={{ fontStyle: 'italic', color: 'var(--accent)' }}>.</span></>}
-          count={QUESTIONS.length}
+          count={activeQuestions.length}
           // Compact header mid-session so the question sits high on a phone.
           size={session ? 34 : undefined}
           sub={session ? undefined : 'Trening przed POP Quizem w Movie — sobota 28.11, 19:00, Grunwaldzka 20/2a.'}
         />
+
+        {!session && (
+          <div
+            onClick={() => handleToggleMoviesOnly(!moviesOnly)}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: `1px solid ${moviesOnly ? 'var(--sage)' : 'var(--border)'}`,
+              background: moviesOnly ? 'var(--accent-soft)' : 'var(--surface)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 14,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+              <span style={{ font: sans(14, 600), color: 'var(--text)' }}>Tylko filmy</span>
+              <span style={{ font: sans(12), color: 'var(--text-2)' }}>
+                {moviesOnly
+                  ? `Wykluczono pytania o książki i różnice (${activeQuestions.length} z ${QUESTIONS.length} pytań)`
+                  : `Wyklucz pytania książkowe i ćwicz wyłącznie pod filmy (${QUESTIONS.length} pytań)`}
+              </span>
+            </div>
+            <div onClick={(e) => e.stopPropagation()}>
+              <Toggle on={moviesOnly} onChange={handleToggleMoviesOnly} />
+            </div>
+          </div>
+        )}
 
         <UnderlineTabs<View>
           items={[
@@ -344,6 +395,7 @@ export function TwilightQuiz() {
 
         {!session && view === 'start' && (
           <StartView
+            questions={activeQuestions}
             progress={progress}
             isLoggedIn={isLoggedIn}
             onReset={() => void handleReset()}
@@ -355,6 +407,7 @@ export function TwilightQuiz() {
         {!session && view === 'zestawy' && (
           <SetsView
             isLoggedIn={isLoggedIn}
+            moviesOnly={moviesOnly}
             personalBests={personalBests}
             scopeCounts={scopeCounts}
             onStartSet={startSet}
@@ -365,6 +418,7 @@ export function TwilightQuiz() {
         {!session && view === 'ranking' && (
           <LeaderboardView
             isLoggedIn={isLoggedIn}
+            moviesOnly={moviesOnly}
             displayName={displayName}
             picture={picture}
             scope={boardScope}
@@ -410,7 +464,7 @@ export function TwilightQuiz() {
               {view === 'quiz' ? 'Start quizu' : 'Zacznij fiszki'}
             </Button>
             <SectionHead title="Filtry" size={20} />
-            <FiltersPanel value={filters} onChange={setFilters} poolSize={pool.length} />
+            <FiltersPanel value={filters} onChange={setFilters} poolSize={pool.length} moviesOnly={moviesOnly} />
           </div>
         )}
       </div>
@@ -428,19 +482,21 @@ function Option({ label, children }: { label: string; children: React.ReactNode 
 }
 
 function StartView({
+  questions,
   progress,
   isLoggedIn,
   onReset,
   onGo,
   onStartPart,
 }: {
+  questions: Question[]
   progress: ProgressMap
   isLoggedIn: boolean
   onReset: () => void
   onGo: (v: View) => void
   onStartPart: (part: Part | null) => void
 }) {
-  const all = countStates(QUESTIONS, progress)
+  const all = countStates(questions, progress)
   const days = Math.ceil((EVENT.getTime() - Date.now()) / 86_400_000)
   const countdown = days > 1 ? `${days} dni` : days === 1 ? 'jutro' : days === 0 ? 'dziś' : 'po quizie'
   return (
@@ -474,7 +530,7 @@ function StartView({
       <div>
         <SectionHead title="Postęp według części" />
         {PARTS.map((p) => {
-          const qs = QUESTIONS.filter((q) => q.part === p)
+          const qs = questions.filter((q) => q.part === p)
           const c = countStates(qs, progress)
           return (
             <div key={p} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -21,7 +21,17 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
-export function FiltersPanel({ value, onChange, poolSize }: { value: Filters; onChange: (f: Filters) => void; poolSize: number }) {
+export function FiltersPanel({
+  value,
+  onChange,
+  poolSize,
+  moviesOnly = false,
+}: {
+  value: Filters
+  onChange: (f: Filters) => void
+  poolSize: number
+  moviesOnly?: boolean
+}) {
   const set = (patch: Partial<Filters>) => onChange({ ...value, ...patch })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -45,14 +55,16 @@ export function FiltersPanel({ value, onChange, poolSize }: { value: Filters; on
           </Chip>
         ))}
       </Row>
-      <Row label="Źródło">
-        <Chip active={value.source === 'all'} onClick={() => set({ source: 'all' })}>Wszystko</Chip>
-        <Chip active={value.source === 'film'} onClick={() => set({ source: 'film' })}>Filmy</Chip>
-        <Chip active={value.source === 'ksiazka'} onClick={() => set({ source: 'ksiazka' })}>Książki</Chip>
-      </Row>
+      {!moviesOnly && (
+        <Row label="Źródło">
+          <Chip active={value.source === 'all'} onClick={() => set({ source: 'all' })}>Wszystko</Chip>
+          <Chip active={value.source === 'film'} onClick={() => set({ source: 'film' })}>Filmy</Chip>
+          <Chip active={value.source === 'ksiazka'} onClick={() => set({ source: 'ksiazka' })}>Książki</Chip>
+        </Row>
+      )}
       <Row label="Kategoria">
         <Chip active={value.categories.length === 0} onClick={() => set({ categories: [] })}>Wszystkie</Chip>
-        {CATEGORIES.map((c: Category) => (
+        {CATEGORIES.filter((c) => !moviesOnly || c !== 'roznice').map((c: Category) => (
           <Chip key={c} active={value.categories.includes(c)} onClick={() => set({ categories: toggle(value.categories, c) })}>
             {CATEGORY_LABEL[c]}
           </Chip>

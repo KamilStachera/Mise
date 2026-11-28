@@ -88,9 +88,10 @@ for (const id of ['zm-010', 'zm-011', 'zm-012', 'zm-024', 'za-008', 'sa-027']) {
 }
 
 // Validate fixed challenge sets in src/zmierzch/sets.ts: every referenced question id must exist
-// and appear at most once per set.
+// and appear at most once per set. Movie-labelled sets must contain zero book-only or book-vs-film entries.
 const setsSrc = readFileSync(fileURLToPath(new URL('../src/zmierzch/sets.ts', import.meta.url)), 'utf8')
 const setBlocks = [...setsSrc.matchAll(/slug:\s*'([^']+)'[\s\S]*?scope:\s*'([^']+)'[\s\S]*?questionIds:\s*\[([\s\S]*?)\]/g)]
+const MOVIE_ONLY_SETS = new Set(['rozgrzewka', 'egzamin-1', 'egzamin-2', 'egzamin-filmowy', 'proba-mova-filmy'])
 if (setBlocks.length === 0) errors.push('sets.ts: no quiz sets found')
 for (const [, slug, scope, body] of setBlocks) {
   if (scope !== `set:${slug}`) errors.push(`sets.ts (${slug}): scope "${scope}" must equal "set:${slug}"`)
@@ -98,7 +99,11 @@ for (const [, slug, scope, body] of setBlocks) {
   if (setIds.length === 0) errors.push(`sets.ts (${slug}): empty questionIds`)
   const seenInSet = new Set()
   for (const id of setIds) {
-    if (!questions.has(id)) errors.push(`sets.ts (${slug}): unknown question id "${id}"`)
+    const q = questions.get(id)
+    if (!q) errors.push(`sets.ts (${slug}): unknown question id "${id}"`)
+    else if (MOVIE_ONLY_SETS.has(slug) && (q.source === 'ksiazka' || (q.source === 'oba' && q.category === 'roznice'))) {
+      errors.push(`sets.ts (${slug}): movie-only set contains book question "${id}" (${q.source}/${q.category})`)
+    }
     if (seenInSet.has(id)) errors.push(`sets.ts (${slug}): duplicate question id "${id}"`)
     seenInSet.add(id)
   }

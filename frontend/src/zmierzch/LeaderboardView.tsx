@@ -9,13 +9,15 @@ import {
   type ZmierzchRunLeader,
 } from './api'
 import { QUESTIONS } from './questions'
-import { QUIZ_SETS, findSetByScope, scopeLabel, type QuizSet } from './sets'
+import { isMovieQuestion } from './queue'
+import { QUIZ_SETS, findSetByScope, isMovieOnlySet, scopeLabel, type QuizSet } from './sets'
 import { PARTS, PART_LABEL, type Part } from './types'
 
 type BoardMode = 'runs' | 'mastery'
 
 export function LeaderboardView({
   isLoggedIn,
+  moviesOnly,
   displayName,
   picture,
   scope,
@@ -25,6 +27,7 @@ export function LeaderboardView({
   onLogout,
 }: {
   isLoggedIn: boolean
+  moviesOnly: boolean
   displayName: string
   picture: string | null
   scope: string
@@ -60,10 +63,14 @@ export function LeaderboardView({
 
   const isFixedSet = scope.startsWith('set:')
   const activeMode: BoardMode = isFixedSet ? 'runs' : mode
+  const activeQuestions = moviesOnly ? QUESTIONS.filter(isMovieQuestion) : QUESTIONS
+  const visibleSets = moviesOnly
+    ? QUIZ_SETS.filter((s) => isMovieOnlySet(s, QUESTIONS) || s.scope === scope)
+    : QUIZ_SETS
   const scopeTotalQuestions = scope === 'all'
-    ? QUESTIONS.length
+    ? activeQuestions.length
     : scope.startsWith('part:')
-      ? QUESTIONS.filter((q) => q.part === scope.slice('part:'.length)).length
+      ? activeQuestions.filter((q) => q.part === scope.slice('part:'.length)).length
       : (findSetByScope(scope)?.questionIds.length ?? 0)
   const counts = data?.scopeCounts ?? {}
 
@@ -168,7 +175,7 @@ export function LeaderboardView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Eyebrow>Zestawy egzaminacyjne</Eyebrow>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {QUIZ_SETS.map((set) => (
+            {visibleSets.map((set) => (
               <Chip key={set.slug} active={scope === set.scope} onClick={() => onScopeChange(set.scope)}>
                 {set.title}{counts[set.scope] ? ` · ${counts[set.scope]}` : ''}
               </Chip>

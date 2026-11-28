@@ -1,21 +1,25 @@
 import { loginUrl } from '../api/client'
 import { Button, Eyebrow, SectionHead, mono, sans } from '../components/ui'
 import { formatDurationMs, type ZmierzchPersonalBest } from './api'
-import { QUIZ_SETS, type QuizSet } from './sets'
+import { QUESTIONS } from './questions'
+import { QUIZ_SETS, isMovieOnlySet, type QuizSet } from './sets'
 
 export function SetsView({
   isLoggedIn,
+  moviesOnly,
   personalBests,
   scopeCounts,
   onStartSet,
   onOpenLeaderboard,
 }: {
   isLoggedIn: boolean
+  moviesOnly: boolean
   personalBests: Record<string, ZmierzchPersonalBest>
   scopeCounts: Record<string, number>
   onStartSet: (set: QuizSet) => void
   onOpenLeaderboard: (scope: string) => void
 }) {
+  const visibleSets = moviesOnly ? QUIZ_SETS.filter((s) => isMovieOnlySet(s, QUESTIONS)) : QUIZ_SETS
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <p style={{ margin: 0, font: sans(15), lineHeight: 1.5, color: 'var(--text-2)' }}>
@@ -34,8 +38,11 @@ export function SetsView({
       )}
 
       <div>
-        <SectionHead title="Zestawy egzaminacyjne" meta={`${QUIZ_SETS.length} zestawów`} />
-        {QUIZ_SETS.map((set) => {
+        <SectionHead
+          title="Zestawy egzaminacyjne"
+          meta={moviesOnly ? `${visibleSets.length} z ${QUIZ_SETS.length} · tylko filmy` : `${visibleSets.length} zestawów`}
+        />
+        {visibleSets.map((set) => {
           const best = personalBests[set.scope]
           const players = scopeCounts[set.scope] ?? 0
           return (
